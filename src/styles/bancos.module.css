@@ -1,0 +1,80 @@
+.page{
+  padding:24px 0 32px;
+  background:
+    linear-gradient(135deg, rgba(30,58,138,0.08), rgba(24,169,87,0.08)),
+    var(--fondo);
+}
+.header{ margin-bottom: 12px; }
+.title{
+  margin:0; font-weight:800; font-size:24px; color:var(--ultramar);
+  letter-spacing:-0.2px;
+}
+.sub{ margin:4px 0 0; color:var(--gris); }
+
+.grid{
+  display:grid; gap:16px;
+  grid-template-columns:1fr;
+}
+@media (min-width: 980px){
+  .grid{ grid-template-columns:1.2fr 1fr; }
+}
+
+.card{
+  background:#fff; border:1px solid var(--borde); border-radius:16px;
+  padding:16px; box-shadow:0 8px 18px rgba(0,0,0,.04);
+}
+.cardTitle{ margin:0 0 4px; font-weight:800; color:var(--ultramar); }
+.cardSub{ margin:0 0 12px; color:var(--gris); }
+
+.actions{
+  margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;
+}
+
+/* Proveedores */
+.providers{ display:grid; gap:12px; }
+.providerCard{
+  border:1px solid var(--borde); border-radius:14px; padding:12px;
+  background:#fff; box-shadow:0 6px 14px rgba(0,0,0,.03);
+}
+.providerHead{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+}
+.providerInfo{ display:flex; gap:10px; align-items:center; }
+.providerLogo{
+  width:34px; height:34px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; color:#fff;
+  background: linear-gradient(135deg, var(--ultramar), var(--trebol));
+}
+.providerName{ font-weight:800; color:var(--oscuro); }
+.providerDesc{ font-size:12px; color:var(--gris); }
+
+.status{
+  font-size:12px; font-weight:800; border:1px solid; border-radius:999px;
+  padding:4px 8px; text-transform:none;
+}
+.status[data-state="ok"]{
+  color:#0a7f4f; background:rgba(24,169,87,.10); border-color:rgba(24,169,87,.35);
+}
+.status[data-state="off"]{
+  color:#6b7280; background:rgba(107,114,128,.10); border-color:rgba(107,114,128,.35);
+}
+
+.providerActions{
+  margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;
+}
+.btnConnect{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:10px; font-weight:800; color:#fff; text-decoration:none;
+  background: linear-gradient(135deg, var(--ultramar), var(--trebol)); border:none;
+  box-shadow:0 6px 14px rgba(24,169,87,.22);
+}
+.btnManage{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:10px; font-weight:800; color:var(--ultramar); text-decoration:none;
+  background:#fff; border:1px solid var(--ultramar);
+}
+.btnDanger{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:10px; font-weight:800; color:#b91c1c; background:#fff; border:1px solid #fecaca;
+}

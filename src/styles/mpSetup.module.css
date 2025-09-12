@@ -1,0 +1,18 @@
+/* src/styles/mpSetup.module.css */
+.wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+.step { background: #fff; border-radius: 12px; padding: 16px; margin: 12px 0;
+        box-shadow: 0 4px 14px rgba(0,0,0,.06); border: 1px solid #e5e7eb; }
+.hdr  { display:flex; gap:12px; align-items:center; margin-bottom:8px; }
+.badge{ background:#eef2ff; color:#1e3a8a; font-weight:600; font-size:12px;
+        padding:2px 8px; border-radius:999px; }
+.row  { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:8px; }
+.input, .textarea { width:100%; border:1px solid #d1d5db; border-radius:10px;
+        padding:10px 12px; font-size:14px; background:#fff; }
+.textarea { min-height:72px; }
+.btn  { display:inline-flex; align-items:center; justify-content:center;
+        padding:10px 14px; border-radius:10px; border:1px solid #1f3b82;
+        color:#1f3b82; background:#fff; cursor:pointer; }
+.btnPrimary { background:linear-gradient(90deg,#153d8a,#1fb86a); color:#fff; border:none; }
+.note { font-size:12px; color:#6b7280; margin-top:6px; }
+.status{ font-size:12px; color:#374151; margin-left:8px; }
+

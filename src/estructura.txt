@@ -1,0 +1,107 @@
+Listado de rutas de carpetas
+El n£mero de serie del volumen es 34E8-C1EF
+C:.
+|   estructura.txt
+|   
++---components
+|   |   Grid.js
+|   |   Header.jsx
+|   |   Layout.jsx
+|   |   RifaCard.jsx
+|   |   
+|   \---ui
+|           Banner.jsx
+|           Modal.jsx
+|           
++---lib
+|       greetOnce.js
+|       mock.js
+|       mpRest.js
+|       posts.js
+|       supabaseAdmin.js
+|       supabaseClient.js
+|       supabaseServer.js
+|       
++---pages
+|   |   404.js
+|   |   contacto.js
+|   |   crear-rifa.jsx
+|   |   index.js
+|   |   login.jsx
+|   |   perfil.js
+|   |   planes.js
+|   |   register.jsx
+|   |   rifas.js
+|   |   terminos.js
+|   |   _app.js
+|   |   _document.jsx
+|   |   
+|   +---api
+|   |   +---auth
+|   |   |       me.js
+|   |   |       
+|   |   +---checkout
+|   |   |       confirm.js
+|   |   |       failure.js
+|   |   |       index.js
+|   |   |       mp.js
+|   |   |       pending.js
+|   |   |       success.js
+|   |   |       webhook.js
+|   |   |       
+|   |   +---merchant
+|   |   |   \---mp
+|   |   |           get.js
+|   |   |           save.js
+|   |   |           
+|   |   +---profile
+|   |   |       me.js
+|   |   |       
+|   |   \---rifas
+|   |       |   index.js
+|   |       |   
+|   |       \---[id]
+|   |               index.js
+|   |               tickets.js
+|   |               
+|   +---blog
+|   |       index.js
+|   |       [slug].js
+|   |       
+|   +---chat
+|   |       [raffleId].js
+|   |       
+|   +---checkout
+|   |       failure.jsx
+|   |       pending.jsx
+|   |       success.jsx
+|   |       
+|   +---panel
+|   |       bancos.js
+|   |       index.js
+|   |       mercado-pago.js
+|   |       
+|   \---rifas
+|           [id].jsx
+|           
+\---styles
+        bancos.module.css
+        blog.module.css
+        chat.module.css
+        checkoutReturn.module.css
+        contacto.module.css
+        crearRifa.module.css
+        globals.css
+        index.module.css
+        legal.module.css
+        login.module.css
+        mpSetup.module.css
+        panel.module.css
+        perfil.module.css
+        planes.module.css
+        post.module.css
+        register.module.css
+        rifaCard.module.css
+        rifaDetalle.module.css
+        rifas.module.css
+        

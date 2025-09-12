@@ -1,0 +1,80 @@
+/* =========================
+   Paleta / Variables
+   ========================= */
+:root{
+  --trebol:#18A957;
+  --turquesa:#23B6C6;
+  --ultramar:#1E3A8A;
+  --oscuro:#111111;
+  --gris:#6B7280;
+  --borde:#E5E7EB;
+  --fondo:#F7F8FA;
+  --white:#FFFFFF;
+}
+
+/* =========================
+   Reset mínimo
+   ========================= */
+* { box-sizing: border-box; }
+html, body {
+  padding:0; margin:0;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--fondo);
+  color: var(--oscuro);
+}
+
+/* =========================
+   Utilidades base
+   ========================= */
+.container { width:100%; max-width:1100px; margin:0 auto; padding:16px; }
+.grid { display:grid; gap:16px; }
+
+/* Botones */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:12px 16px; border-radius:10px; font-weight:600; text-decoration:none;
+  border:1px solid transparent; cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.btn:hover { filter:brightness(0.97); }
+.btn:focus-visible { outline:none; box-shadow:0 0 0 3px rgba(30,58,138,.18); }
+.btn-primary { background:var(--ultramar); color:var(--white); border-color:var(--ultramar); }
+.btn-ghost { background:transparent; color:var(--ultramar); border-color:var(--ultramar); }
+
+/* Inputs genéricos */
+.input {
+  width:100%; padding:12px 14px; border:1px solid var(--borde);
+  border-radius:10px; font-size:16px; background:var(--white); color:var(--oscuro);
+}
+.input:focus { outline:none; box-shadow:0 0 0 3px rgba(30,58,138,.12); }
+
+/* Etiquetas y ayudas */
+.label { display:block; font-weight:600; margin:8px 0 6px; color:var(--oscuro); }
+.help { font-size:12px; color:var(--gris); margin-top:6px; }
+
+/* Bloques neutros */
+.card { background:var(--white); border:1px solid var(--borde); border-radius:16px; padding:16px; }
+.badge { display:inline-block; background:var(--fondo); border:1px solid var(--borde); padding:4px 8px; border-radius:999px; font-size:12px; color:#333; }
+
+/* =========================
+   Header (global del sitio)
+   ========================= */
+.rf-header { background:var(--white); border-bottom:1px solid var(--borde); position:sticky; top:0; z-index:20; }
+.rf-header-inner { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; max-width:1100px; margin:0 auto; }
+.rf-logo { display:flex; align-items:center; gap:10px; font-weight:800; color:var(--ultramar); text-decoration:none; }
+.rf-nav { display:flex; align-items:center; gap:12px; }
+.rf-nav a { color:var(--oscuro); text-decoration:none; padding:8px 10px; border-radius:8px; }
+.rf-nav a:hover { background:var(--fondo); }
+
+/* Accesibilidad / motion */
+@media (prefers-reduced-motion: reduce){
+  *{ transition:none !important; animation:none !important; }
+}
+
+
+/* Resaltado de link activo en el header */
+.rf-nav .rf-nav__link[data-active="true"]{
+  background: var(--fondo);
+  color: var(--ultramar);
+  font-weight: 700;
+  border-radius: 8px;
+}

@@ -1,0 +1,39 @@
+# Node / Next
+node_modules/
+.next/
+out/
+dist/
+
+# Env (no subir secretos)
+.env
+.env.*
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+# pero mantener ejemplos
+!.env.example
+docs/dotenv.example
+
+# Zips / builds
+*.zip
+*.tar
+*.tgz
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+
+# Logs y caches
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.eslintcache
+.turbo/
+.vercel/
+coverage/
+.cache/

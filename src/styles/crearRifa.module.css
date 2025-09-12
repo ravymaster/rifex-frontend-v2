@@ -1,0 +1,206 @@
+/* Fondo base (suave). Los “costados” se definen al final con .pageEdges* */
+.page {
+  min-height: calc(100vh - 64px);
+  padding: 24px 0;
+  background:
+    linear-gradient(135deg, rgba(30,58,138,0.08) 0%, rgba(24,169,87,0.08) 100%),
+    var(--fondo);
+  background-attachment: fixed;
+}
+
+/* Top links (panel + términos + planes) */
+.topBar{ margin-bottom: 16px; }
+
+.topGrid{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+@media (min-width: 900px){
+  .topGrid{ grid-template-columns: 1fr 1fr; align-items: center; }
+}
+.topLeft{ }
+.topRight{
+  display:flex; gap:10px; flex-wrap: wrap; justify-content: flex-end;
+}
+
+/* Botón grande “Ir al panel” */
+.quick{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:12px 16px; border-radius:12px; font-weight:800; text-decoration:none;
+}
+.quickPrimary{
+  color:#fff; border:none;
+  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
+  box-shadow: 0 6px 16px rgba(24,169,87,.25);
+}
+
+/* Píldoras de términos */
+.pillLink{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:999px; font-weight:700; text-decoration:none;
+  background:#fff; color: var(--ultramar); border:1px solid var(--ultramar);
+}
+
+/* Callout de planes */
+.planCard{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  background: linear-gradient(135deg, rgba(30,58,138,0.08), rgba(24,169,87,0.08));
+  border:1px solid var(--borde);
+  border-radius:14px;
+  padding:12px 14px;
+}
+.planSub{ color: var(--gris); font-size: 13px; }
+.planCta{
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:10px 14px; border-radius:10px; font-weight:800; text-decoration:none;
+  color:#fff; background: linear-gradient(135deg, var(--ultramar), var(--trebol));
+  border:none; box-shadow: 0 6px 14px rgba(24,169,87,.22);
+}
+
+/* Card principal del formulario */
+.formCard {
+  background: var(--white);
+  color: var(--oscuro);
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 24px rgba(0,0,0,.06);
+}
+
+/* Títulos locales con mejor contraste */
+.title {
+  margin: 0 0 8px;
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: var(--ultramar);
+  letter-spacing: -0.2px;
+}
+.sub { margin: 0 0 24px; color: var(--gris); }
+
+/* Badge con leve gradiente Rifex */
+.badge {
+  background: linear-gradient(135deg, rgba(30,58,138,0.07), rgba(24,169,87,0.07));
+  border: 1px solid var(--borde);
+  color: var(--oscuro);
+}
+
+/* Ancho mayor del container en desktop para formulario largo */
+@media (min-width: 1024px){
+  .page :global(.container){ max-width: 960px; }
+}
+
+/* === Overrides locales de elementos globales (scoped) === */
+
+/* rf-pill (inputs y textarea) */
+.formCard :global(.rf-pill){
+  width:100%;
+  padding:14px 16px;
+  border-radius:16px;
+  border:1px solid rgba(0,0,0,0.06);
+  background:#fff;
+  color:var(--oscuro);
+  font-size:16px;
+}
+.formCard :global(.rf-pill:focus){
+  outline:none;
+  box-shadow:0 0 0 3px rgba(30,58,138,.12);
+}
+/* textarea específico */
+.formCard :global(textarea.rf-pill){
+  -webkit-appearance:none;
+  appearance:none;
+  min-height:160px;
+  line-height:1.45;
+  resize:vertical;
+}
+
+/* Grilla de temáticas solo aquí */
+.formCard :global(.rifa-grid){
+  display:grid;
+  grid-template-columns:repeat(1,minmax(0,1fr));
+  gap:16px;
+}
+@media (min-width:640px){
+  .formCard :global(.rifa-grid){ grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (min-width:960px){
+  .formCard :global(.rifa-grid){ grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+
+/* Toggle premio (scoped) */
+.formCard :global(.rf-toggle){
+  display:inline-flex; gap:6px; background:#f1f5f9; padding:6px;
+  border-radius:12px; border:1px solid var(--borde);
+}
+.formCard :global(.rf-toggle-btn){
+  border:none; background:#fff; padding:10px 14px; border-radius:10px; cursor:pointer;
+  font-weight:700; border:1px solid #e5e7eb;
+}
+.formCard :global(.rf-toggle-btn.active){
+  border-color: var(--ultramar);
+  box-shadow: 0 0 0 3px rgba(30,58,138,.12);
+}
+
+/* === Colorear SOLO los márgenes laterales (izq/der) === */
+/* Mantén sincronizado con el max-width del container (arriba: 960px) */
+.pageEdgesBlue,
+.pageEdgesGreen{
+  --content-max: 960px; /* mismo valor que .page :global(.container){ max-width } */
+  --gutter: clamp(0px, calc((100vw - var(--content-max)) / 2), 45vw);
+}
+
+/* Azul ultramar en los costados */
+.pageEdgesBlue{
+  --edge: #1E3A8A;
+  background:
+    linear-gradient(to right,
+      var(--edge) 0,
+      var(--edge) var(--gutter),
+      transparent var(--gutter),
+      transparent calc(100% - var(--gutter)),
+      var(--edge) calc(100% - var(--gutter)),
+      var(--edge) 100%
+    ),
+    var(--fondo);
+}
+
+/* Verde trébol en los costados */
+.pageEdgesGreen{
+  --edge: #0F604F;
+  background:
+    linear-gradient(to right,
+      var(--edge) 0,
+      var(--edge) var(--gutter),
+      transparent var(--gutter),
+      transparent calc(100% - var(--gutter)),
+      var(--edge) calc(100% - var(--gutter)),
+      var(--edge) 100%
+    ),
+    var(--fondo);
+}
+
+/* styles/crearRifa.module.css */
+.btnCreate {
+  cursor: pointer;                /* ← manito */
+  background: #111827;
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  transition: filter .12s ease, transform .02s ease;
+}
+
+.btnCreate:hover { filter: brightness(1.06); }
+.btnCreate:active { transform: translateY(1px); }
+.btnCreate:disabled { opacity: .6; cursor: not-allowed; }
+
+/* Accesibilidad (teclado) */
+.btnCreate:focus-visible {
+  outline: 3px solid #2563eb33;
+  box-shadow: 0 0 0 3px #2563eb66;
+}
+

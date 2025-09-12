@@ -1,0 +1,7 @@
+.page{ padding:24px 0 40px; background: linear-gradient(135deg, rgba(24,169,87,.08), rgba(30,58,138,.08)), var(--fondo); }
+.header{ margin-bottom:8px; }
+.emoji{ font-size:34px; }
+.title{ margin:6px 0; font-weight:800; color:var(--ultramar); }
+.meta{ color:var(--gris); }
+.content p{ color:#334155; }
+.content h3{ margin:16px 0 8px; color:#0f172a; }

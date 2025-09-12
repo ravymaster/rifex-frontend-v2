@@ -1,0 +1,104 @@
+.page{
+  padding: 24px 0 32px;
+  background:
+    linear-gradient(135deg, rgba(24,169,87,0.08), rgba(30,58,138,0.08)),
+    var(--fondo);
+}
+
+/* Header */
+.header{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  margin-bottom: 12px;
+}
+.title{
+  margin:0; font-weight:800; font-size:24px; color:var(--ultramar);
+  letter-spacing:-0.2px;
+}
+.sub{ margin:4px 0 0; color:var(--gris); }
+.headerActions{ display:flex; gap:8px; }
+
+/* Métricas */
+.metrics{
+  display:grid; gap:12px;
+  grid-template-columns: repeat(1, minmax(0,1fr));
+  margin-bottom: 16px;
+}
+@media (min-width: 700px){
+  .metrics{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+.metricCard{
+  background:#fff; border:1px solid var(--borde); border-radius:14px; padding:14px;
+  box-shadow:0 8px 18px rgba(0,0,0,.04);
+}
+.metricLabel{ font-size:12px; color:var(--gris); margin-bottom:6px; }
+.metricValue{
+  font-weight:800; font-size:22px; letter-spacing:-0.2px;
+  color:var(--oscuro);
+}
+
+/* Sección “Mis rifas” */
+.section{ margin-top: 10px; }
+.secHead{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  margin-bottom: 8px;
+}
+.secTitle{ margin:0; font-weight:800; color:var(--oscuro); }
+.secActions{ display:flex; gap:6px; flex-wrap:wrap; }
+
+.filtBtn{
+  border:1px solid var(--borde);
+  background:#fff; color:var(--oscuro);
+  padding:6px 10px; border-radius:999px; font-weight:700; cursor:pointer;
+  font-size: 13px;
+}
+.filtBtn[data-active="true"]{
+  border-color: var(--ultramar);
+  box-shadow: 0 0 0 3px rgba(30,58,138,.12);
+}
+
+/* “Tabla” responsive */
+.table{
+  border:1px solid var(--borde); border-radius:14px; background:#fff;
+  overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04);
+}
+.tHead, .tRow{
+  display:grid; gap:10px; padding:12px 14px; align-items:center;
+  grid-template-columns: 2fr 0.9fr 0.9fr 1fr 1.2fr;
+}
+.tHead{
+  background: linear-gradient(135deg, rgba(30,58,138,0.06), rgba(24,169,87,0.06));
+  border-bottom:1px solid var(--borde);
+  font-weight:800; color:var(--ultramar);
+}
+.tBody .tRow{ border-top:1px solid var(--borde); }
+.tBody .tRow:first-child{ border-top:none; }
+
+.tTitle{ font-weight:700; }
+.tCenter{ text-align:center; }
+.tRight{ text-align:right; }
+
+.thCenter{ text-align:center; }
+.thRight{ text-align:right; }
+
+.state{
+  font-size:12px; font-weight:800; text-transform:capitalize;
+  padding:4px 8px; border-radius:999px; border:1px solid;
+}
+.state[data-state="publicada"]{
+  color:#0a7f4f; background:rgba(24,169,87,.10); border-color:rgba(24,169,87,.35);
+}
+.state[data-state="borrador"]{
+  color:#6b7280; background:rgba(107,114,128,.10); border-color:rgba(107,114,128,.35);
+}
+
+.link{ color: var(--ultramar); text-decoration: underline; }
+.sep{ margin: 0 6px; color:#94a3b8; }
+
+/* Responsive: apilar en móvil */
+@media (max-width: 640px){
+  .tHead, .tRow{
+    grid-template-columns: 1fr;
+    text-align:left;
+  }
+  .thCenter, .thRight, .tCenter, .tRight{ text-align:left; }
+}

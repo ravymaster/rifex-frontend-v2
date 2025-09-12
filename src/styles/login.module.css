@@ -1,0 +1,138 @@
+/* Página: fondo neutro */
+.page{
+  min-height: calc(100vh - 64px);
+  display:flex; align-items:center; justify-content:center;
+  padding:24px 16px;
+  background: var(--fondo);
+}
+
+/* Tarjeta grande con gradiente Rifex */
+.shell{
+  width:100%; max-width:1100px;
+  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
+  border-radius: 28px;
+  padding: 18px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.12);
+}
+
+/* Grid interno */
+.inner{
+  display:grid; gap:18px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px){
+  .inner{ grid-template-columns: 1.15fr 1fr; }
+}
+
+/* Panel de marca */
+.brandPanel{
+  background: rgba(255,255,255,0.10);
+  border-radius: 20px;
+  display:flex; align-items:center; justify-content:center;
+  padding: 24px;
+  color: #fff;
+  text-align: center;
+}
+.brandBox{ max-width: 520px; }
+.logo{ width: 64px; height: 64px; object-fit: contain; margin-bottom: 12px; }
+.brandTitle{ margin:0 0 8px; font-weight: 800; font-size: 28px; letter-spacing:-0.2px; }
+.brandText{ margin:0 auto 16px; max-width: 440px; opacity:.95; }
+
+/* Dots */
+.dots{ display:flex; gap:10px; justify-content:center; }
+.dot{
+  width: 12px; height: 12px; border-radius: 999px; background: #fff; opacity:.9;
+  box-shadow: 0 1px 6px rgba(0,0,0,.12);
+}
+.dot[data-variant="blue"]{ background: #1e3a8a; }
+.dot[data-variant="teal"]{ background: #23B6C6; }
+.dot[data-variant="green"]{ background: #18A957; }
+
+/* Panel del formulario */
+.formPanel{
+  background:#fff; color:var(--oscuro);
+  border-radius: 20px; border: 1px solid rgba(255,255,255,0.20);
+  padding: 24px;
+  box-shadow: 0 12px 26px rgba(0,0,0,.06);
+}
+
+/* Títulos form */
+.formTitle{
+  margin:0 0 6px; font-weight: 800; color: var(--ultramar);
+  letter-spacing: -0.2px; font-size: 26px; line-height: 1.20;
+}
+.formSub{ margin:0 0 16px; color: var(--gris); }
+
+/* Inputs (solo en este panel) */
+.formPanel :global(.input){
+  border-radius: 12px;
+  border: 1px solid var(--borde);
+  background: #fff;
+  box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 1px 8px rgba(0,0,0,.02);
+}
+.formPanel :global(.input:focus){
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(30,58,138,.14);
+}
+
+/* Acciones */
+.actions{
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+/* Botones */
+.btnPrimary{
+  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
+  color:#fff; border:none;
+  box-shadow: 0 8px 18px rgba(24,169,87,.25);
+}
+.btnSecondary{
+  background:#fff; color: var(--ultramar);
+  border:1px solid var(--ultramar);
+}
+
+/* ===== Desktop compacto (igual que Register compacto) ===== */
+@media (min-width: 900px){
+  .shell{
+    max-width: 880px;         /* más angosto */
+    padding: 10px;
+    border-radius: 18px;
+    box-shadow: 0 12px 22px rgba(0,0,0,.10);
+  }
+  .inner{
+    gap: 12px;
+    grid-template-columns: 1.05fr 0.95fr;
+  }
+
+  .brandPanel{
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .brandBox{ max-width: 380px; }
+  .logo{ width: 50px; height: 50px; margin-bottom: 8px; }
+  .brandTitle{ font-size: 22px; }
+  .brandText{ max-width: 340px; }
+
+  .dot{ width: 9px; height: 9px; }
+
+  .formPanel{
+    padding: 14px;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(0,0,0,.06);
+  }
+  .formTitle{ font-size: 22px; }
+  .formSub{ margin-bottom: 10px; }
+
+  .formPanel :global(.input){
+    border-radius: 9px;
+    padding: 9px 11px;
+  }
+
+  .actions{ gap: 8px; }
+  .actions :global(.btn){
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+}

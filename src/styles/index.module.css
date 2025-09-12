@@ -1,0 +1,76 @@
+.page {}
+
+/* HERO con gradiente Rifex suave */
+.hero {
+  padding: 36px 0 40px;
+  background:
+    linear-gradient(135deg, rgba(30,58,138,0.10) 0%, rgba(24,169,87,0.10) 100%),
+    var(--fondo);
+  border-bottom: 1px solid var(--borde);
+}
+.heroInner { }
+.heroTitle {
+  margin: 0 0 8px;
+  font-weight: 800;
+  line-height: 1.15;
+  font-size: 28px;
+  letter-spacing: -0.3px;
+  color: var(--oscuro);
+}
+.heroTitle span { color: var(--ultramar); }
+.heroSub {
+  margin: 0 0 18px;
+  color: var(--gris);
+}
+
+/* CTAs del hero (estilos locales encima de .btn global) */
+.ctaRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ctaPrimary {
+  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
+  color: #fff;
+  border: none;
+  box-shadow: 0 6px 16px rgba(24,169,87,.25);
+}
+.ctaSecondary {
+  background: #fff;
+  color: var(--ultramar);
+  border: 1px solid var(--ultramar);
+}
+
+/* FEATURES */
+.features {
+  padding: 28px 0 40px;
+}
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0,1fr));
+  gap: 16px;
+}
+@media (min-width: 768px){
+  .featuresGrid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+.featureCard {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 10px 20px rgba(0,0,0,.03);
+}
+.featureIcon {
+  font-size: 22px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.featureTitle {
+  margin: 0 0 6px;
+  font-weight: 800;
+  color: var(--ultramar);
+}
+.featureText {
+  margin: 0;
+  color: var(--gris);
+}

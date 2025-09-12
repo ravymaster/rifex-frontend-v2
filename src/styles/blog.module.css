@@ -1,0 +1,18 @@
+.page{ padding:24px 0 32px; background: linear-gradient(135deg, rgba(30,58,138,.08), rgba(24,169,87,.08)), var(--fondo); }
+.header{ margin-bottom:12px; }
+.title{ margin:0; font-weight:800; font-size:26px; color:var(--ultramar); }
+.sub{ margin:4px 0 0; color:var(--gris); }
+
+.grid{ display:grid; gap:16px; grid-template-columns:1fr; }
+@media (min-width:1000px){ .grid{ grid-template-columns:1fr 1fr; } }
+
+.card{
+  background:#fff; border:1px solid var(--borde); border-radius:16px; padding:16px;
+  box-shadow:0 10px 24px rgba(0,0,0,.06);
+}
+.emoji{ font-size:28px; }
+.postTitle{ margin:6px 0; }
+.meta{ color:var(--gris); font-size:12px; margin-bottom:6px; }
+.excerpt{ color:#334155; }
+.tags{ display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.tag{ font-size:12px; background:var(--fondo); border:1px solid var(--borde); border-radius:999px; padding:4px 8px; }
