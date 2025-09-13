@@ -1,153 +1,209 @@
 // src/pages/api/checkout/mp.js
-import { createClient } from '@supabase/supabase-js';
-import { MercadoPagoConfig, Preference } from 'mercadopago';
+import { createClient } from "@supabase/supabase-js";
+import { MercadoPagoConfig, Preference } from "mercadopago";
 
-/**
- * ENV requeridas:
- *  - NEXT_PUBLIC_SUPABASE_URL
- *  - SUPABASE_SERVICE_ROLE_KEY
- *  - NEXT_PUBLIC_BASE_URL (https://<tu-tunnel>.trycloudflare.com, SIN slash final)
- *  - MP_ACCESS_TOKEN
- */
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const service = process.env.SUPABASE_SERVICE_ROLE_KEY || null;
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY; // server-side
-const RAW_BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-const BASE_URL     = RAW_BASE_URL.replace(/\/+$/, ''); // sin / final
+const supabase = createClient(url, service || anon, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
-const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+// minutos que dura la reserva
+const HOLD_MINUTES = parseInt(process.env.HOLD_MINUTES || "3", 10);
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  // Helpers de rollback si algo sale mal
-  const rollbackTickets = async (raffleId, numbers, purchaseId) => {
-    try {
-      await supabase
-        .from('tickets')
-        .update({ status: 'available', purchase_id: null })
-        .eq('raffle_id', raffleId)
-        .in('number', numbers);
-      if (purchaseId) {
-        await supabase
-          .from('purchases')
-          .update({ status: 'failure' })
-          .eq('id', purchaseId);
-      }
-    } catch (_) {}
-  };
-
   try {
-    const body = req.body || {};
-    const raffleId   = body.raffle_id || body.raffleId;
-    const numbers    = Array.isArray(body.numbers) ? body.numbers.map(n => Number(n)) : [];
-    const buyerEmail = (body.buyer_email || body.buyerEmail || '').trim() || null;
+    const {
+      raffle_id,
+      raffleId,
+      numbers,
+      buyer_email,
+      buyer_name,
+      accepted_terms,
+      terms_version,
+    } = req.body || {};
 
-    if (!SUPABASE_URL || !SERVICE_KEY) {
-      return res.status(500).json({ ok: false, error: 'missing_supabase_envs' });
-    }
-    if (!process.env.MP_ACCESS_TOKEN) {
-      return res.status(500).json({ ok: false, error: 'missing_mp_access_token' });
-    }
-    if (!raffleId || numbers.length === 0) {
-      return res.status(400).json({ ok: false, error: 'missing_params' });
-    }
+    const rid = raffle_id || raffleId;
+    if (!rid) return res.status(400).json({ ok: false, error: "missing_raffle_id" });
+    if (!Array.isArray(numbers) || numbers.length === 0)
+      return res.status(400).json({ ok: false, error: "missing_numbers" });
 
-    // 1) Rifa
-    const { data: raffle, error: rerr } = await supabase
-      .from('raffles').select('*').eq('id', raffleId).maybeSingle();
-    if (rerr || !raffle) return res.status(404).json({ ok: false, error: 'raffle_not_found' });
+    // 1) rifa
+    const { data: rdata, error: rerr } = await supabase
+      .from("raffles")
+      .select("*")
+      .eq("id", rid)
+      .limit(1);
 
-    // 2) Disponibilidad
-    const { data: current, error: terr } = await supabase
-      .from('tickets')
-      .select('id, number, status')
-      .eq('raffle_id', raffleId)
-      .in('number', numbers);
+    if (rerr) throw rerr;
+    const raffle = (Array.isArray(rdata) && rdata[0]) || null;
+    if (!raffle) return res.status(404).json({ ok: false, error: "raffle_not_found" });
+
+    const pricePerNumber = Number(raffle.price_cents || 0) / 100;
+    const total = Number((pricePerNumber * numbers.length).toFixed(0)); // CLP entero
+
+    // 2) disponibilidad
+    const { data: currentTickets, error: terr } = await supabase
+      .from("tickets")
+      .select("number,status")
+      .eq("raffle_id", rid)
+      .in("number", numbers);
+
     if (terr) throw terr;
-    if (!current || current.length !== numbers.length) {
-      return res.status(409).json({ ok: false, error: 'tickets_not_found_or_mismatch' });
-    }
-    if (current.some(t => t.status !== 'available')) {
-      return res.status(409).json({ ok: false, error: 'some_tickets_not_available' });
-    }
 
-    // 3) Purchase initiated
-    const { data: purchase, error: perr } = await supabase
-      .from('purchases')
-      .insert({ raffle_id: raffleId, buyer_email: buyerEmail, numbers, status: 'initiated' })
-      .select('*')
-      .single();
-    if (perr) throw perr;
+    const unavailable = (currentTickets || [])
+      .filter((t) => t.status !== "available" && t.status !== "free")
+      .map((t) => t.number);
 
-    // 4) Reservar tickets → pending
-    const { error: uerr } = await supabase
-      .from('tickets')
-      .update({ status: 'pending', purchase_id: purchase.id })
-      .eq('raffle_id', raffleId)
-      .in('number', numbers);
-    if (uerr) {
-      await rollbackTickets(raffleId, numbers, purchase.id);
-      throw uerr;
+    if (unavailable.length) {
+      return res.status(409).json({
+        ok: false,
+        error: "some_numbers_unavailable",
+        details: { unavailable },
+      });
     }
 
-    // 5) MP Preference (SDK v2 requiere { body: { ... } })
-    const mpClient   = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
-    const preference = new Preference(mpClient);
+    // 3) crear purchase + vencimiento de reserva
+    const now = Date.now();
+    const holdsUntilIso = new Date(now + HOLD_MINUTES * 60_000).toISOString();
 
-    const title     = raffle.title || `Rifa ${raffleId}`;
-    const unitPrice = Math.max(1, Math.round(Number(raffle.price_cents || 0) / 100)); // evitar 0
-
-    const back_urls = {
-      success: `${BASE_URL}/checkout/success`,
-      pending: `${BASE_URL}/checkout/pending`,
-      failure: `${BASE_URL}/checkout/failure`,
+    const insertPurchase = {
+      raffle_id: rid,
+      numbers,
+      status: "pending_payment",     // iniciamos en pendiente
+      buyer_email: buyer_email || null,
+      buyer_name: buyer_name || null,
+      accepted_terms: !!accepted_terms,
+      terms_version: terms_version || "v1.0",
+      accepted_terms_at: accepted_terms ? new Date(now).toISOString() : null,
+      mp_preference_id: null,
+      holds_until: holdsUntilIso,     // ⬅️ vencimiento
+      paid_at: null,
     };
 
-    let prefRes;
+    const { data: pIns, error: perr } = await supabase
+      .from("purchases")
+      .insert(insertPurchase)
+      .select("*")
+      .limit(1);
+
+    if (perr) throw perr;
+    const purchase = (Array.isArray(pIns) && pIns[0]) || null;
+    if (!purchase) throw new Error("insert_purchase_failed");
+
+    // 4) reservar tickets → pending + hold_until
+    const { error: uErr } = await supabase
+      .from("tickets")
+      .update({ status: "pending", purchase_id: purchase.id, hold_until: holdsUntilIso })
+      .eq("raffle_id", rid)
+      .in("number", numbers)
+      .in("status", ["available", "free"]);
+
+    if (uErr) {
+      await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
+      throw uErr;
+    }
+
+    // 5) preferencia MP
+    const accessToken = process.env.MP_ACCESS_TOKEN;
+    if (!accessToken) throw new Error("Missing MP_ACCESS_TOKEN");
+
+    const base =
+      process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "") ||
+      (req.headers.origin ? String(req.headers.origin) : "http://localhost:3000");
+
+    const mpClient = new MercadoPagoConfig({ accessToken });
+    const pref = new Preference(mpClient);
+
+    const maxNums = 6;
+    const numsPreview =
+      numbers.length > maxNums
+        ? `${numbers.slice(0, maxNums).join(", ")} y ${numbers.length - maxNums} más`
+        : numbers.join(", ");
+    const itemTitle = `Rifa: ${raffle.title || "Rifex"} — Números ${numsPreview}`;
+
+    let prefResp;
     try {
-      prefRes = await preference.create({
+      prefResp = await pref.create({
         body: {
-          items: [{
-            id: String(purchase.id),
-            title,
-            quantity: 1,
-            unit_price: unitPrice,
-            currency_id: 'CLP',
-          }],
-          external_reference: String(purchase.id),
-          back_urls,
-          auto_return: 'approved',
-          notification_url: `${BASE_URL}/api/checkout/webhook`,
+          items: [
+            {
+              id: String(rid),
+              title: itemTitle,
+              quantity: 1,
+              unit_price: total,
+              currency_id: "CLP",
+            },
+          ],
+          payer: {
+            email: buyer_email || undefined,
+            name: buyer_name || undefined,
+          },
           metadata: {
-            raffle_id: String(raffleId),
+            raffle_id: String(rid),
             numbers,
             purchase_id: String(purchase.id),
           },
-        }
+          statement_descriptor: "RIFEX",
+          back_urls: {
+            success: `${base}/rifas/${rid}?pay=success`,
+            failure: `${base}/rifas/${rid}?pay=failure`,
+            pending: `${base}/rifas/${rid}?pay=pending`,
+          },
+          auto_return: "approved",
+          notification_url: `${base}/api/checkout/webhook`,
+          external_reference: String(purchase.id),
+        },
       });
     } catch (e) {
-      // Si falla la creación, liberamos los tickets
-      await rollbackTickets(raffleId, numbers, purchase.id);
+      // liberar si falla MP
+      await supabase
+        .from("tickets")
+        .update({ status: "available", purchase_id: null, hold_until: null })
+        .eq("raffle_id", rid)
+        .in("number", numbers)
+        .eq("purchase_id", purchase.id);
+
+      await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
       throw e;
     }
 
-    // 6) Guardar preference_id en purchases
-    await supabase
-      .from('purchases')
-      .update({ mp_preference_id: prefRes.id })
-      .eq('id', purchase.id);
+    const mpPreferenceId = prefResp?.id || prefResp?.body?.id || null;
+    if (mpPreferenceId) {
+      await supabase
+        .from("purchases")
+        .update({ mp_preference_id: mpPreferenceId })
+        .eq("id", purchase.id);
+    }
 
-    // 7) Responder URL de pago
-    const init_point = prefRes.init_point || prefRes.sandbox_init_point;
-    return res.status(200).json({ ok: true, init_point, id: purchase.id });
+    const initPoint =
+      prefResp?.init_point ||
+      prefResp?.body?.init_point ||
+      prefResp?.sandbox_init_point ||
+      prefResp?.body?.sandbox_init_point ||
+      null;
 
+    if (!initPoint) {
+      return res.status(500).json({ ok: false, error: "no_init_point" });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      url: initPoint,
+      init_point: initPoint,
+      mp_preference_id: mpPreferenceId,
+      purchase_id: purchase.id,
+      holds_until: holdsUntilIso,
+    });
   } catch (e) {
-    console.error('MP checkout error:', e);
-    const msg = e?.message || e?.error?.message || e?.error || 'server_error';
-    return res.status(500).json({ ok: false, error: msg });
+    console.error("checkout/mp error:", e);
+    return res.status(500).json({ ok: false, error: e?.message || "error" });
   }
 }
 

@@ -37,3 +37,4 @@ pnpm-debug.log*
 .vercel/
 coverage/
 .cache/
+-e "\n.env*\n" 
