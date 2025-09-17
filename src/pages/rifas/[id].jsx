@@ -4,6 +4,7 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
+import { getIconByNumber } from "../../hooks/useIconsMap";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
@@ -428,8 +429,35 @@ export default function RifaDetalle() {
                   isSelected(n) ? styles.sel : "",
                 ].join(" ");
                 return (
-                  <button key={n} type="button" onClick={() => toggleNumber(n, isFree)} aria-pressed={isSelected(n)} disabled={!isFree} className={cls}>
-                    <span>{n}</span>
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => toggleNumber(n, isFree)}
+                    aria-pressed={isSelected(n)}
+                    disabled={!isFree}
+                    className={cls}
+                    style={{ position: "relative" }}
+                  >
+                    {/* Ícono de fondo (si existe) */}
+                    {(() => {
+                      const ico = getIconByNumber(n);
+                      return ico ? (
+                        <img
+                          className={styles.iconImg}
+                          src={ico.src512}
+                          srcSet={ico.src1024 ? `${ico.src1024} 1024w, ${ico.src512} 512w` : undefined}
+                          sizes="128px"
+                          width={128}
+                          height={128}
+                          loading="lazy"
+                          decoding="async"
+                          alt=""
+                        />
+                      ) : null;
+                    })()}
+                    {/* Número en la esquina inferior derecha */}
+                    <span className={styles.numBadge}>{n}</span>
+
                     {state !== "available" && (
                       <span className={[styles.badge, state === "pending" ? styles.badgePending : styles.badgeSold].join(" ")}>
                         {state === "pending" ? "RES." : "VEND."}
@@ -485,6 +513,7 @@ export default function RifaDetalle() {
     </div>
   );
 }
+
 
 
 
