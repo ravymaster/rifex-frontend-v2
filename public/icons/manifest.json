@@ -1,0 +1,656 @@
+{
+  "generatedAt": "2025-09-17T00:00:38.946Z",
+  "seedBase": 239,
+  "themes": {
+    "universe": {
+      "title": "Universe",
+      "items": [
+        {
+          "idx": 1,
+          "name": "ringed planet with EXTRA thick luminous neon ring; background perfectly clean (no stars)",
+          "file512": "/icons/universe/01-ringed-planet-with-extra-thick-luminous-neon-ring-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/01-ringed-planet-with-extra-thick-luminous-neon-ring-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "neon rocket with EXTRA thick luminous neon contours; background perfectly clean (no stars)",
+          "file512": "/icons/universe/02-neon-rocket-with-extra-thick-luminous-neon-contours-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/02-neon-rocket-with-extra-thick-luminous-neon-contours-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "solar eclipse ring; background perfectly clean (no stars)",
+          "file512": "/icons/universe/03-solar-eclipse-ring-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/03-solar-eclipse-ring-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "black hole rim; background perfectly clean (no stars)",
+          "file512": "/icons/universe/04-black-hole-rim-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/04-black-hole-rim-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "spiral galaxy; background perfectly clean (no stars)",
+          "file512": "/icons/universe/05-spiral-galaxy-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/05-spiral-galaxy-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "shooting star trail; background perfectly clean (no stars)",
+          "file512": "/icons/universe/06-shooting-star-trail-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/06-shooting-star-trail-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "crescent moon; background perfectly clean (no stars)",
+          "file512": "/icons/universe/07-crescent-moon-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/07-crescent-moon-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "sun disk; background perfectly clean (no stars)",
+          "file512": "/icons/universe/08-sun-disk-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/08-sun-disk-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "astronaut helmet; background perfectly clean (no stars)",
+          "file512": "/icons/universe/09-astronaut-helmet-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/09-astronaut-helmet-background-perfectly-clean-no-stars-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "telescope; background perfectly clean (no stars)",
+          "file512": "/icons/universe/10-telescope-background-perfectly-clean-no-stars.png",
+          "file1024": "/icons/universe/10-telescope-background-perfectly-clean-no-stars-1024.png"
+        }
+      ]
+    },
+    "mythology": {
+      "title": "Mythology",
+      "items": [
+        {
+          "idx": 1,
+          "name": "greek helmet",
+          "file512": "/icons/mythology/01-greek-helmet.png",
+          "file1024": "/icons/mythology/01-greek-helmet-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "trident",
+          "file512": "/icons/mythology/02-trident.png",
+          "file1024": "/icons/mythology/02-trident-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "thunderbolt",
+          "file512": "/icons/mythology/03-thunderbolt.png",
+          "file1024": "/icons/mythology/03-thunderbolt-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "round shield",
+          "file512": "/icons/mythology/04-round-shield.png",
+          "file1024": "/icons/mythology/04-round-shield-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "dragon head",
+          "file512": "/icons/mythology/05-dragon-head.png",
+          "file1024": "/icons/mythology/05-dragon-head-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "pegasus",
+          "file512": "/icons/mythology/06-pegasus.png",
+          "file1024": "/icons/mythology/06-pegasus-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "labyrinth symbol",
+          "file512": "/icons/mythology/07-labyrinth-symbol.png",
+          "file1024": "/icons/mythology/07-labyrinth-symbol-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "laurel wreath",
+          "file512": "/icons/mythology/08-laurel-wreath.png",
+          "file1024": "/icons/mythology/08-laurel-wreath-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "lyre",
+          "file512": "/icons/mythology/09-lyre.png",
+          "file1024": "/icons/mythology/09-lyre-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "owl of athena",
+          "file512": "/icons/mythology/10-owl-of-athena.png",
+          "file1024": "/icons/mythology/10-owl-of-athena-1024.png"
+        }
+      ]
+    },
+    "dinosaurs": {
+      "title": "Dinosaurs",
+      "items": [
+        {
+          "idx": 1,
+          "name": "t-rex head",
+          "file512": "/icons/dinosaurs/01-t-rex-head.png",
+          "file1024": "/icons/dinosaurs/01-t-rex-head-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "triceratops head",
+          "file512": "/icons/dinosaurs/02-triceratops-head.png",
+          "file1024": "/icons/dinosaurs/02-triceratops-head-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "velociraptor head",
+          "file512": "/icons/dinosaurs/03-velociraptor-head.png",
+          "file1024": "/icons/dinosaurs/03-velociraptor-head-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "stegosaurus plate",
+          "file512": "/icons/dinosaurs/04-stegosaurus-plate.png",
+          "file1024": "/icons/dinosaurs/04-stegosaurus-plate-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "pterodactyl silhouette",
+          "file512": "/icons/dinosaurs/05-pterodactyl-silhouette.png",
+          "file1024": "/icons/dinosaurs/05-pterodactyl-silhouette-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "raptor claw fossil",
+          "file512": "/icons/dinosaurs/06-raptor-claw-fossil.png",
+          "file1024": "/icons/dinosaurs/06-raptor-claw-fossil-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "dinosaur egg",
+          "file512": "/icons/dinosaurs/07-dinosaur-egg.png",
+          "file1024": "/icons/dinosaurs/07-dinosaur-egg-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "footprint fossil",
+          "file512": "/icons/dinosaurs/08-footprint-fossil.png",
+          "file1024": "/icons/dinosaurs/08-footprint-fossil-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "ankylosaurus tail club",
+          "file512": "/icons/dinosaurs/09-ankylosaurus-tail-club.png",
+          "file1024": "/icons/dinosaurs/09-ankylosaurus-tail-club-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "diplodocus head",
+          "file512": "/icons/dinosaurs/10-diplodocus-head.png",
+          "file1024": "/icons/dinosaurs/10-diplodocus-head-1024.png"
+        }
+      ]
+    },
+    "flora-and-fauna": {
+      "title": "Flora & Fauna",
+      "items": [
+        {
+          "idx": 1,
+          "name": "leaf",
+          "file512": "/icons/flora-and-fauna/01-leaf.png",
+          "file1024": "/icons/flora-and-fauna/01-leaf-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "flower",
+          "file512": "/icons/flora-and-fauna/02-flower.png",
+          "file1024": "/icons/flora-and-fauna/02-flower-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "butterfly",
+          "file512": "/icons/flora-and-fauna/03-butterfly.png",
+          "file1024": "/icons/flora-and-fauna/03-butterfly-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "fish",
+          "file512": "/icons/flora-and-fauna/04-fish.png",
+          "file1024": "/icons/flora-and-fauna/04-fish-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "bird",
+          "file512": "/icons/flora-and-fauna/05-bird.png",
+          "file1024": "/icons/flora-and-fauna/05-bird-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "mushroom",
+          "file512": "/icons/flora-and-fauna/06-mushroom.png",
+          "file1024": "/icons/flora-and-fauna/06-mushroom-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "fox head",
+          "file512": "/icons/flora-and-fauna/07-fox-head.png",
+          "file1024": "/icons/flora-and-fauna/07-fox-head-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "hummingbird",
+          "file512": "/icons/flora-and-fauna/08-hummingbird.png",
+          "file1024": "/icons/flora-and-fauna/08-hummingbird-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "whale tail",
+          "file512": "/icons/flora-and-fauna/09-whale-tail.png",
+          "file1024": "/icons/flora-and-fauna/09-whale-tail-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "tree",
+          "file512": "/icons/flora-and-fauna/10-tree.png",
+          "file1024": "/icons/flora-and-fauna/10-tree-1024.png"
+        }
+      ]
+    },
+    "food": {
+      "title": "Food",
+      "items": [
+        {
+          "idx": 1,
+          "name": "pizza slice",
+          "file512": "/icons/food/01-pizza-slice.png",
+          "file1024": "/icons/food/01-pizza-slice-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "burger",
+          "file512": "/icons/food/02-burger.png",
+          "file1024": "/icons/food/02-burger-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "sushi",
+          "file512": "/icons/food/03-sushi.png",
+          "file1024": "/icons/food/03-sushi-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "taco",
+          "file512": "/icons/food/04-taco.png",
+          "file1024": "/icons/food/04-taco-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "strawberry",
+          "file512": "/icons/food/05-strawberry.png",
+          "file1024": "/icons/food/05-strawberry-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "ice cream cone",
+          "file512": "/icons/food/06-ice-cream-cone.png",
+          "file1024": "/icons/food/06-ice-cream-cone-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "ramen bowl",
+          "file512": "/icons/food/07-ramen-bowl.png",
+          "file1024": "/icons/food/07-ramen-bowl-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "avocado",
+          "file512": "/icons/food/08-avocado.png",
+          "file1024": "/icons/food/08-avocado-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "coffee cup",
+          "file512": "/icons/food/09-coffee-cup.png",
+          "file1024": "/icons/food/09-coffee-cup-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "donut",
+          "file512": "/icons/food/10-donut.png",
+          "file1024": "/icons/food/10-donut-1024.png"
+        }
+      ]
+    },
+    "video-games": {
+      "title": "Video Games",
+      "items": [
+        {
+          "idx": 1,
+          "name": "joystick",
+          "file512": "/icons/video-games/01-joystick.png",
+          "file1024": "/icons/video-games/01-joystick-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "arcade machine",
+          "file512": "/icons/video-games/02-arcade-machine.png",
+          "file1024": "/icons/video-games/02-arcade-machine-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "pixel heart",
+          "file512": "/icons/video-games/03-pixel-heart.png",
+          "file1024": "/icons/video-games/03-pixel-heart-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "coin",
+          "file512": "/icons/video-games/04-coin.png",
+          "file1024": "/icons/video-games/04-coin-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "game controller",
+          "file512": "/icons/video-games/05-game-controller.png",
+          "file1024": "/icons/video-games/05-game-controller-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "8-bit star",
+          "file512": "/icons/video-games/06-8-bit-star.png",
+          "file1024": "/icons/video-games/06-8-bit-star-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "cartridge",
+          "file512": "/icons/video-games/07-cartridge.png",
+          "file1024": "/icons/video-games/07-cartridge-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "handheld console",
+          "file512": "/icons/video-games/08-handheld-console.png",
+          "file1024": "/icons/video-games/08-handheld-console-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "trophy",
+          "file512": "/icons/video-games/09-trophy.png",
+          "file1024": "/icons/video-games/09-trophy-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "gamepad d-pad",
+          "file512": "/icons/video-games/10-gamepad-d-pad.png",
+          "file1024": "/icons/video-games/10-gamepad-d-pad-1024.png"
+        }
+      ]
+    },
+    "superheroes": {
+      "title": "Superheroes",
+      "items": [
+        {
+          "idx": 1,
+          "name": "mask",
+          "file512": "/icons/superheroes/01-mask.png",
+          "file1024": "/icons/superheroes/01-mask-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "round shield",
+          "file512": "/icons/superheroes/02-round-shield.png",
+          "file1024": "/icons/superheroes/02-round-shield-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "lightning emblem",
+          "file512": "/icons/superheroes/03-lightning-emblem.png",
+          "file1024": "/icons/superheroes/03-lightning-emblem-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "cape",
+          "file512": "/icons/superheroes/04-cape.png",
+          "file1024": "/icons/superheroes/04-cape-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "comic speech bubble",
+          "file512": "/icons/superheroes/05-comic-speech-bubble.png",
+          "file1024": "/icons/superheroes/05-comic-speech-bubble-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "utility belt",
+          "file512": "/icons/superheroes/06-utility-belt.png",
+          "file1024": "/icons/superheroes/06-utility-belt-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "hero badge",
+          "file512": "/icons/superheroes/07-hero-badge.png",
+          "file1024": "/icons/superheroes/07-hero-badge-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "signal spotlight",
+          "file512": "/icons/superheroes/08-signal-spotlight.png",
+          "file1024": "/icons/superheroes/08-signal-spotlight-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "power gauntlet",
+          "file512": "/icons/superheroes/09-power-gauntlet.png",
+          "file1024": "/icons/superheroes/09-power-gauntlet-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "winged boots",
+          "file512": "/icons/superheroes/10-winged-boots.png",
+          "file1024": "/icons/superheroes/10-winged-boots-1024.png"
+        }
+      ]
+    },
+    "fantasy": {
+      "title": "Fantasy",
+      "items": [
+        {
+          "idx": 1,
+          "name": "magic wand",
+          "file512": "/icons/fantasy/01-magic-wand.png",
+          "file1024": "/icons/fantasy/01-magic-wand-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "potion bottle",
+          "file512": "/icons/fantasy/02-potion-bottle.png",
+          "file1024": "/icons/fantasy/02-potion-bottle-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "castle",
+          "file512": "/icons/fantasy/03-castle.png",
+          "file1024": "/icons/fantasy/03-castle-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "sword",
+          "file512": "/icons/fantasy/04-sword.png",
+          "file1024": "/icons/fantasy/04-sword-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "wizard hat",
+          "file512": "/icons/fantasy/05-wizard-hat.png",
+          "file1024": "/icons/fantasy/05-wizard-hat-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "crystal ball",
+          "file512": "/icons/fantasy/06-crystal-ball.png",
+          "file1024": "/icons/fantasy/06-crystal-ball-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "spell book",
+          "file512": "/icons/fantasy/07-spell-book.png",
+          "file1024": "/icons/fantasy/07-spell-book-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "dragon egg",
+          "file512": "/icons/fantasy/08-dragon-egg.png",
+          "file1024": "/icons/fantasy/08-dragon-egg-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "phoenix feather",
+          "file512": "/icons/fantasy/09-phoenix-feather.png",
+          "file1024": "/icons/fantasy/09-phoenix-feather-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "enchanted key",
+          "file512": "/icons/fantasy/10-enchanted-key.png",
+          "file1024": "/icons/fantasy/10-enchanted-key-1024.png"
+        }
+      ]
+    },
+    "technology": {
+      "title": "Technology",
+      "items": [
+        {
+          "idx": 1,
+          "name": "laptop",
+          "file512": "/icons/technology/01-laptop.png",
+          "file1024": "/icons/technology/01-laptop-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "robot head",
+          "file512": "/icons/technology/02-robot-head.png",
+          "file1024": "/icons/technology/02-robot-head-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "smartphone",
+          "file512": "/icons/technology/03-smartphone.png",
+          "file1024": "/icons/technology/03-smartphone-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "microchip",
+          "file512": "/icons/technology/04-microchip.png",
+          "file1024": "/icons/technology/04-microchip-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "satellite",
+          "file512": "/icons/technology/05-satellite.png",
+          "file1024": "/icons/technology/05-satellite-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "server rack",
+          "file512": "/icons/technology/06-server-rack.png",
+          "file1024": "/icons/technology/06-server-rack-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "drone",
+          "file512": "/icons/technology/07-drone.png",
+          "file1024": "/icons/technology/07-drone-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "vr headset",
+          "file512": "/icons/technology/08-vr-headset.png",
+          "file1024": "/icons/technology/08-vr-headset-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "battery",
+          "file512": "/icons/technology/09-battery.png",
+          "file1024": "/icons/technology/09-battery-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "camera lens",
+          "file512": "/icons/technology/10-camera-lens.png",
+          "file1024": "/icons/technology/10-camera-lens-1024.png"
+        }
+      ]
+    },
+    "sports": {
+      "title": "Sports",
+      "items": [
+        {
+          "idx": 1,
+          "name": "soccer ball",
+          "file512": "/icons/sports/01-soccer-ball.png",
+          "file1024": "/icons/sports/01-soccer-ball-1024.png"
+        },
+        {
+          "idx": 2,
+          "name": "basketball",
+          "file512": "/icons/sports/02-basketball.png",
+          "file1024": "/icons/sports/02-basketball-1024.png"
+        },
+        {
+          "idx": 3,
+          "name": "trophy",
+          "file512": "/icons/sports/03-trophy.png",
+          "file1024": "/icons/sports/03-trophy-1024.png"
+        },
+        {
+          "idx": 4,
+          "name": "boxing gloves",
+          "file512": "/icons/sports/04-boxing-gloves.png",
+          "file1024": "/icons/sports/04-boxing-gloves-1024.png"
+        },
+        {
+          "idx": 5,
+          "name": "tennis racket",
+          "file512": "/icons/sports/05-tennis-racket.png",
+          "file1024": "/icons/sports/05-tennis-racket-1024.png"
+        },
+        {
+          "idx": 6,
+          "name": "baseball bat",
+          "file512": "/icons/sports/06-baseball-bat.png",
+          "file1024": "/icons/sports/06-baseball-bat-1024.png"
+        },
+        {
+          "idx": 7,
+          "name": "american football",
+          "file512": "/icons/sports/07-american-football.png",
+          "file1024": "/icons/sports/07-american-football-1024.png"
+        },
+        {
+          "idx": 8,
+          "name": "whistle",
+          "file512": "/icons/sports/08-whistle.png",
+          "file1024": "/icons/sports/08-whistle-1024.png"
+        },
+        {
+          "idx": 9,
+          "name": "stopwatch",
+          "file512": "/icons/sports/09-stopwatch.png",
+          "file1024": "/icons/sports/09-stopwatch-1024.png"
+        },
+        {
+          "idx": 10,
+          "name": "medal",
+          "file512": "/icons/sports/10-medal.png",
+          "file1024": "/icons/sports/10-medal-1024.png"
+        }
+      ]
+    }
+  }
+}
