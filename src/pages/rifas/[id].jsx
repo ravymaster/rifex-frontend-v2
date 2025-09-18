@@ -4,6 +4,7 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
+import { getIconByNumber } from "../../hooks/useIconsMap";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
@@ -22,7 +23,7 @@ export default function RifaDetalle() {
   const [error, setError] = useState(null);
 
   const [selected, setSelected] = useState([]);
-  const [showIntro, setShowIntro] = useState(false); // ← ahora parte en false
+  const [showIntro, setShowIntro] = useState(false); // parte en false
   const [showBuyer, setShowBuyer] = useState(false);
 
   const [payBanner, setPayBanner] = useState(null);       // {kind,text}
@@ -225,7 +226,6 @@ export default function RifaDetalle() {
         const { data, error } = await supabase.from("rifas").select("*").eq("id", rid).limit(1);
         if (!error && Array.isArray(data) && data.length) raffleData = mapRaffleFromOld(data[0]);
       }
-      if (!raffleData) throw new Error("Rifa no encontrada");
 
       let ticketsData = [];
       { const { data, error } = await supabase.from("tickets").select("*").eq("raffle_id", rid).order("number", { ascending: true });
@@ -428,10 +428,102 @@ export default function RifaDetalle() {
                   isSelected(n) ? styles.sel : "",
                 ].join(" ");
                 return (
-                  <button key={n} type="button" onClick={() => toggleNumber(n, isFree)} aria-pressed={isSelected(n)} disabled={!isFree} className={cls}>
-                    <span>{n}</span>
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => toggleNumber(n, isFree)}
+                    aria-pressed={isSelected(n)}
+                    disabled={!isFree}
+                    className={cls}
+                    style={{ position: "relative" }}
+                  >
+                    {/* Ícono de fondo (si existe) */}
+                    {(() => {
+                      const ico = getIconByNumber(n);
+                      return ico ? (
+                        <img
+                          className={styles.iconImg}
+                          src={ico.src512}
+                          srcSet={ico.src1024 ? `${ico.src1024} 1024w, ${ico.src512} 512w` : undefined}
+                          sizes="128px"
+                          width={128}
+                          height={128}
+                          loading="lazy"
+                          decoding="async"
+                          alt=""
+                          /* — Fuerza ocultar icono cuando está seleccionado — */
+                          style={{
+                            opacity: isSelected(n) ? 0 : 1,
+                            filter:
+                              state === "sold" ? "grayscale(1)" :
+                              state === "pending" ? "grayscale(.35)" : "none",
+                            zIndex: 0
+                          }}
+                        />
+                      ) : null;
+                    })()}
+
+                    {/* OVERLAY + CHECK + RING (por encima de todo) */}
+                    {isSelected(n) && (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            borderRadius: 12,
+                            background: "linear-gradient(180deg, rgba(34,197,94,0.98) 0%, rgba(16,185,129,0.98) 100%)",
+                            zIndex: 50,
+                            pointerEvents: "none"
+                          }}
+                        />
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 3,
+                            border: "3px solid #fff",
+                            borderRadius: 10,
+                            zIndex: 60,
+                            pointerEvents: "none",
+                            animation: "rfx-pulse 1.1s ease-in-out infinite"
+                          }}
+                        />
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 30,
+                            fontWeight: 900,
+                            color: "#0b1221",
+                            textShadow: "0 1px 0 rgba(255,255,255,.7)",
+                            zIndex: 70,
+                            pointerEvents: "none"
+                          }}
+                        >
+                          ✓
+                        </span>
+                      </>
+                    )}
+
+                    {/* Número (abajo-derecha, deja que el CSS module posicione) */}
+                    <span className={styles.numBadge} style={{ zIndex: 80 }}>
+                      {n}
+                    </span>
+
+                    {/* Badges RES./VEND. (arriba-izquierda, sin tocar position) */}
                     {state !== "available" && (
-                      <span className={[styles.badge, state === "pending" ? styles.badgePending : styles.badgeSold].join(" ")}>
+                      <span
+                        className={[
+                          styles.badge,
+                          state === "pending" ? styles.badgePending : styles.badgeSold,
+                        ].join(" ")}
+                        style={{ zIndex: 80 }}
+                      >
                         {state === "pending" ? "RES." : "VEND."}
                       </span>
                     )}
@@ -482,9 +574,21 @@ export default function RifaDetalle() {
         termsVersion={TERMS_VERSION}
         onSubmit={async (buyer) => { setShowBuyer(false); await comprar(buyer); }}
       />
+
+      {/* Animación del anillo */}
+      <style jsx>{`
+        @keyframes rfx-pulse {
+          0%   { opacity: .95; transform: scale(1); }
+          50%  { opacity: .6;  transform: scale(.985); }
+          100% { opacity: .95; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
+
+
+
 
 
 
