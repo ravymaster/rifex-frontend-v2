@@ -1,6 +1,7 @@
 // src/pages/panel/index.jsx
 import { useEffect, useMemo, useState } from 'react';
 import Layout from '@/components/Layout';
+import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
 function PesoCLP({ cents }){
   const v = Math.round(Number(cents||0))/100;
@@ -149,19 +150,17 @@ function DeleteDialog({ open, onClose, raffle, onDeleted }){
   const [hard, setHard] = useState(false);
   if(!open) return null;
 
-  // Regla: si está cerrada o tiene vendidos/pending, solo archiva (soft).
   const mustArchive = raffle?.status === 'closed' || (raffle?.sold ?? 0) > 0;
 
   async function doDelete(){
     setBusy(true);
     try{
-      // Usamos POST /api/rifas/delete para evitar issues con DELETE en algunos hosts
       const r = await fetch('/api/rifas/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: raffle.id,
-          force: !mustArchive && !!hard   // hard delete solo si está permitido
+          force: !mustArchive && !!hard
         })
       });
       const j = await r.json().catch(()=> ({}));
@@ -220,6 +219,7 @@ export default function Panel(){
   async function load(){
     setLoading(true); setErr('');
     try{
+      // 1) Traemos todo como antes (usa tu API existente)
       const params = new URLSearchParams();
       if(status!=='all') params.set('status', status);
       if(q.trim()) params.set('q', q.trim());
@@ -227,7 +227,21 @@ export default function Panel(){
       const text = await r.text();
       let j; try { j = JSON.parse(text); } catch { throw new Error(`HTTP ${r.status} ${r.statusText}`); }
       if(!r.ok) throw new Error(j?.error||'fetch_failed');
-      setData(j);
+
+      // 2) Filtramos por el usuario logueado (id o email)
+      const { data: { user } } = await supabase.auth.getUser();
+      let items = Array.isArray(j?.items) ? j.items : [];
+      if (user) {
+        const email = (user.email || '').toLowerCase();
+        items = items.filter(row =>
+          (row.creator_id && row.creator_id === user.id) ||
+          (row.creator_email && String(row.creator_email).toLowerCase() === email)
+        );
+      } else {
+        items = []; // si no está logueado, no mostramos nada
+      }
+
+      setData({ ...j, items });
     }catch(e){ setErr(e.message); }
     finally{ setLoading(false); }
   }
@@ -235,7 +249,7 @@ export default function Panel(){
 
   const totals = useMemo(()=>{
     if(!data) return { revenueCents:0, active:0, participants:0 };
-    const filtered = data.items;
+    const filtered = data.items || [];
     const active = filtered.filter(x=>x.status==='active').length;
     const revenueCents = filtered.reduce((acc,x)=> acc + (x.sold * (x.price_cents||0)), 0);
     const participants = filtered.reduce((acc,x)=> acc + x.sold, 0);
@@ -256,7 +270,7 @@ export default function Panel(){
     <Layout>
       <main className="container" style={{padding:'24px'}}>
         <header style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
-          <h1 style={{margin:0}}>Panel</h1>
+          <h1 style={{margin:0}}>Mis rifas</h1>
           <div style={{display:'flex',gap:8}}>
             <ActionButton tone='ghost' onClick={load}>Refrescar</ActionButton>
             <a href="/crear-rifa"><ActionButton>Crear rifa</ActionButton></a>
@@ -299,7 +313,7 @@ export default function Panel(){
           {loading && <div style={{padding:16}}>Cargando…</div>}
           {err && <div style={{padding:16,color:'#B91C1C'}}>Error: {err}</div>}
 
-          {data?.items?.map(row => (
+          {(data?.items||[]).map(row => (
             <div key={row.id} style={{display:'grid',gridTemplateColumns:'1.4fr 110px 160px 120px 140px 1fr',gap:0,padding:'14px 16px',borderBottom:'1px solid #F1F5F9',alignItems:'center'}}>
               <div>
                 <div style={{fontWeight:600}}>{row.title||'(sin título)'}</div>
