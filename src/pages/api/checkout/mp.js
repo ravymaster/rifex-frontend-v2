@@ -149,6 +149,8 @@ export default async function handler(req, res) {
             raffle_id: String(rid),
             numbers,
             purchase_id: String(purchase.id),
+            buyer_email: buyer_email || null, // <<< agregado
+            buyer_name:  buyer_name  || null, // <<< agregado
           },
           statement_descriptor: "RIFEX",
           back_urls: {
@@ -206,4 +208,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: e?.message || "error" });
   }
 }
+
 
