@@ -5,32 +5,30 @@ import {
   sendCreatorSaleEmail,
 } from "../../../lib/mailer";
 
-// Cliente server (service role) para saltar RLS en backend
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
+const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
+
+const isValidEmail = (s) =>
+  typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
 
   try {
     const body = req.body || {};
-
-    // ID del pago según distintos formatos de MP
     const paymentId =
       body?.data?.id ||
       body?.id ||
       body?.resource?.id ||
       (typeof body?.data === "string" ? body.data : null);
 
-    // Pings sin ID: respondemos 200 para no reintentos
     if (!paymentId) return res.status(200).json({ ok: true, msg: "no payment id" });
 
-    // Traer pago real desde MP
     const token = process.env.MP_ACCESS_TOKEN;
     const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -39,15 +37,14 @@ export default async function handler(req, res) {
 
     const status = String(mp?.status || "").toLowerCase();           // approved|pending|rejected...
     const status_detail = mp?.status_detail || null;
-
-    // Metadata enviada al crear la preferencia (mp.js)
     const md = mp?.metadata || {};
 
-    // RaffleId directo desde metadata (ideal)
-    let raffleId =
-      md.raffle_id || md.raffleId || md.rid || null;
+    let purchaseId = md.purchase_id || mp?.external_reference || null;
+    if (purchaseId && typeof purchaseId !== "string") purchaseId = String(purchaseId);
 
-    // Numbers
+    let raffleId = md.raffle_id || md.raffleId || md.rid || null;
+
+    // numbers desde metadata
     let numbers = [];
     if (Array.isArray(md.numbers)) numbers = md.numbers;
     else if (typeof md.numbers === "string") {
@@ -57,32 +54,32 @@ export default async function handler(req, res) {
         .filter((n) => Number.isFinite(n));
     }
 
-    // Emails del comprador (preferimos los del formulario)
-    const buyer_email = md.buyer_email || mp?.payer?.email || null;
-    const buyer_name = md.buyer_name || mp?.payer?.first_name || null;
+    // si faltan raffle/numbers/email → fallback a purchases
+    let buyer_email = (md.buyer_email || mp?.payer?.email || "").trim().toLowerCase();
+    let buyer_name = (md.buyer_name || mp?.payer?.first_name || "").toString().trim();
 
-    // Monto
+    if (!raffleId || !numbers.length || !isValidEmail(buyer_email)) {
+      if (purchaseId) {
+        const { data: pRow } = await supabase
+          .from("purchases")
+          .select("raffle_id, numbers, buyer_email, buyer_name")
+          .eq("id", purchaseId)
+          .maybeSingle();
+
+        if (pRow) {
+          if (!raffleId && pRow.raffle_id) raffleId = pRow.raffle_id;
+          if (!numbers.length && Array.isArray(pRow.numbers)) numbers = pRow.numbers;
+          if (!isValidEmail(buyer_email) && isValidEmail(pRow.buyer_email)) {
+            buyer_email = pRow.buyer_email.trim().toLowerCase();
+          }
+          if (!buyer_name && pRow.buyer_name) buyer_name = String(pRow.buyer_name).trim();
+        }
+      }
+    }
+
     const amount_cents = Math.round(Number(mp?.transaction_amount || 0) * 100);
 
-    // purchaseId desde external_reference (en mp.js lo seteamos a purchase.id)
-    let purchaseId = null;
-    const extRef = mp?.external_reference || null;
-    if (extRef && typeof extRef === "string") {
-      purchaseId = extRef;
-    }
-    if (!purchaseId && md.purchase_id) purchaseId = md.purchase_id;
-
-    // Fallback: si no vino raffleId en metadata, buscamos por purchaseId en purchases
-    if (!raffleId && purchaseId) {
-      const { data: pr } = await supabase
-        .from("purchases")
-        .select("raffle_id")
-        .eq("id", purchaseId)
-        .maybeSingle();
-      if (pr?.raffle_id) raffleId = pr.raffle_id;
-    }
-
-    // Upsert en payments (idempotente por mp_payment_id) y guardamos también purchase_id
+    // Upsert en payments
     const { data: payRow } = await supabase
       .from("payments")
       .upsert(
@@ -90,8 +87,8 @@ export default async function handler(req, res) {
           mp_payment_id: String(mp?.id || paymentId),
           raffle_id: raffleId || null,
           purchase_id: purchaseId || null,
-          buyer_email,
-          buyer_name,
+          buyer_email: isValidEmail(buyer_email) ? buyer_email : null,
+          buyer_name: buyer_name || null,
           numbers,
           status,
           status_detail,
@@ -102,9 +99,8 @@ export default async function handler(req, res) {
       .select()
       .single();
 
-    // Si aprobado → marcar sold, (opcional) cerrar reserva/compra y enviar correos
     if (status === "approved") {
-      // Marcar números vendid@s
+      // marcar vendidos
       if (raffleId && numbers.length) {
         await supabase
           .from("tickets")
@@ -113,7 +109,7 @@ export default async function handler(req, res) {
           .in("number", numbers);
       }
 
-      // (Opcional) reflejar aprobado en purchases si tenemos purchaseId
+      // purchase aprobada
       if (purchaseId) {
         await supabase
           .from("purchases")
@@ -121,14 +117,13 @@ export default async function handler(req, res) {
           .eq("id", purchaseId);
       }
 
-      // Traer rifa para título y correo del creador
+      // datos rifa
       let raffleTitle = "Rifa";
       let creatorEmail = null;
-
       if (raffleId) {
         const { data: r } = await supabase
           .from("raffles")
-          .select("id,title,creator_email,creator_id")
+          .select("id,title,creator_email")
           .eq("id", raffleId)
           .maybeSingle();
         if (r) {
@@ -136,17 +131,16 @@ export default async function handler(req, res) {
           creatorEmail = r.creator_email || null;
         }
       }
-
-      // Fallback a .env si no hay creator_email en DB
       if (!creatorEmail && process.env.CREATOR_FALLBACK_EMAIL) {
         creatorEmail = process.env.CREATOR_FALLBACK_EMAIL;
       }
 
       const amountCLP = Math.round((amount_cents || 0) / 100);
       const mpIdStr = String(mp?.id || paymentId);
+      const raffleLink = raffleId ? `${BASE}/rifas/${raffleId}` : BASE || "";
 
-      // Email comprador (solo si no se envió antes)
-      if (buyer_email && !payRow?.emailed_buyer) {
+      // correo comprador (si tenemos email y aún no marcado)
+      if (isValidEmail(buyer_email) && !payRow?.emailed_buyer) {
         try {
           await sendBuyerApprovedEmail({
             to: buyer_email,
@@ -155,6 +149,7 @@ export default async function handler(req, res) {
             numbers,
             amountCLP,
             paymentId: mpIdStr,
+            raffleLink,
           });
           await supabase
             .from("payments")
@@ -165,16 +160,17 @@ export default async function handler(req, res) {
         }
       }
 
-      // Email creador (prioritario para vos)
-      if (creatorEmail && !payRow?.emailed_creator) {
+      // correo creador (si tenemos email y aún no marcado)
+      if (isValidEmail(creatorEmail) && !payRow?.emailed_creator) {
         try {
           await sendCreatorSaleEmail({
             to: creatorEmail,
             raffleTitle,
             numbers,
             amountCLP,
-            buyerEmail: buyer_email,
+            buyerEmail: isValidEmail(buyer_email) ? buyer_email : "-",
             paymentId: mpIdStr,
+            raffleLink,
           });
           await supabase
             .from("payments")
@@ -189,9 +185,13 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error("[mp webhook] error", e);
-    // devolvemos 200 para evitar reintentos infinitos; para debug duro, cambiar a 500 temporalmente
+    // mantenemos 200 para no generar reintentos infinitos
     return res.status(200).json({ ok: false, error: String(e) });
   }
 }
+
+
+
+
 
 

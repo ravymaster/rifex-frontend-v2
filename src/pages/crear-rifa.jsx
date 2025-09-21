@@ -1,7 +1,8 @@
-// /src/pages/crear-rifa.jsx
+// src/pages/crear-rifa.jsx
 import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
+import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 import stylesBtn from "@/styles/crearRifa.module.css"; // <-- CSS Module con .btnCreate
 
 const THEMES = [
@@ -68,7 +69,6 @@ export default function CrearRifaPage() {
       return;
     }
 
-    // (Opcional) subir fotos luego; por ahora mandamos solo nombres
     const photos = Array.from(prizePhotos || []).slice(0, 3).map(f => f.name);
 
     const payload = {
@@ -91,19 +91,29 @@ export default function CrearRifaPage() {
     };
 
     try {
+      // Pasamos quién es el usuario logueado (cabeceras) para asignar creador en la API
+      const { data: ures } = await supabase.auth.getUser();
+      const user = ures?.user || null;
+
+      const headers = { "Content-Type": "application/json" };
+      if (user?.id) headers["x-user-id"] = user.id;
+      if (user?.email) headers["x-user-email"] = user.email;
+
       const res = await fetch("/api/rifas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.message || "Error");
+      if (!res.ok || !data?.ok) throw new Error(data?.error || "Error");
 
-      // Redirige a la rifa creada si la API devuelve id
+      // Redirige a la rifa creada (API devuelve id en la raíz)
       if (data.id) {
         router.push(`/rifas/${data.id}`);
+      } else if (data.data?.id) {
+        router.push(`/rifas/${data.data.id}`);
       } else {
-        router.push("/rifas");
+        router.push("/panel");
       }
     } catch (err) {
       console.error(err);
@@ -218,7 +228,6 @@ export default function CrearRifaPage() {
           </div>
 
           <div style={{display:"flex", gap:12}}>
-            {/* Botón con pointer desde CSS Module */}
             <button
               type="submit"
               className={stylesBtn.btnCreate}
@@ -230,9 +239,8 @@ export default function CrearRifaPage() {
               Crear rifa
             </button>
 
-            {/* Cancelar también con pointer */}
             <a
-              href="/"
+              href="/panel"
               className={stylesBtn.btnCreate}
               style={{ background:"#fff", color:"var(--ultramar)", border:"1px solid #E5E7EB" }}
             >
@@ -252,5 +260,5 @@ const s = {
   row: { display:"flex", gap:16, margin:"6px 0 10px" },
   hint: { fontSize:12, color:"#6B7280", marginTop:6 },
   btn: { display:"inline-flex", alignItems:"center", justifyContent:"center", padding:"10px 14px", border:"1px solid #E5E7EB", borderRadius:10, textDecoration:"none" },
-  btnPrimary: { background:"linear-gradient(135deg,#1E3A8A,#18A957)", color:"#fff", border:"none", padding:"10px 14px", borderRadius:10 } // (ya no se usa, puedes borrarlo si quieres)
+  btnPrimary: { background:"linear-gradient(135deg,#1E3A8A,#18A957)", color:"#fff", border:"none", padding:"10px 14px", borderRadius:10 }
 };
