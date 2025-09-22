@@ -38,3 +38,14 @@ pnpm-debug.log*
 coverage/
 .cache/
 -e "\n.env*\n" 
+
+.env.local
+.env*
+
+
+.env.local
+.env*
+
+
+# env
+.env*

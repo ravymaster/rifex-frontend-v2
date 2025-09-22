@@ -10,7 +10,7 @@ const supabase = createClient(url, service || anon, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// Extrae un payment/collection id numérico desde una URL completa si viene mal
+// limpia y extrae un payment_id numérico (por si viene una URL)
 function extractPaymentId(maybeUrl) {
   if (!maybeUrl) return null;
   const s = String(maybeUrl);
@@ -25,7 +25,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // acepta ambos nombres (MP a veces pasa payment_id) y sanitiza si pegaron la URL completa
     const rawId =
       req.query.collection_id ||
       req.query.payment_id ||
@@ -39,23 +38,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "missing_or_invalid_collection_id" });
     }
 
-    const flag = (req.query?.status || "").toLowerCase(); // success/failure/pending
-    const cstat = (req.query?.collection_status || "").toLowerCase(); // approved/in_process/rejected
-    const extRef = req.query?.external_reference || req.body?.external_reference || null;
-
     const accessToken = process.env.MP_ACCESS_TOKEN;
     if (!accessToken) {
-      return res.status(500).json({
-        ok: false,
-        error: "missing_mp_access_token",
-        hint: "Define MP_ACCESS_TOKEN en el entorno del servidor y reinicia.",
-      });
+      return res.status(500).json({ ok: false, error: "missing_mp_access_token" });
     }
 
     const mp = new MercadoPagoConfig({ accessToken });
     const payments = new Payment(mp);
 
-    let status = null;
+    let status = "unknown";
     let purchaseId = null;
 
     try {
@@ -64,50 +55,20 @@ export default async function handler(req, res) {
       status = (body.status || "unknown").toLowerCase();
       purchaseId =
         body?.metadata?.purchase_id ||
-        body?.metadata?.purchaseId ||
         body?.external_reference ||
+        body?.metadata?.purchaseId ||
         null;
-    } catch (err) {
-      // Si MP rechaza (401/403), puede devolver el mensaje genérico “Si quieres conocer…”
-      const msg = String(err?.message || "").toLowerCase();
-      const notAuth =
-        msg.includes("if you want to know") ||
-        msg.includes("si quieres conocer") ||
-        msg.includes("unauthorized") ||
-        msg.includes("forbidden") ||
-        msg.includes("401") ||
-        msg.includes("403");
 
-      if (notAuth) {
-        if ((flag === "success" || cstat === "approved") && extRef) {
-          // Fallback: la URL indica aprobado y tenemos referencia → devolvemos ok sin tocar BD
-          return res.status(200).json({
-            ok: true,
-            status: "approved",
-            purchase_id: extRef,
-            fallback: true,
-            reason: "mp_auth_failed_but_url_approved",
-          });
-        }
-        return res.status(401).json({
-          ok: false,
-          error: "mp_unauthorized",
-          hint:
-            "El MP_ACCESS_TOKEN no pertenece al vendedor del pago o no coincide sandbox/prod. " +
-            "Usa el mismo token con el que creaste la preferencia.",
-        });
-      }
-
-      return res.status(500).json({
-        ok: false,
-        error: "mp_get_payment_failed",
-        detail: err?.message || String(err),
+      console.log("[confirm] MP payment", {
+        payment_id: collectionId,
+        status,
+        purchaseId,
       });
+    } catch (err) {
+      console.error("[confirm] payments.get error", err?.message || err);
+      return res.status(502).json({ ok: false, error: "mp_get_payment_failed" });
     }
 
-    if (!purchaseId && extRef) purchaseId = extRef;
-
-    // Actualiza purchase/tickets según estado
     if (status === "approved") {
       if (purchaseId) {
         await supabase
@@ -125,7 +86,6 @@ export default async function handler(req, res) {
           .eq("purchase_id", purchaseId)
           .eq("status", "pending");
       }
-
       return res.status(200).json({ ok: true, status: "approved", purchase_id: purchaseId });
     }
 
@@ -139,12 +99,12 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, status: "pending", purchase_id: purchaseId });
     }
 
-    // rejected / cancelado / otros → liberar
+    // rechazado/cancelado → liberar
     if (purchaseId) {
       await supabase.from("purchases").update({ status: "failed" }).eq("id", purchaseId);
       await supabase
         .from("tickets")
-        .update({ status: "available", purchase_id: null })
+        .update({ status: "available", purchase_id: null, hold_until: null })
         .eq("purchase_id", purchaseId)
         .eq("status", "pending");
     }
@@ -155,3 +115,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: e?.message || "error" });
   }
 }
+
+

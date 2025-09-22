@@ -10,8 +10,8 @@ const supabase = createClient(url, service || anon, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// minutos que dura la reserva
-const HOLD_MINUTES = parseInt(process.env.HOLD_MINUTES || "3", 10);
+// reserva en minutos (súbelo si hace falta)
+const HOLD_MINUTES = parseInt(process.env.HOLD_MINUTES || "15", 10);
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
     if (!Array.isArray(numbers) || numbers.length === 0)
       return res.status(400).json({ ok: false, error: "missing_numbers" });
 
-    // 1) rifa
+    // 1) traemos rifa
     const { data: rdata, error: rerr } = await supabase
       .from("raffles")
       .select("*")
@@ -45,10 +45,15 @@ export default async function handler(req, res) {
     const raffle = (Array.isArray(rdata) && rdata[0]) || null;
     if (!raffle) return res.status(404).json({ ok: false, error: "raffle_not_found" });
 
-    const pricePerNumber = Number(raffle.price_cents || 0) / 100;
-    const total = Number((pricePerNumber * numbers.length).toFixed(0)); // CLP entero
+    // total debe ser entero CLP
+    const pricePerNumber = Math.round(Number(raffle.price_cents || 0) / 100);
+    const total = Math.max(0, pricePerNumber * numbers.length);
 
-    // 2) disponibilidad
+    if (!Number.isFinite(total) || total <= 0) {
+      return res.status(400).json({ ok: false, error: "invalid_total" });
+    }
+
+    // 2) chequear disponibilidad actual
     const { data: currentTickets, error: terr } = await supabase
       .from("tickets")
       .select("number,status")
@@ -69,21 +74,21 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3) crear purchase + vencimiento de reserva
+    // 3) crear purchase + reserva
     const now = Date.now();
     const holdsUntilIso = new Date(now + HOLD_MINUTES * 60_000).toISOString();
 
     const insertPurchase = {
       raffle_id: rid,
       numbers,
-      status: "pending_payment",     // iniciamos en pendiente
+      status: "pending_payment",
       buyer_email: buyer_email || null,
       buyer_name: buyer_name || null,
       accepted_terms: !!accepted_terms,
       terms_version: terms_version || "v1.0",
       accepted_terms_at: accepted_terms ? new Date(now).toISOString() : null,
       mp_preference_id: null,
-      holds_until: holdsUntilIso,     // ⬅️ vencimiento
+      holds_until: holdsUntilIso,
       paid_at: null,
     };
 
@@ -97,7 +102,6 @@ export default async function handler(req, res) {
     const purchase = (Array.isArray(pIns) && pIns[0]) || null;
     if (!purchase) throw new Error("insert_purchase_failed");
 
-    // 4) reservar tickets → pending + hold_until
     const { error: uErr } = await supabase
       .from("tickets")
       .update({ status: "pending", purchase_id: purchase.id, hold_until: holdsUntilIso })
@@ -110,7 +114,7 @@ export default async function handler(req, res) {
       throw uErr;
     }
 
-    // 5) preferencia MP
+    // 4) Preferencia Mercado Pago (MINIMAL y seguro)
     const accessToken = process.env.MP_ACCESS_TOKEN;
     if (!accessToken) throw new Error("Missing MP_ACCESS_TOKEN");
 
@@ -118,50 +122,53 @@ export default async function handler(req, res) {
       process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "") ||
       (req.headers.origin ? String(req.headers.origin) : "http://localhost:3000");
 
+    const notificationUrl =
+      process.env.MP_WEBHOOK_URL?.replace(/\/+$/, "") ||
+      `${base}/api/checkout/webhook`;
+
     const mpClient = new MercadoPagoConfig({ accessToken });
     const pref = new Preference(mpClient);
 
-    const maxNums = 6;
-    const numsPreview =
-      numbers.length > maxNums
-        ? `${numbers.slice(0, maxNums).join(", ")} y ${numbers.length - maxNums} más`
-        : numbers.join(", ");
-    const itemTitle = `Rifa: ${raffle.title || "Rifex"} — Números ${numsPreview}`;
+    const cleanTitle = `Rifa ${String(raffle.title || "Rifex").slice(0, 60)}`;
+    const prefBody = {
+      items: [
+        {
+          title: cleanTitle,
+          quantity: 1,
+          unit_price: Number(total), // CLP entero
+          currency_id: "CLP",
+        },
+      ],
+      // datos mínimos del pagador (sin documento para no gatillar validaciones)
+      payer: {
+        email: buyer_email || undefined,
+        name: buyer_name || undefined,
+      },
+      back_urls: {
+        success: `${base}/rifas/${rid}?pay=success`,
+        failure: `${base}/rifas/${rid}?pay=failure`,
+        pending: `${base}/rifas/${rid}?pay=pending`,
+      },
+      auto_return: "approved",
+      notification_url: notificationUrl,
+      external_reference: String(purchase.id),
+      statement_descriptor: "RIFEX",
+      // metadata muy corta (evitamos arrays/largos)
+      metadata: {
+        raffle_id: String(rid),
+        purchase_id: String(purchase.id),
+      },
+    };
 
     let prefResp;
     try {
-      prefResp = await pref.create({
-        body: {
-          items: [
-            {
-              id: String(rid),
-              title: itemTitle,
-              quantity: 1,
-              unit_price: total,
-              currency_id: "CLP",
-            },
-          ],
-          payer: {
-            email: buyer_email || undefined,
-            name: buyer_name || undefined,
-          },
-          metadata: {
-            raffle_id: String(rid),
-            numbers,
-            purchase_id: String(purchase.id),
-          },
-          statement_descriptor: "RIFEX",
-          back_urls: {
-            success: `${base}/rifas/${rid}?pay=success`,
-            failure: `${base}/rifas/${rid}?pay=failure`,
-            pending: `${base}/rifas/${rid}?pay=pending`,
-          },
-          auto_return: "approved",
-          notification_url: `${base}/api/checkout/webhook`,
-          external_reference: String(purchase.id),
-        },
+      prefResp = await pref.create({ body: prefBody });
+      console.log("[mp] preference created", {
+        id: prefResp?.id || prefResp?.body?.id,
+        init_point: prefResp?.init_point || prefResp?.body?.init_point,
       });
     } catch (e) {
+      console.error("[mp] preference.create error", e?.message || e);
       // liberar si falla MP
       await supabase
         .from("tickets")
@@ -169,9 +176,8 @@ export default async function handler(req, res) {
         .eq("raffle_id", rid)
         .in("number", numbers)
         .eq("purchase_id", purchase.id);
-
       await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
-      throw e;
+      return res.status(500).json({ ok: false, error: "mp_preference_failed" });
     }
 
     const mpPreferenceId = prefResp?.id || prefResp?.body?.id || null;
@@ -190,6 +196,7 @@ export default async function handler(req, res) {
       null;
 
     if (!initPoint) {
+      console.error("[mp] no init_point in response", prefResp);
       return res.status(500).json({ ok: false, error: "no_init_point" });
     }
 
@@ -206,4 +213,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: e?.message || "error" });
   }
 }
+
+
+
 

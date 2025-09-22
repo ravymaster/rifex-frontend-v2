@@ -1,104 +1,121 @@
-.page{
-  padding: 24px 0 32px;
-  background:
-    linear-gradient(135deg, rgba(24,169,87,0.08), rgba(30,58,138,0.08)),
-    var(--fondo);
-}
+/* ========= PANEL: Responsive móvil sin tocar JS ========= */
 
-/* Header */
-.header{
-  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-  margin-bottom: 12px;
-}
-.title{
-  margin:0; font-weight:800; font-size:24px; color:var(--ultramar);
-  letter-spacing:-0.2px;
-}
-.sub{ margin:4px 0 0; color:var(--gris); }
-.headerActions{ display:flex; gap:8px; }
-
-/* Métricas */
-.metrics{
-  display:grid; gap:12px;
-  grid-template-columns: repeat(1, minmax(0,1fr));
-  margin-bottom: 16px;
-}
-@media (min-width: 700px){
-  .metrics{ grid-template-columns: repeat(3, minmax(0,1fr)); }
-}
-.metricCard{
-  background:#fff; border:1px solid var(--borde); border-radius:14px; padding:14px;
-  box-shadow:0 8px 18px rgba(0,0,0,.04);
-}
-.metricLabel{ font-size:12px; color:var(--gris); margin-bottom:6px; }
-.metricValue{
-  font-weight:800; font-size:22px; letter-spacing:-0.2px;
-  color:var(--oscuro);
-}
-
-/* Sección “Mis rifas” */
-.section{ margin-top: 10px; }
-.secHead{
-  display:flex; align-items:center; justify-content:space-between; gap:10px;
-  margin-bottom: 8px;
-}
-.secTitle{ margin:0; font-weight:800; color:var(--oscuro); }
-.secActions{ display:flex; gap:6px; flex-wrap:wrap; }
-
-.filtBtn{
-  border:1px solid var(--borde);
-  background:#fff; color:var(--oscuro);
-  padding:6px 10px; border-radius:999px; font-weight:700; cursor:pointer;
-  font-size: 13px;
-}
-.filtBtn[data-active="true"]{
-  border-color: var(--ultramar);
-  box-shadow: 0 0 0 3px rgba(30,58,138,.12);
-}
-
-/* “Tabla” responsive */
-.table{
-  border:1px solid var(--borde); border-radius:14px; background:#fff;
-  overflow:hidden; box-shadow:0 8px 18px rgba(0,0,0,.04);
-}
-.tHead, .tRow{
-  display:grid; gap:10px; padding:12px 14px; align-items:center;
-  grid-template-columns: 2fr 0.9fr 0.9fr 1fr 1.2fr;
-}
-.tHead{
-  background: linear-gradient(135deg, rgba(30,58,138,0.06), rgba(24,169,87,0.06));
-  border-bottom:1px solid var(--borde);
-  font-weight:800; color:var(--ultramar);
-}
-.tBody .tRow{ border-top:1px solid var(--borde); }
-.tBody .tRow:first-child{ border-top:none; }
-
-.tTitle{ font-weight:700; }
-.tCenter{ text-align:center; }
-.tRight{ text-align:right; }
-
-.thCenter{ text-align:center; }
-.thRight{ text-align:right; }
-
-.state{
-  font-size:12px; font-weight:800; text-transform:capitalize;
-  padding:4px 8px; border-radius:999px; border:1px solid;
-}
-.state[data-state="publicada"]{
-  color:#0a7f4f; background:rgba(24,169,87,.10); border-color:rgba(24,169,87,.35);
-}
-.state[data-state="borrador"]{
-  color:#6b7280; background:rgba(107,114,128,.10); border-color:rgba(107,114,128,.35);
-}
-
-.link{ color: var(--ultramar); text-decoration: underline; }
-.sep{ margin: 0 6px; color:#94a3b8; }
-
-/* Responsive: apilar en móvil */
-@media (max-width: 640px){
-  .tHead, .tRow{
-    grid-template-columns: 1fr;
-    text-align:left;
+/* Header compacto en pantallas medianas */
+@media (max-width: 1024px) {
+  main.container header {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
   }
-  .thCenter, .thRight, .tCenter, .tRight{ text-align:left; }
 }
+
+/* -- Mobile layout (≤ 768px) -- */
+@media (max-width: 768px) {
+  /* Filtros (chips + buscador) */
+  main.container > div:first-of-type {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  main.container > div:first-of-type button {
+    margin-bottom: 6px;
+  }
+  /* wrapper del input de búsqueda (es el bloque a la derecha con margin-left:auto en inline styles) */
+  main.container > div:first-of-type > div {
+    margin-left: 0 !important;
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+  main.container > div:first-of-type input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* KPIs a una columna (override de inline styles) */
+  main.container > section:nth-of-type(1) {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* Tabla → cards */
+  main.container > section:nth-of-type(2) {
+    border: none !important;
+    background: transparent !important;
+  }
+  /* Ocultar cabecera de tabla */
+  main.container > section:nth-of-type(2) > div:first-child {
+    display: none !important;
+  }
+  /* Cada fila como tarjeta (override de inline grid) */
+  main.container > section:nth-of-type(2) > div:not(:first-child) {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 14px;
+    margin: 10px 0;
+    padding: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+
+  /* Título/ID: permitir cortes limpios */
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(1) {
+    word-break: break-word;
+  }
+
+  /* Bloques de datos con etiqueta (Estado, Vendidos, Precio, Termina) */
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(2),
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(3),
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(4),
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(5) {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    align-items: center;
+    column-gap: 8px;
+  }
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(2)::before {
+    content: 'Estado';
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(3)::before {
+    content: 'Vendidos';
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(4)::before {
+    content: 'Precio';
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(5)::before {
+    content: 'Termina';
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Acciones: botones en 2 columnas (luego 1 col. en móviles muy chicos) */
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(6) {
+    justify-content: flex-start !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(6) > * {
+    flex: 1 1 48%;
+    min-width: 120px;
+  }
+}
+
+/* Teléfonos muy chicos (≤ 420px): botones 100% */
+@media (max-width: 420px) {
+  main.container > section:nth-of-type(2) > div:not(:first-child) > div:nth-child(6) > * {
+    flex: 1 1 100%;
+  }
+}
+

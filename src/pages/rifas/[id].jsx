@@ -4,6 +4,7 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
+import { getIconByNumber } from "../../hooks/useIconsMap";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
@@ -22,7 +23,7 @@ export default function RifaDetalle() {
   const [error, setError] = useState(null);
 
   const [selected, setSelected] = useState([]);
-  const [showIntro, setShowIntro] = useState(false); // ← ahora parte en false
+  const [showIntro, setShowIntro] = useState(false);
   const [showBuyer, setShowBuyer] = useState(false);
 
   const [payBanner, setPayBanner] = useState(null);       // {kind,text}
@@ -30,6 +31,9 @@ export default function RifaDetalle() {
 
   // Ganador (fijo)
   const [winner, setWinner] = useState(null);
+
+  // Spinner overlay durante la redirección a MP
+  const [redirecting, setRedirecting] = useState(false);
 
   const availableStatuses = new Set(["available", "free"]);
 
@@ -225,7 +229,6 @@ export default function RifaDetalle() {
         const { data, error } = await supabase.from("rifas").select("*").eq("id", rid).limit(1);
         if (!error && Array.isArray(data) && data.length) raffleData = mapRaffleFromOld(data[0]);
       }
-      if (!raffleData) throw new Error("Rifa no encontrada");
 
       let ticketsData = [];
       { const { data, error } = await supabase.from("tickets").select("*").eq("raffle_id", rid).order("number", { ascending: true });
@@ -292,12 +295,17 @@ export default function RifaDetalle() {
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok && (data.init_point || data.url)) {
+        // 🔵 Mostrar overlay spinner antes de salir a MP
+        setRedirecting(true);
+        // Evita doble click mientras se navega
+        setShowBuyer(false);
         window.location.href = data.init_point || data.url;
         return;
       }
       alert(data?.error || "No se pudo iniciar el checkout.");
     } catch (e) {
       console.error(e);
+      setRedirecting(false);
       alert("Error iniciando checkout.");
     }
   }
@@ -308,9 +316,22 @@ export default function RifaDetalle() {
   if (error) {
     return (<div className={styles.page}><div className={styles.error}>{error}</div></div>);
   }
-  if (!raffle) return null;
+  // Fallback visible (evita pantalla en blanco)
+  if (!raffle) {
+    return (
+      <div className={styles.page} style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        <div className={styles.error}>
+          No encontramos esta rifa. Revisa el enlace o vuelve al <a href="/panel">panel</a>.
+        </div>
+      </div>
+    );
+  }
 
   const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
+
+  // —— FIX de superposición / stacking contexts ——
+  // Aislamos el contenedor de página para controlar las capas
+  const pageIsolated = { position: "relative", isolation: "isolate" };
 
   const bannerStyle = (kind) => ({
     margin: "8px 0 12px",
@@ -318,7 +339,7 @@ export default function RifaDetalle() {
     borderRadius: 10,
     fontWeight: 700,
     position: "relative",
-    zIndex: 60,
+    zIndex: 200, // <- por encima de la grilla
     ...(kind === "success"
       ? { background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }
       : kind === "error"
@@ -328,7 +349,7 @@ export default function RifaDetalle() {
   const bannerClose = {
     position: "absolute", top: 6, right: 8, width: 28, height: 28, borderRadius: 999,
     border: "none", background: "#f1f5f9", color: "#0f172a", fontWeight: 800,
-    cursor: "pointer", display: "grid", placeItems: "center", lineHeight: 1,
+    cursor: "pointer", display: "grid", placeItems: "center", lineHeight: 1, zIndex: 201
   };
 
   const winnerStyle = {
@@ -338,12 +359,14 @@ export default function RifaDetalle() {
     border: "1px solid #bbf7d0",
     background: "#ecfdf5",
     color: "#065f46",
-    fontWeight: 700
+    fontWeight: 700,
+    position: "relative",
+    zIndex: 150 // sobre la grilla
   };
   const winnerSmall = { fontWeight: 500, fontSize: 12, color: "#065f46" };
 
   // estilos modal
-  const mBackdrop = { position: "fixed", inset: 0, background: "rgba(2,6,23,.55)", display: "grid", placeItems: "center", zIndex: 80 };
+  const mBackdrop = { position: "fixed", inset: 0, background: "rgba(2,6,23,.55)", display: "grid", placeItems: "center", zIndex: 2000 };
   const mBox = { width: "min(520px, 92vw)", background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 24px 60px rgba(2,6,23,.25)", padding: "16px 18px", position: "relative" };
   const mTitle = { fontSize: 18, fontWeight: 800, margin: "2px 0 8px" };
   const mP = { margin: "0 0 12px", color: "#0f172a" };
@@ -351,8 +374,34 @@ export default function RifaDetalle() {
   const mClose = { position: "absolute", top: 10, right: 10, width: 28, height: 28, borderRadius: 999, border: "none", background: "#f1f5f9", color: "#0f172a", fontWeight: 800, cursor: "pointer", display: "grid", placeItems: "center", lineHeight: 1 };
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} style={pageIsolated}>
       <Head><title>{titleCap || "Rifa"} — Rifex</title></Head>
+
+      {/* Overlay spinner durante la redirección a MP */}
+      {redirecting && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          style={{
+            position: "fixed", inset: 0, background: "rgba(2,6,23,.65)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 3000, // por encima de todo
+            backdropFilter: "blur(1px)"
+          }}
+        >
+          <div style={{ textAlign: "center", color: "#fff" }}>
+            <div
+              aria-hidden="true"
+              style={{
+                width: 68, height: 68, border: "6px solid rgba(255,255,255,.35)",
+                borderTop: "6px solid #18A957", borderRadius: "50%",
+                animation: "rfx-spin 1s linear infinite", margin: "0 auto 16px"
+              }}
+            />
+            <div style={{ fontWeight: 800 }}>Redirigiendo a Mercado Pago…</div>
+          </div>
+        </div>
+      )}
 
       <RaffleIntroModal
         open={showIntro}
@@ -363,7 +412,7 @@ export default function RifaDetalle() {
         raffle={raffle}
       />
 
-      <div className={styles.card}>
+      <div className={styles.card} style={{ position: "relative" }}>
         {winner && (
           <div style={winnerStyle}>
             🏆 Número ganador: <b>{winner.number}</b>
@@ -413,7 +462,7 @@ export default function RifaDetalle() {
         </div>
 
         {/* Grid de números */}
-        <div className={styles.numbersWrap}>
+        <div className={styles.numbersWrap} style={{ position: "relative", zIndex: 1 }}>
           <h3 className={styles.numbersTitle}>Números disponibles</h3>
           <div className={styles.numbersBlock}>
             <div className={styles.numsGrid}>
@@ -428,10 +477,102 @@ export default function RifaDetalle() {
                   isSelected(n) ? styles.sel : "",
                 ].join(" ");
                 return (
-                  <button key={n} type="button" onClick={() => toggleNumber(n, isFree)} aria-pressed={isSelected(n)} disabled={!isFree} className={cls}>
-                    <span>{n}</span>
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => toggleNumber(n, isFree)}
+                    aria-pressed={isSelected(n)}
+                    disabled={!isFree}
+                    className={cls}
+                    style={{ position: "relative", zIndex: 0 }}
+                  >
+                    {/* Ícono de fondo (si existe) */}
+                    {(() => {
+                      const ico = getIconByNumber(n);
+                      return ico ? (
+                        <img
+                          className={styles.iconImg}
+                          src={ico.src512}
+                          srcSet={ico.src1024 ? `${ico.src1024} 1024w, ${ico.src512} 512w` : undefined}
+                          sizes="128px"
+                          width={128}
+                          height={128}
+                          loading="lazy"
+                          decoding="async"
+                          alt=""
+                          style={{
+                            opacity: isSelected(n) ? 0 : 1,
+                            filter:
+                              state === "sold" ? "grayscale(1)" :
+                              state === "pending" ? "grayscale(.35)" : "none",
+                            zIndex: 1,
+                            pointerEvents: "none"
+                          }}
+                        />
+                      ) : null;
+                    })()}
+
+                    {/* OVERLAY + CHECK + RING */}
+                    {isSelected(n) && (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            borderRadius: 12,
+                            background: "linear-gradient(180deg, rgba(34,197,94,0.98) 0%, rgba(16,185,129,0.98) 100%)",
+                            zIndex: 20,
+                            pointerEvents: "none"
+                          }}
+                        />
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 3,
+                            border: "3px solid #fff",
+                            borderRadius: 10,
+                            zIndex: 25,
+                            pointerEvents: "none",
+                            animation: "rfx-pulse 1.1s ease-in-out infinite"
+                          }}
+                        />
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 30,
+                            fontWeight: 900,
+                            color: "#0b1221",
+                            textShadow: "0 1px 0 rgba(255,255,255,.7)",
+                            zIndex: 30,
+                            pointerEvents: "none"
+                          }}
+                        >
+                          ✓
+                        </span>
+                      </>
+                    )}
+
+                    {/* Número */}
+                    <span className={styles.numBadge} style={{ zIndex: 40 }}>
+                      {n}
+                    </span>
+
+                    {/* Badges RES./VEND. */}
                     {state !== "available" && (
-                      <span className={[styles.badge, state === "pending" ? styles.badgePending : styles.badgeSold].join(" ")}>
+                      <span
+                        className={[
+                          styles.badge,
+                          state === "pending" ? styles.badgePending : styles.badgeSold,
+                        ].join(" ")}
+                        style={{ zIndex: 40 }}
+                      >
                         {state === "pending" ? "RES." : "VEND."}
                       </span>
                     )}
@@ -443,12 +584,19 @@ export default function RifaDetalle() {
           </div>
         </div>
 
-        {/* CTA abajo */}
-        <div className={styles.bottomCta}>
-          <button type="button" className={styles.cta} disabled={selected.length === 0} onClick={() => setShowBuyer(true)}>
-            {selected.length === 0 ? "Comprar (selecciona)" : `Comprar (${selected.length})`}
-          </button>
-        </div>
+        {/* CTA abajo — se oculta mientras el modal BuyerForm o el modal de pago estén abiertos */}
+        {!showBuyer && !paymentResult && (
+          <div className={styles.bottomCta} style={{ position: "relative", zIndex: 50 }}>
+            <button
+              type="button"
+              className={styles.cta}
+              disabled={selected.length === 0}
+              onClick={() => setShowBuyer(true)}
+            >
+              {selected.length === 0 ? "Comprar (selecciona)" : `Comprar (${selected.length})`}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Modal confirmación */}
@@ -481,16 +629,22 @@ export default function RifaDetalle() {
         priceCLP={raffle.price_cents}
         termsVersion={TERMS_VERSION}
         onSubmit={async (buyer) => { setShowBuyer(false); await comprar(buyer); }}
+        // fuerza al modal/overlay a estar arriba
+        modalZIndex={2100}
       />
+
+      {/* Animaciones */}
+      <style jsx>{`
+        @keyframes rfx-pulse {
+          0%   { opacity: .95; transform: scale(1); }
+          50%  { opacity: .6;  transform: scale(.985); }
+          100% { opacity: .95; transform: scale(1); }
+        }
+        @keyframes rfx-spin {
+          0%   { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-

@@ -169,5 +169,17 @@
 }
 .error { color: #b91c1c; }
 
+.iconImg{
+  position:absolute; inset:0;
+  width:100%; height:100%; object-fit:cover;
+  border-radius:16px;
+}
+.numBadge{
+  position:absolute; right:8px; bottom:8px;
+  font:800 14px/1 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color:#00F0FF; text-shadow:0 0 6px rgba(0,0,0,.6);
+}
 
+.iconImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:16px}
+.numBadge{position:absolute;right:8px;bottom:8px;font:800 14px/1 system-ui;color:#00F0FF;text-shadow:0 0 6px rgba(0,0,0,.6)}
 
