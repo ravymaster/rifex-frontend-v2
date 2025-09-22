@@ -1,8 +1,10 @@
 // next.config.mjs
-/** HOTFIX para Vercel: evita recursión de micromatch */
 const nextConfig = {
+  output: 'standalone',                // empaqueta deps y simplifica el trace
   experimental: {
-    outputFileTracing: false, // Desactiva tracing que rompe el build
+    // Esta sí existe en v14 y a veces evita loops del tracer:
+    outputFileTracingRoot: process.cwd(),
+    // ⚠️ NO uses outputFileTracing aquí (no es una key válida).
   },
 };
 
