@@ -17,6 +17,7 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "replicate": "^1.1.0",
+    "resend": "^6.1.0",
     "sharp": "^0.34.3",
     "slugify": "^1.6.6"
   }
