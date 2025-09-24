@@ -12,94 +12,142 @@ export default function Header() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data?.user || null));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setUser(s?.user || null));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) =>
+      setUser(s?.user || null)
+    );
     return () => sub?.subscription?.unsubscribe?.();
   }, []);
 
-  useEffect(() => {
-    const onEsc = (e) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onEsc);
-    return () => window.removeEventListener("keydown", onEsc);
-  }, []);
-
-  useEffect(() => { setOpen(false); }, [router.pathname]);
-
-  async function logout() {
+  const logout = async () => {
     await supabase.auth.signOut();
-    router.push("/login");
-  }
+    router.replace("/login");
+  };
 
   return (
     <header className={styles.header}>
       <div className={styles.inner}>
-        {/* Brand */}
-        <Link href="/" className={styles.brand}>
-          <img src="/rifex-logo.png" alt="Rifex" className={styles.logo} />
-          <span className={styles.brandText}>RIFEX</span>
-        </Link>
+        {/* Brand / logo */}
+        <div className={styles.left}>
+          <Link href="/" className={styles.brand}>
+            <img
+              src="/logo-64.png"
+              alt="RIFEX"
+              width={28}
+              height={28}
+              className={styles.logo}
+            />
+            <span>RIFEX</span>
+          </Link>
 
-        {/* Desktop nav */}
-        <nav className={styles.navDesktop}>
-          <Link href="/panel">Panel</Link>
-          <Link href="/rifas/crear">Crear rifa</Link>
-          <Link href="/ayuda">Ayuda</Link>
-        </nav>
+          {/* Nav (desktop) */}
+          <nav className={styles.nav}>
+            <Link href="/panel">Panel</Link>
+            {/* ✅ corregido: antes era /rifas/crear */}
+            <Link href="/crear-rifa">Crear rifa</Link>
+            <Link href="/ayuda">Ayuda</Link>
+          </nav>
+        </div>
 
-        {/* Desktop actions */}
-        <div className={styles.actionsDesktop}>
+        {/* Actions (desktop) */}
+        <div className={styles.actions}>
           {!user ? (
             <>
-              <Link href="/login" className={`btn ${styles.btnPlain}`}>Ingresar</Link>
-              <Link href="/register" className={`btn ${styles.btnPrimary}`}>Crear cuenta</Link>
+              <Link href="/login" className={`btn ${styles.btnPlain}`}>
+                Ingresar
+              </Link>
+              <Link href="/register" className={`btn ${styles.btnPrimary}`}>
+                Crear cuenta
+              </Link>
             </>
           ) : (
             <>
-              <span className={styles.me}>{user.email}</span>
-              <button onClick={logout} className={`btn ${styles.btnPlain}`}>Salir</button>
+              <div className={styles.me}>{user.email}</div>
+              <button onClick={logout} className={`btn ${styles.btnPlain}`}>
+                Salir
+              </button>
             </>
           )}
         </div>
 
-        {/* Hamburger */}
+        {/* Botón menú (mobile) */}
         <button
-          className={styles.hamburger}
+          className={styles.menuBtn}
           aria-label="Abrir menú"
-          aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
-          <span />
-          <span />
-          <span />
+          ☰
         </button>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Drawer / menú mobile */}
       {open && (
-        <>
-          <div className={styles.backdrop} onClick={() => setOpen(false)} />
-          <div className={styles.drawer} role="dialog" aria-modal="true">
-            <nav className={styles.navMobile}>
+        <div className={styles.drawer}>
+          <div className={styles.drawerInner}>
+            <div className={styles.drawerTop}>
+              <Link href="/" className={styles.brand}>
+                <img
+                  src="/logo-64.png"
+                  alt="RIFEX"
+                  width={28}
+                  height={28}
+                  className={styles.logo}
+                />
+                <span>RIFEX</span>
+              </Link>
+              <button
+                className={styles.menuClose}
+                aria-label="Cerrar menú"
+                onClick={() => setOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <nav className={styles.navMobile} onClick={() => setOpen(false)}>
               <Link href="/panel">Panel</Link>
-              <Link href="/rifas/crear">Crear rifa</Link>
+              {/* ✅ corregido: antes era /rifas/crear */}
+              <Link href="/crear-rifa">Crear rifa</Link>
               <Link href="/ayuda">Ayuda</Link>
             </nav>
+
             <div className={styles.actionsMobile}>
               {!user ? (
                 <>
-                  <Link href="/login" className={`btn ${styles.btnPlain}`}>Ingresar</Link>
-                  <Link href="/register" className={`btn ${styles.btnPrimary}`}>Crear cuenta</Link>
+                  <Link
+                    href="/login"
+                    className={`btn ${styles.btnPlain}`}
+                    onClick={() => setOpen(false)}
+                  >
+                    Ingresar
+                  </Link>
+                  <Link
+                    href="/register"
+                    className={`btn ${styles.btnPrimary}`}
+                    onClick={() => setOpen(false)}
+                  >
+                    Crear cuenta
+                  </Link>
                 </>
               ) : (
                 <>
                   <div className={styles.meMobile}>{user.email}</div>
-                  <button onClick={logout} className={`btn ${styles.btnPlain}`}>Salir</button>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      logout();
+                    }}
+                    className={`btn ${styles.btnPlain}`}
+                  >
+                    Salir
+                  </button>
                 </>
               )}
             </div>
           </div>
-        </>
+        </div>
       )}
     </header>
   );
 }
+
 
