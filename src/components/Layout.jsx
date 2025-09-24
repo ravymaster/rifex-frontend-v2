@@ -1,9 +1,14 @@
 // src/components/Layout.jsx
+import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 
-export default function Layout({ children }) {
+export default function Layout({
+  title = 'Rifex',
+  description = 'Crea rifas en minutos, comparte el enlace y cobra online.',
+  children,
+}) {
   const { pathname } = useRouter();
   const [open, setOpen] = useState(false);
 
@@ -39,6 +44,13 @@ export default function Layout({ children }) {
 
   return (
     <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+
+      {/* Header propio (responsive) */}
       <header className="rf-header" role="banner">
         <div className="rf-header-inner">
           {/* Marca (logo izquierda) */}
@@ -97,10 +109,56 @@ export default function Layout({ children }) {
         </div>
       </header>
 
-      <main>{children}</main>
+      {/* Contenido principal */}
+      <main className="container">{children}</main>
+
+      {/* Footer */}
+      <footer className="foot">
+        <div className="inner">
+          <span>© {new Date().getFullYear()} Rifex</span>
+          <nav>
+            <a href="/terminos">Términos</a>
+            <a href="/contacto">Contacto</a>
+          </nav>
+        </div>
+      </footer>
 
       {/* Styles */}
       <style jsx>{`
+        .container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 24px 16px;
+          min-height: 60vh;
+        }
+        .foot {
+          border-top: 1px solid #e5e7eb;
+          margin-top: 24px;
+          background: #fff;
+        }
+        .inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 14px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          font-size: 14px;
+          color: #6b7280;
+        }
+        .inner nav {
+          display: flex;
+          gap: 12px;
+        }
+        .inner a {
+          color: #1e3a8a;
+          text-decoration: none;
+        }
+        .inner a:hover {
+          text-decoration: underline;
+        }
+
         .rf-header {
           position: sticky;
           top: 0;
@@ -126,7 +184,7 @@ export default function Layout({ children }) {
           font-size: 18px;
           color: #0f172a;
           text-decoration: none;
-          letter-spacing: .2px;
+          letter-spacing: 0.2px;
         }
         .rf-nav {
           display: flex;
@@ -139,7 +197,7 @@ export default function Layout({ children }) {
           border-radius: 10px;
           color: #0f172a;
           font-weight: 600;
-          transition: background .15s ease;
+          transition: background 0.15s ease;
         }
         .rf-nav__link:hover { background: #f1f5f9; }
         .rf-nav__link[data-active="true"] {
@@ -192,80 +250,8 @@ export default function Layout({ children }) {
 
         /* Breakpoints */
         @media (max-width: 900px) {
-          .rf-nav-desktop { display: none; }   /* Oculta todo el menú ancho */
-          .rf-hamburger { display: inline-grid; place-items: center; } /* Muestra el botón */
-        }
-      `}</style>
-    </>
-  );
-}
-
-export default function Layout({
-  title = "Rifex",
-  description = "Crea rifas en minutos, comparte el enlace y cobra online.",
-  children,
-}) {
-  return (
-    <>
-      <Head>
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
-
-      {/* Header global */}
-      <Header />
-
-      {/* Banner solo en entornos no productivos (controlado por DevBanner) */}
-      <DevBanner />
-
-      {/* Contenido principal */}
-      <main className="container">{children}</main>
-
-      {/* Footer mínimo (opcional) */}
-      <footer className="foot">
-        <div className="inner">
-          <span>© {new Date().getFullYear()} Rifex</span>
-          <nav>
-            <a href="/terminos">Términos</a>
-            <a href="/contacto">Contacto</a>
-          </nav>
-        </div>
-      </footer>
-
-      <style jsx>{`
-        .container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 24px 16px;
-          min-height: 60vh;
-        }
-        .foot {
-          border-top: 1px solid #e5e7eb;
-          margin-top: 24px;
-          background: #fff;
-        }
-        .inner {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 14px 16px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          font-size: 14px;
-          color: #6b7280;
-        }
-        .inner nav {
-          display: flex;
-          gap: 12px;
-        }
-        .inner a {
-          color: #1e3a8a;
-          text-decoration: none;
-        }
-        .inner a:hover {
-          text-decoration: underline;
+          .rf-nav-desktop { display: none; }
+          .rf-hamburger { display: inline-grid; place-items: center; }
         }
       `}</style>
     </>
