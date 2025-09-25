@@ -13,6 +13,10 @@ const supabase = createClient(url, service || anon, {
 // reserva en minutos (súbelo si hace falta)
 const HOLD_MINUTES = parseInt(process.env.HOLD_MINUTES || "15", 10);
 
+// fee marketplace (CLP)
+const FEE_PER_TICKET = parseInt(process.env.MP_FEE_PER_TICKET_CLP || "0", 10);
+const FEE_FIXED = parseInt(process.env.MP_FEE_FIXED_CLP || "0", 10);
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
@@ -114,7 +118,7 @@ export default async function handler(req, res) {
       throw uErr;
     }
 
-    // 4) Preferencia Mercado Pago (MINIMAL y seguro)
+    // 4) Preferencia Mercado Pago (Checkout Pro)
     const accessToken = process.env.MP_ACCESS_TOKEN;
     if (!accessToken) throw new Error("Missing MP_ACCESS_TOKEN");
 
@@ -130,6 +134,13 @@ export default async function handler(req, res) {
     const pref = new Preference(mpClient);
 
     const cleanTitle = `Rifa ${String(raffle.title || "Rifex").slice(0, 60)}`;
+
+    // Calculamos marketplace_fee (opcional)
+    const feeCalc =
+      (Number.isFinite(FEE_PER_TICKET) ? FEE_PER_TICKET * numbers.length : 0) +
+      (Number.isFinite(FEE_FIXED) ? FEE_FIXED : 0);
+    const marketplaceFee = Math.max(0, Math.round(feeCalc));
+
     const prefBody = {
       items: [
         {
@@ -139,7 +150,6 @@ export default async function handler(req, res) {
           currency_id: "CLP",
         },
       ],
-      // datos mínimos del pagador (sin documento para no gatillar validaciones)
       payer: {
         email: buyer_email || undefined,
         name: buyer_name || undefined,
@@ -153,11 +163,12 @@ export default async function handler(req, res) {
       notification_url: notificationUrl,
       external_reference: String(purchase.id),
       statement_descriptor: "RIFEX",
-      // metadata muy corta (evitamos arrays/largos)
       metadata: {
         raffle_id: String(rid),
         purchase_id: String(purchase.id),
       },
+      // *** ¡Importante! Solo para Checkout Pro ***
+      ...(marketplaceFee > 0 ? { marketplace_fee: marketplaceFee } : {}),
     };
 
     let prefResp;
@@ -166,6 +177,7 @@ export default async function handler(req, res) {
       console.log("[mp] preference created", {
         id: prefResp?.id || prefResp?.body?.id,
         init_point: prefResp?.init_point || prefResp?.body?.init_point,
+        marketplace_fee: marketplaceFee,
       });
     } catch (e) {
       console.error("[mp] preference.create error", e?.message || e);
@@ -213,6 +225,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: e?.message || "error" });
   }
 }
+
 
 
 

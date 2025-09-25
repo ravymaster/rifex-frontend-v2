@@ -333,13 +333,17 @@ export default function RifaDetalle() {
   // Aislamos el contenedor de página para controlar las capas
   const pageIsolated = { position: "relative", isolation: "isolate" };
 
+  // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA
+  const hasAnyModalOrOverlay =
+    !!showIntro || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
+
   const bannerStyle = (kind) => ({
     margin: "8px 0 12px",
     padding: "10px 40px 10px 12px",
     borderRadius: 10,
     fontWeight: 700,
     position: "relative",
-    zIndex: 200, // <- por encima de la grilla
+    zIndex: 200, // <- por encima de la grilla/CTA
     ...(kind === "success"
       ? { background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }
       : kind === "error"
@@ -584,14 +588,19 @@ export default function RifaDetalle() {
           </div>
         </div>
 
-        {/* CTA abajo — se oculta mientras el modal BuyerForm o el modal de pago estén abiertos */}
-        {!showBuyer && !paymentResult && (
-          <div className={styles.bottomCta} style={{ position: "relative", zIndex: 50 }}>
+        {/* CTA abajo — oculto cuando hay banner/intro/modales/redirect */}
+        {!hasAnyModalOrOverlay && (
+          <div
+            className={styles.bottomCta}
+            style={{ position: "relative", zIndex: 10, marginTop: 12 }}
+            aria-hidden={hasAnyModalOrOverlay}
+          >
             <button
               type="button"
               className={styles.cta}
               disabled={selected.length === 0}
               onClick={() => setShowBuyer(true)}
+              style={{ position: "relative", zIndex: 1 }}
             >
               {selected.length === 0 ? "Comprar (selecciona)" : `Comprar (${selected.length})`}
             </button>
@@ -648,3 +657,4 @@ export default function RifaDetalle() {
     </div>
   );
 }
+
