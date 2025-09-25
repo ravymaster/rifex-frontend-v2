@@ -2,7 +2,7 @@
 import Head from "next/head";
 import Layout from "@/components/Layout";
 import styles from "@/styles/bancos.module.css";
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -22,9 +22,6 @@ export default function Bancos() {
   const [accountNumber, setAccountNumber] = useState("");
   const [payoutEmail, setPayoutEmail] = useState("");
 
-  // para resetear a lo que vino de DB
-  const lastLoadedRef = useRef(null);
-
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -33,10 +30,10 @@ export default function Bancos() {
   const [mpConnected, setMpConnected] = useState(false);
   const [checkingMp, setCheckingMp] = useState(true);
 
-  // Flow por ahora fijo
+  // (de momento, mantenemos Flow “conectado” fijo)
   const flowConnected = true;
 
-  // helper: link de conectar MP pasando email/uid
+  // helper para link de conectar MP
   const mpConnectHref = useMemo(() => {
     const base = "/api/mp/oauth/start";
     const params = new URLSearchParams();
@@ -46,7 +43,7 @@ export default function Bancos() {
     return qs ? `${base}?${qs}` : base;
   }, [user]);
 
-  // cargar usuario actual
+  // cargar usuario
   useEffect(() => {
     (async () => {
       setLoadingUser(true);
@@ -74,49 +71,23 @@ export default function Bancos() {
         setBankName(data.bank_name || "");
         setAccountType(data.account_type || "corriente");
         setAccountNumber(data.account_number || "");
-        setPayoutEmail((data.payout_email || "").toLowerCase());
-        // guarda snapshot para “Cancelar”
-        lastLoadedRef.current = {
-          holder_name: data.holder_name || "",
-          tax_id: data.tax_id || "",
-          bank_name: data.bank_name || "",
-          account_type: data.account_type || "corriente",
-          account_number: data.account_number || "",
-          payout_email: (data.payout_email || "").toLowerCase(),
-        };
-      } else {
-        // si no hay fila, deja snapshot vacío
-        lastLoadedRef.current = {
-          holder_name: "",
-          tax_id: "",
-          bank_name: "",
-          account_type: "corriente",
-          account_number: "",
-          payout_email: "",
-        };
+        setPayoutEmail(data.payout_email || "");
       }
     })();
   }, [user?.id]);
 
-  // estado de conexión MP (consulta con uid)
+  // estado de conexión MP (usa uid explícito)
   useEffect(() => {
-    if (!user?.id) {
-      setMpConnected(false);
-      setCheckingMp(false);
-      return;
-    }
     (async () => {
       setCheckingMp(true);
       try {
-        const res = await fetch(
-          `/api/mp/status?uid=${encodeURIComponent(user.id)}`
-        );
-        if (res.ok) {
-          const j = await res.json();
-          setMpConnected(!!j?.connected);
-        } else {
+        if (!user?.id) {
           setMpConnected(false);
+          return;
         }
+        const res = await fetch(`/api/mp/status?uid=${encodeURIComponent(user.id)}`);
+        const j = await res.json();
+        setMpConnected(!!j?.connected);
       } catch {
         setMpConnected(false);
       } finally {
@@ -156,17 +127,6 @@ export default function Bancos() {
         .upsert(row, { onConflict: "user_id" });
 
       if (error) throw error;
-
-      // actualiza snapshot para “Cancelar”
-      lastLoadedRef.current = {
-        holder_name: row.holder_name,
-        tax_id: row.tax_id || "",
-        bank_name: row.bank_name || "",
-        account_type: row.account_type,
-        account_number: row.account_number || "",
-        payout_email: row.payout_email,
-      };
-
       setSavedOk(true);
     } catch (err) {
       setErrorMsg(err?.message || "No se pudo guardar.");
@@ -174,18 +134,6 @@ export default function Bancos() {
       setSaving(false);
       setTimeout(() => setSavedOk(false), 2000);
     }
-  };
-
-  const onCancel = () => {
-    const snap = lastLoadedRef.current || {};
-    setHolderName(snap.holder_name || "");
-    setTaxId(snap.tax_id || "");
-    setBankName(snap.bank_name || "");
-    setAccountType(snap.account_type || "corriente");
-    setAccountNumber(snap.account_number || "");
-    setPayoutEmail(snap.payout_email || "");
-    setErrorMsg("");
-    setSavedOk(false);
   };
 
   return (
@@ -297,7 +245,9 @@ export default function Bancos() {
                     <button
                       type="button"
                       className="btn btn-ghost"
-                      onClick={onCancel}
+                      onClick={() => {
+                        // noop / o podrías recargar desde BD
+                      }}
                     >
                       Cancelar
                     </button>
@@ -341,7 +291,6 @@ export default function Bancos() {
                         <a className={styles.btnManage} href="/panel/mercado-pago">
                           Gestionar
                         </a>
-                        {/* Más adelante: /api/mp/disconnect */}
                         <button className={styles.btnDanger} disabled>
                           Desconectar
                         </button>
@@ -401,4 +350,3 @@ export default function Bancos() {
 }
 
 Bancos.getLayout = (page) => <Layout>{page}</Layout>;
-
