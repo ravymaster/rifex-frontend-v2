@@ -1,16 +1,19 @@
 import Head from 'next/head';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import styles from '@/styles/login.module.css';
 
 /* Botón Google */
-function GoogleButton({ label = 'Continuar con Google', className = '' }) {
+function GoogleButton({ label = 'Continuar con Google', className = '', nextPath = '/panel' }) {
   async function signInGoogle() {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${origin}/panel`, queryParams: { prompt: 'select_account' } },
+      options: {
+        redirectTo: `${origin}${nextPath}`,
+        queryParams: { prompt: 'select_account' },
+      },
     });
   }
   return (
@@ -32,6 +35,13 @@ function GoogleButton({ label = 'Continuar con Google', className = '' }) {
 
 export default function Login() {
   const router = useRouter();
+
+  // next=/ruta (sanitizado: solo rutas absolutas internas)
+  const nextPath = useMemo(() => {
+    const q = (router.query?.next || '').toString();
+    return q.startsWith('/') ? q : '/panel';
+  }, [router.query?.next]);
+
   const [email, setEmail] = useState('');
   const [pass, setPass]   = useState('');
   const [loading, setLoading] = useState(false);
@@ -54,17 +64,18 @@ export default function Login() {
     setErr('');
     setLoading(true);
     try {
-      // hCaptcha → usar getResponse() sin argumentos (un único widget)
+      // hCaptcha
       const token = window.hcaptcha?.getResponse();
       if (!token) { setErr('Completa el captcha.'); return; }
-      const r = await fetch('/api/verify-captcha', {
+
+      const verify = await fetch('/api/verify-captcha', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       });
-      const j = await r.json().catch(()=>({ok:false}));
+      const j = await verify.json().catch(()=>({ok:false}));
       if (!j.ok) { setErr('Captcha inválido.'); return; }
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+      const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
       if (error) {
         const msg = String(error.message || '').toLowerCase();
         if (msg.includes('email') && msg.includes('confirm')) {
@@ -75,8 +86,8 @@ export default function Login() {
         return;
       }
 
-      // Ok → al panel
-      router.push('/panel');
+      // Ok → a nextPath
+      router.push(nextPath);
     } catch (e) {
       console.error('[login]', e);
       setErr('Error iniciando sesión. Intenta de nuevo.');
@@ -113,11 +124,32 @@ export default function Login() {
 
               <form onSubmit={onSubmit}>
                 <label className="label" htmlFor="email">Email</label>
-                <input id="email" className="input" type="email" placeholder="tucorreo@dominio.com"
-                       value={email} onChange={(e)=>setEmail(e.target.value)} required />
-                <label className="label" htmlFor="pass" style={{ marginTop: 10 }}>Contraseña</label>
-                <input id="pass" className="input" type="password" placeholder="Tu contraseña"
-                       value={pass} onChange={(e)=>setPass(e.target.value)} required />
+                <input
+                  id="email"
+                  className="input"
+                  type="email"
+                  placeholder="tucorreo@dominio.com"
+                  value={email}
+                  onChange={(e)=>setEmail(e.target.value)}
+                  required
+                />
+
+                <div className={styles.row}>
+                  <label className="label" htmlFor="pass" style={{ marginTop: 10 }}>Contraseña</label>
+                  <a className={styles.link} href={`/reset-password?email=${encodeURIComponent(email || '')}`} title="Recuperar acceso">
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </div>
+
+                <input
+                  id="pass"
+                  className="input"
+                  type="password"
+                  placeholder="Tu contraseña"
+                  value={pass}
+                  onChange={(e)=>setPass(e.target.value)}
+                  required
+                />
 
                 <div className={styles.captchaWrap}>
                   <div className="h-captcha" data-sitekey={sitekey} ref={captchaRef} />
@@ -135,7 +167,7 @@ export default function Login() {
 
               <div className={styles.oauthArea}>
                 <div className={styles.hr}><span>o</span></div>
-                <GoogleButton label="Continuar con Google" className={styles.oauthBtn} />
+                <GoogleButton label="Continuar con Google" className={styles.oauthBtn} nextPath={nextPath} />
               </div>
             </section>
           </div>
@@ -144,5 +176,6 @@ export default function Login() {
     </>
   );
 }
+
 
 

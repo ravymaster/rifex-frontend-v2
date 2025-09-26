@@ -6,17 +6,21 @@ import {
   sendCreatorSaleEmail,
 } from "../../../lib/mailer";
 
-// Necesitamos raw body para validar la firma
-export const config = { api: { bodyParser: false } };
+// ==== Runtime + raw body ====
+export const config = { api: { bodyParser: false }, runtime: "nodejs" };
 
+// ==== Supabase (service role si está disponible) ====
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
 const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
 
+// === Helpers ===
 const isValidEmail = (s) =>
   typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 
@@ -29,11 +33,80 @@ function readRawBody(req) {
   });
 }
 
+function parseMaybeFormUrlEncoded(rawBuf) {
+  const txt = rawBuf.toString("utf8");
+  const kv = Object.fromEntries(
+    txt.split("&").map((p) => {
+      const [k, v] = p.split("=");
+      return [decodeURIComponent(k || ""), decodeURIComponent(v || "")];
+    })
+  );
+  return kv;
+}
+
+function safeJsonParse(buf) {
+  try {
+    return JSON.parse(buf.toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function buildEventId(req, paymentId) {
+  const reqId = String(req.headers["x-request-id"] || "");
+  const ts = Date.now();
+  return `mpw_${paymentId || "noid"}_${reqId || "noreqid"}_${ts}`;
+}
+
+function mask(val, keep = 6) {
+  const s = String(val || "");
+  if (s.length <= keep) return s;
+  return `${s.slice(0, keep)}…(${s.length})`;
+}
+
+async function fetchPayment(paymentId, hintMpUserId = null) {
+  // 1) Intento con token plataforma
+  const platformToken = process.env.MP_ACCESS_TOKEN || null;
+  if (platformToken) {
+    const r = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+      headers: { Authorization: `Bearer ${platformToken}` },
+    });
+    if (r.ok) return { ok: true, json: await r.json(), via: "platform" };
+    if (![401, 403].includes(r.status)) {
+      // Errores no auth → devolver tal cual
+      return { ok: false, status: r.status, json: await r.json().catch(() => ({})), via: "platform" };
+    }
+  }
+
+  // 2) Fallback: si conocemos el mp_user_id, intentamos buscar token vendedor
+  if (hintMpUserId) {
+    const { data: gw } = await supabase
+      .from("merchant_gateways")
+      .select("access_token, mp_user_id")
+      .eq("mp_user_id", String(hintMpUserId))
+      .eq("provider", "mp")
+      .maybeSingle();
+
+    const sellerToken = gw?.access_token || null;
+    if (sellerToken) {
+      const r2 = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+        headers: { Authorization: `Bearer ${sellerToken}` },
+      });
+      if (r2.ok) return { ok: true, json: await r2.json(), via: "seller" };
+      return { ok: false, status: r2.status, json: await r2.json().catch(() => ({})), via: "seller" };
+    }
+  }
+
+  return { ok: false, status: 401, json: { error: "no_token_available" }, via: "none" };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST")
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
 
   let raw = null;
+  let eventId = null;
+
   try {
     raw = await readRawBody(req);
   } catch (e) {
@@ -42,78 +115,94 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: false, error: "raw_body_error" });
   }
 
-  // ----- Validación opcional de firma (recomendada) -----
   try {
-    const secret = process.env.MP_WEBHOOK_SECRET;
-    const signature = req.headers["x-signature"];
-    const reqId = req.headers["x-request-id"];
+    // ==== Logs base (headers + raw) ====
+    const h = Object.fromEntries(
+      Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : String(v)])
+    );
+    // No logueamos Authorization si viniera
+    delete h.authorization;
+    console.log("[mp webhook] HEADERS:", h);
+    console.log("[mp webhook] RAW:", mask(raw.toString("utf8"), 512));
 
-    if (secret && signature && reqId) {
-      // signature viene como "ts=...,v1=..."
-      const parts = Object.fromEntries(
-        String(signature)
-          .split(",")
-          .map((kv) => kv.trim().split("="))
-      );
-      const signed = `id:${reqId};ts:${parts.ts};`;
-      const digest = crypto.createHmac("sha256", secret).update(signed).digest("hex");
+    // ==== Validación de firma (opcional pero recomendado) ====
+    try {
+      const secret = process.env.MP_WEBHOOK_SECRET;
+      const signature = req.headers["x-signature"];
+      const reqId = req.headers["x-request-id"];
 
-      if (digest !== parts.v1) {
-        console.warn("[mp webhook] firma inválida", { digest, v1: parts.v1, ts: parts.ts });
-        return res.status(400).json({ ok: false, error: "invalid_signature" });
+      if (secret && signature && reqId) {
+        // signature: "ts=...,v1=..."
+        const parts = Object.fromEntries(
+          String(signature)
+            .split(",")
+            .map((kv) => kv.trim().split("="))
+        );
+        const signed = `id:${reqId};ts:${parts.ts};`;
+        const digest = crypto.createHmac("sha256", secret).update(signed).digest("hex");
+
+        if (digest !== parts.v1) {
+          console.warn("[mp webhook] invalid signature", { digest, v1: parts.v1, ts: parts.ts });
+          return res.status(400).json({ ok: false, error: "invalid_signature" });
+        }
+      }
+    } catch (e) {
+      console.warn("[mp webhook] signature validation skipped:", e?.message || e);
+    }
+
+    // ==== Parse del cuerpo ====
+    let body = safeJsonParse(raw);
+    if (!body) {
+      try {
+        body = parseMaybeFormUrlEncoded(raw);
+      } catch (e) {
+        console.error("[mp webhook] body parse error", e);
+        return res.status(200).json({ ok: false, error: "invalid_body" });
       }
     }
-  } catch (e) {
-    console.warn("[mp webhook] no se pudo validar firma:", e?.message || e);
-    // no abortamos; continuamos para no perder eventos
-  }
 
-  // ----- Parse del JSON del webhook -----
-  let body = {};
-  try {
-    body = JSON.parse(raw.toString("utf8"));
-  } catch {
-    // MP a veces envía application/x-www-form-urlencoded
-    try {
-      const txt = raw.toString("utf8");
-      const kv = Object.fromEntries(
-        txt.split("&").map((p) => {
-          const [k, v] = p.split("=");
-          return [decodeURIComponent(k), decodeURIComponent(v || "")];
-        })
-      );
-      body = kv;
-    } catch (e) {
-      console.error("[mp webhook] body parse error", e);
-      return res.status(200).json({ ok: false, error: "invalid_body" });
-    }
-  }
-
-  try {
+    // Campos habituales en webhook MP:
+    // body.type (payment, plan, subscription, test_notification)
+    // body.data.id (payment id), body.user_id (collector id) …
     const paymentId =
       body?.data?.id ||
       body?.id ||
       body?.resource?.id ||
       (typeof body?.data === "string" ? body.data : null);
 
+    // MP a veces envía eventos que no son de pago
     if (!paymentId) {
-      // MP puede enviar merchant_orders u otros eventos
-      return res.status(200).json({ ok: true, msg: "no payment id" });
+      console.log("[mp webhook] no payment id in payload");
+      return res.status(200).json({ ok: true, msg: "no_payment_id" });
     }
 
-    const token = process.env.MP_ACCESS_TOKEN;
-    const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const mp = await mpRes.json().catch(() => ({}));
+    eventId = buildEventId(req, paymentId);
 
-    const status = String(mp?.status || "").toLowerCase(); // approved|pending|rejected...
+    // Hint de mp_user_id/collector para poder probar token del vendedor si el de plataforma falla
+    const hintMpUserId =
+      body?.user_id || body?.account_id || body?.collector_id || body?.owner_id || null;
+
+    // ==== Traer el pago desde MP ====
+    const fetched = await fetchPayment(paymentId, hintMpUserId);
+    if (!fetched.ok) {
+      console.warn("[mp webhook] cannot fetch payment", {
+        eventId,
+        status: fetched.status,
+        via: fetched.via,
+        body: fetched.json,
+      });
+      // Responder 200 para no reintentar eternamente; un job de conciliación podría retomarlo
+      return res.status(200).json({ ok: false, error: "fetch_payment_failed" });
+    }
+
+    const mp = fetched.json;
+    const status = String(mp?.status || "").toLowerCase(); // approved|pending|rejected|in_process…
     const status_detail = mp?.status_detail || null;
     const md = mp?.metadata || {};
 
+    // Referencias/metadata
     let purchaseId = md.purchase_id || mp?.external_reference || null;
     if (purchaseId && typeof purchaseId !== "string") purchaseId = String(purchaseId);
-
     let raffleId = md.raffle_id || md.raffleId || md.rid || null;
 
     // numbers desde metadata (si vinieran)
@@ -126,7 +215,7 @@ export default async function handler(req, res) {
         .filter((n) => Number.isFinite(n));
     }
 
-    // fallback: si faltan datos, traemos desde purchases
+    // fallback: completar datos desde purchases
     let buyer_email = (md.buyer_email || mp?.payer?.email || "").trim().toLowerCase();
     let buyer_name = (md.buyer_name || mp?.payer?.first_name || "").toString().trim();
 
@@ -137,7 +226,6 @@ export default async function handler(req, res) {
           .select("raffle_id, numbers, buyer_email, buyer_name")
           .eq("id", purchaseId)
           .maybeSingle();
-
         if (pRow) {
           if (!raffleId && pRow.raffle_id) raffleId = pRow.raffle_id;
           if (!numbers.length && Array.isArray(pRow.numbers)) numbers = pRow.numbers;
@@ -150,13 +238,14 @@ export default async function handler(req, res) {
     }
 
     const amount_cents = Math.round(Number(mp?.transaction_amount || 0) * 100);
+    const mpIdStr = String(mp?.id || paymentId);
 
-    // Upsert en payments
-    const { data: payRow } = await supabase
+    // ==== Upsert en payments (idempotente) ====
+    const { data: payRow, error: payErr } = await supabase
       .from("payments")
       .upsert(
         {
-          mp_payment_id: String(mp?.id || paymentId),
+          mp_payment_id: mpIdStr,
           raffle_id: raffleId || null,
           purchase_id: purchaseId || null,
           buyer_email: isValidEmail(buyer_email) ? buyer_email : null,
@@ -165,23 +254,31 @@ export default async function handler(req, res) {
           status,
           status_detail,
           amount_cents,
+          via: fetched.via, // plataforma o seller
         },
         { onConflict: "mp_payment_id" }
       )
       .select()
       .single();
 
+    if (payErr) {
+      console.error("[mp webhook] payments upsert error", { eventId, payErr });
+      // Igual devolvemos 200 (no reintentos infinitos)
+      return res.status(200).json({ ok: false, error: "payments_upsert_error" });
+    }
+
+    // ==== Transiciones de estado ====
     if (status === "approved") {
-      // marcar vendidos
+      // Tickets → sold
       if (raffleId && numbers.length) {
         await supabase
           .from("tickets")
-          .update({ status: "sold", payment_ref: String(mp?.id || paymentId) })
+          .update({ status: "sold", payment_ref: mpIdStr })
           .eq("raffle_id", raffleId)
           .in("number", numbers);
       }
 
-      // purchase aprobada
+      // Purchase → approved
       if (purchaseId) {
         await supabase
           .from("purchases")
@@ -189,7 +286,7 @@ export default async function handler(req, res) {
           .eq("id", purchaseId);
       }
 
-      // datos rifa
+      // Datos de rifa (para emails)
       let raffleTitle = "Rifa";
       let creatorEmail = null;
       if (raffleId) {
@@ -208,10 +305,9 @@ export default async function handler(req, res) {
       }
 
       const amountCLP = Math.round((amount_cents || 0) / 100);
-      const mpIdStr = String(mp?.id || paymentId);
       const raffleLink = raffleId ? `${BASE}/rifas/${raffleId}` : BASE || "";
 
-      // correo comprador
+      // Email a comprador (idempotente)
       if (isValidEmail(buyer_email) && !payRow?.emailed_buyer) {
         try {
           await sendBuyerApprovedEmail({
@@ -228,11 +324,11 @@ export default async function handler(req, res) {
             .update({ emailed_buyer: true })
             .eq("mp_payment_id", mpIdStr);
         } catch (e) {
-          console.error("[mailer] buyer email error:", e);
+          console.error("[mailer] buyer email error:", { eventId, err: e?.message || e });
         }
       }
 
-      // correo creador
+      // Email a creador (idempotente)
       if (isValidEmail(creatorEmail) && !payRow?.emailed_creator) {
         try {
           await sendCreatorSaleEmail({
@@ -249,18 +345,19 @@ export default async function handler(req, res) {
             .update({ emailed_creator: true })
             .eq("mp_payment_id", mpIdStr);
         } catch (e) {
-          console.error("[mailer] creator email error:", e);
+          console.error("[mailer] creator email error:", { eventId, err: e?.message || e });
         }
       }
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, eventId });
   } catch (e) {
-    console.error("[mp webhook] error", e);
+    console.error("[mp webhook] fatal error", e);
     // 200 para no gatillar reintentos eternos
     return res.status(200).json({ ok: false, error: String(e) });
   }
 }
+
 
 
 
