@@ -3,18 +3,29 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseSR = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,           // service role
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
+function resolveBaseUrl(req) {
+  const cfg = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "");
+  if (cfg) return cfg;
+  const proto = (req.headers["x-forwarded-proto"] || "https") + "://";
+  const host = req.headers.host || "localhost:3000";
+  return `${proto}${host}`;
+}
+
 export default async function handler(req, res) {
-  if (req.method !== "GET") return res.status(405).send("Method not allowed");
+  if (req.method !== "GET") return res.status(405).send("method_not_allowed");
 
   try {
-    const { code = "", state = "" } = req.query || {};
+    const code = String(req.query?.code || "");
+    const state = String(req.query?.state || "");
     if (!code || !state) return res.status(400).send("missing_code_or_state");
 
-    // 1) Recuperar state + code_verifier que guardaste en start.js
+    // 1) Recuperar PKCE + metadatos
     const { data: st, error: stErr } = await supabaseSR
       .from("mp_oauth_state")
       .select("id, code_verifier, creator_email, uid")
@@ -22,80 +33,92 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (stErr || !st) {
-      console.error("oauth/callback: state not found", stErr);
+      console.error("[mp/oauth/callback] state not found:", stErr);
       return res.redirect("/panel/bancos?mp=error_state");
+    }
+    if (!st.uid) {
+      console.warn("[mp/oauth/callback] missing uid in state");
+      return res.redirect("/panel/bancos?mp=missing_uid");
     }
 
     const clientId = process.env.MP_CLIENT_ID;
-    const clientSecret = process.env.MP_CLIENT_SECRET;
-    if (!clientId || !clientSecret) {
+    const clientSecret = process.env.MP_CLIENT_SECRET || null; // opcional
+    if (!clientId) {
       return res.redirect("/panel/bancos?mp=missing_creds");
     }
 
-    const base =
-      process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "") ||
-      `${req.headers["x-forwarded-proto"] || "https"}://${req.headers.host}`;
-    const redirectUri = `${base}/api/mp/oauth/callback`;
+    const redirectUri = `${resolveBaseUrl(req)}/api/mp/oauth/callback`;
 
-    // 2) Intercambiar code -> tokens (con PKCE: code_verifier)
+    // 2) Intercambio code -> tokens (PKCE; client_secret opcional)
+    const tokenBody = {
+      grant_type: "authorization_code",
+      client_id: clientId,
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: st.code_verifier,
+    };
+    if (clientSecret) tokenBody.client_secret = clientSecret;
+
     const tokenRes = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        grant_type: "authorization_code",
-        client_id: clientId,
-        client_secret: clientSecret,     // MP permite/espera secret para apps confidenciales
-        code,
-        redirect_uri: redirectUri,
-        code_verifier: st.code_verifier, // <— PKCE
-      }),
+      headers: { "Content-Type": "application/json", accept: "application/json" },
+      body: JSON.stringify(tokenBody),
     });
 
+    const tok = await tokenRes.json().catch(() => ({}));
     if (!tokenRes.ok) {
-      const txt = await tokenRes.text();
-      console.error("token error:", txt);
+      console.error("[mp/oauth/callback] token error:", tok);
       return res.redirect("/panel/bancos?mp=token_error");
     }
 
-    const tj = await tokenRes.json(); // { access_token, refresh_token, user_id, scope, live_mode, ... }
-    const {
-      access_token,
-      refresh_token = null,
-      user_id: mp_user_id,
-      live_mode = false,
-      scope = "",
-    } = tj;
+    // Respuesta típica: { access_token, refresh_token, user_id, scope, live_mode, expires_in }
+    const access_token = tok?.access_token || null;
+    const refresh_token = tok?.refresh_token || null;
+    const mp_user_id = tok?.user_id != null ? String(tok.user_id) : null;
+    const live_mode = !!tok?.live_mode;
+    const expires_in = Number(tok?.expires_in || 0);
 
-    // 3) (opcional) traer email/public_key del owner de la cuenta MP
-    let linked_email = st.creator_email || null;
-    let mp_public_key = null;
-    try {
-      const meRes = await fetch("https://api.mercadopago.com/users/me", {
-        headers: { Authorization: `Bearer ${access_token}` },
-      });
-      const me = await meRes.json();
-      linked_email = linked_email || me?.email || null;
-      mp_public_key = me?.public_key || null;
-    } catch (_) {}
-
-    // 4) Guardar/actualizar vínculo en merchant_gateways
-    if (!st.uid) {
-      console.warn("callback: missing uid in state; cannot link to user");
-      return res.redirect("/panel/bancos?mp=linked-no-uid");
+    if (!access_token) {
+      console.error("[mp/oauth/callback] missing access_token");
+      return res.redirect("/panel/bancos?mp=token_error");
     }
 
+    // 3) Complemento: email y public_key del owner
+    let linked_email = st.creator_email || null;
+    let public_key = null;
+    try {
+      const meR = await fetch("https://api.mercadopago.com/users/me", {
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      const me = await meR.json();
+      if (meR.ok) {
+        linked_email = linked_email || me?.email || null;
+        public_key = me?.public_key || null;
+      } else {
+        console.warn("[mp/oauth/callback] users/me not ok:", me);
+      }
+    } catch (e) {
+      console.warn("[mp/oauth/callback] users/me error:", e?.message || e);
+    }
+
+    // 4) Calcular expires_at (si viene expires_in)
+    const now = Date.now();
+    const expires_at = expires_in ? new Date(now + expires_in * 1000).toISOString() : null;
+
+    // 5) Guardar vínculo en merchant_gateways (nombres canónicos)
     const upsertRow = {
       user_id: st.uid,
       provider: "mp",
-      mp_user_id: mp_user_id ? String(mp_user_id) : null,
+      mp_user_id,
       linked_email,
-      linked_uid: st.uid,
-      mp_public_key,
-      mp_access_token: access_token,
-      mp_refresh_token: refresh_token,
-      scope: scope || null,
-      live_mode: !!live_mode,
-      updated_at: new Date().toISOString(),
+      access_token,     // <- importante: así lo lee el webhook
+      refresh_token,
+      public_key,
+      live_mode,
+      status: "connected",
+      scope: tok?.scope || null,
+      updated_at: new Date(now).toISOString(),
+      expires_at,
     };
 
     const { error: upErr } = await supabaseSR
@@ -103,17 +126,21 @@ export default async function handler(req, res) {
       .upsert(upsertRow, { onConflict: "user_id,provider" });
 
     if (upErr) {
-      console.error("upsert merchant_gateways error:", upErr);
+      console.error("[mp/oauth/callback] upsert merchant_gateways error:", upErr);
       return res.redirect("/panel/bancos?mp=upsert_error");
     }
 
-    // 5) Limpieza: ya no necesitamos el state
-    await supabaseSR.from("mp_oauth_state").delete().eq("id", state);
+    // 6) Limpieza del state
+    try {
+      await supabaseSR.from("mp_oauth_state").delete().eq("id", state);
+    } catch {}
 
     return res.redirect("/panel/bancos?mp=ok");
   } catch (e) {
-    console.error("oauth/callback error", e);
+    console.error("[mp/oauth/callback] fatal:", e);
     return res.redirect("/panel/bancos?mp=error");
   }
 }
+
+
 
