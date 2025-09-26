@@ -126,3 +126,10 @@
 .oauthBtn:active{ transform: translateY(1px); }
 
 
+/* Fila etiqueta + enlace olvidar */
+.row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.link{
+  font-size: 13px; color: var(--ultramar);
+  text-decoration: underline; cursor: pointer;
+}
+.link:hover{ opacity: .9; }

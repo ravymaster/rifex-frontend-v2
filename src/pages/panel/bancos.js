@@ -4,36 +4,68 @@ import Layout from "@/components/Layout";
 import styles from "@/styles/bancos.module.css";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+// ---------- Cliente browser para operaciones del formulario ----------
+const supabaseBrowser = () =>
+  createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
 
-export default function Bancos() {
-  const [user, setUser] = useState(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+// ---------- SSR: protege la página y precarga datos ----------
+export async function getServerSideProps(ctx) {
+  const supabase = createServerSupabaseClient(ctx);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // ---- form state ----
-  const [holderName, setHolderName] = useState("");
-  const [taxId, setTaxId] = useState("");
-  const [bankName, setBankName] = useState("");
-  const [accountType, setAccountType] = useState("corriente");
-  const [accountNumber, setAccountNumber] = useState("");
-  const [payoutEmail, setPayoutEmail] = useState("");
+  if (!user) {
+    const next = encodeURIComponent("/panel/bancos");
+    return {
+      redirect: { destination: `/login?next=${next}`, permanent: false },
+    };
+  }
+
+  // Precarga datos bancarios
+  const { data: bank } = await supabase
+    .from("bank_accounts")
+    .select(
+      "holder_name, tax_id, bank_name, account_type, account_number, payout_email"
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  return {
+    props: {
+      user: { id: user.id, email: user.email || null },
+      bank: bank || null,
+    },
+  };
+}
+
+export default function Bancos({ user, bank }) {
+  // ---- form state (precargado desde SSR) ----
+  const [holderName, setHolderName] = useState(bank?.holder_name || "");
+  const [taxId, setTaxId] = useState(bank?.tax_id || "");
+  const [bankName, setBankName] = useState(bank?.bank_name || "");
+  const [accountType, setAccountType] = useState(bank?.account_type || "corriente");
+  const [accountNumber, setAccountNumber] = useState(bank?.account_number || "");
+  const [payoutEmail, setPayoutEmail] = useState(bank?.payout_email || "");
 
   const [saving, setSaving] = useState(false);
   const [savedOk, setSavedOk] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // ---- providers status ----
+  // ---- proveedores ----
   const [mpConnected, setMpConnected] = useState(false);
+  const [mpStatus, setMpStatus] = useState(null);
   const [checkingMp, setCheckingMp] = useState(true);
 
-  // (de momento, mantenemos Flow “conectado” fijo)
+  // Flow (placeholder hasta integrar)
   const flowConnected = true;
 
-  // helper para link de conectar MP
+  // Link para iniciar OAuth MP con parámetros útiles
   const mpConnectHref = useMemo(() => {
     const base = "/api/mp/oauth/start";
     const params = new URLSearchParams();
@@ -43,59 +75,27 @@ export default function Bancos() {
     return qs ? `${base}?${qs}` : base;
   }, [user]);
 
-  // cargar usuario
-  useEffect(() => {
-    (async () => {
-      setLoadingUser(true);
-      const { data } = await supabase.auth.getUser();
-      setUser(data?.user || null);
-      setLoadingUser(false);
-    })();
-  }, []);
-
-  // cargar datos bancarios existentes
-  useEffect(() => {
-    if (!user?.id) return;
-    (async () => {
-      const { data, error } = await supabase
-        .from("bank_accounts")
-        .select(
-          "holder_name, tax_id, bank_name, account_type, account_number, payout_email"
-        )
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (!error && data) {
-        setHolderName(data.holder_name || "");
-        setTaxId(data.tax_id || "");
-        setBankName(data.bank_name || "");
-        setAccountType(data.account_type || "corriente");
-        setAccountNumber(data.account_number || "");
-        setPayoutEmail(data.payout_email || "");
-      }
-    })();
-  }, [user?.id]);
-
-  // estado de conexión MP (usa uid explícito)
+  // Estado de conexión a MP (usa uid explícito; evita depender de cookies)
   useEffect(() => {
     (async () => {
       setCheckingMp(true);
       try {
-        if (!user?.id) {
-          setMpConnected(false);
-          return;
-        }
-        const res = await fetch(`/api/mp/status?uid=${encodeURIComponent(user.id)}`);
+        const res = await fetch(`/api/mp/status?uid=${encodeURIComponent(user.id)}`, {
+          headers: { "Cache-Control": "no-store" },
+        });
         const j = await res.json();
         setMpConnected(!!j?.connected);
+        setMpStatus(j || null);
       } catch {
         setMpConnected(false);
+        setMpStatus(null);
       } finally {
         setCheckingMp(false);
       }
     })();
   }, [user?.id]);
 
+  // Guardar datos bancarios
   const onSave = async (e) => {
     e?.preventDefault?.();
     setErrorMsg("");
@@ -111,6 +111,7 @@ export default function Bancos() {
 
     setSaving(true);
     try {
+      const supabase = supabaseBrowser();
       const row = {
         user_id: user.id,
         holder_name: holderName.trim(),
@@ -132,7 +133,7 @@ export default function Bancos() {
       setErrorMsg(err?.message || "No se pudo guardar.");
     } finally {
       setSaving(false);
-      setTimeout(() => setSavedOk(false), 2000);
+      setTimeout(() => setSavedOk(false), 1800);
     }
   };
 
@@ -160,100 +161,101 @@ export default function Bancos() {
               <h2 className={styles.cardTitle}>Datos bancarios</h2>
               <p className={styles.cardSub}>Se usarán para tus retiros.</p>
 
-              {loadingUser ? (
-                <p>Cargando…</p>
-              ) : !user ? (
-                <p>Debes iniciar sesión para gestionar tus datos.</p>
-              ) : (
-                <form onSubmit={onSave}>
-                  <label className="label">Titular</label>
-                  <input
-                    className="input"
-                    placeholder="Nombre del titular"
-                    value={holderName}
-                    onChange={(e) => setHolderName(e.target.value)}
-                  />
+              <form onSubmit={onSave}>
+                <label className="label">Titular</label>
+                <input
+                  className="input"
+                  placeholder="Nombre del titular"
+                  value={holderName}
+                  onChange={(e) => setHolderName(e.target.value)}
+                />
 
-                  <label className="label" style={{ marginTop: 10 }}>
-                    ID fiscal
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="RUT / DNI / CUIT"
-                    value={taxId}
-                    onChange={(e) => setTaxId(e.target.value)}
-                  />
+                <label className="label" style={{ marginTop: 10 }}>
+                  ID fiscal
+                </label>
+                <input
+                  className="input"
+                  placeholder="RUT / DNI / CUIT"
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                />
 
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Banco
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="Nombre de banco"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                  />
+                <label className="label" style={{ marginTop: 10 }}>
+                  Banco
+                </label>
+                <input
+                  className="input"
+                  placeholder="Nombre de banco"
+                  value={bankName}
+                  onChange={(e) => setBankName(e.target.value)}
+                />
 
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Tipo de cuenta
-                  </label>
-                  <select
-                    className="input"
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
+                <label className="label" style={{ marginTop: 10 }}>
+                  Tipo de cuenta
+                </label>
+                <select
+                  className="input"
+                  value={accountType}
+                  onChange={(e) => setAccountType(e.target.value)}
+                >
+                  <option value="corriente">Cuenta Corriente</option>
+                  <option value="vista">Cuenta Vista</option>
+                  <option value="ahorro">Cuenta de Ahorro</option>
+                </select>
+
+                <label className="label" style={{ marginTop: 10 }}>
+                  Número de cuenta
+                </label>
+                <input
+                  className="input"
+                  placeholder="0000 0000 0000"
+                  inputMode="numeric"
+                  value={accountNumber}
+                  onChange={(e) => setAccountNumber(e.target.value)}
+                />
+
+                <label className="label" style={{ marginTop: 10 }}>
+                  Email para liquidaciones
+                </label>
+                <input
+                  className="input"
+                  type="email"
+                  placeholder="tucorreo@dominio.com"
+                  value={payoutEmail}
+                  onChange={(e) => setPayoutEmail(e.target.value)}
+                />
+
+                {errorMsg ? (
+                  <p style={{ color: "#b91c1c", marginTop: 10 }}>{errorMsg}</p>
+                ) : null}
+                {savedOk ? (
+                  <p style={{ color: "#065f46", marginTop: 10 }}>
+                    Guardado correctamente.
+                  </p>
+                ) : null}
+
+                <div className={styles.actions}>
+                  <button className="btn btn-primary" disabled={saving}>
+                    {saving ? "Guardando…" : "Guardar"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      // Si prefieres: volver a cargar desde BD
+                      setHolderName(bank?.holder_name || "");
+                      setTaxId(bank?.tax_id || "");
+                      setBankName(bank?.bank_name || "");
+                      setAccountType(bank?.account_type || "corriente");
+                      setAccountNumber(bank?.account_number || "");
+                      setPayoutEmail(bank?.payout_email || "");
+                      setErrorMsg("");
+                    }}
                   >
-                    <option value="corriente">Cuenta Corriente</option>
-                    <option value="vista">Cuenta Vista</option>
-                    <option value="ahorro">Cuenta de Ahorro</option>
-                  </select>
-
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Número de cuenta
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="0000 0000 0000"
-                    inputMode="numeric"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                  />
-
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Email para liquidaciones
-                  </label>
-                  <input
-                    className="input"
-                    type="email"
-                    placeholder="tucorreo@dominio.com"
-                    value={payoutEmail}
-                    onChange={(e) => setPayoutEmail(e.target.value)}
-                  />
-
-                  {errorMsg ? (
-                    <p style={{ color: "#b91c1c", marginTop: 10 }}>{errorMsg}</p>
-                  ) : null}
-                  {savedOk ? (
-                    <p style={{ color: "#065f46", marginTop: 10 }}>
-                      Guardado correctamente.
-                    </p>
-                  ) : null}
-
-                  <div className={styles.actions}>
-                    <button className="btn btn-primary" disabled={saving}>
-                      {saving ? "Guardando…" : "Guardar"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      onClick={() => {
-                        // noop / o podrías recargar desde BD
-                      }}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
-              )}
+                    Cancelar
+                  </button>
+                </div>
+              </form>
             </section>
 
             {/* Integraciones de pago */}
@@ -279,9 +281,15 @@ export default function Bancos() {
                     <span
                       className={styles.status}
                       data-state={mpConnected ? "ok" : "off"}
-                      title={checkingMp ? "Verificando…" : ""}
+                      title={
+                        checkingMp
+                          ? "Verificando…"
+                          : mpConnected
+                          ? "Conectado"
+                          : mpStatus?.reason || "No conectado"
+                      }
                     >
-                      {mpConnected ? "Conectado" : "No conectado"}
+                      {checkingMp ? "Verificando…" : mpConnected ? "Conectado" : "No conectado"}
                     </span>
                   </div>
 
@@ -303,7 +311,7 @@ export default function Bancos() {
                   </div>
                 </div>
 
-                {/* Flow */}
+                {/* Flow (placeholder de momento) */}
                 <div className={styles.providerCard}>
                   <div className={styles.providerHead}>
                     <div className={styles.providerInfo}>
@@ -350,3 +358,4 @@ export default function Bancos() {
 }
 
 Bancos.getLayout = (page) => <Layout>{page}</Layout>;
+

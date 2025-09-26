@@ -49,3 +49,5 @@ coverage/
 
 # env
 .env*
+.env.local
+.env
