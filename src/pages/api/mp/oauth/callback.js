@@ -86,7 +86,7 @@ export default async function handler(req, res) {
 
     // 3) Complemento: email y public_key del owner
     let linked_email = st.creator_email || null;
-    let public_key = null;
+    let mp_public_key = null;
     try {
       const meR = await fetch("https://api.mercadopago.com/users/me", {
         headers: { Authorization: `Bearer ${access_token}` },
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
       const me = await meR.json();
       if (meR.ok) {
         linked_email = linked_email || me?.email || null;
-        public_key = me?.public_key || null;
+        mp_public_key = me?.public_key || null;
       } else {
         console.warn("[mp/oauth/callback] users/me not ok:", me);
       }
@@ -102,33 +102,25 @@ export default async function handler(req, res) {
       console.warn("[mp/oauth/callback] users/me error:", e?.message || e);
     }
 
-    // 4) Calcular expires_at (si viene expires_in)
+    // 4) Calcular expires_at (si viene expires_in) — tu tabla YA tiene esta col
     const now = Date.now();
     const expires_at = expires_in ? new Date(now + expires_in * 1000).toISOString() : null;
 
-    // 5) Guardar vínculo en merchant_gateways
+    // 5) Guardar vínculo en merchant_gateways — USAR columnas mp_*
     const upsertRow = {
       user_id: String(st.uid),
       provider: "mp",
       mp_user_id,
       linked_email,
-      // puedes usar los genéricos porque existen en tu tabla:
-      access_token,
-      refresh_token,
-      public_key,
+      mp_public_key,
+      mp_access_token: access_token,
+      mp_refresh_token: refresh_token,
       live_mode,
       status: "connected",
       scope: tok?.scope || null,
       updated_at: new Date(now).toISOString(),
       expires_at,
     };
-
-    // DEBUG rápido
-    if (!upsertRow.user_id || !upsertRow.provider) {
-      const reason = encodeURIComponent("missing_user_or_provider");
-      console.error("[mp/oauth/callback] invalid upsertRow:", upsertRow);
-      return res.redirect(`/panel/bancos?mp=upsert_error&reason=${reason}`);
-    }
 
     const { error: upErr } = await supabaseSR
       .from("merchant_gateways")
@@ -152,6 +144,7 @@ export default async function handler(req, res) {
     return res.redirect(`/panel/bancos?mp=error&reason=${reason}`);
   }
 }
+
 
 
 
