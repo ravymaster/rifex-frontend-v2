@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       return res.redirect("/panel/bancos?mp=error_state");
     }
     if (!st.uid) {
-      console.warn("[mp/oauth/callback] missing uid in state");
+      console.warn("[mp/oauth/callback] missing uid in state. state:", st);
       return res.redirect("/panel/bancos?mp=missing_uid");
     }
 
@@ -68,7 +68,8 @@ export default async function handler(req, res) {
     const tok = await tokenRes.json().catch(() => ({}));
     if (!tokenRes.ok) {
       console.error("[mp/oauth/callback] token error:", tok);
-      return res.redirect("/panel/bancos?mp=token_error");
+      const reason = encodeURIComponent(tok?.error_description || tok?.message || "token_error");
+      return res.redirect(`/panel/bancos?mp=token_error&reason=${reason}`);
     }
 
     // Respuesta típica: { access_token, refresh_token, user_id, scope, live_mode, expires_in }
@@ -80,7 +81,7 @@ export default async function handler(req, res) {
 
     if (!access_token) {
       console.error("[mp/oauth/callback] missing access_token");
-      return res.redirect("/panel/bancos?mp=token_error");
+      return res.redirect("/panel/bancos?mp=token_error&reason=missing_access_token");
     }
 
     // 3) Complemento: email y public_key del owner
@@ -105,13 +106,14 @@ export default async function handler(req, res) {
     const now = Date.now();
     const expires_at = expires_in ? new Date(now + expires_in * 1000).toISOString() : null;
 
-    // 5) Guardar vínculo en merchant_gateways (nombres canónicos)
+    // 5) Guardar vínculo en merchant_gateways
     const upsertRow = {
-      user_id: st.uid,
+      user_id: String(st.uid),
       provider: "mp",
       mp_user_id,
       linked_email,
-      access_token,     // <- importante: así lo lee el webhook
+      // puedes usar los genéricos porque existen en tu tabla:
+      access_token,
       refresh_token,
       public_key,
       live_mode,
@@ -121,13 +123,21 @@ export default async function handler(req, res) {
       expires_at,
     };
 
+    // DEBUG rápido
+    if (!upsertRow.user_id || !upsertRow.provider) {
+      const reason = encodeURIComponent("missing_user_or_provider");
+      console.error("[mp/oauth/callback] invalid upsertRow:", upsertRow);
+      return res.redirect(`/panel/bancos?mp=upsert_error&reason=${reason}`);
+    }
+
     const { error: upErr } = await supabaseSR
       .from("merchant_gateways")
       .upsert(upsertRow, { onConflict: "user_id,provider" });
 
     if (upErr) {
       console.error("[mp/oauth/callback] upsert merchant_gateways error:", upErr);
-      return res.redirect("/panel/bancos?mp=upsert_error");
+      const reason = encodeURIComponent(upErr.message || String(upErr));
+      return res.redirect(`/panel/bancos?mp=upsert_error&reason=${reason}`);
     }
 
     // 6) Limpieza del state
@@ -138,7 +148,8 @@ export default async function handler(req, res) {
     return res.redirect("/panel/bancos?mp=ok");
   } catch (e) {
     console.error("[mp/oauth/callback] fatal:", e);
-    return res.redirect("/panel/bancos?mp=error");
+    const reason = encodeURIComponent(e?.message || String(e));
+    return res.redirect(`/panel/bancos?mp=error&reason=${reason}`);
   }
 }
 
