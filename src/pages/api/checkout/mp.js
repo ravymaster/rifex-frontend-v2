@@ -2,7 +2,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 
-// ===== Supabase client (server key si existe, si no ANON) =====
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || null;
@@ -11,12 +10,9 @@ const supabase = createClient(url, service || anon, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// ===== Config de reserva y fees =====
 const HOLD_MINUTES = parseInt(process.env.HOLD_MINUTES || "15", 10);
-const FEE_PER_TICKET = parseInt(process.env.MP_FEE_PER_TICKET_CLP || "0", 10);
-const FEE_FIXED = parseInt(process.env.MP_FEE_FIXED_CLP || "0", 10);
 
-// Helper: base URL ambiente-respetuosa
+// URL base limpia (sin slash final) y respetando headers si falta env
 function resolveBaseUrl(req) {
   const cfg = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "");
   if (cfg) return cfg;
@@ -25,7 +21,6 @@ function resolveBaseUrl(req) {
   return `${proto}${host}`;
 }
 
-// Helper: ¿estamos en prod “real”?
 function isProdEnv() {
   if (process.env.NODE_ENV === "production") return true;
   if (/rifex\.pro$/i.test(String(process.env.NEXT_PUBLIC_BASE_URL || ""))) return true;
@@ -33,68 +28,54 @@ function isProdEnv() {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "method_not_allowed" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
 
   try {
-    // ===== 1) Parseo body =====
+    // 1) Body
     const {
-      raffle_id,
-      raffleId,
-      numbers,
-      buyer_email,
-      buyer_name,
-      accepted_terms,
-      terms_version,
+      raffle_id, raffleId, numbers,
+      buyer_email, buyer_name,
+      accepted_terms, terms_version,
     } = req.body || {};
-
     const rid = raffle_id || raffleId;
     if (!rid) return res.status(400).json({ ok: false, error: "missing_raffle_id" });
     if (!Array.isArray(numbers) || numbers.length === 0) {
       return res.status(400).json({ ok: false, error: "missing_numbers" });
     }
 
-    // ===== 2) Traer rifa =====
+    // 2) Rifa
     const { data: rdata, error: rerr } = await supabase
       .from("raffles")
       .select("id, title, price_cents, creator_id, creator_email")
       .eq("id", rid)
-      .limit(1);
-
+      .maybeSingle();
     if (rerr) throw rerr;
-    const raffle = (Array.isArray(rdata) && rdata[0]) || null;
-    if (!raffle) return res.status(404).json({ ok: false, error: "raffle_not_found" });
+    if (!rdata) return res.status(404).json({ ok: false, error: "raffle_not_found" });
 
-    // Precio por número en CLP entero
-    const pricePerNumber = Math.round(Number(raffle.price_cents || 0) / 100);
-    const total = Math.max(0, pricePerNumber * numbers.length);
-    if (!Number.isFinite(total) || total <= 0) {
-      return res.status(400).json({ ok: false, error: "invalid_total" });
+    const raffle = rdata;
+    const pricePerNumberCents = Number(raffle.price_cents || 0);
+    const unitPriceCLP = Math.round(pricePerNumberCents / 100); // CLP entero por número
+    const qty = numbers.length;
+    if (!Number.isFinite(unitPriceCLP) || unitPriceCLP <= 0) {
+      return res.status(400).json({ ok: false, error: "invalid_price" });
     }
 
-    // ===== 3) Chequear disponibilidad actual =====
+    // 3) Disponibilidad
     const { data: currentTickets, error: terr } = await supabase
       .from("tickets")
       .select("number,status")
       .eq("raffle_id", rid)
       .in("number", numbers);
-
     if (terr) throw terr;
 
     const unavailable = (currentTickets || [])
-      .filter((t) => t.status !== "available" && t.status !== "free")
+      .filter((t) => !["available","free"].includes(t.status))
       .map((t) => t.number);
-
     if (unavailable.length) {
-      return res.status(409).json({
-        ok: false,
-        error: "some_numbers_unavailable",
-        details: { unavailable },
-      });
+      return res.status(409).json({ ok: false, error: "some_numbers_unavailable", details: { unavailable } });
     }
 
-    // ===== 4) Crear purchase + reservar tickets =====
+    // 4) Purchase + reservar
     const now = Date.now();
     const holdsUntilIso = new Date(now + HOLD_MINUTES * 60_000).toISOString();
 
@@ -103,60 +84,60 @@ export default async function handler(req, res) {
       numbers,
       status: "pending_payment",
       buyer_email: buyer_email || null,
-      buyer_name: buyer_name || null,
+      buyer_name:  buyer_name  || null,
       accepted_terms: !!accepted_terms,
-      terms_version: terms_version || "v1.0",
+      terms_version:  terms_version || "v1.0",
       accepted_terms_at: accepted_terms ? new Date(now).toISOString() : null,
       mp_preference_id: null,
       holds_until: holdsUntilIso,
       paid_at: null,
     };
-
     const { data: pIns, error: perr } = await supabase
       .from("purchases")
       .insert(insertPurchase)
       .select("*")
-      .limit(1);
-
+      .maybeSingle();
     if (perr) throw perr;
-    const purchase = (Array.isArray(pIns) && pIns[0]) || null;
-    if (!purchase) throw new Error("insert_purchase_failed");
+    const purchase = pIns;
 
-    // Marcar tickets pendientes
     const { error: uErr } = await supabase
       .from("tickets")
       .update({ status: "pending", purchase_id: purchase.id, hold_until: holdsUntilIso })
       .eq("raffle_id", rid)
       .in("number", numbers)
-      .in("status", ["available", "free"]);
-
+      .in("status", ["available","free"]);
     if (uErr) {
       await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
       throw uErr;
     }
 
-    // ===== 5) Token del VENDEDOR conectado (clave para pagos reales) =====
-    // En merchant_gateways guardas el access_token del vendedor por OAuth.
-    const { data: gw, error: gErr } = await supabase
-      .from("merchant_gateways")
-      .select("access_token, live_mode, linked_email, mp_user_id, expires_at")
-      .eq("user_id", raffle.creator_id)
-      .eq("provider", "mp")
-      .maybeSingle();
-
-    if (gErr) throw gErr;
-    const sellerToken = gw?.access_token || null;
+    // 5) Token del vendedor (mp_accounts o merchant_gateways) + fallback plataforma
+    let sellerToken = null;
+    {
+      const { data: a } = await supabase
+        .from("mp_accounts")
+        .select("access_token")
+        .eq("user_id", raffle.creator_id)
+        .maybeSingle();
+      sellerToken = a?.access_token || null;
+    }
+    if (!sellerToken) {
+      const { data: g } = await supabase
+        .from("merchant_gateways")
+        .select("access_token")
+        .eq("user_id", raffle.creator_id)
+        .eq("provider", "mp")
+        .maybeSingle();
+      sellerToken = g?.access_token || null;
+    }
 
     const prod = isProdEnv();
     const platformFallback = process.env.MP_ACCESS_TOKEN || null;
-
-    // Regla:
-    // - En PROD: exige sellerToken (no uses token de app/plataforma para pagos reales).
-    // - En DEV/Preview: permite fallback a MP_ACCESS_TOKEN para pruebas.
-    const accessToken = sellerToken || (!prod ? platformFallback : null);
+    const allowPlatformInProd = process.env.RIFEX_ALLOW_PLATFORM_FALLBACK === "1";
+    const accessToken = sellerToken || (allowPlatformInProd ? platformFallback : (!prod ? platformFallback : null));
 
     if (!accessToken) {
-      // liberar reserva si no podemos crear la preferencia
+      // liberar reserva si no hay token usable
       await supabase
         .from("tickets")
         .update({ status: "available", purchase_id: null, hold_until: null })
@@ -164,78 +145,47 @@ export default async function handler(req, res) {
         .in("number", numbers)
         .eq("purchase_id", purchase.id);
       await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
-
-      return res.status(400).json({
-        ok: false,
-        error: "merchant_not_connected",
-        hint: "Conecta Mercado Pago en /panel/bancos para habilitar pagos reales.",
-      });
+      return res.status(400).json({ ok:false, error:"merchant_not_connected" });
     }
 
-    // ===== 6) Crear preferencia Checkout Pro =====
+    // 6) Preferencia
     const base = resolveBaseUrl(req);
     const notificationUrl =
       process.env.MP_WEBHOOK_URL?.replace(/\/+$/, "") || `${base}/api/checkout/webhook`;
 
     const mpClient = new MercadoPagoConfig({ accessToken });
-    const pref = new Preference(mpClient);
+    const preference = new Preference(mpClient);
 
     const cleanTitle = `Rifa ${String(raffle.title || "Rifex").slice(0, 60)}`;
 
-    // Calcula marketplace_fee (opcional)
-    const feeCalc =
-      (Number.isFinite(FEE_PER_TICKET) ? FEE_PER_TICKET * numbers.length : 0) +
-      (Number.isFinite(FEE_FIXED) ? FEE_FIXED : 0);
-    const marketplaceFee = Math.max(0, Math.round(feeCalc));
-
     const prefBody = {
-      items: [
-        {
-          title: cleanTitle,
-          quantity: 1,
-          unit_price: Number(total), // CLP entero (suma de todos los números)
-          currency_id: "CLP",
-        },
-      ],
-      payer: {
-        email: buyer_email || undefined,
-        name: buyer_name || undefined,
-      },
+      items: [{
+        title: cleanTitle,
+        quantity: qty,
+        unit_price: unitPriceCLP, // precio por número
+        currency_id: "CLP",
+      }],
+      payer: { email: buyer_email || undefined, name: buyer_name || undefined },
       back_urls: {
-        // Mantengo tu UX actual en /rifas/[id]?pay=...
-        success: `${base}/rifas/${rid}?pay=success`,
-        failure: `${base}/rifas/${rid}?pay=failure`,
-        pending: `${base}/rifas/${rid}?pay=pending`,
+        success: `${base}/rifas/${rid}?pay=success&pid=${purchase.id}`,
+        failure: `${base}/rifas/${rid}?pay=failure&pid=${purchase.id}`,
+        pending: `${base}/rifas/${rid}?pay=pending&pid=${purchase.id}`,
       },
       auto_return: "approved",
-      notification_url: notificationUrl,
+      binary_mode: true,
       external_reference: String(purchase.id),
+      notification_url: notificationUrl,
       statement_descriptor: "RIFEX",
-      metadata: {
-        raffle_id: String(rid),
-        purchase_id: String(purchase.id),
-        seller_connected: !!sellerToken,
-      },
-      ...(marketplaceFee > 0 ? { marketplace_fee: marketplaceFee } : {}),
+      metadata: { raffle_id: String(rid), purchase_id: String(purchase.id), numbers, seller_connected: !!sellerToken },
+      // ❌ NO enviar marketplace_fee aquí (solo para cuentas Marketplace Partner)
     };
 
-    let prefResp;
+    let prefRes;
     try {
-      prefResp = await pref.create({ body: prefBody });
-      console.log("[mp] preference created", {
-        id: prefResp?.id || prefResp?.body?.id,
-        init_point:
-          prefResp?.init_point ||
-          prefResp?.body?.init_point ||
-          prefResp?.sandbox_init_point ||
-          prefResp?.body?.sandbox_init_point,
-        marketplace_fee: marketplaceFee,
-        seller_connected: !!sellerToken,
-      });
+      prefRes = await preference.create({ body: prefBody });
     } catch (e) {
-      console.error("[mp] preference.create error", e?.message || e);
-
-      // Liberar si falla MP
+      console.error("[mp] preference.create error", e?.status, e?.message, e?.cause || e);
+      // liberar reserva
       await supabase
         .from("tickets")
         .update({ status: "available", purchase_id: null, hold_until: null })
@@ -243,31 +193,26 @@ export default async function handler(req, res) {
         .in("number", numbers)
         .eq("purchase_id", purchase.id);
       await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
-
-      return res.status(500).json({ ok: false, error: "mp_preference_failed" });
+      return res.status(500).json({ ok:false, error:"mp_preference_failed" });
     }
 
-    const mpPreferenceId = prefResp?.id || prefResp?.body?.id || null;
+    const mpPreferenceId = prefRes?.id || prefRes?.body?.id || null;
     if (mpPreferenceId) {
-      await supabase
-        .from("purchases")
-        .update({ mp_preference_id: mpPreferenceId })
-        .eq("id", purchase.id);
+      await supabase.from("purchases").update({ mp_preference_id: mpPreferenceId }).eq("id", purchase.id);
     }
 
     const initPoint =
-      prefResp?.init_point ||
-      prefResp?.body?.init_point ||
-      prefResp?.sandbox_init_point ||
-      prefResp?.body?.sandbox_init_point ||
+      prefRes?.init_point ||
+      prefRes?.body?.init_point ||
+      prefRes?.sandbox_init_point ||
+      prefRes?.body?.sandbox_init_point ||
       null;
 
     if (!initPoint) {
-      console.error("[mp] no init_point in response", prefResp);
-      return res.status(500).json({ ok: false, error: "no_init_point" });
+      console.error("[mp] missing init_point", prefRes);
+      return res.status(500).json({ ok:false, error:"no_init_point" });
     }
 
-    // OK
     return res.status(200).json({
       ok: true,
       url: initPoint,
@@ -279,12 +224,6 @@ export default async function handler(req, res) {
     });
   } catch (e) {
     console.error("checkout/mp error:", e);
-    return res.status(500).json({ ok: false, error: e?.message || "error" });
+    return res.status(500).json({ ok:false, error: e?.message || "error" });
   }
 }
-
-
-
-
-
-
