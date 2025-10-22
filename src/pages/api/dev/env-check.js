@@ -5,3 +5,4 @@ export default function handler(_req, res) {
     NODE_ENV: process.env.NODE_ENV,
   });
 }
+
