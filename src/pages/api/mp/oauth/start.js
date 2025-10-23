@@ -6,24 +6,13 @@ export const config = { runtime: "nodejs" };
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.SUPABASE_SERVICE_ROLE ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-// Genera code_verifier (43-128 chars) y code_challenge (S256)
-function genPkce() {
-  const verifier = crypto.randomBytes(48).toString("base64url"); // ~64 chars
-  const challenge = crypto
-    .createHash("sha256")
-    .update(verifier)
-    .digest()
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-  return { verifier, challenge };
-}
-
+// base URL (prod o preview) según headers
 function resolveBaseUrl(req) {
   const cfg = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "");
   if (cfg) return cfg;
@@ -32,44 +21,73 @@ function resolveBaseUrl(req) {
   return `${proto}${host}`;
 }
 
+// PKCE helpers
+function base64url(buf) {
+  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+function genPkce() {
+  const verifier = base64url(crypto.randomBytes(48)); // ~64 chars
+  const challenge = base64url(crypto.createHash("sha256").update(verifier).digest());
+  return { verifier, challenge };
+}
+function genStateId() {
+  return base64url(crypto.randomBytes(24));
+}
+
 export default async function handler(req, res) {
-  if (req.method !== "GET") return res.status(405).send("method_not_allowed");
+  if (req.method !== "GET") {
+    return res.writeHead(405, { "Cache-Control": "no-store" }).end("method_not_allowed");
+  }
+
+  res.setHeader("Cache-Control", "no-store");
 
   try {
     const clientId = process.env.MP_CLIENT_ID;
-    if (!clientId) return res.status(500).send("missing_MP_CLIENT_ID");
+    if (!clientId) {
+      return res.writeHead(302, { Location: "/panel/bancos?mp=missing_creds" }).end();
+    }
+
+    // Recibimos uid/email desde el link (bancos.js ya los manda)
+    const creatorEmail = (req.query.email || "").toString().trim().toLowerCase() || null;
+    const uid = (req.query.uid || "").toString().trim() || null;
+
+    if (!uid) {
+      // Sin uid no sabemos a qué usuario asociar el token
+      return res.writeHead(302, { Location: "/panel/bancos?mp=missing_uid" }).end();
+    }
+
+    // Limpieza best-effort de states viejos (> 60 min)
+    try {
+      const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      await supabase.from("mp_oauth_state").delete().lt("created_at", cutoff);
+    } catch {}
+
+    // PKCE + state
+    const { verifier, challenge } = genPkce();
+    const state = genStateId();
 
     const base = resolveBaseUrl(req);
     const redirectUri = `${base}/api/mp/oauth/callback`;
 
-    // (opcional) email/uid del creador para enlazar luego
-    const creatorEmail = (req.query.email || "").toString().trim().toLowerCase();
-    const uid = (req.query.uid || "").toString().trim();
-
-    // Limpia states viejos (>30 min) best-effort
-    try {
-      const cutoff = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-      await supabase.from("mp_oauth_state").delete().lt("created_at", cutoff);
-    } catch {}
-
-    // PKCE + state guardados de forma temporal en Supabase
-    const { verifier, challenge } = genPkce();
-    const state = crypto.randomBytes(16).toString("hex");
-
-    const { error: insErr } = await supabase
-      .from("mp_oauth_state")
-      .insert({
-        id: state,
-        code_verifier: verifier,
-        creator_email: creatorEmail || null,
-        uid: uid || null,
-        created_at: new Date().toISOString(),
-      });
+    // Guardar state en DB (lo leerá el callback)
+    const { error: insErr } = await supabase.from("mp_oauth_state").insert({
+      id: state,
+      code_verifier: verifier,
+      creator_email: creatorEmail,
+      uid,
+      created_at: new Date().toISOString(),
+    });
     if (insErr) {
-      console.error("[mp oauth start] state insert error:", insErr);
-      return res.status(500).send("oauth_state_insert_error");
+      console.error("[mp/oauth/start] state insert error:", insErr);
+      return res.writeHead(302, { Location: "/panel/bancos?mp=error_state" }).end();
     }
 
+    // Cookie de respaldo con el code_verifier
+    res.setHeader("Set-Cookie", [
+      `mp_pkce=${verifier}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+    ]);
+
+    // Armar URL de autorización de MP
     const params = new URLSearchParams({
       client_id: clientId,
       response_type: "code",
@@ -77,15 +95,18 @@ export default async function handler(req, res) {
       state,
       code_challenge: challenge,
       code_challenge_method: "S256",
-      platform_id: "mp", // recomendado para marketplace
-      // scope: "offline_access", // descomenta si tu app MP lo requiere
+      platform_id: "mp",
+      // scope: "offline_access", // descomenta si tu app lo requiere
     });
 
     const authUrl = `https://auth.mercadopago.com/authorization?${params.toString()}`;
-    return res.redirect(authUrl);
+    return res.writeHead(302, { Location: authUrl }).end();
   } catch (e) {
-    console.error("[mp oauth start] error:", e);
-    return res.status(500).send("oauth_start_error");
+    console.error("[mp/oauth/start] fatal:", e?.message || e);
+    return res.writeHead(302, {
+      Location: `/panel/bancos?mp=error&reason=${encodeURIComponent(e?.message || "start_failed")}`,
+    }).end();
   }
 }
+
 
