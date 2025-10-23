@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     const state = String(req.query?.state || "");
     if (!code || !state) return res.status(400).send("missing_code_or_state");
 
-    // 1) Recuperar PKCE + metadatos
+    // 1) Recuperar PKCE + metadatos del state guardado en DB
     const { data: st, error: stErr } = await supabaseSR
       .from("mp_oauth_state")
       .select("id, code_verifier, creator_email, uid")
@@ -42,32 +42,30 @@ export default async function handler(req, res) {
     }
 
     const clientId = process.env.MP_CLIENT_ID;
-    const clientSecret = process.env.MP_CLIENT_SECRET || null; // opcional
-    if (!clientId) {
-      return res.redirect("/panel/bancos?mp=missing_creds");
-    }
+    const clientSecret = process.env.MP_CLIENT_SECRET || null; // opcional si usas PKCE
+    if (!clientId) return res.redirect("/panel/bancos?mp=missing_creds");
 
     const redirectUri = `${resolveBaseUrl(req)}/api/mp/oauth/callback`;
 
-    // 2) Intercambio code -> tokens (PKCE; client_secret opcional)
-    const tokenBody = {
+    // 2) Intercambio code -> tokens (MP requiere x-www-form-urlencoded)
+    const body = new URLSearchParams({
       grant_type: "authorization_code",
       client_id: clientId,
       code,
       redirect_uri: redirectUri,
       code_verifier: st.code_verifier,
-    };
-    if (clientSecret) tokenBody.client_secret = clientSecret;
+    });
+    if (clientSecret) body.set("client_secret", clientSecret);
 
     const tokenRes = await fetch("https://api.mercadopago.com/oauth/token", {
       method: "POST",
-      headers: { "Content-Type": "application/json", accept: "application/json" },
-      body: JSON.stringify(tokenBody),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
     });
 
     const tok = await tokenRes.json().catch(() => ({}));
     if (!tokenRes.ok) {
-      console.error("[mp/oauth/callback] token error:", tok);
+      console.error("[mp/oauth/callback] token error:", tokenRes.status, tok);
       const reason = encodeURIComponent(tok?.error_description || tok?.message || "token_error");
       return res.redirect(`/panel/bancos?mp=token_error&reason=${reason}`);
     }
@@ -84,15 +82,15 @@ export default async function handler(req, res) {
       return res.redirect("/panel/bancos?mp=token_error&reason=missing_access_token");
     }
 
-    // 3) Complemento: email y public_key del owner
+    // 3) Complemento: email y public_key del owner (best effort)
     let linked_email = st.creator_email || null;
     let mp_public_key = null;
     try {
       const meR = await fetch("https://api.mercadopago.com/users/me", {
         headers: { Authorization: `Bearer ${access_token}` },
       });
-      const me = await meR.json();
-      if (meR.ok) {
+      const me = await meR.json().catch(() => null);
+      if (meR.ok && me) {
         linked_email = linked_email || me?.email || null;
         mp_public_key = me?.public_key || null;
       } else {
@@ -102,17 +100,18 @@ export default async function handler(req, res) {
       console.warn("[mp/oauth/callback] users/me error:", e?.message || e);
     }
 
-    // 4) Calcular expires_at (si viene expires_in) — tu tabla YA tiene esta col
+    // 4) Calcular expires_at
     const now = Date.now();
     const expires_at = expires_in ? new Date(now + expires_in * 1000).toISOString() : null;
 
-    // 5) Guardar vínculo en merchant_gateways — USAR columnas mp_*
+    // 5) Guardar vínculo en merchant_gateways — escribe ambos access_token y mp_access_token
     const upsertRow = {
       user_id: String(st.uid),
       provider: "mp",
       mp_user_id,
       linked_email,
       mp_public_key,
+      access_token,           // 👈 compat con /api/mp/status
       mp_access_token: access_token,
       mp_refresh_token: refresh_token,
       live_mode,
@@ -120,6 +119,7 @@ export default async function handler(req, res) {
       scope: tok?.scope || null,
       updated_at: new Date(now).toISOString(),
       expires_at,
+      revoked_at: null,
     };
 
     const { error: upErr } = await supabaseSR
@@ -137,14 +137,13 @@ export default async function handler(req, res) {
       await supabaseSR.from("mp_oauth_state").delete().eq("id", state);
     } catch {}
 
-    return res.redirect("/panel/bancos?mp=ok");
+    return res.redirect("/panel/bancos?mp=connected");
   } catch (e) {
     console.error("[mp/oauth/callback] fatal:", e);
     const reason = encodeURIComponent(e?.message || String(e));
     return res.redirect(`/panel/bancos?mp=error&reason=${reason}`);
   }
 }
-
 
 
 
