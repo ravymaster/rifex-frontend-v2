@@ -64,7 +64,7 @@ export default function Bancos({ ssrUser, ssrBank }) {
     })();
   }, [ssrUser]);
 
-  // ------- form state -------
+  // ------- form state (NO TOCAR) -------
   const [holderName, setHolderName] = useState(ssrBank?.holder_name || "");
   const [taxId, setTaxId] = useState(ssrBank?.tax_id || "");
   const [bankName, setBankName] = useState(ssrBank?.bank_name || "");
@@ -85,6 +85,7 @@ export default function Bancos({ ssrUser, ssrBank }) {
   // ------- MP status -------
   const [mpConnected, setMpConnected] = useState(false);
   const [checkingMp, setCheckingMp] = useState(true);
+  const [mpBusy, setMpBusy] = useState(false);
 
   const mpConnectHref = useMemo(() => {
     const base = "/api/mp/oauth/start";
@@ -95,6 +96,16 @@ export default function Bancos({ ssrUser, ssrBank }) {
     return qs ? `${base}?${qs}` : base;
   }, [user]);
 
+  async function refreshMpStatus(uid) {
+    try {
+      const r = await fetch(`/api/mp/status?uid=${encodeURIComponent(uid)}`);
+      const j = await r.json();
+      setMpConnected(!!j?.connected);
+    } catch {
+      setMpConnected(false);
+    }
+  }
+
   useEffect(() => {
     (async () => {
       setCheckingMp(true);
@@ -103,18 +114,14 @@ export default function Bancos({ ssrUser, ssrBank }) {
           setMpConnected(false);
           return;
         }
-        const r = await fetch(`/api/mp/status?uid=${encodeURIComponent(user.id)}`);
-        const j = await r.json();
-        setMpConnected(!!j?.connected);
-      } catch {
-        setMpConnected(false);
+        await refreshMpStatus(user.id);
       } finally {
         setCheckingMp(false);
       }
     })();
   }, [user?.id]);
 
-  // ------- Save -------
+  // ------- Save (NO TOCAR) -------
   async function onSave(e) {
     e?.preventDefault?.();
     setErrorMsg("");
@@ -147,7 +154,6 @@ export default function Bancos({ ssrUser, ssrBank }) {
         .upsert(row, { onConflict: "user_id" });
 
       if (error) {
-        // Mensaje útil cuando hay política RLS
         if (
           `${error.message}`.toLowerCase().includes("row-level security") ||
           `${error.message}`.toLowerCase().includes("rls")
@@ -189,7 +195,7 @@ export default function Bancos({ ssrUser, ssrBank }) {
           </header>
 
           <div className={styles.grid}>
-            {/* Datos bancarios */}
+            {/* Datos bancarios (NO TOCAR) */}
             <section className={styles.card}>
               <h2 className={styles.cardTitle}>Datos bancarios</h2>
               <p className={styles.cardSub}>Se usarán para tus retiros.</p>
@@ -303,9 +309,7 @@ export default function Bancos({ ssrUser, ssrBank }) {
                       <div className={styles.providerLogo}>MP</div>
                       <div>
                         <div className={styles.providerName}>Mercado Pago</div>
-                        <div className={styles.providerDesc}>
-                          Pagos rápidos en CLP.
-                        </div>
+                        <div className={styles.providerDesc}>Pagos rápidos en CLP.</div>
                       </div>
                     </div>
                     <span
@@ -317,25 +321,54 @@ export default function Bancos({ ssrUser, ssrBank }) {
                     </span>
                   </div>
 
-                  <div className={styles.providerActions}>
-                    {mpConnected ? (
-                      <>
-                        <a className={styles.btnManage} href="/panel/mercado-pago">
-                          Gestionar
-                        </a>
-                        <button className={styles.btnDanger} disabled>
-                          Desconectar
-                        </button>
-                      </>
-                    ) : (
-                      <a className={styles.btnConnect} href={mpConnectHref}>
-                        Conectar
-                      </a>
-                    )}
+                  <div className={styles.providerActions} style={{ gap: 8 }}>
+                    {/* Botón Conectar: habilitado SOLO si NO está conectado */}
+                    <a
+                      className={styles.btnConnect}
+                      href={mpConnected ? undefined : mpConnectHref}
+                      aria-disabled={mpConnected || mpBusy}
+                      onClick={(e) => {
+                        if (mpConnected || mpBusy) e.preventDefault();
+                      }}
+                    >
+                      Conectar
+                    </a>
+
+                    {/* Botón Desconectar: habilitado SOLO si SÍ está conectado */}
+                    <button
+                      className={styles.btnDanger}
+                      disabled={!mpConnected || mpBusy}
+                      onClick={async () => {
+                        if (!user?.id) return alert("Debes iniciar sesión.");
+                        if (!confirm("¿Seguro que deseas desconectar tu cuenta de Mercado Pago?")) return;
+                        try {
+                          setMpBusy(true);
+                          const r = await fetch("/api/mp/disconnect", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              // ❗ Quita este header cuando tu API ya lea el user desde auth
+                              "x-user-id": user.id,
+                            },
+                          });
+                          const j = await r.json();
+                          if (!j.ok) throw new Error(j.error || "No se pudo desconectar");
+
+                          await refreshMpStatus(user.id);
+                          alert("Cuenta de Mercado Pago desconectada. Puedes volver a conectar cuando quieras.");
+                        } catch (err) {
+                          alert(err.message || "Error al desconectar.");
+                        } finally {
+                          setMpBusy(false);
+                        }
+                      }}
+                    >
+                      {mpBusy ? "Desconectando…" : "Desconectar"}
+                    </button>
                   </div>
                 </div>
 
-                {/* Flow */}
+                {/* Flow (sin cambios) */}
                 <div className={styles.providerCard}>
                   <div className={styles.providerHead}>
                     <div className={styles.providerInfo}>
@@ -382,6 +415,7 @@ export default function Bancos({ ssrUser, ssrBank }) {
 }
 
 Bancos.getLayout = (page) => <Layout>{page}</Layout>;
+
 
 
 
