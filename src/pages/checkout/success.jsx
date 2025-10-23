@@ -1,109 +1,84 @@
-// src/pages/checkout/success.jsx
+// src/pages/checkout/success.js
+import Head from "next/head";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { markGreeted } from "@/lib/greetOnce";
-
-function getParams() {
-  const u = new URL(typeof window !== "undefined" ? window.location.href : "http://x");
-  const payment_id =
-    u.searchParams.get("payment_id") ||
-    u.searchParams.get("collection_id");
-  const status =
-    u.searchParams.get("status") ||
-    u.searchParams.get("collection_status");
-  const preference_id = u.searchParams.get("preference_id");
-  return { payment_id, status, preference_id };
-}
+import { useRouter } from "next/router";
+import styles from "@/styles/checkoutReturn.module.css";
 
 export default function Success() {
-  const [state, setState] = useState("loading"); // loading | ok | error
-  const [resp, setResp] = useState(null);
+  const { query } = useRouter();
+  const [status, setStatus] = useState("loading");
+  const [confirm, setConfirm] = useState(null);
 
-  const doConfirm = async () => {
-    try {
-      const { payment_id, status, preference_id } = getParams();
-      if (!preference_id) {
-        setState("error");
-        setResp({ error: "Missing preference_id in URL" });
-        return;
-      }
-
-      const r = await fetch("/api/checkout/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          payment_id: payment_id ? String(payment_id) : null,
-          status: status || "approved",
-          preference_id,
-        }),
-      });
-
-      const j = await r.json();
-      setResp(j);
-      setState(r.ok ? "ok" : "error");
-
-      if (r.ok && j.raffleId) {
-        // 👇 guardamos marca para mostrar banner en la rifa
-        markGreeted(j.raffleId);
-      }
-
-      console.log("CONFIRM RESPONSE:", j);
-    } catch (e) {
-      console.error("CONFIRM ERROR:", e);
-      setResp({ error: String(e) });
-      setState("error");
-    }
-  };
-
+  // Confirma automáticamente la compra en backend
   useEffect(() => {
-    doConfirm();
-  }, []);
+    const confirmPayment = async () => {
+      try {
+        if (!query.preference_id) return;
+        const body = {
+          payment_id: query.payment_id || query.collection_id || null,
+          status: query.status || query.collection_status || "approved",
+          preference_id: query.preference_id,
+        };
+        const res = await fetch("/api/checkout/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        setConfirm(data);
+        setStatus(res.ok ? "ok" : "error");
+      } catch (e) {
+        console.error("[success confirm]", e);
+        setStatus("error");
+      }
+    };
+    confirmPayment();
+  }, [query]);
 
   return (
-    <div style={{ maxWidth: 640, margin: "2rem auto", fontFamily: "sans-serif" }}>
-      <h1>¡Pago acreditado!</h1>
-      <p>Validando y registrando tu compra…</p>
+    <>
+      <Head><title>Pago exitoso — Rifex</title></Head>
+      <section className={styles.wrap}>
+        <div className={styles.card}>
+          <div className={styles.head}>
+            <span className={`${styles.badge} ${styles.ok}`}>✓ Aprobado</span>
+          </div>
 
-      {state === "loading" && <p>⏳ Procesando…</p>}
-      {state === "ok" && <p>✅ Listo. Tus números quedaron marcados como vendidos.</p>}
-      {state === "error" && (
-        <div style={{ marginTop: 12 }}>
-          <p>⚠️ No pudimos confirmar automáticamente. Puedes reintentarlo:</p>
-          <button
-            onClick={doConfirm}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ccc",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
-            Reintentar confirmación
-          </button>
-          {resp?.error && (
-            <pre
-              style={{
-                whiteSpace: "pre-wrap",
-                background: "#f7f7f7",
-                padding: 10,
-                borderRadius: 6,
-                marginTop: 10,
-              }}
-            >
-              {String(resp.error)}
-            </pre>
+          <h1 className={styles.title}>¡Pago confirmado!</h1>
+          <p className={styles.sub}>
+            Gracias por tu compra. Tus números fueron registrados correctamente.
+          </p>
+
+          <div className={styles.details}>
+            <div className={styles.k}>Payment ID</div>
+            <div className={styles.v}>{query.payment_id || query.collection_id || "—"}</div>
+            <div className={styles.k}>Estado</div>
+            <div className={styles.v}>{query.status || query.collection_status || "approved"}</div>
+          </div>
+
+          {status === "loading" && <p>⏳ Confirmando con Rifex...</p>}
+          {status === "ok" && (
+            <p style={{ color: "#16a34a" }}>
+              ✅ Validado en Rifex. ¡Suerte en tu rifa!
+            </p>
           )}
-        </div>
-      )}
+          {status === "error" && (
+            <p style={{ color: "#b91c1c" }}>
+              ⚠️ No pudimos validar el pago automáticamente. Intenta más tarde.
+            </p>
+          )}
 
-      {state === "ok" && resp?.raffleId && (
-        <a
-          href={`/rifas/${resp.raffleId}`}
-          style={{ display: "inline-block", marginTop: 16 }}
-        >
-          Ver mi rifa
-        </a>
-      )}
-    </div>
+          <div className={styles.actions}>
+            <Link href="/" className={`${styles.btn} ${styles.prim}`}>
+              Ir al inicio
+            </Link>
+            <Link href="/rifas" className={styles.btn}>
+              Ver más rifas
+            </Link>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
-
