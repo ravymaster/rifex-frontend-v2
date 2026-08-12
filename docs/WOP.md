@@ -9,7 +9,13 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | PRE-ALIGNMENT AUDIT | GO |
 | ALIGNMENT A1 | GO |
 | ALIGNMENT A2 | GO |
-| ARCHITECTURE AUDIT | NOT OPEN |
+| CHECKPOINT A2 | GO |
+| ALIGNMENT A3 | GO |
+| ALIGNMENT A4 | GO |
+| ALIGNMENT A5 | GO |
+| ALIGNMENT | CLOSED - GO |
+| NEXT ELIGIBLE STAGE | ARCHITECTURE AUDIT |
+| ARCHITECTURE AUDIT | NOT YET OPEN |
 | ARCHITECTURE DESIGN | NOT OPEN |
 | SPRINT | NOT AUTHORIZED |
 
@@ -38,14 +44,29 @@ Rifex is in `ALIGNMENT`. A2 materializes baseline documentation only. It does no
 PROPOSED BASELINE DECISION: C
 ```
 
-Decision C is the documentary baseline decision approved during Alignment A1. HEAD `6acb929` is the historical reproducible checkpoint. The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified. The PostgreSQL backup is sensitive evidence outside the Git baseline. Functional execution of this decision remains pending, and the working tree does not constitute a certified functional baseline.
+Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `6d0409b` is the current documentation checkpoint. The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified. The PostgreSQL backup is sensitive evidence outside the Git baseline. Functional execution of this decision remains pending, and the working tree does not constitute a certified functional baseline.
 
 | Layer | Status |
 |---|---|
-| HEAD `6acb929` | CONFIRMED historical reproducible checkpoint |
+| HEAD `6d0409b` | CONFIRMED documentation checkpoint after A2 |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, UNVERIFIED |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | A2 documents | CONFIRMED documentation materialization |
+| Recovery decision | B: split recovery into R4, DB, R1, R2, R3 Technical and Fees Policy |
+
+## Recovery Sequence
+
+```text
+R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy
+```
+
+This sequence is approved as a recovery plan, not as implementation. Recovery changes must not be implemented before the required Architecture Audit, Architecture Design and explicitly authorized Sprint.
+
+## Alignment Closing Criteria
+
+Alignment may close when product identity, Git baseline, working tree ownership, current architecture, domain, database, security, known risks and recovery plan are documented with no unresolved integrity uncertainty.
+
+Condition to open Architecture Audit: Alignment must be closed with `GO`, the current dirty working tree must remain explained, and the user must explicitly authorize the Architecture Audit.
 
 ## Known Working Tree
 

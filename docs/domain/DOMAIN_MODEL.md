@@ -69,3 +69,9 @@ This document describes the observable domain. It does not silently resolve cont
 | Fee breakdown in creator email | NOT IMPLEMENTED | CONFIRMED present, UNVERIFIED |
 
 Canonical states are not decided in A2.
+
+## Alignment A5 Domain Notes
+
+Ticket, purchase and payment states remain `CONTRADICTORY` until a future design resolves them.
+
+Fees are separated from technical reconciliation. Current fee defaults are experimental implementation evidence only; commercial fee policy is `UNKNOWN`.

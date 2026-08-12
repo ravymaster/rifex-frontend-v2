@@ -8,8 +8,8 @@ This document is the A2 baseline snapshot of observable repository state.
 |---|---|
 | Repository | `C:\proyectos\rifexv1.1\rifex-frontend-main` |
 | Branch | `main` |
-| HEAD | `6acb9297289448e103126b0bdb876dcddde60153` |
-| HEAD message | `feat(checkout): flujo MP completo con back_urls y redireccion exitosa` |
+| HEAD | `6d0409b7f874adc1278be6808bc4c69753057758` |
+| HEAD message | `docs: establish Rifex alignment baseline` |
 | Upstream | `origin/main` |
 | Fetch executed in A2 | No |
 | Functional tests/build | Not executed |
@@ -18,7 +18,7 @@ This document is the A2 baseline snapshot of observable repository state.
 
 ### HEAD
 
-HEAD `6acb929` is the confirmed historical reproducible checkpoint.
+HEAD `6d0409b` is the confirmed documentation checkpoint after A2.
 
 ### WORKING TREE FUNCTIONAL DIFFS
 
@@ -56,9 +56,34 @@ A2 created or updated documentation only:
 | PRE-ALIGNMENT AUDIT | GO |
 | ALIGNMENT A1 | GO |
 | ALIGNMENT A2 | GO |
-| ARCHITECTURE AUDIT | NOT OPEN |
+| CHECKPOINT A2 | GO |
+| ALIGNMENT A3 | GO |
+| ALIGNMENT A4 | GO |
+| ALIGNMENT A5 | GO |
+| ALIGNMENT | CLOSED - GO |
+| NEXT ELIGIBLE STAGE | ARCHITECTURE AUDIT |
+| ARCHITECTURE AUDIT | NOT YET OPEN |
 | ARCHITECTURE DESIGN | NOT OPEN |
 | SPRINT | NOT AUTHORIZED |
+
+## Recovery State
+
+| Unit | Status |
+|---|---|
+| R4 Build Baseline | PROPOSED; build failure at `/checkout` CONFIRMED |
+| DB Recovery Contract | PROPOSED; clean install reproducibility PARTIAL |
+| R1 Mailer | PROPOSED; certification PARTIAL |
+| R2 Webhook | PROPOSED; certification PARTIAL |
+| R3 Technical Reconciliation | PROPOSED; certification PARTIAL |
+| Fees Policy | SEPARATE; commercial policy UNKNOWN |
+
+Approved recovery sequence:
+
+```text
+R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy
+```
+
+Build failure cause: CONFIRMED API handler located as `/checkout` page route. This is unrelated to the three recovery diffs.
 
 ## Implemented Flows
 
@@ -110,7 +135,7 @@ A2 created or updated documentation only:
 
 | Gate | Status |
 |---|---|
-| Alignment final gate | Authorizable after A2 review |
-| Architecture Audit | Not authorized yet |
+| Alignment closing gate | GO |
+| Architecture Audit | Next eligible stage; not yet open |
 | Architecture Design | Not authorized yet |
 | Sprint | Not authorized |

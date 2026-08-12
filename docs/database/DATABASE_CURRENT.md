@@ -79,3 +79,18 @@ Migration and backup evidence show RLS policies, triggers, and functions includi
 - No SQL was changed.
 - No backup data rows were printed.
 - No functional verification was performed.
+
+## Alignment A5 Recovery Contract
+
+Clean install DB reproducibility for the recovery line is `PARTIAL`.
+
+| Object | Status |
+|---|---|
+| `email_logs` | Required by R1; migration not evidenced |
+| `webhook_events` | Shared by R2/R3; migration not evidenced |
+| `payments.live_mode` | Required by R2/R3; migration not evidenced |
+| `payments.mp_payment_id` | Partially covered by versioned migrations |
+| `purchase_id` | Partially covered by versioned migrations |
+| states | CONTRADICTORY |
+
+The backup can guide reconstruction but does not replace reproducible migrations.

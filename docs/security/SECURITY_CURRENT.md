@@ -53,3 +53,14 @@ Variable names are documented in README without values. Secrets must remain in i
 - Webhook delivery behavior.
 - Secret configuration correctness.
 - Production security readiness.
+
+## Alignment A5 Security Notes
+
+| Item | Status |
+|---|---|
+| Working tree HMAC | UNVERIFIED |
+| Payload logging | PROPOSED treatment: MOVE_AFTER_VALIDATION |
+| Email content storage | PROPOSED treatment: MINIMIZE |
+| Admin token | Present, not security-certified |
+
+Webhook payload logging before signature validation must be redesigned before certification. Email audit storage must avoid unnecessary full HTML/text persistence unless explicitly approved.

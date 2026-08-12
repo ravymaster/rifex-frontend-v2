@@ -59,3 +59,16 @@ Current architecture is route-centric. Domain rules, provider integration, persi
 - No functional verification was executed in A2.
 - Architecture Audit is not open.
 - Future layering such as Domain/Application/Infrastructure is not imposed here because it is not currently evidenced as implemented.
+
+## Alignment A5 Recovery Boundaries
+
+R1-R4 are recovery boundaries, not target architecture.
+
+| Boundary | Current Evidence |
+|---|---|
+| R1 Mailer | `src/lib/mailer.js` working tree diff |
+| R2 Webhook | `src/pages/api/checkout/webhook.js` working tree diff |
+| R3 Technical Reconciliation | `src/pages/api/admin/reconcile-payments.js` working tree diff |
+| R4 Build Baseline | `/checkout` build failure |
+
+`/checkout` currently has a page/API conflict: an API handler exists under a page route, causing prerender failure. This is a current architecture defect, not a future design.

@@ -11,6 +11,11 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 | PRE-ALIGNMENT AUDIT | GO |
 | ALIGNMENT A1 | GO |
 | ALIGNMENT A2 | GO |
+| CHECKPOINT A2 | GO |
+| ALIGNMENT A3 | GO |
+| ALIGNMENT A4 | GO |
+| ALIGNMENT A5 | GO |
+| ALIGNMENT | CLOSED - GO |
 | Architecture Audit | NOT OPEN |
 | Architecture Design | NOT OPEN |
 | Sprint | NOT AUTHORIZED |
@@ -21,10 +26,11 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 
 | Layer | Meaning |
 |---|---|
-| HEAD `6acb929` | CONFIRMED historical reproducible checkpoint |
+| HEAD `6d0409b` | CONFIRMED documentation checkpoint after A2 |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, not certified |
 | A2 documentation changes | CONFIRMED documentation baseline materialization |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
+| Recovery decision | B: split recovery into R1-R4 units |
 
 The working tree currently includes three pre-existing functional diffs:
 
@@ -139,5 +145,9 @@ A2 did not execute the application, build, or functional tests. These commands a
 7. [Domain Model](docs/domain/DOMAIN_MODEL.md)
 8. [Security Current](docs/security/SECURITY_CURRENT.md)
 9. [Database Current](docs/database/DATABASE_CURRENT.md)
+10. [Recovery Plan](docs/recovery/RECOVERY_PLAN.md)
+11. [Alignment A3/A4 Report](docs/audits/ALIGNMENT_A3_A4_REPORT.md)
 
 Older documents in `docs` and `db` can contain partial or contradictory information. They are evidence, not automatically final authority.
+
+Recovery planning is documented but not implemented. The three recovery/hardening diffs remain uncommitted and functionally uncertified.
