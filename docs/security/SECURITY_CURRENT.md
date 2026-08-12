@@ -45,6 +45,7 @@ Variable names are documented in README without values. Secrets must remain in i
 - Service-role use requires strict server-only control.
 - Webhook behavior differs between HEAD and working tree.
 - Backup is sensitive and must not enter Git baseline.
+- Mutating endpoints require Architecture Design authority decisions before certification.
 
 ## Unverified
 
@@ -64,3 +65,13 @@ Variable names are documented in README without values. Secrets must remain in i
 | Admin token | Present, not security-certified |
 
 Webhook payload logging before signature validation must be redesigned before certification. Email audit storage must avoid unnecessary full HTML/text persistence unless explicitly approved.
+
+## Architecture Audit Security Notes
+
+Architecture Audit closes with security posture still uncertified. Authorization, ownership, webhook validity, PII/logging and service-role boundaries are documented as design inputs, not as resolved implementation.
+
+| Evidence | Document |
+|---|---|
+| Endpoint authorization ledger | `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md` |
+| Architecture audit report | `docs/audits/ARCHITECTURE_AUDIT_REPORT.md` |
+| Design inputs AD-03, AD-04, AD-05, AD-10, AD-13 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |

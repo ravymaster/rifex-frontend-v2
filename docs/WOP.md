@@ -14,9 +14,13 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | ALIGNMENT A4 | GO |
 | ALIGNMENT A5 | GO |
 | ALIGNMENT | CLOSED - GO |
-| NEXT ELIGIBLE STAGE | ARCHITECTURE AUDIT |
-| ARCHITECTURE AUDIT | NOT YET OPEN |
-| ARCHITECTURE DESIGN | NOT OPEN |
+| ARCHITECTURE AUDIT AA1 | GO |
+| ARCHITECTURE AUDIT AA2 | GO |
+| ARCHITECTURE AUDIT AA3 | GO |
+| ARCHITECTURE AUDIT DOCUMENTATION READY | YES |
+| ARCHITECTURE AUDIT | CLOSED - GO |
+| NEXT ELIGIBLE STAGE | ARCHITECTURE DESIGN |
+| ARCHITECTURE DESIGN | NOT YET OPEN |
 | SPRINT | NOT AUTHORIZED |
 
 ## Official Project States
@@ -36,7 +40,7 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ## Current Stage
 
-Rifex is in `ALIGNMENT`. A2 materializes baseline documentation only. It does not certify production readiness, does not adopt working tree functional diffs, and does not authorize Sprint.
+Rifex has closed `ALIGNMENT` and `ARCHITECTURE AUDIT`. Architecture Audit materializes current architecture evidence only. It does not certify production readiness, does not adopt working tree functional diffs, does not open Architecture Design, and does not authorize Sprint.
 
 ## Baseline Decision
 
@@ -44,14 +48,15 @@ Rifex is in `ALIGNMENT`. A2 materializes baseline documentation only. It does no
 PROPOSED BASELINE DECISION: C
 ```
 
-Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `6d0409b` is the current documentation checkpoint. The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified. The PostgreSQL backup is sensitive evidence outside the Git baseline. Functional execution of this decision remains pending, and the working tree does not constitute a certified functional baseline.
+Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `029973d` is the current Alignment closing checkpoint before Architecture Audit documentation. The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified. The PostgreSQL backup is sensitive evidence outside the Git baseline. Functional execution of this decision remains pending, and the working tree does not constitute a certified functional baseline.
 
 | Layer | Status |
 |---|---|
-| HEAD `6d0409b` | CONFIRMED documentation checkpoint after A2 |
+| HEAD `029973d` | CONFIRMED Alignment closing checkpoint before Architecture Audit documentation |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, UNVERIFIED |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | A2 documents | CONFIRMED documentation materialization |
+| Architecture Audit documents | CONFIRMED documentation materialization |
 | Recovery decision | B: split recovery into R4, DB, R1, R2, R3 Technical and Fees Policy |
 
 ## Recovery Sequence
@@ -60,13 +65,13 @@ Decision C is the documentary baseline decision approved during Alignment A1 and
 R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy
 ```
 
-This sequence is approved as a recovery plan, not as implementation. Recovery changes must not be implemented before the required Architecture Audit, Architecture Design and explicitly authorized Sprint.
+This sequence is approved as a recovery plan, not as implementation. Recovery changes must not be implemented before Architecture Design and an explicitly authorized Sprint.
 
 ## Alignment Closing Criteria
 
 Alignment may close when product identity, Git baseline, working tree ownership, current architecture, domain, database, security, known risks and recovery plan are documented with no unresolved integrity uncertainty.
 
-Condition to open Architecture Audit: Alignment must be closed with `GO`, the current dirty working tree must remain explained, and the user must explicitly authorize the Architecture Audit.
+Condition to open Architecture Design: Architecture Audit must be closed with `GO`, the current dirty working tree must remain explained, and the user must explicitly authorize Architecture Design.
 
 ## Known Working Tree
 
@@ -87,8 +92,8 @@ Sensitive artifact:
 | Functional verification | UNVERIFIED |
 | DB remote state | UNKNOWN |
 | Canonical ticket/purchase/payment states | CONTRADICTORY |
-| Architecture Audit | NOT OPEN |
-| Architecture Design | NOT OPEN |
+| Architecture Audit | CLOSED - GO |
+| Architecture Design | NOT YET OPEN |
 | Sprint | NOT AUTHORIZED |
 
 ## Rules For AI Agents
@@ -116,8 +121,8 @@ Sensitive artifact:
 - Closed work requires commit, push, HEAD verified, and clean working tree.
 - Dirty working trees must be explained by category.
 - Do not use destructive Git commands without explicit authorization.
-- Do not stage, commit, or push during Alignment A2.
+- Do not stage, commit, or push during Architecture Audit AA3.
 
 ## Stage Change Process
 
-A later stage can open only when the current gate is reported and the user authorizes the next stage. Sprint cannot open before Architecture Audit and Architecture Design.
+A later stage can open only when the current gate is reported and the user authorizes the next stage. Sprint cannot open before Architecture Design.

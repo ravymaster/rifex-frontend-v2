@@ -1,6 +1,6 @@
 # Rifex Current State
 
-This document is the A2 baseline snapshot of observable repository state.
+This document is the current documentation snapshot of observable repository state after Architecture Audit materialization.
 
 ## Repository
 
@@ -8,17 +8,17 @@ This document is the A2 baseline snapshot of observable repository state.
 |---|---|
 | Repository | `C:\proyectos\rifexv1.1\rifex-frontend-main` |
 | Branch | `main` |
-| HEAD | `6d0409b7f874adc1278be6808bc4c69753057758` |
-| HEAD message | `docs: establish Rifex alignment baseline` |
+| HEAD | `029973d457652387e7f158092ef925145178f7c2` |
+| HEAD message | `docs: close Rifex alignment` |
 | Upstream | `origin/main` |
 | Fetch executed in A2 | No |
-| Functional tests/build | Not executed |
+| Functional certification | UNVERIFIED; Alignment A3 build failed at `/checkout`; no new functional validation during AA1-AA3 |
 
 ## Separated State Categories
 
 ### HEAD
 
-HEAD `6d0409b` is the confirmed documentation checkpoint after A2.
+HEAD `029973d` is the confirmed Alignment closing checkpoint before Architecture Audit documentation.
 
 ### WORKING TREE FUNCTIONAL DIFFS
 
@@ -30,9 +30,9 @@ Pre-existing functional diffs:
 
 These diffs are a candidate recovery/hardening line and are `UNVERIFIED`.
 
-### A2 DOCUMENTATION CHANGES
+### DOCUMENTATION CHANGES
 
-A2 created or updated documentation only:
+A2 created or updated baseline documentation. AA3 created Architecture Audit documentation and updated authoritative status documents.
 
 - `README.md`
 - `docs/WOP.md`
@@ -44,6 +44,10 @@ A2 created or updated documentation only:
 - `docs/domain/DOMAIN_MODEL.md`
 - `docs/security/SECURITY_CURRENT.md`
 - `docs/database/DATABASE_CURRENT.md`
+- `docs/audits/ARCHITECTURE_AUDIT_REPORT.md`
+- `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md`
+- `docs/architecture/DATA_CONTRACT_LEDGER.md`
+- `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md`
 
 ### SENSITIVE UNTRACKED/IGNORED ARTIFACT
 
@@ -61,9 +65,13 @@ A2 created or updated documentation only:
 | ALIGNMENT A4 | GO |
 | ALIGNMENT A5 | GO |
 | ALIGNMENT | CLOSED - GO |
-| NEXT ELIGIBLE STAGE | ARCHITECTURE AUDIT |
-| ARCHITECTURE AUDIT | NOT YET OPEN |
-| ARCHITECTURE DESIGN | NOT OPEN |
+| ARCHITECTURE AUDIT AA1 | GO |
+| ARCHITECTURE AUDIT AA2 | GO |
+| ARCHITECTURE AUDIT AA3 | GO |
+| ARCHITECTURE AUDIT DOCUMENTATION READY | YES |
+| ARCHITECTURE AUDIT | CLOSED - GO |
+| NEXT ELIGIBLE STAGE | ARCHITECTURE DESIGN |
+| ARCHITECTURE DESIGN | NOT YET OPEN |
 | SPRINT | NOT AUTHORIZED |
 
 ## Recovery State
@@ -130,12 +138,14 @@ Build failure cause: CONFIRMED API handler located as `/checkout` page route. Th
 - Authorization relies on temporary headers in some routes.
 - DB model is contradictory across evidence sources.
 - Working tree requires DB objects not consolidated in baseline docs.
+- Architecture Design decisions are not yet authorized.
 
 ## Next Gates
 
 | Gate | Status |
 |---|---|
 | Alignment closing gate | GO |
-| Architecture Audit | Next eligible stage; not yet open |
-| Architecture Design | Not authorized yet |
+| Architecture Audit closing gate | GO |
+| Architecture Audit documentation ready | YES |
+| Architecture Design | Next eligible stage; not yet open |
 | Sprint | Not authorized |

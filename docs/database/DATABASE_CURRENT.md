@@ -94,3 +94,13 @@ Clean install DB reproducibility for the recovery line is `PARTIAL`.
 | states | CONTRADICTORY |
 
 The backup can guide reconstruction but does not replace reproducible migrations.
+
+## Architecture Audit Database Notes
+
+Architecture Audit preserves the database classification: reproducibility is `PARTIAL`, remote DB state is `UNKNOWN`, and canonical states remain `CONTRADICTORY`.
+
+| Evidence | Document |
+|---|---|
+| Data contract ledger | `docs/architecture/DATA_CONTRACT_LEDGER.md` |
+| Endpoint table usage | `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md` |
+| Design inputs AD-07 and AD-08 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |

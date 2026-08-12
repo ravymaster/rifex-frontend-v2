@@ -5,7 +5,7 @@ CURRENT ARCHITECTURE
 NOT TARGET ARCHITECTURE
 ```
 
-This document records observed architecture only. It does not open Architecture Audit and does not design a future architecture.
+This document records observed architecture only. Architecture Audit is closed as documentation. This file does not open Architecture Design and does not design a future architecture.
 
 ## Runtime Shape
 
@@ -57,7 +57,11 @@ Current architecture is route-centric. Domain rules, provider integration, persi
 ## Limits And Risks
 
 - No functional verification was executed in A2.
-- Architecture Audit is not open.
+- Architecture Audit is documented in `docs/audits/ARCHITECTURE_AUDIT_REPORT.md`.
+- Endpoint authority evidence is documented in `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md`.
+- Data contracts are documented in `docs/architecture/DATA_CONTRACT_LEDGER.md`.
+- Architecture Design inputs are documented in `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md`.
+- Architecture Design is not open.
 - Future layering such as Domain/Application/Infrastructure is not imposed here because it is not currently evidenced as implemented.
 
 ## Alignment A5 Recovery Boundaries

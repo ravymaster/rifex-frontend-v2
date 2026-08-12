@@ -6,7 +6,7 @@ This document records the approved Alignment A3/A4 recovery decomposition. It is
 
 | Item | Status |
 |---|---|
-| HEAD | `6d0409b7f874adc1278be6808bc4c69753057758` |
+| HEAD | `029973d457652387e7f158092ef925145178f7c2` |
 | Baseline decision | C |
 | Recovery decision | B |
 | Functional diffs | Preserved recovery/hardening line |
@@ -109,4 +109,4 @@ R4
 -> Separate Commits
 ```
 
-This sequence is approved as planning input only.
+This sequence is approved as planning input only. Architecture Audit documentation is closed and provides input for a future Architecture Design, but Architecture Design is not open and no recovery unit is authorized for implementation.

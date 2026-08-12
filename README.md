@@ -16,8 +16,13 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 | ALIGNMENT A4 | GO |
 | ALIGNMENT A5 | GO |
 | ALIGNMENT | CLOSED - GO |
-| Architecture Audit | NOT OPEN |
-| Architecture Design | NOT OPEN |
+| Architecture Audit AA1 | GO |
+| Architecture Audit AA2 | GO |
+| Architecture Audit AA3 | GO |
+| Architecture Audit Documentation Ready | YES |
+| Architecture Audit | CLOSED - GO |
+| Next Eligible Stage | Architecture Design |
+| Architecture Design | NOT YET OPEN |
 | Sprint | NOT AUTHORIZED |
 | Functional verification | UNVERIFIED |
 | Production readiness | NOT EVIDENCED |
@@ -26,9 +31,10 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 
 | Layer | Meaning |
 |---|---|
-| HEAD `6d0409b` | CONFIRMED documentation checkpoint after A2 |
+| HEAD `029973d` | CONFIRMED Alignment closing checkpoint before Architecture Audit documentation |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, not certified |
 | A2 documentation changes | CONFIRMED documentation baseline materialization |
+| Architecture Audit documentation | CONFIRMED current architecture audit materialization |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | Recovery decision | B: split recovery into R1-R4 units |
 
@@ -132,7 +138,7 @@ npm run build
 npm start
 ```
 
-A2 did not execute the application, build, or functional tests. These commands are listed only because they are declared in `package.json` and previous README text.
+Functional behavior remains `UNVERIFIED`. Alignment and Architecture Audit did not certify functional behavior. Alignment A3 performed static inspection and executed a build that failed at `/checkout`; AA1-AA3 performed static inspection and no new functional validation.
 
 ## Required Reading Before Programming
 
@@ -147,7 +153,11 @@ A2 did not execute the application, build, or functional tests. These commands a
 9. [Database Current](docs/database/DATABASE_CURRENT.md)
 10. [Recovery Plan](docs/recovery/RECOVERY_PLAN.md)
 11. [Alignment A3/A4 Report](docs/audits/ALIGNMENT_A3_A4_REPORT.md)
+12. [Architecture Audit Report](docs/audits/ARCHITECTURE_AUDIT_REPORT.md)
+13. [Endpoint Authority Ledger](docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md)
+14. [Data Contract Ledger](docs/architecture/DATA_CONTRACT_LEDGER.md)
+15. [Architecture Design Inputs](docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md)
 
 Older documents in `docs` and `db` can contain partial or contradictory information. They are evidence, not automatically final authority.
 
-Recovery planning is documented but not implemented. The three recovery/hardening diffs remain uncommitted and functionally uncertified.
+Architecture Audit is documented as closed with GO. Architecture Design is the next eligible stage but is not open. Recovery planning is documented but not implemented. The three recovery/hardening diffs remain uncommitted and functionally uncertified.

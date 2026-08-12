@@ -75,3 +75,14 @@ Canonical states are not decided in A2.
 Ticket, purchase and payment states remain `CONTRADICTORY` until a future design resolves them.
 
 Fees are separated from technical reconciliation. Current fee defaults are experimental implementation evidence only; commercial fee policy is `UNKNOWN`.
+
+## Architecture Audit Domain Notes
+
+The Architecture Audit records domain authority as fragmented and state authority as critical. Canonical domain decisions are not selected here.
+
+| Evidence | Document |
+|---|---|
+| Endpoint authority | `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md` |
+| Data contracts | `docs/architecture/DATA_CONTRACT_LEDGER.md` |
+| Design input AD-01 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |
+| Design input AD-02 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |
