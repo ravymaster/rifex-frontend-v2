@@ -1,26 +1,143 @@
-# Rifex Frontend v2
+# Rifex Frontend
 
-Panel y flujo de rifas con Next.js (App de ejemplo).  
-**Estado:** estable – sin cambios de BD en esta versión.
+Rifex is a Next.js frontend and API surface for raffle workflows. The repository contains observable flows for raffle creation, ticket selection, Mercado Pago checkout, payment confirmation, webhook handling, creator panel operations, seller Mercado Pago OAuth, email notifications, and winner selection.
 
-## Stack
-- Next.js / React
-- Supabase (auth + DB)
-- Mercado Pago (checkout)
-- CSS Modules
+This repository is the source of truth for Rifex. Documentation must distinguish confirmed facts from inferred or proposed work.
 
-## Demo local
+## Current Stage
+
+| Item | Status |
+|---|---|
+| PRE-ALIGNMENT AUDIT | GO |
+| ALIGNMENT A1 | GO |
+| ALIGNMENT A2 | GO |
+| Architecture Audit | NOT OPEN |
+| Architecture Design | NOT OPEN |
+| Sprint | NOT AUTHORIZED |
+| Functional verification | UNVERIFIED |
+| Production readiness | NOT EVIDENCED |
+
+## Baseline
+
+| Layer | Meaning |
+|---|---|
+| HEAD `6acb929` | CONFIRMED historical reproducible checkpoint |
+| Working tree functional diffs | CONFIRMED candidate recovery/hardening line, not certified |
+| A2 documentation changes | CONFIRMED documentation baseline materialization |
+| PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
+
+The working tree currently includes three pre-existing functional diffs:
+
+- `src/lib/mailer.js`
+- `src/pages/api/admin/reconcile-payments.js`
+- `src/pages/api/checkout/webhook.js`
+
+They are not part of HEAD and are not certified as functional baseline.
+
+## Stack Confirmed From Repository
+
+- Next.js 14 Pages Router
+- React 18
+- Supabase client, SSR helpers, and service-role server clients
+- Mercado Pago SDK and REST calls
+- Resend
+- hCaptcha
+- Replicate dependency present
+- CSS Modules / local styles
+
+## Main Structure
+
+| Path | Role |
+|---|---|
+| `src/pages` | Next.js pages and API routes |
+| `src/pages/api` | Server-side API routes |
+| `src/lib` | Shared clients and utilities |
+| `docs` | Project documentation |
+| `db` | Database snapshots and migrations |
+| `sql` | Standalone SQL files |
+
+## Observable Flows
+
+| Flow | Status |
+|---|---|
+| Authentication and registration | CONFIRMED present, UNVERIFIED |
+| Raffle creation/listing | CONFIRMED present, UNVERIFIED |
+| Ticket grid and selection | CONFIRMED present, UNVERIFIED |
+| Ticket reservation | CONFIRMED present, UNVERIFIED |
+| Mercado Pago checkout | CONFIRMED present, UNVERIFIED |
+| Payment confirmation | CONFIRMED present, UNVERIFIED |
+| Mercado Pago webhook | CONFIRMED present, UNVERIFIED |
+| Buyer/creator email | CONFIRMED present, UNVERIFIED |
+| Creator panel | CONFIRMED present, UNVERIFIED |
+| Mercado Pago seller OAuth | CONFIRMED present, UNVERIFIED |
+| Admin reconciliation | CONFIRMED present, UNVERIFIED |
+| Expired ticket release | CONFIRMED present, UNVERIFIED |
+| Winner selection | CONFIRMED present, UNVERIFIED |
+
+## Environment Variables
+
+Variable names observed in repository code and docs. Values must never be committed.
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_BASE_URL
+NEXT_PUBLIC_HCAPTCHA_SITEKEY
+NEXT_PUBLIC_MP_REGION
+NEXT_PUBLIC_STAGE
+SUPABASE_SERVICE_ROLE_KEY
+SUPABASE_SERVICE_ROLE
+MP_ACCESS_TOKEN
+MP_PUBLIC_KEY
+MP_CLIENT_ID
+MP_CLIENT_SECRET
+MP_WEBHOOK_SECRET
+MP_REDIRECT_URI
+MP_WEBHOOK_URL
+RIFEX_ALLOW_PLATFORM_FALLBACK
+HOLD_MINUTES
+RESEND_API_KEY
+ENABLE_EMAILS
+EMAIL_FROM
+DEV_FORCE_TO
+DEV_BCC_EMAIL
+DEV_TEST_EMAIL_TOKEN
+CREATOR_FALLBACK_EMAIL
+HCAPTCHA_SECRET
+ADMIN_API_TOKEN
+REPLICATE_API_TOKEN
+EMAIL_DEDUP_WINDOW_MIN
+RIFEX_FEE_PCT
+MP_FEE_FALLBACK_PCT
+MP_FEE_MIN_CENTS
+RIFEX_PLAN_DEFAULT
+```
+
+`NEXT_PUBLIC_*` variables are expected to be exposed to the browser by design. No private secret exposure through that prefix has been evidenced.
+
+## Installation Notes
+
+The repository declares these scripts:
+
 ```bash
-# 1) Instalar deps
 npm install
-
-# 2) Variables de entorno
-# copiar docs/dotenv.example -> .env.local y completar claves
-# (NO commitear .env.local)
-
-# 3) Dev
 npm run dev
-
-# 4) Build / start
 npm run build
 npm start
+```
+
+A2 did not execute the application, build, or functional tests. These commands are listed only because they are declared in `package.json` and previous README text.
+
+## Required Reading Before Programming
+
+1. [WOP](docs/WOP.md)
+2. [Engineering Process](docs/ENGINEERING_PROCESS.md)
+3. [Current State](docs/CURRENT_STATE.md)
+4. [Why](docs/WHY.md)
+5. [Roadmap](docs/ROADMAP.md)
+6. [Current Architecture](docs/architecture/ARCHITECTURE_CURRENT.md)
+7. [Domain Model](docs/domain/DOMAIN_MODEL.md)
+8. [Security Current](docs/security/SECURITY_CURRENT.md)
+9. [Database Current](docs/database/DATABASE_CURRENT.md)
+
+Older documents in `docs` and `db` can contain partial or contradictory information. They are evidence, not automatically final authority.
