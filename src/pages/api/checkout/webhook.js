@@ -64,6 +64,61 @@ function mask(val, keep = 6) {
   return `${s.slice(0, keep)}…(${s.length})`;
 }
 
+// Guarda el evento crudo en DB (para auditoría)
+async function logWebhookEvent(
+  supabaseClient,
+  { provider = "mercadopago", event_type = null, payment_id = null, live_mode = null, payload = null, headers = null }
+) {
+  try {
+    await supabaseClient.from("webhook_events").insert({
+      provider,
+      event_type,
+      payment_id,
+      live_mode,
+      payload,
+      headers,
+    });
+  } catch (e) {
+    console.warn("[mp webhook] logWebhookEvent failed:", e?.message || e);
+  }
+}
+
+/** Firma MP: helpers estrictos */
+function parseMpSignature(signatureHeader) {
+  if (!signatureHeader) return null;
+  const obj = {};
+  String(signatureHeader)
+    .split(",")
+    .forEach((pair) => {
+      const [k, v] = pair.trim().split("=");
+      if (k && v) obj[k] = v;
+    });
+  return obj; // { ts: "...", v1: "..." }
+}
+
+function verifyMpSignature({ reqId, signatureHeader, secret, windowSeconds = 300 }) {
+  if (!secret || !signatureHeader) return { ok: false, reason: "missing_secret_or_sig" };
+  const parts = parseMpSignature(signatureHeader);
+  if (!parts || !parts.ts || !parts.v1) return { ok: false, reason: "bad_sig_format" };
+
+  const ts = Number(parts.ts);
+  if (!Number.isFinite(ts)) return { ok: false, reason: "bad_ts" };
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - ts) > windowSeconds) return { ok: false, reason: "ts_out_of_window" }; // replay window
+
+  const signed = `id:${reqId || ""};ts:${parts.ts};`;
+  const digest = crypto.createHmac("sha256", secret).update(signed).digest("hex");
+
+  try {
+    const a = Buffer.from(digest, "hex");
+    const b = Buffer.from(parts.v1, "hex");
+    const ok = a.length === b.length && crypto.timingSafeEqual(a, b);
+    return { ok, reason: ok ? "ok" : "hmac_mismatch" };
+  } catch {
+    return { ok: false, reason: "compare_error" };
+  }
+}
+
 async function fetchPayment(paymentId, hintMpUserId = null) {
   // 1) Intento con token plataforma
   const platformToken = process.env.MP_ACCESS_TOKEN || null;
@@ -123,37 +178,42 @@ export default async function handler(req, res) {
     console.log("[mp webhook] HEADERS:", h);
     console.log("[mp webhook] RAW:", mask(raw.toString("utf8"), 512));
 
-    // ==== Validación de firma (relajada para simulación) ====
-    try {
-      const secret = process.env.MP_WEBHOOK_SECRET;
-      const signature = req.headers["x-signature"];
-      const reqId = req.headers["x-request-id"];
+    // ==== Parse preliminar para log ====
+    let preBody = safeJsonParse(raw);
+    if (!preBody) {
+      try { preBody = parseMaybeFormUrlEncoded(raw); } catch {}
+    }
+    const prePaymentId =
+      preBody?.data?.id ||
+      preBody?.id ||
+      preBody?.resource?.id ||
+      (typeof preBody?.data === "string" ? preBody.data : null);
+    await logWebhookEvent(supabase, {
+      provider: "mercadopago",
+      event_type: preBody?.type || preBody?.action || null,
+      payment_id: prePaymentId ? String(prePaymentId) : null,
+      live_mode: typeof preBody?.live_mode === "boolean" ? preBody.live_mode : null,
+      payload: preBody || {},
+      headers: h,
+    });
 
-      if (secret && signature && reqId) {
-        // signature: "ts=...,v1=..."
-        const parts = Object.fromEntries(
-          String(signature)
-            .split(",")
-            .map((kv) => kv.trim().split("="))
-        );
-        const signed = `id:${reqId};ts:${parts.ts};`;
-        const digest = crypto.createHmac("sha256", secret).update(signed).digest("hex");
-
-        if (digest !== parts.v1) {
-          // ⚠️ En simulación muchas veces no viene firma correcta: NO cortar con 400.
-          console.warn("[mp webhook] firma inválida (ignorada para simulación)", {
-            expected: digest,
-            got: parts.v1,
-            ts: parts.ts,
-          });
-        }
-      }
-    } catch (e) {
-      // No bloquear por error de parsing/validación en tests
-      console.warn("[mp webhook] error validando firma (continuo):", e?.message || e);
+    // ==== Verificación de firma (ESTRICTO en producción) ====
+    const secret = process.env.MP_WEBHOOK_SECRET || "";
+    const signature = String(req.headers["x-signature"] || "");
+    const reqId = String(req.headers["x-request-id"] || "");
+    const { ok: sigOK, reason } = verifyMpSignature({
+      reqId,
+      signatureHeader: signature,
+      secret,
+      windowSeconds: 300, // 5 minutos
+    });
+    if (!sigOK) {
+      console.warn("[mp webhook] invalid signature:", reason);
+      // rechazamos para evitar replays / inyecciones
+      return res.status(400).json({ ok: false, error: "invalid_signature" });
     }
 
-    // ==== Parse del cuerpo ====
+    // ==== Parse del cuerpo final ====
     let body = safeJsonParse(raw);
     if (!body) {
       try {
@@ -239,6 +299,7 @@ export default async function handler(req, res) {
 
     const amount_cents = Math.round(Number(mp?.transaction_amount || 0) * 100);
     const mpIdStr = String(mp?.id || paymentId);
+    const isLive = !!(mp && mp.live_mode === true); // <- pago real (producción)
 
     // ==== Upsert en payments (idempotente) ====
     const { data: payRow, error: payErr } = await supabase
@@ -254,7 +315,8 @@ export default async function handler(req, res) {
           status,
           status_detail,
           amount_cents,
-          via: fetched.via, // plataforma o seller
+          live_mode: isLive,           // guardar live_mode del pago
+          via: fetched.via,            // plataforma o seller
         },
         { onConflict: "mp_payment_id" }
       )
@@ -266,8 +328,8 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, error: "payments_upsert_error" });
     }
 
-    // ==== Transiciones de estado ====
-    if (status === "approved") {
+    // ==== Transiciones de estado (solo pagos REALES) ====
+    if (status === "approved" && isLive) {
       // Tickets → sold
       if (raffleId && numbers.length) {
         await supabase
@@ -355,6 +417,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: false, error: String(e) });
   }
 }
+
+
 
 
 
