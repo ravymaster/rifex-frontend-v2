@@ -1,6 +1,18 @@
 # Architecture Design Inputs
 
-These inputs are carried from Architecture Audit. They are decision packets, not decisions. Architecture Design is NOT YET OPEN.
+These inputs are carried from Architecture Audit. They are decision packets that fed Architecture Design AD1. AD2 materializes the corrected decisions in:
+
+- `docs/architecture/ARCHITECTURE_TARGET.md`
+- `docs/architecture/ARCHITECTURE_DECISIONS.md`
+- `docs/architecture/TARGET_FLOWS.md`
+- `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md`
+- `docs/security/IDENTITY_AUTHORIZATION_DESIGN.md`
+- `docs/database/DB_RECOVERY_CONTRACT.md`
+- `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`
+- `docs/integrations/MAIL_DESIGN.md`
+- `docs/testing/TEST_ARCHITECTURE.md`
+
+This file remains the Architecture Audit input ledger and is not an implementation document.
 
 ## AD-01
 

@@ -4,6 +4,8 @@ This document consolidates evidence from repository docs, snapshots, migrations,
 
 It does not expose backup rows, personal data, or secret values. It does not make the backup part of Git baseline.
 
+Target DB recovery design is documented in `docs/database/DB_RECOVERY_CONTRACT.md`. Current reproducibility remains `PARTIAL` until migrations and validation are implemented.
+
 ## Evidence Sources
 
 | Source | Status |
@@ -104,3 +106,4 @@ Architecture Audit preserves the database classification: reproducibility is `PA
 | Data contract ledger | `docs/architecture/DATA_CONTRACT_LEDGER.md` |
 | Endpoint table usage | `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md` |
 | Design inputs AD-07 and AD-08 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |
+| Target DB Recovery Contract | `docs/database/DB_RECOVERY_CONTRACT.md` |

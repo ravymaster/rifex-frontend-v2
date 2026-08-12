@@ -2,6 +2,8 @@
 
 This document records observed security posture. It does not certify security.
 
+Target security design is documented in `docs/security/IDENTITY_AUTHORIZATION_DESIGN.md`. Current authorization remains `CRITICAL` until implemented and tested.
+
 ## Authentication
 
 Supabase authentication is present in UI and server flows. Some server routes validate Supabase bearer tokens. Other routes use temporary identity headers.
@@ -46,6 +48,7 @@ Variable names are documented in README without values. Secrets must remain in i
 - Webhook behavior differs between HEAD and working tree.
 - Backup is sensitive and must not enter Git baseline.
 - Mutating endpoints require Architecture Design authority decisions before certification.
+- Target identity and ownership rules are designed but NOT IMPLEMENTED.
 
 ## Unverified
 
@@ -75,3 +78,4 @@ Architecture Audit closes with security posture still uncertified. Authorization
 | Endpoint authorization ledger | `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md` |
 | Architecture audit report | `docs/audits/ARCHITECTURE_AUDIT_REPORT.md` |
 | Design inputs AD-03, AD-04, AD-05, AD-10, AD-13 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |
+| Target identity/authorization design | `docs/security/IDENTITY_AUTHORIZATION_DESIGN.md` |

@@ -5,7 +5,15 @@ CURRENT ARCHITECTURE
 NOT TARGET ARCHITECTURE
 ```
 
-This document records observed architecture only. Architecture Audit is closed as documentation. This file does not open Architecture Design and does not design a future architecture.
+This document records observed architecture only. Architecture Audit is closed as documentation. Architecture Design AD2 adds target documentation separately. This file remains current-state evidence.
+
+| Scope | Document |
+|---|---|
+| CURRENT ARCHITECTURE | `docs/architecture/ARCHITECTURE_CURRENT.md` |
+| TARGET ARCHITECTURE | `docs/architecture/ARCHITECTURE_TARGET.md` |
+| TARGET DECISIONS | `docs/architecture/ARCHITECTURE_DECISIONS.md` |
+| TARGET FLOWS | `docs/architecture/TARGET_FLOWS.md` |
+| TRANSACTION/IDEMPOTENCY TARGET | `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md` |
 
 ## Runtime Shape
 
@@ -56,12 +64,12 @@ Current architecture is route-centric. Domain rules, provider integration, persi
 
 ## Limits And Risks
 
-- No functional verification was executed in A2.
+- Functional behavior remains UNVERIFIED. Alignment A3 build failed at `/checkout`; Architecture Audit used static inspection and AD2 is documentation only.
 - Architecture Audit is documented in `docs/audits/ARCHITECTURE_AUDIT_REPORT.md`.
 - Endpoint authority evidence is documented in `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md`.
 - Data contracts are documented in `docs/architecture/DATA_CONTRACT_LEDGER.md`.
 - Architecture Design inputs are documented in `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md`.
-- Architecture Design is not open.
+- Architecture Design is open for AD2 documentation materialization only.
 - Future layering such as Domain/Application/Infrastructure is not imposed here because it is not currently evidenced as implemented.
 
 ## Alignment A5 Recovery Boundaries

@@ -2,11 +2,13 @@
 
 This document records the approved Alignment A3/A4 recovery decomposition. It is a plan, not an implementation.
 
+Architecture Design AD2 adds target design for recovery units. The units now have design documentation, but no implementation is authorized or completed.
+
 ## Baseline
 
 | Item | Status |
 |---|---|
-| HEAD | `029973d457652387e7f158092ef925145178f7c2` |
+| HEAD | `c3bef35bb7a80621fd55d34537be518f11494063` |
 | Baseline decision | C |
 | Recovery decision | B |
 | Functional diffs | Preserved recovery/hardening line |
@@ -28,6 +30,16 @@ Preserved diffs:
 | Relation to recovery diffs | UNRELATED TO RECOVERY DIFFS |
 | Future criterion | `npm run build` succeeds |
 | Implementation | NOT IMPLEMENTED |
+
+| Physical File | Public Route | Classification |
+|---|---|---|
+| `src/pages/checkout/index.js` | `/checkout` | React page or controlled redirect pending |
+| `src/pages/api/checkout/index.js` | `/api/checkout` | Legacy/compatibility API |
+| `src/pages/api/checkout/mp.js` | `/api/checkout/mp` | Current canonical candidate |
+| `src/pages/api/checkout/confirm.js` | `/api/checkout/confirm` | Query without independent mutating authority |
+| `src/pages/api/checkout/webhook.js` | `/api/checkout/webhook` | Primary Mercado Pago evidence entrypoint |
+
+R4 does not remove `/api/checkout` without caller review. `next build` is the R4 gate. This documentation correction changes no routes.
 
 ## DB Recovery Contract
 
@@ -96,6 +108,14 @@ Fees are a separate future decision. Current defaults are experimental implement
 
 Fees must not block R3 technical certification unless explicitly adopted. A future decision must define percentages, units, rounding, persistence, display, ownership and legal/commercial approval.
 
+```text
+TECHNICAL PAYMENT RECONCILIATION
+!=
+COMMERCIAL FEES POLICY
+```
+
+Technical reconciliation does not invent a Rifex fee. Provider fee is only a technical observation. Plan resolution is server-side, amounts use integer minor units, percentages and rounding remain DEFERRED, defaults are not authority, and emails must not show experimental fee calculations.
+
 ## Sequence
 
 ```text
@@ -109,4 +129,16 @@ R4
 -> Separate Commits
 ```
 
-This sequence is approved as planning input only. Architecture Audit documentation is closed and provides input for a future Architecture Design, but Architecture Design is not open and no recovery unit is authorized for implementation.
+This sequence is approved as planning input only. Architecture Audit documentation is closed and Architecture Design AD2 is documentation materialization only. No recovery unit is authorized for implementation.
+
+## Design Links
+
+| Unit | Target Design |
+|---|---|
+| R4 | `docs/architecture/ARCHITECTURE_DECISIONS.md`, AD-19 |
+| DB Recovery Contract | `docs/database/DB_RECOVERY_CONTRACT.md` |
+| R1 Mailer | `docs/integrations/MAIL_DESIGN.md` |
+| R2 Webhook | `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`, `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md` |
+| R3 Technical Reconciliation | `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`, `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md` |
+| Fees Policy | `docs/architecture/ARCHITECTURE_DECISIONS.md`, AD-14 |
+| Tests | `docs/testing/TEST_ARCHITECTURE.md` |

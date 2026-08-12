@@ -21,9 +21,13 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 | Architecture Audit AA3 | GO |
 | Architecture Audit Documentation Ready | YES |
 | Architecture Audit | CLOSED - GO |
-| Next Eligible Stage | Architecture Design |
-| Architecture Design | NOT YET OPEN |
-| Sprint | NOT AUTHORIZED |
+| ARCHITECTURE DESIGN AD1 | GO |
+| ARCHITECTURE DESIGN AD1 ADVERSARIAL REVIEW | GO |
+| ARCHITECTURE DESIGN AD1 CORRECTION | GO |
+| ARCHITECTURE DESIGN AD2 | GO |
+| ARCHITECTURE DESIGN DOCUMENTATION READY | YES |
+| ARCHITECTURE DESIGN | OPEN |
+| SPRINT | NOT AUTHORIZED |
 | Functional verification | UNVERIFIED |
 | Production readiness | NOT EVIDENCED |
 
@@ -31,10 +35,11 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 
 | Layer | Meaning |
 |---|---|
-| HEAD `029973d` | CONFIRMED Alignment closing checkpoint before Architecture Audit documentation |
+| HEAD `c3bef35` | CONFIRMED Architecture Design AD2 starting checkpoint |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, not certified |
 | A2 documentation changes | CONFIRMED documentation baseline materialization |
 | Architecture Audit documentation | CONFIRMED current architecture audit materialization |
+| Architecture Design AD2 documentation | GO; documentation materialized, no implementation |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | Recovery decision | B: split recovery into R1-R4 units |
 
@@ -157,7 +162,17 @@ Functional behavior remains `UNVERIFIED`. Alignment and Architecture Audit did n
 13. [Endpoint Authority Ledger](docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md)
 14. [Data Contract Ledger](docs/architecture/DATA_CONTRACT_LEDGER.md)
 15. [Architecture Design Inputs](docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md)
+16. [Target Architecture](docs/architecture/ARCHITECTURE_TARGET.md)
+17. [Architecture Decisions](docs/architecture/ARCHITECTURE_DECISIONS.md)
+18. [Target Flows](docs/architecture/TARGET_FLOWS.md)
+19. [Transaction and Idempotency Design](docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md)
+20. [Identity and Authorization Design](docs/security/IDENTITY_AUTHORIZATION_DESIGN.md)
+21. [DB Recovery Contract](docs/database/DB_RECOVERY_CONTRACT.md)
+22. [Payment Provider Design](docs/integrations/PAYMENT_PROVIDER_DESIGN.md)
+23. [Mail Design](docs/integrations/MAIL_DESIGN.md)
+24. [Test Architecture](docs/testing/TEST_ARCHITECTURE.md)
+25. [Architecture Design AD1 Report](docs/audits/ARCHITECTURE_DESIGN_AD1_REPORT.md)
 
 Older documents in `docs` and `db` can contain partial or contradictory information. They are evidence, not automatically final authority.
 
-Architecture Audit is documented as closed with GO. Architecture Design is the next eligible stage but is not open. Recovery planning is documented but not implemented. The three recovery/hardening diffs remain uncommitted and functionally uncertified.
+Architecture Audit is documented as closed with GO. Architecture Design is open for documentation materialization only. Sprint is not authorized. Recovery planning and target design are documented but not implemented. The three recovery/hardening diffs remain uncommitted and functionally uncertified.

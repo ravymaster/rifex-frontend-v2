@@ -68,7 +68,51 @@ This document describes the observable domain. It does not silently resolve cont
 | Live/sandbox separation | NOT EVIDENCED as strict | CONFIRMED present, UNVERIFIED |
 | Fee breakdown in creator email | NOT IMPLEMENTED | CONFIRMED present, UNVERIFIED |
 
-Canonical states are not decided in A2.
+Canonical target states are decided by Architecture Design AD2, but they are not migrated or implemented.
+
+## Target States From Architecture Design
+
+| Entity | Target States | Current/Legacy Evidence | Implementation Status |
+|---|---|---|---|
+| Raffles | `draft`, `active`, `closed`, `deleted` as soft-delete marker if supported | current evidence is partial and route-local | NOT IMPLEMENTED |
+| Tickets | `available`, `held`, `sold` | current/legacy aliases include `free`, `pending`, `reserved`, `paid` | NOT IMPLEMENTED |
+| Purchases | `created`, `pending_payment`, `approved`, `rejected`, `expired`, `cancelled` | current docs/code contain incompatible aliases | NOT IMPLEMENTED |
+| Payments | provider state, evidence state, internal persisted state and processing outcome separated | `reconciled` and `ignored_sandbox` are technical outcomes, not target financial states | NOT IMPLEMENTED |
+| Winner | one persisted result per raffle | current winner route can create on `ensure=1` | NOT IMPLEMENTED |
+
+Target deferrals: raffle `archived/cancelled/reopened`, close-early policy, sold-out requirement, manual close, winner replacement/void and exact randomness policy.
+
+## Ticket Release Target Rule
+
+Durable ticket states:
+
+```text
+available
+held
+sold
+```
+
+`release` is not a state. It is the transition:
+
+```text
+held -> available
+```
+
+Release requires:
+
+- expired hold;
+- purchase without valid approval;
+- expected ticket-to-purchase association;
+- conditional update so a concurrently sold ticket is not released.
+
+Legacy aliases:
+
+| Legacy Alias | Target State |
+|---|---|
+| `free` | `available` |
+| `pending` | `held` |
+| `reserved` | `held` |
+| `paid` | `sold` |
 
 ## Alignment A5 Domain Notes
 
@@ -86,3 +130,4 @@ The Architecture Audit records domain authority as fragmented and state authorit
 | Data contracts | `docs/architecture/DATA_CONTRACT_LEDGER.md` |
 | Design input AD-01 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |
 | Design input AD-02 | `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md` |
+| Target decisions AD-01 to AD-19 | `docs/architecture/ARCHITECTURE_DECISIONS.md` |

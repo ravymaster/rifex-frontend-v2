@@ -19,8 +19,12 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | ARCHITECTURE AUDIT AA3 | GO |
 | ARCHITECTURE AUDIT DOCUMENTATION READY | YES |
 | ARCHITECTURE AUDIT | CLOSED - GO |
-| NEXT ELIGIBLE STAGE | ARCHITECTURE DESIGN |
-| ARCHITECTURE DESIGN | NOT YET OPEN |
+| ARCHITECTURE DESIGN AD1 | GO |
+| ARCHITECTURE DESIGN AD1 ADVERSARIAL REVIEW | GO |
+| ARCHITECTURE DESIGN AD1 CORRECTION | GO |
+| ARCHITECTURE DESIGN AD2 | GO |
+| ARCHITECTURE DESIGN DOCUMENTATION READY | YES |
+| ARCHITECTURE DESIGN | OPEN |
 | SPRINT | NOT AUTHORIZED |
 
 ## Official Project States
@@ -40,7 +44,7 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ## Current Stage
 
-Rifex has closed `ALIGNMENT` and `ARCHITECTURE AUDIT`. Architecture Audit materializes current architecture evidence only. It does not certify production readiness, does not adopt working tree functional diffs, does not open Architecture Design, and does not authorize Sprint.
+Rifex has closed `ALIGNMENT` and `ARCHITECTURE AUDIT`. Architecture Design AD2 is documented with `GO` and documentation ready `YES`. Architecture Design remains open; it does not certify production readiness, does not adopt working tree functional diffs, does not implement recovery units, and does not authorize Sprint.
 
 ## Baseline Decision
 
@@ -48,11 +52,11 @@ Rifex has closed `ALIGNMENT` and `ARCHITECTURE AUDIT`. Architecture Audit materi
 PROPOSED BASELINE DECISION: C
 ```
 
-Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `029973d` is the current Alignment closing checkpoint before Architecture Audit documentation. The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified. The PostgreSQL backup is sensitive evidence outside the Git baseline. Functional execution of this decision remains pending, and the working tree does not constitute a certified functional baseline.
+Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `c3bef35bb7a80621fd55d34537be518f11494063` is the Architecture Design AD2 starting checkpoint. The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified. The PostgreSQL backup is sensitive evidence outside the Git baseline. Functional execution of this decision remains pending, and the working tree does not constitute a certified functional baseline.
 
 | Layer | Status |
 |---|---|
-| HEAD `029973d` | CONFIRMED Alignment closing checkpoint before Architecture Audit documentation |
+| HEAD `c3bef35` | CONFIRMED Architecture Design AD2 starting checkpoint |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, UNVERIFIED |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | A2 documents | CONFIRMED documentation materialization |
@@ -62,7 +66,7 @@ Decision C is the documentary baseline decision approved during Alignment A1 and
 ## Recovery Sequence
 
 ```text
-R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy
+R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy -> Release Audits -> Separate Commits
 ```
 
 This sequence is approved as a recovery plan, not as implementation. Recovery changes must not be implemented before Architecture Design and an explicitly authorized Sprint.
@@ -93,7 +97,7 @@ Sensitive artifact:
 | DB remote state | UNKNOWN |
 | Canonical ticket/purchase/payment states | CONTRADICTORY |
 | Architecture Audit | CLOSED - GO |
-| Architecture Design | NOT YET OPEN |
+| Architecture Design | OPEN for documentation only |
 | Sprint | NOT AUTHORIZED |
 
 ## Rules For AI Agents
@@ -121,8 +125,8 @@ Sensitive artifact:
 - Closed work requires commit, push, HEAD verified, and clean working tree.
 - Dirty working trees must be explained by category.
 - Do not use destructive Git commands without explicit authorization.
-- Do not stage, commit, or push during Architecture Audit AA3.
+- Do not stage, commit, or push during Architecture Design AD2.
 
 ## Stage Change Process
 
-A later stage can open only when the current gate is reported and the user authorizes the next stage. Sprint cannot open before Architecture Design.
+A later stage can open only when the current gate is reported and the user authorizes the next stage. Sprint cannot open during AD2 and remains `NOT AUTHORIZED`.
