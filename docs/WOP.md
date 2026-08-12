@@ -146,3 +146,14 @@ Sensitive artifact:
 ## Stage Change Process
 
 A later stage can open only when the current gate is reported and the user authorizes the next stage. R4 Sprint Readiness `GO` does not open Sprint; Sprint remains `NOT YET OPEN / NOT AUTHORIZED`.
+## Resume Handover
+
+| Item | Status |
+|---|---|
+| Recovery preservation | GO |
+| Recovery branch | `recovery/rifex-hardening-preserved` |
+| Recovery commit | `1c23702f401f8c501077ecfd265a213245e62a63` |
+| Handover | `docs/handover/HANDOVER_RIFEX_CURRENT.md` |
+| R4 | NOT YET OPEN |
+
+Recovery preservation keeps the hardening work recoverable without adopting it into `main`. R4 remains the next eligible stage, but it is not open until explicitly authorized.

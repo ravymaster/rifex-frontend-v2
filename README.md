@@ -189,6 +189,7 @@ Functional behavior remains `UNVERIFIED`. Alignment and Architecture Audit did n
 25. [Architecture Design AD1 Report](docs/audits/ARCHITECTURE_DESIGN_AD1_REPORT.md)
 26. [Architecture Design AD3 Report](docs/audits/ARCHITECTURE_DESIGN_AD3_REPORT.md)
 27. [R4 Build Baseline Sprint Packet](docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md)
+28. [Rifex Current Handover](docs/handover/HANDOVER_RIFEX_CURRENT.md)
 
 Older documents in `docs` and `db` can contain partial or contradictory information. They are evidence, not automatically final authority.
 

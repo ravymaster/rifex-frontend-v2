@@ -8,8 +8,8 @@ This document is the current documentation snapshot of observable repository sta
 |---|---|
 | Repository | `C:\proyectos\rifexv1.1\rifex-frontend-main` |
 | Branch | `main` |
-| HEAD | `b46ef9d424a89baedd56183a47d2a29741996160` |
-| HEAD message | Architecture Design AD4 documentation checkpoint |
+| HEAD | `19e28994a32660755ac7a6e2b70ae9f4a50f98b4` |
+| HEAD message | Architecture Design closing checkpoint |
 | Upstream | `origin/main` |
 | Fetch executed in A2 | No |
 | Functional certification | UNVERIFIED; Alignment A3 build failed at `/checkout`; no new functional validation during AA1-AA3 |
@@ -18,7 +18,7 @@ This document is the current documentation snapshot of observable repository sta
 
 ### HEAD
 
-HEAD `b46ef9d424a89baedd56183a47d2a29741996160` is the confirmed Architecture Design AD4 documentation checkpoint.
+HEAD `19e28994a32660755ac7a6e2b70ae9f4a50f98b4` is the confirmed Architecture Design closing checkpoint.
 
 ### WORKING TREE FUNCTIONAL DIFFS
 
@@ -171,3 +171,16 @@ Build failure cause: CONFIRMED API handler located as `/checkout` page route. Th
 | Architecture Design | CLOSED - GO |
 | R4 Sprint Readiness | GO |
 | Sprint | Not yet open / not authorized |
+## Resume Handover
+
+| Item | Status |
+|---|---|
+| Main working tree | CLEAN at `19e28994a32660755ac7a6e2b70ae9f4a50f98b4` |
+| Recovery branch | `recovery/rifex-hardening-preserved` |
+| Recovery commit | `1c23702f401f8c501077ecfd265a213245e62a63` |
+| Recovery status | PRESERVED — UNVERIFIED — NOT ADOPTED |
+| Recovery relation to main | outside `main`; no merge performed |
+| Next eligible stage | SPRINT R4 |
+| Handover | `docs/handover/HANDOVER_RIFEX_CURRENT.md` |
+
+The preserved recovery branch contains `src/lib/mailer.js`, `src/pages/api/admin/reconcile-payments.js` and `src/pages/api/checkout/webhook.js`. These changes must not be mixed with R4 and require future selective certification as R1/R2/R3 work.
