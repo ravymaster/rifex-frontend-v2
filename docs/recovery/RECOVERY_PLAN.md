@@ -2,13 +2,13 @@
 
 This document records the approved Alignment A3/A4 recovery decomposition. It is a plan, not an implementation.
 
-Architecture Design AD2 adds target design for recovery units. The units now have design documentation, but no implementation is authorized or completed.
+Architecture Design AD2 adds target design for recovery units. Architecture Design AD3 closes design with R4 Sprint Readiness `GO`, and AD4 materializes the closing record and R4 packet. The units now have design documentation, but no implementation is authorized or completed.
 
 ## Baseline
 
 | Item | Status |
 |---|---|
-| HEAD | `c3bef35bb7a80621fd55d34537be518f11494063` |
+| HEAD | `b46ef9d424a89baedd56183a47d2a29741996160` |
 | Baseline decision | C |
 | Recovery decision | B |
 | Functional diffs | Preserved recovery/hardening line |
@@ -30,6 +30,8 @@ Preserved diffs:
 | Relation to recovery diffs | UNRELATED TO RECOVERY DIFFS |
 | Future criterion | `npm run build` succeeds |
 | Implementation | NOT IMPLEMENTED |
+| R4 decision | A: replace `/checkout` handler conflict with a valid React page |
+| Sprint status | READY - NOT YET OPEN |
 
 | Physical File | Public Route | Classification |
 |---|---|---|
@@ -40,6 +42,8 @@ Preserved diffs:
 | `src/pages/api/checkout/webhook.js` | `/api/checkout/webhook` | Primary Mercado Pago evidence entrypoint |
 
 R4 does not remove `/api/checkout` without caller review. `next build` is the R4 gate. This documentation correction changes no routes.
+
+R4 is constrained by `docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md`. It must not modify checkout APIs, payment state, database schema, mailer, webhook, reconciliation, fees, OAuth, `.gitignore` or the PostgreSQL backup.
 
 ## DB Recovery Contract
 
@@ -129,13 +133,14 @@ R4
 -> Separate Commits
 ```
 
-This sequence is approved as planning input only. Architecture Audit documentation is closed and Architecture Design AD2 is documentation materialization only. No recovery unit is authorized for implementation.
+This sequence is approved as planning input only. Architecture Audit and Architecture Design documentation are closed with GO. R4 is ready as a future Sprint packet, but no recovery unit is authorized for implementation.
 
 ## Design Links
 
 | Unit | Target Design |
 |---|---|
 | R4 | `docs/architecture/ARCHITECTURE_DECISIONS.md`, AD-19 |
+| R4 Sprint Packet | `docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md` |
 | DB Recovery Contract | `docs/database/DB_RECOVERY_CONTRACT.md` |
 | R1 Mailer | `docs/integrations/MAIL_DESIGN.md` |
 | R2 Webhook | `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`, `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md` |

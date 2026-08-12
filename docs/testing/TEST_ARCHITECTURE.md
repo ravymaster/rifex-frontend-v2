@@ -33,3 +33,19 @@ Exact dependency versions are DEFERRED.
 | R3 | admin auth, reconcile lookup, shared ApplyPaymentEvidence, fee separation |
 
 Determinism is required for all unit and route tests. Provider fakes replace external calls.
+
+## R4 Build Baseline Test Packet
+
+R4 must verify the build baseline without live providers.
+
+| Check | Required |
+|---|---|
+| Git integrity before edit | branch `main`, expected HEAD/origin, staged empty, only three pre-existing recovery diffs |
+| Scope check | only `src/pages/checkout/index.js` may change unless a release audit explicitly rejects that minimum scope |
+| Static route check | `/checkout` is a React page; checkout APIs remain API routes |
+| Caller preservation | `/api/checkout/mp`, `/api/checkout/confirm`, `/api/checkout/webhook`, `/checkout/success`, `/checkout/pending`, `/checkout/failure` remain callable by their existing paths |
+| Build gate | `npm run build` succeeds |
+| Secret scan | no secrets introduced in changed files |
+| Final Git check | no staged files unless explicitly authorized; three recovery/hardening diffs still intact |
+
+R4 does not require live Mercado Pago, live Resend, database migrations or production deployment.

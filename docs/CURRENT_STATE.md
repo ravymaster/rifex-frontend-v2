@@ -1,6 +1,6 @@
 # Rifex Current State
 
-This document is the current documentation snapshot of observable repository state after Architecture Design AD2 documentation materialization.
+This document is the current documentation snapshot of observable repository state after Architecture Design AD4 documentation materialization.
 
 ## Repository
 
@@ -8,8 +8,8 @@ This document is the current documentation snapshot of observable repository sta
 |---|---|
 | Repository | `C:\proyectos\rifexv1.1\rifex-frontend-main` |
 | Branch | `main` |
-| HEAD | `c3bef35bb7a80621fd55d34537be518f11494063` |
-| HEAD message | Architecture Design AD2 starting checkpoint |
+| HEAD | `b46ef9d424a89baedd56183a47d2a29741996160` |
+| HEAD message | Architecture Design AD4 documentation checkpoint |
 | Upstream | `origin/main` |
 | Fetch executed in A2 | No |
 | Functional certification | UNVERIFIED; Alignment A3 build failed at `/checkout`; no new functional validation during AA1-AA3 |
@@ -18,7 +18,7 @@ This document is the current documentation snapshot of observable repository sta
 
 ### HEAD
 
-HEAD `c3bef35bb7a80621fd55d34537be518f11494063` is the confirmed Architecture Design AD2 starting checkpoint.
+HEAD `b46ef9d424a89baedd56183a47d2a29741996160` is the confirmed Architecture Design AD4 documentation checkpoint.
 
 ### WORKING TREE FUNCTIONAL DIFFS
 
@@ -33,7 +33,7 @@ These diffs are a candidate recovery/hardening line and are `UNVERIFIED`.
 ### DOCUMENTATION CHANGES
 
 A2 created or updated baseline documentation. AA3 created Architecture Audit documentation and updated authoritative status documents.
-AD2 materialized target Architecture Design documents. It does not implement recovery units.
+AD2 materialized target Architecture Design documents. AD4 materializes the AD3 closing report and future R4 Sprint packet. These documents do not implement recovery units.
 
 - `README.md`
 - `docs/WOP.md`
@@ -49,6 +49,8 @@ AD2 materialized target Architecture Design documents. It does not implement rec
 - `docs/architecture/ENDPOINT_AUTHORITY_LEDGER.md`
 - `docs/architecture/DATA_CONTRACT_LEDGER.md`
 - `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md`
+- `docs/audits/ARCHITECTURE_DESIGN_AD3_REPORT.md`
+- `docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md`
 
 ### SENSITIVE UNTRACKED/IGNORED ARTIFACT
 
@@ -75,15 +77,28 @@ AD2 materialized target Architecture Design documents. It does not implement rec
 | ARCHITECTURE DESIGN AD1 ADVERSARIAL REVIEW | GO |
 | ARCHITECTURE DESIGN AD1 CORRECTION | GO |
 | ARCHITECTURE DESIGN AD2 | GO |
+| ARCHITECTURE DESIGN AD3 | GO |
+| ARCHITECTURE DESIGN CLOSING GATE | GO |
 | ARCHITECTURE DESIGN DOCUMENTATION READY | YES |
-| ARCHITECTURE DESIGN | OPEN |
-| SPRINT | NOT AUTHORIZED |
+| ARCHITECTURE DESIGN | CLOSED - GO |
+| R4 SPRINT READINESS | GO |
+| SPRINT | NOT YET OPEN / NOT AUTHORIZED |
 
+
+## Next Eligible Stage
+
+```text
+ARCHITECTURE DESIGN: CLOSED — GO
+R4 SPRINT READINESS: GO
+NEXT ELIGIBLE STAGE: SPRINT R4
+SPRINT R4: NOT YET OPEN
+OTHER SPRINTS: NOT AUTHORIZED
+```
 ## Recovery State
 
 | Unit | Status |
 |---|---|
-| R4 Build Baseline | DESIGNED; build failure at `/checkout` CONFIRMED; implementation NOT AUTHORIZED |
+| R4 Build Baseline | READY - NOT YET OPEN; build failure at `/checkout` CONFIRMED; implementation NOT AUTHORIZED |
 | DB Recovery Contract | DESIGNED; clean install reproducibility PARTIAL; implementation NOT AUTHORIZED |
 | R1 Mailer | DESIGNED; certification PARTIAL; implementation NOT AUTHORIZED |
 | R2 Webhook | DESIGNED; certification PARTIAL; implementation NOT AUTHORIZED |
@@ -143,7 +158,7 @@ Build failure cause: CONFIRMED API handler located as `/checkout` page route. Th
 - Authorization relies on temporary headers in some routes.
 - DB model is contradictory across evidence sources.
 - Working tree requires DB objects not consolidated in baseline docs.
-- Architecture Design decisions are documented, but implementation is not authorized.
+- Architecture Design decisions are closed as documentation, but implementation is not authorized.
 - Payment authority, idempotency, OAuth, mail, legacy, PII retention, fees and winner eligibility remain open or deferred until implementation/testing or explicit policy.
 
 ## Next Gates
@@ -153,5 +168,6 @@ Build failure cause: CONFIRMED API handler located as `/checkout` page route. Th
 | Alignment closing gate | GO |
 | Architecture Audit closing gate | GO |
 | Architecture Audit documentation ready | YES |
-| Architecture Design | OPEN |
-| Sprint | Not authorized |
+| Architecture Design | CLOSED - GO |
+| R4 Sprint Readiness | GO |
+| Sprint | Not yet open / not authorized |

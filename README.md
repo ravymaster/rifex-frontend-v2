@@ -25,21 +25,36 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 | ARCHITECTURE DESIGN AD1 ADVERSARIAL REVIEW | GO |
 | ARCHITECTURE DESIGN AD1 CORRECTION | GO |
 | ARCHITECTURE DESIGN AD2 | GO |
+| ARCHITECTURE DESIGN AD3 | GO |
+| ARCHITECTURE DESIGN CLOSING GATE | GO |
 | ARCHITECTURE DESIGN DOCUMENTATION READY | YES |
-| ARCHITECTURE DESIGN | OPEN |
-| SPRINT | NOT AUTHORIZED |
+| ARCHITECTURE DESIGN | CLOSED - GO |
+| R4 SPRINT READINESS | GO |
+| SPRINT | NOT YET OPEN / NOT AUTHORIZED |
 | Functional verification | UNVERIFIED |
 | Production readiness | NOT EVIDENCED |
 
+
+## Next Eligible Stage
+
+```text
+ARCHITECTURE DESIGN: CLOSED — GO
+R4 SPRINT READINESS: GO
+NEXT ELIGIBLE STAGE: SPRINT R4
+SPRINT R4: NOT YET OPEN
+OTHER SPRINTS: NOT AUTHORIZED
+```
 ## Baseline
 
 | Layer | Meaning |
 |---|---|
-| HEAD `c3bef35` | CONFIRMED Architecture Design AD2 starting checkpoint |
+| HEAD `b46ef9d` | CONFIRMED Architecture Design AD4 documentation checkpoint |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, not certified |
 | A2 documentation changes | CONFIRMED documentation baseline materialization |
 | Architecture Audit documentation | CONFIRMED current architecture audit materialization |
 | Architecture Design AD2 documentation | GO; documentation materialized, no implementation |
+| Architecture Design AD3 report | GO; closing evidence materialized by AD4 |
+| R4 Sprint packet | READY - NOT YET OPEN; executable contract for future Sprint |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | Recovery decision | B: split recovery into R1-R4 units |
 
@@ -172,7 +187,9 @@ Functional behavior remains `UNVERIFIED`. Alignment and Architecture Audit did n
 23. [Mail Design](docs/integrations/MAIL_DESIGN.md)
 24. [Test Architecture](docs/testing/TEST_ARCHITECTURE.md)
 25. [Architecture Design AD1 Report](docs/audits/ARCHITECTURE_DESIGN_AD1_REPORT.md)
+26. [Architecture Design AD3 Report](docs/audits/ARCHITECTURE_DESIGN_AD3_REPORT.md)
+27. [R4 Build Baseline Sprint Packet](docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md)
 
 Older documents in `docs` and `db` can contain partial or contradictory information. They are evidence, not automatically final authority.
 
-Architecture Audit is documented as closed with GO. Architecture Design is open for documentation materialization only. Sprint is not authorized. Recovery planning and target design are documented but not implemented. The three recovery/hardening diffs remain uncommitted and functionally uncertified.
+Architecture Audit is documented as closed with GO. Architecture Design is documented as closed with GO after AD3/AD4 materialization. Sprint is not yet open and remains not authorized. Recovery planning, target design and the R4 packet are documented but not implemented. The three recovery/hardening diffs remain uncommitted and functionally uncertified.

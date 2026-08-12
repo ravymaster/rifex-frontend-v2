@@ -1,6 +1,6 @@
 # Architecture Decisions
 
-Architecture Design AD2 materializes the corrected AD1 decisions. These decisions replace AD1 original conceptually. They do not implement behavior, open Sprint, or certify production readiness.
+Architecture Design AD2 materializes the corrected AD1 decisions. Architecture Design AD3 closes the design gate with R4 Sprint Readiness `GO`, and AD4 materializes that closing documentation. These decisions replace AD1 original conceptually. They do not implement behavior, open Sprint, or certify production readiness.
 
 | ID | State | Contexto | Decision | Deferrals | Rejected Alternatives | Gate |
 |---|---|---|---|---|---|---|
@@ -119,3 +119,5 @@ These contracts are design targets and are not implemented by AD2.
 - `/api/checkout/mp` is the current canonical candidate.
 - `next build` is the R4 gate.
 - AD2 changes no routes.
+- AD3 selected R4 Decision A: keep `/checkout` as a valid React page rather than deleting it or redirecting without route context.
+- R4 Sprint Readiness is `GO`, but Sprint is not yet open and not authorized.
