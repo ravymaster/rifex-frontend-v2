@@ -200,6 +200,23 @@ export default async function handler(req, res) {
     const status_detail = mp?.status_detail || null;
     const md = mp?.metadata || {};
 
+    // ==== Log de auditoría (idempotente por event_id; no bloquea el flujo si falla) ====
+    try {
+      await supabase.from("webhook_events").upsert(
+        {
+          event_type: body?.type || body?.action || null,
+          payment_id: String(paymentId),
+          live_mode: typeof mp?.live_mode === "boolean" ? mp.live_mode : null,
+          payload: body,
+          headers: h,
+          event_id: eventId,
+        },
+        { onConflict: "event_id", ignoreDuplicates: true }
+      );
+    } catch (e) {
+      console.error("[mp webhook] webhook_events insert error", { eventId, err: e?.message || e });
+    }
+
     // Referencias/metadata
     let purchaseId = md.purchase_id || mp?.external_reference || null;
     if (purchaseId && typeof purchaseId !== "string") purchaseId = String(purchaseId);
