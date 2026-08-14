@@ -30,7 +30,8 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 | ARCHITECTURE DESIGN DOCUMENTATION READY | YES |
 | ARCHITECTURE DESIGN | CLOSED - GO |
 | R4 SPRINT READINESS | GO |
-| SPRINT | NOT YET OPEN / NOT AUTHORIZED |
+| SPRINT R4 | CLOSED - GO |
+| SPRINT | R4 CLOSED; OTHER SPRINTS NOT YET OPEN / NOT AUTHORIZED |
 | Functional verification | UNVERIFIED |
 | Production readiness | NOT EVIDENCED |
 
@@ -38,25 +39,26 @@ This repository is the source of truth for Rifex. Documentation must distinguish
 ## Next Eligible Stage
 
 ```text
-ARCHITECTURE DESIGN: CLOSED — GO
-R4 SPRINT READINESS: GO
-NEXT ELIGIBLE STAGE: SPRINT R4
-SPRINT R4: NOT YET OPEN
+SPRINT R4: CLOSED — GO
+NEXT ELIGIBLE STAGE: DB RECOVERY CONTRACT
+DB RECOVERY CONTRACT: NOT AUTHORIZED
 OTHER SPRINTS: NOT AUTHORIZED
 ```
 ## Baseline
 
 | Layer | Meaning |
 |---|---|
-| HEAD `b46ef9d` | CONFIRMED Architecture Design AD4 documentation checkpoint |
+| HEAD `bbaf8a0` | CONFIRMED current HEAD (fix: restore checkout page build) |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, not certified |
 | A2 documentation changes | CONFIRMED documentation baseline materialization |
 | Architecture Audit documentation | CONFIRMED current architecture audit materialization |
 | Architecture Design AD2 documentation | GO; documentation materialized, no implementation |
 | Architecture Design AD3 report | GO; closing evidence materialized by AD4 |
-| R4 Sprint packet | READY - NOT YET OPEN; executable contract for future Sprint |
+| R4 Sprint packet | CLOSED - GO; implemented at `bbaf8a0`, `npm run build` passes |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | Recovery decision | B: split recovery into R1-R4 units |
+
+Previous HEAD citations in this document and in `docs/WOP.md` (`b46ef9d`, then `48013ce`) lagged the real HEAD because later closing commits did not bump them. `git diff --stat` between the old and new citations shows only documentation files changed — this was `STALE, NOT CORRUPTED`, not diverged history. See `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the full reconciliation. R4 (`fix: restore checkout page build`) was implemented, committed, and pushed at HEAD `bbaf8a0`; see `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the current resume state.
 
 The working tree currently includes three pre-existing functional diffs:
 
@@ -158,7 +160,7 @@ npm run build
 npm start
 ```
 
-Functional behavior remains `UNVERIFIED`. Alignment and Architecture Audit did not certify functional behavior. Alignment A3 performed static inspection and executed a build that failed at `/checkout`; AA1-AA3 performed static inspection and no new functional validation.
+Functional behavior remains `UNVERIFIED`. Alignment and Architecture Audit did not certify functional behavior. Alignment A3 performed static inspection and executed a build that failed at `/checkout`; AA1-AA3 performed static inspection and no new functional validation. R4 (`bbaf8a0`) restored the build baseline: `npm run build` now passes with 25/25 pages generated, including `/checkout`. This is a build-success confirmation only, not functional/payment verification.
 
 ## Required Reading Before Programming
 
@@ -190,6 +192,7 @@ Functional behavior remains `UNVERIFIED`. Alignment and Architecture Audit did n
 26. [Architecture Design AD3 Report](docs/audits/ARCHITECTURE_DESIGN_AD3_REPORT.md)
 27. [R4 Build Baseline Sprint Packet](docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md)
 28. [Rifex Current Handover](docs/handover/HANDOVER_RIFEX_CURRENT.md)
+29. [Execution Environment Audit](docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md)
 
 Older documents in `docs` and `db` can contain partial or contradictory information. They are evidence, not automatically final authority.
 

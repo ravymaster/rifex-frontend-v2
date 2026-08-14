@@ -28,16 +28,16 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | ARCHITECTURE DESIGN DOCUMENTATION READY | YES |
 | ARCHITECTURE DESIGN | CLOSED - GO |
 | R4 SPRINT READINESS | GO |
-| SPRINT | NOT YET OPEN / NOT AUTHORIZED |
+| SPRINT R4 | CLOSED - GO |
+| SPRINT | R4 CLOSED; OTHER SPRINTS NOT YET OPEN / NOT AUTHORIZED |
 
 
 ## Next Eligible Stage
 
 ```text
-ARCHITECTURE DESIGN: CLOSED — GO
-R4 SPRINT READINESS: GO
-NEXT ELIGIBLE STAGE: SPRINT R4
-SPRINT R4: NOT YET OPEN
+SPRINT R4: CLOSED — GO
+NEXT ELIGIBLE STAGE: DB RECOVERY CONTRACT
+DB RECOVERY CONTRACT: NOT AUTHORIZED
 OTHER SPRINTS: NOT AUTHORIZED
 ```
 ## Official Project States
@@ -57,7 +57,7 @@ OTHER SPRINTS: NOT AUTHORIZED
 
 ## Current Stage
 
-Rifex has closed `ALIGNMENT`, `ARCHITECTURE AUDIT` and `ARCHITECTURE DESIGN`. Architecture Design AD3 is documented with `GO`, Architecture Design Closing Gate is `GO`, and R4 Sprint Readiness is `GO`. This does not certify production readiness, does not adopt working tree functional diffs, does not implement recovery units, and does not authorize or open Sprint.
+Rifex has closed `ALIGNMENT`, `ARCHITECTURE AUDIT` and `ARCHITECTURE DESIGN`. Architecture Design AD3 is documented with `GO`, Architecture Design Closing Gate is `GO`, R4 Sprint Readiness is `GO`, and Sprint R4 (Build Baseline Recovery) is now `CLOSED - GO`: implemented, Release Audit confirmed GO, committed and pushed at HEAD `bbaf8a0` (`fix: restore checkout page build`). This does not certify production readiness, does not adopt the three preserved recovery/hardening diffs, does not implement DB/R1/R2/R3/Fees Policy, and does not authorize or open any further Sprint.
 
 ## Baseline Decision
 
@@ -65,17 +65,17 @@ Rifex has closed `ALIGNMENT`, `ARCHITECTURE AUDIT` and `ARCHITECTURE DESIGN`. Ar
 PROPOSED BASELINE DECISION: C
 ```
 
-Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `b46ef9d424a89baedd56183a47d2a29741996160` is the Architecture Design AD4 documentation checkpoint. The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified. The PostgreSQL backup is sensitive evidence outside the Git baseline. Functional execution of this decision remains pending, and the working tree does not constitute a certified functional baseline.
+Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` is the current confirmed HEAD (`fix: restore checkout page build`), the R4 implementation commit. Previous citations (`b46ef9d`, then `48013ce`) lagged the real HEAD; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the reconciliation (`STALE, NOT CORRUPTED`, no diverged history). The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified; they were not touched by R4. The PostgreSQL backup is sensitive evidence outside the Git baseline. R4 build-success is confirmed; functional/payment execution of the rest of this decision remains pending, and the working tree does not constitute a certified functional baseline.
 
 | Layer | Status |
 |---|---|
-| HEAD `b46ef9d` | CONFIRMED Architecture Design AD4 documentation checkpoint |
+| HEAD `bbaf8a0` | CONFIRMED current HEAD (fix: restore checkout page build) |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, UNVERIFIED |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | A2 documents | CONFIRMED documentation materialization |
 | Architecture Audit documents | CONFIRMED documentation materialization |
 | Architecture Design AD3 report | CONFIRMED documentation materialization |
-| R4 Sprint packet | READY - NOT YET OPEN |
+| R4 Sprint packet | CLOSED - GO; implemented at `bbaf8a0`, `npm run build` passes |
 | Recovery decision | B: split recovery into R4, DB, R1, R2, R3 Technical and Fees Policy |
 
 ## Recovery Sequence
@@ -114,7 +114,8 @@ Sensitive artifact:
 | Architecture Audit | CLOSED - GO |
 | Architecture Design | CLOSED - GO |
 | R4 Sprint Readiness | GO |
-| Sprint | NOT YET OPEN / NOT AUTHORIZED |
+| Sprint R4 | CLOSED - GO |
+| Sprint | R4 CLOSED; OTHERS NOT YET OPEN / NOT AUTHORIZED |
 
 ## Rules For AI Agents
 
@@ -145,7 +146,7 @@ Sensitive artifact:
 
 ## Stage Change Process
 
-A later stage can open only when the current gate is reported and the user authorizes the next stage. R4 Sprint Readiness `GO` does not open Sprint; Sprint remains `NOT YET OPEN / NOT AUTHORIZED`.
+A later stage can open only when the current gate is reported and the user authorizes the next stage. Sprint R4 was explicitly authorized, implemented, release-audited GO, committed and pushed. The next eligible stage (DB Recovery Contract) remains `NOT AUTHORIZED` until the user explicitly opens it.
 ## Resume Handover
 
 | Item | Status |
@@ -154,6 +155,7 @@ A later stage can open only when the current gate is reported and the user autho
 | Recovery branch | `recovery/rifex-hardening-preserved` |
 | Recovery commit | `1c23702f401f8c501077ecfd265a213245e62a63` |
 | Handover | `docs/handover/HANDOVER_RIFEX_CURRENT.md` |
-| R4 | NOT YET OPEN |
+| R4 | CLOSED - GO at HEAD `bbaf8a0` |
+| Next eligible stage | DB Recovery Contract; NOT AUTHORIZED |
 
-Recovery preservation keeps the hardening work recoverable without adopting it into `main`. R4 remains the next eligible stage, but it is not open until explicitly authorized.
+Recovery preservation keeps the hardening work recoverable without adopting it into `main`. R4 is closed. DB Recovery Contract is the next eligible stage, but it is not open until explicitly authorized. A separate, still-uncommitted documentation batch exists in the working tree (HEAD reconciliation, Execution Environment Audit, R2/R3 marketplace payment testimony) — see `docs/handover/HANDOVER_RIFEX_CURRENT.md`.

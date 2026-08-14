@@ -16,8 +16,9 @@ ALIGNMENT: CLOSED — GO
 ARCHITECTURE AUDIT: CLOSED — GO
 ARCHITECTURE DESIGN: CLOSED — GO
 R4 SPRINT READINESS: GO
-NEXT ELIGIBLE STAGE: SPRINT R4
-SPRINT R4: NOT YET OPEN
+SPRINT R4: CLOSED — GO
+NEXT ELIGIBLE STAGE: DB RECOVERY CONTRACT
+DB RECOVERY CONTRACT: NOT AUTHORIZED
 OTHER SPRINTS: NOT AUTHORIZED
 ```
 
@@ -25,11 +26,21 @@ OTHER SPRINTS: NOT AUTHORIZED
 
 ```text
 main:
-19e28994a32660755ac7a6e2b70ae9f4a50f98b4
+bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee
 
 commit message:
-docs: close Rifex architecture design
+fix: restore checkout page build
 ```
+
+Este commit es la implementación de R4: reescribió `src/pages/checkout/index.js` como página React válida (antes era código de API pegado en una ruta de página, causa confirmada del build roto). Es el único archivo que tocó. `npm run build` pasa completo (25/25 páginas). No se tocaron las APIs de checkout, el webhook, el mailer, ni los 3 diffs de recovery.
+
+Commits anteriores en esta cadena, por si hace falta ubicar el punto exacto de cada hito:
+
+| HEAD | Mensaje | Qué cerró |
+|---|---|---|
+| `19e2899` | docs: close Rifex architecture design | Architecture Design |
+| `48013ce` | docs: add Rifex resume handover | Handover documental previo |
+| `bbaf8a0` | fix: restore checkout page build | **R4 (actual HEAD)** |
 
 ## Recovery Preservado
 
@@ -65,29 +76,55 @@ No backup content or data is included in this handover.
 
 ## Estado Tecnico
 
-- General functionality: `UNVERIFIED`.
+- General functionality: `UNVERIFIED` (payments, mail, webhook, OAuth flows — not exercised against real services).
 - Production readiness: not certified.
 - DB reproducibility: `PARTIAL`.
-- Remote database state: `UNKNOWN`.
-- Build state: currently failed in the last documented build attempt.
-- Build failure: `/checkout`.
-- Confirmed cause: API handler located as a `/checkout` Pages Router page route.
+- Remote database state: `UNKNOWN` from Git; a local Supabase backup (`db_cluster-10-11-2025@05-41-59.backup.gz`, outside Git, ignored) was inspected read-only for schema/RLS/row-count evidence only — see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` and `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`.
+- Build state: `CONFIRMED PASSING` as of HEAD `bbaf8a0`. `npm run build` succeeds, 25/25 pages, `/checkout` prerenders as a static page. This is a build-success confirmation only, not functional/payment verification.
+- Previous build failure: `/checkout`, RESOLVED by R4.
+- Confirmed original cause: API handler located as a `/checkout` Pages Router page route.
 - Authorization risks: still open.
-- Canonical states: contradictory across evidence sources.
+- Canonical states: contradictory across evidence sources (`public.raffles`/`tickets` vs legacy `public.rifas`/`rifa_tickets`, bridged by `raffles_compat`/`tickets_compat` views — confirmed from backup inspection).
 - Legacy: frozen behind compatibility boundaries.
+
+## R4 — Cerrado
+
+R4 (Build Baseline Recovery) fue autorizado, implementado, verificado y cerrado en esta sesión:
+
+- Único archivo tocado: `src/pages/checkout/index.js` (reescrito como página React válida, decisión A del packet).
+- `npm run build`: PASS, 25/25 páginas.
+- Callers/rutas verificados intactos: `/checkout/success`, `/checkout/pending`, `/checkout/failure`, `/api/checkout`, `/api/checkout/mp`, `/api/checkout/confirm`, `/api/checkout/webhook`.
+- Los 3 diffs de recovery (`mailer.js`, `reconcile-payments.js`, `webhook.js`): intactos, sin tocar.
+- Escaneo de secretos sobre el archivo cambiado: limpio.
+- Commit `bbaf8a0` (`fix: restore checkout page build`), pusheado a `origin/main`.
+- Detalle completo del Release Audit: ver historial de esta sesión; no hay un archivo de release audit separado todavía.
 
 ## Primer Proximo Paso
 
 ```text
-SPRINT R4 — Build Baseline Recovery
+DB RECOVERY CONTRACT
 ```
 
-- Packet: `docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md`.
-- Single objective: restore build baseline by fixing the `/checkout` page/API conflict.
-- Decision: `A — VALID REACT PAGE`.
-- Exclusive future allowlist: `src/pages/checkout/index.js`.
-- Future commit message: `fix: restore checkout page build`.
-- R4 is not open yet.
+- Es la siguiente etapa elegible según la secuencia aprobada (`R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy`).
+- Diseño existente: `docs/database/DB_RECOVERY_CONTRACT.md`, sección "DB Recovery Contract" de `docs/recovery/RECOVERY_PLAN.md`.
+- **NOT AUTHORIZED todavía.** Requiere autorización explícita del usuario antes de abrir.
+- Antes de eso, hay un lote de documentación de esta sesión todavía sin commitear (ver "Trabajo Pendiente Sin Commitear" abajo) — probablemente conviene cerrarlo primero.
+
+## Trabajo Pendiente Sin Commitear
+
+A HEAD `bbaf8a0`, el working tree tiene un lote de documentación de esta sesión que todavía no se commiteó (deliberado — se mantuvo separado del commit de R4 para no mezclar propósitos):
+
+- Modificados: `README.md`, `docs/WOP.md`, `docs/CURRENT_STATE.md`, `docs/recovery/RECOVERY_PLAN.md`.
+- Nuevos: `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`.
+- `package.json`/`package-lock.json`: diff local (`allowScripts` de npm 11 para `sharp`), explicado y sin impacto, no pensado para commitear.
+
+Antes de tocar código nuevo, una sesión que retome esto debería confirmar con el usuario si ese lote de documentación se commitea (y con qué mensaje/alcance).
+
+## Entorno De Esta Maquina
+
+- `gh` (GitHub CLI) instalado y autenticado como `ravymaster` (HTTPS, scopes incluyen `repo`). `git push`/`git fetch` a `origin` ya funcionan sin pasos adicionales.
+- `git config --global user.name`/`user.email` configurados (`ravysistem` / `rodrigo00787@hotmail.com`), necesarios para poder commitear en esta máquina.
+- Repositorio local en `/home/desktop/rifex-frontend-v2` (Linux Mint 22.2), no en la ruta Windows histórica citada en documentación vieja.
 
 ## Instrucciones Para Reanudar
 
@@ -98,31 +135,35 @@ The next AI must read, in this order:
 3. `docs/ENGINEERING_PROCESS.md`
 4. `docs/CURRENT_STATE.md`
 5. `docs/handover/HANDOVER_RIFEX_CURRENT.md`
-6. `docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md`
-7. `docs/architecture/ARCHITECTURE_TARGET.md`
-8. `docs/architecture/ARCHITECTURE_DECISIONS.md`
+6. `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`
+7. `docs/recovery/RECOVERY_PLAN.md`
+8. `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`
+9. `docs/architecture/ARCHITECTURE_TARGET.md`
+10. `docs/architecture/ARCHITECTURE_DECISIONS.md`
 
 Then verify:
 
 - branch `main`;
-- HEAD;
+- HEAD (`git rev-parse HEAD`, do not assume it still equals `bbaf8a0` — confirm);
 - `origin/main`;
-- clean working tree;
+- working tree (expect the pending documentation batch above unless someone already committed it — do not assume either way);
 - recovery branch;
 - ignored backup.
 
-Only then may it ask for authorization to open R4.
+R4 is already closed. Do not reopen it. Only ask for authorization before opening DB Recovery Contract or any other new Sprint.
 
 ## Prohibiciones De Reanudacion
 
 - Do not use conversational memory as source of truth.
-- Do not mix recovery branch with R4.
-- Do not open DB/R1/R2/R3.
-- Do not modify checkout APIs.
-- Do not open another Sprint.
-- Do not declare functionality verified.
+- Do not mix recovery branch with any Sprint.
+- Do not open DB/R1/R2/R3 without explicit authorization.
+- Do not modify checkout APIs, mailer, webhook, or reconcile-payments without explicit authorization and design.
+- Do not reopen or re-implement R4; it is closed.
+- Do not open another Sprint without explicit authorization.
+- Do not declare functionality (payments, mail, OAuth) verified — only R4's build success is confirmed.
 - Do not touch the backup.
 - Do not install dependencies before the corresponding gate.
+- Do not run `git config`, `sudo`, or install system packages without the user doing it themselves or explicitly approving each command.
 
 ## Recovery Sequence
 
@@ -140,8 +181,9 @@ R4
 ## Primer Prompt Sugerido
 
 ```text
-Lee el handover y el R4 Sprint Packet.
-Reconstruye Git.
+Lee el handover y docs/CURRENT_STATE.md.
+Reconstruye Git (branch, HEAD real, origin/main, working tree).
 No programes todavía.
-Confirma si R4 puede abrirse exactamente desde el checkpoint documentado.
+Confirma el estado real contra lo documentado y reportá si algo no coincide,
+antes de proponer cualquier próximo paso.
 ```

@@ -8,8 +8,8 @@ This document is the current documentation snapshot of observable repository sta
 |---|---|
 | Repository | `C:\proyectos\rifexv1.1\rifex-frontend-main` |
 | Branch | `main` |
-| HEAD | `19e28994a32660755ac7a6e2b70ae9f4a50f98b4` |
-| HEAD message | Architecture Design closing checkpoint |
+| HEAD | `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` |
+| HEAD message | fix: restore checkout page build |
 | Upstream | `origin/main` |
 | Fetch executed in A2 | No |
 | Functional certification | UNVERIFIED; Alignment A3 build failed at `/checkout`; no new functional validation during AA1-AA3 |
@@ -18,7 +18,7 @@ This document is the current documentation snapshot of observable repository sta
 
 ### HEAD
 
-HEAD `19e28994a32660755ac7a6e2b70ae9f4a50f98b4` is the confirmed Architecture Design closing checkpoint.
+HEAD `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` is the confirmed current checkpoint: the R4 implementation commit (`fix: restore checkout page build`). The Architecture Design closing checkpoint (`19e2899`) and the prior resume-handover checkpoint (`48013ce`) both precede it; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` and `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the reconciliation trail.
 
 ### WORKING TREE FUNCTIONAL DIFFS
 
@@ -29,6 +29,10 @@ Pre-existing functional diffs:
 - `src/pages/api/checkout/webhook.js`
 
 These diffs are a candidate recovery/hardening line and are `UNVERIFIED`.
+
+### LOCAL PACKAGE MANAGER ARTIFACT
+
+`package.json`/`package-lock.json` carry an undocumented diff adding `"allowScripts": {"sharp@0.34.3": true}`. `CONFIRMED EXPLAINED, NO IMPACT`: not present in any prior commit on any branch; produced by npm 11's native-postinstall-script approval gate when installing `sharp` for the first time on this machine. Full evidence in `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`.
 
 ### DOCUMENTATION CHANGES
 
@@ -51,6 +55,8 @@ AD2 materialized target Architecture Design documents. AD4 materializes the AD3 
 - `docs/architecture/ARCHITECTURE_DESIGN_INPUTS.md`
 - `docs/audits/ARCHITECTURE_DESIGN_AD3_REPORT.md`
 - `docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md`
+- `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`
+- `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`
 
 ### SENSITIVE UNTRACKED/IGNORED ARTIFACT
 
@@ -82,23 +88,23 @@ AD2 materialized target Architecture Design documents. AD4 materializes the AD3 
 | ARCHITECTURE DESIGN DOCUMENTATION READY | YES |
 | ARCHITECTURE DESIGN | CLOSED - GO |
 | R4 SPRINT READINESS | GO |
-| SPRINT | NOT YET OPEN / NOT AUTHORIZED |
+| SPRINT R4 | CLOSED - GO |
+| SPRINT | R4 CLOSED; OTHER SPRINTS NOT YET OPEN / NOT AUTHORIZED |
 
 
 ## Next Eligible Stage
 
 ```text
-ARCHITECTURE DESIGN: CLOSED — GO
-R4 SPRINT READINESS: GO
-NEXT ELIGIBLE STAGE: SPRINT R4
-SPRINT R4: NOT YET OPEN
+SPRINT R4: CLOSED — GO
+NEXT ELIGIBLE STAGE: DB RECOVERY CONTRACT
+DB RECOVERY CONTRACT: NOT AUTHORIZED
 OTHER SPRINTS: NOT AUTHORIZED
 ```
 ## Recovery State
 
 | Unit | Status |
 |---|---|
-| R4 Build Baseline | READY - NOT YET OPEN; build failure at `/checkout` CONFIRMED; implementation NOT AUTHORIZED |
+| R4 Build Baseline | CLOSED - GO; implemented and pushed at `bbaf8a0`; `npm run build` passes, 25/25 pages, `/checkout` prerenders statically |
 | DB Recovery Contract | DESIGNED; clean install reproducibility PARTIAL; implementation NOT AUTHORIZED |
 | R1 Mailer | DESIGNED; certification PARTIAL; implementation NOT AUTHORIZED |
 | R2 Webhook | DESIGNED; certification PARTIAL; implementation NOT AUTHORIZED |
@@ -111,7 +117,7 @@ Approved recovery sequence:
 R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy -> Release Audits -> Separate Commits
 ```
 
-Build failure cause: CONFIRMED API handler located as `/checkout` page route. This is unrelated to the three recovery diffs.
+Original build failure cause: CONFIRMED API handler located as `/checkout` page route, unrelated to the three recovery diffs. RESOLVED by R4 (`bbaf8a0`): `src/pages/checkout/index.js` is now a valid React page; the three recovery diffs and all checkout APIs were untouched.
 
 ## Implemented Flows
 
@@ -152,6 +158,22 @@ Build failure cause: CONFIRMED API handler located as `/checkout` page route. Th
 | DB remote state | UNKNOWN |
 | Canonical states | CONTRADICTORY |
 
+## Execution Environment Audit Findings
+
+Full report: `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`. Performed on a freshly cloned Linux copy of the repository; documentation only, no code modified, no Sprint opened.
+
+| Finding | Status |
+|---|---|
+| `docs/dotenv.example` referenced by `.gitignore` and `scripts/run-dev.sh` but absent from repository | CONFIRMED; onboarding gap, `run-dev.sh` fails the copy silently (`\|\| true`) and starts `npm run dev` with no env configured |
+| `.gitignore` has redundant/malformed `.env*` entries, including a stray non-functional `-e "\n.env*\n"` line | CONFIRMED; cosmetic, no functional impact |
+| `scripts/kick.js` and `scripts/nop.js` are UTF-16LE/CRLF, unreferenced anywhere | CONFIRMED; dead artifacts, no functional impact |
+| `/checkout` build/render failure | RECONFIRMED with fresh evidence on Linux; identical root cause already scoped by R4; not a Windows/Linux portability issue |
+| No hardcoded Windows paths, `process.platform` checks, or source CRLF found under `src/` | CONFIRMED; no portability defect identified |
+
+## R2/R3 Marketplace Payment Testimony
+
+Full report: `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`. A user testimony about a historical production payment failure (marketplace/OAuth seller flow) was compared against the three preserved recovery diffs. None of the three files address marketplace/`application_fee` transaction creation; a plausible (`INFERRED`, not `CONFIRMED`) root cause was found instead in already-merged `main` code (`src/pages/api/checkout/mp.js`, comment about `marketplace_fee` requiring Marketplace Partner certification). One concrete, `CONFIRMED` bug was found in `reconcile-payments.js`: a discarded `since` query filter referencing a nonexistent `payments.updated_at` column. Not fixed by this audit; input for a future R2/R3 Architecture Audit.
+
 ## Critical Risks
 
 - Sensitive PostgreSQL backup present in repository directory.
@@ -170,17 +192,21 @@ Build failure cause: CONFIRMED API handler located as `/checkout` page route. Th
 | Architecture Audit documentation ready | YES |
 | Architecture Design | CLOSED - GO |
 | R4 Sprint Readiness | GO |
-| Sprint | Not yet open / not authorized |
+| Sprint R4 | CLOSED - GO |
+| Sprint | R4 closed; others not yet open / not authorized |
 ## Resume Handover
 
 | Item | Status |
 |---|---|
-| Main working tree | CLEAN at `19e28994a32660755ac7a6e2b70ae9f4a50f98b4` |
+| Main working tree | NOT CLEAN at `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee`; a separate uncommitted documentation batch is pending (see below) |
 | Recovery branch | `recovery/rifex-hardening-preserved` |
 | Recovery commit | `1c23702f401f8c501077ecfd265a213245e62a63` |
 | Recovery status | PRESERVED — UNVERIFIED — NOT ADOPTED |
 | Recovery relation to main | outside `main`; no merge performed |
-| Next eligible stage | SPRINT R4 |
+| R4 | CLOSED - GO; commit `bbaf8a0` pushed to `origin/main` |
+| Next eligible stage | DB Recovery Contract; NOT AUTHORIZED |
 | Handover | `docs/handover/HANDOVER_RIFEX_CURRENT.md` |
+
+Uncommitted documentation batch pending in the working tree at HEAD `bbaf8a0`: `README.md`, `docs/WOP.md`, `docs/CURRENT_STATE.md`, `docs/recovery/RECOVERY_PLAN.md` (modified), `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md` (new). `package.json`/`package-lock.json` carry the local-only `allowScripts` artifact (see `LOCAL PACKAGE MANAGER ARTIFACT` above) and are not intended to be committed.
 
 The preserved recovery branch contains `src/lib/mailer.js`, `src/pages/api/admin/reconcile-payments.js` and `src/pages/api/checkout/webhook.js`. These changes must not be mixed with R4 and require future selective certification as R1/R2/R3 work.

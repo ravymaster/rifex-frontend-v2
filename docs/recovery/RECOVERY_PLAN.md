@@ -8,7 +8,7 @@ Architecture Design AD2 adds target design for recovery units. Architecture Desi
 
 | Item | Status |
 |---|---|
-| HEAD | `b46ef9d424a89baedd56183a47d2a29741996160` |
+| HEAD | `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` (R4 implementation, `fix: restore checkout page build`) |
 | Baseline decision | C |
 | Recovery decision | B |
 | Functional diffs | Preserved recovery/hardening line |
@@ -24,14 +24,14 @@ Preserved diffs:
 
 | Item | Status |
 |---|---|
-| Failure | `npm run build` failed at `/checkout` |
+| Failure | `npm run build` failed at `/checkout` (CONFIRMED, RESOLVED) |
 | Cause | CONFIRMED: API handler located as page route |
 | Evidence | `/checkout` prerender produced React error #31 and `TypeError: t.status is not a function` |
 | Relation to recovery diffs | UNRELATED TO RECOVERY DIFFS |
-| Future criterion | `npm run build` succeeds |
-| Implementation | NOT IMPLEMENTED |
+| Criterion | `npm run build` succeeds — CONFIRMED, 25/25 pages generated |
+| Implementation | IMPLEMENTED at HEAD `bbaf8a0` (`fix: restore checkout page build`) |
 | R4 decision | A: replace `/checkout` handler conflict with a valid React page |
-| Sprint status | READY - NOT YET OPEN |
+| Sprint status | CLOSED - GO |
 
 | Physical File | Public Route | Classification |
 |---|---|---|
@@ -133,7 +133,7 @@ R4
 -> Separate Commits
 ```
 
-This sequence is approved as planning input only. Architecture Audit and Architecture Design documentation are closed with GO. R4 is ready as a future Sprint packet, but no recovery unit is authorized for implementation.
+This sequence is approved as planning input only. Architecture Audit and Architecture Design documentation are closed with GO. R4 is implemented and closed (`bbaf8a0`). DB Recovery Contract is the next eligible unit, but no further recovery unit is authorized for implementation.
 
 ## Design Links
 
@@ -143,7 +143,7 @@ This sequence is approved as planning input only. Architecture Audit and Archite
 | R4 Sprint Packet | `docs/sprints/R4_BUILD_BASELINE_SPRINT_PACKET.md` |
 | DB Recovery Contract | `docs/database/DB_RECOVERY_CONTRACT.md` |
 | R1 Mailer | `docs/integrations/MAIL_DESIGN.md` |
-| R2 Webhook | `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`, `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md` |
-| R3 Technical Reconciliation | `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`, `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md` |
+| R2 Webhook | `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`, `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md` |
+| R3 Technical Reconciliation | `docs/integrations/PAYMENT_PROVIDER_DESIGN.md`, `docs/architecture/TRANSACTION_AND_IDEMPOTENCY_DESIGN.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md` |
 | Fees Policy | `docs/architecture/ARCHITECTURE_DECISIONS.md`, AD-14 |
 | Tests | `docs/testing/TEST_ARCHITECTURE.md` |
