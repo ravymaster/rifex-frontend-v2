@@ -26,13 +26,13 @@ OTHER SPRINTS: NOT AUTHORIZED
 
 ```text
 main:
-bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee
+7e96cdadb66338cd2cf2dc879473f4e14944c871
 
 commit message:
-fix: restore checkout page build
+docs: track session resume prompt in docs/handover
 ```
 
-Este commit es la implementación de R4: reescribió `src/pages/checkout/index.js` como página React válida (antes era código de API pegado en una ruta de página, causa confirmada del build roto). Es el único archivo que tocó. `npm run build` pasa completo (25/25 páginas). No se tocaron las APIs de checkout, el webhook, el mailer, ni los 3 diffs de recovery.
+`bbaf8a0` (`fix: restore checkout page build`) sigue siendo la implementación de R4: reescribió `src/pages/checkout/index.js` como página React válida (antes era código de API pegado en una ruta de página, causa confirmada del build roto). Fue el único archivo que tocó. `npm run build` pasa completo (25/25 páginas). No se tocaron las APIs de checkout, el webhook, el mailer, ni los 3 diffs de recovery. Ese commit ya no es HEAD — quedó como ancestro, ver tabla abajo.
 
 Commits anteriores en esta cadena, por si hace falta ubicar el punto exacto de cada hito:
 
@@ -40,7 +40,12 @@ Commits anteriores en esta cadena, por si hace falta ubicar el punto exacto de c
 |---|---|---|
 | `19e2899` | docs: close Rifex architecture design | Architecture Design |
 | `48013ce` | docs: add Rifex resume handover | Handover documental previo |
-| `bbaf8a0` | fix: restore checkout page build | **R4 (actual HEAD)** |
+| `bbaf8a0` | fix: restore checkout page build | R4 (implementación) |
+| `1fc064a` | docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony | Cierre documental de R4 (ver nota de staleness abajo) |
+| `af221e7` | docs: reconcile stale HEAD citation to 1fc064a | Reconciliación de cita de HEAD en README/WOP/CURRENT_STATE |
+| `7e96cda` | docs: track session resume prompt in docs/handover | Tracking de `NUEVA_SESION_PROMPT.txt` — **actual HEAD** |
+
+Nota de staleness: `1fc064a` cerró el lote de documentación pendiente (ver abajo) pero, en el mismo patrón ya documentado en `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` (`STALE, NOT CORRUPTED`), no actualizó su propia cita de HEAD dentro de README/WOP/CURRENT_STATE/este handover. `af221e7` corrigió README/WOP/CURRENT_STATE; esta edición corrige este archivo con el mismo criterio.
 
 ## Recovery Preservado
 
@@ -108,17 +113,16 @@ DB RECOVERY CONTRACT
 - Es la siguiente etapa elegible según la secuencia aprobada (`R4 -> DB Recovery Contract -> R1 -> R2 -> R3 Technical -> Fees Policy`).
 - Diseño existente: `docs/database/DB_RECOVERY_CONTRACT.md`, sección "DB Recovery Contract" de `docs/recovery/RECOVERY_PLAN.md`.
 - **NOT AUTHORIZED todavía.** Requiere autorización explícita del usuario antes de abrir.
-- Antes de eso, hay un lote de documentación de esta sesión todavía sin commitear (ver "Trabajo Pendiente Sin Commitear" abajo) — probablemente conviene cerrarlo primero.
 
-## Trabajo Pendiente Sin Commitear
+## Lote De Documentación — Ya Commiteado
 
-A HEAD `bbaf8a0`, el working tree tiene un lote de documentación de esta sesión que todavía no se commiteó (deliberado — se mantuvo separado del commit de R4 para no mezclar propósitos):
+El lote de documentación que en una sesión anterior figuraba como pendiente ya fue commiteado y pusheado a `origin/main`, en tres commits:
 
-- Modificados: `README.md`, `docs/WOP.md`, `docs/CURRENT_STATE.md`, `docs/recovery/RECOVERY_PLAN.md`.
-- Nuevos: `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`.
-- `package.json`/`package-lock.json`: diff local (`allowScripts` de npm 11 para `sharp`), explicado y sin impacto, no pensado para commitear.
+- `1fc064a` (`docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony`): `README.md`, `docs/WOP.md`, `docs/CURRENT_STATE.md`, `docs/recovery/RECOVERY_PLAN.md` (modificados); `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md` (nuevos).
+- `af221e7` (`docs: reconcile stale HEAD citation to 1fc064a`): corrigió la cita de HEAD desactualizada que `1fc064a` había dejado en `README.md`/`docs/WOP.md`/`docs/CURRENT_STATE.md`.
+- `7e96cda` (`docs: track session resume prompt in docs/handover`): trackeó `docs/handover/NUEVA_SESION_PROMPT.md`.
 
-Antes de tocar código nuevo, una sesión que retome esto debería confirmar con el usuario si ese lote de documentación se commitea (y con qué mensaje/alcance).
+`package.json`/`package-lock.json` siguen con el diff local (`allowScripts` de npm 11 para `sharp`), explicado y sin impacto, no pensado para commitear — sigue vigente al HEAD actual.
 
 ## Entorno De Esta Maquina
 
