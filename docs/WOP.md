@@ -65,11 +65,12 @@ Rifex has closed `ALIGNMENT`, `ARCHITECTURE AUDIT` and `ARCHITECTURE DESIGN`. Ar
 PROPOSED BASELINE DECISION: C
 ```
 
-Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` is the current confirmed HEAD (`fix: restore checkout page build`), the R4 implementation commit. Previous citations (`b46ef9d`, then `48013ce`) lagged the real HEAD; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the reconciliation (`STALE, NOT CORRUPTED`, no diverged history). The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified; they were not touched by R4. The PostgreSQL backup is sensitive evidence outside the Git baseline. R4 build-success is confirmed; functional/payment execution of the rest of this decision remains pending, and the working tree does not constitute a certified functional baseline.
+Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `1fc064a8517389873b7c8c57053cd7ed7f0440d2` is the current confirmed HEAD (`docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony`). `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` (`fix: restore checkout page build`), the R4 implementation commit, is an ancestor of HEAD. Previous citations (`b46ef9d`, then `48013ce`, then `bbaf8a0`) each lagged the real HEAD because the commit that closed a gate did not bump its own self-citation; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the first reconciliation (`STALE, NOT CORRUPTED`, no diverged history). The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified; they were not touched by R4. The PostgreSQL backup is sensitive evidence outside the Git baseline. R4 build-success is confirmed; functional/payment execution of the rest of this decision remains pending, and the working tree does not constitute a certified functional baseline.
 
 | Layer | Status |
 |---|---|
-| HEAD `bbaf8a0` | CONFIRMED current HEAD (fix: restore checkout page build) |
+| HEAD `1fc064a` | CONFIRMED current HEAD (docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony) |
+| R4 implementation commit `bbaf8a0` | CONFIRMED ancestor of HEAD (fix: restore checkout page build) |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, UNVERIFIED |
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | A2 documents | CONFIRMED documentation materialization |
@@ -158,4 +159,4 @@ A later stage can open only when the current gate is reported and the user autho
 | R4 | CLOSED - GO at HEAD `bbaf8a0` |
 | Next eligible stage | DB Recovery Contract; NOT AUTHORIZED |
 
-Recovery preservation keeps the hardening work recoverable without adopting it into `main`. R4 is closed. DB Recovery Contract is the next eligible stage, but it is not open until explicitly authorized. A separate, still-uncommitted documentation batch exists in the working tree (HEAD reconciliation, Execution Environment Audit, R2/R3 marketplace payment testimony) — see `docs/handover/HANDOVER_RIFEX_CURRENT.md`.
+Recovery preservation keeps the hardening work recoverable without adopting it into `main`. R4 is closed. DB Recovery Contract is the next eligible stage, but it is not open until explicitly authorized. The documentation batch previously pending here (HEAD reconciliation, Execution Environment Audit, R2/R3 marketplace payment testimony) was committed and pushed as `1fc064a` (`docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony`) — see `docs/handover/HANDOVER_RIFEX_CURRENT.md`.

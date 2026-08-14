@@ -48,7 +48,8 @@ OTHER SPRINTS: NOT AUTHORIZED
 
 | Layer | Meaning |
 |---|---|
-| HEAD `bbaf8a0` | CONFIRMED current HEAD (fix: restore checkout page build) |
+| HEAD `1fc064a` | CONFIRMED current HEAD (docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony) |
+| R4 implementation commit `bbaf8a0` | CONFIRMED ancestor of HEAD (fix: restore checkout page build) |
 | Working tree functional diffs | CONFIRMED candidate recovery/hardening line, not certified |
 | A2 documentation changes | CONFIRMED documentation baseline materialization |
 | Architecture Audit documentation | CONFIRMED current architecture audit materialization |
@@ -58,7 +59,7 @@ OTHER SPRINTS: NOT AUTHORIZED
 | PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
 | Recovery decision | B: split recovery into R1-R4 units |
 
-Previous HEAD citations in this document and in `docs/WOP.md` (`b46ef9d`, then `48013ce`) lagged the real HEAD because later closing commits did not bump them. `git diff --stat` between the old and new citations shows only documentation files changed — this was `STALE, NOT CORRUPTED`, not diverged history. See `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the full reconciliation. R4 (`fix: restore checkout page build`) was implemented, committed, and pushed at HEAD `bbaf8a0`; see `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the current resume state.
+Previous HEAD citations in this document and in `docs/WOP.md` (`b46ef9d`, then `48013ce`, then `bbaf8a0`) each lagged the real HEAD because the commit that closed a gate did not bump its own self-citation. `git diff --stat` between the old and new citations shows only documentation files changed each time — this was `STALE, NOT CORRUPTED`, not diverged history. See `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the first reconciliation. R4 (`fix: restore checkout page build`) was implemented, committed, and pushed at `bbaf8a0`; the following commit (`1fc064a`, `docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony`) reconciled that lag but, in the same self-referential pattern, did not update its own citation until now. See `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the current resume state.
 
 The working tree currently includes three pre-existing functional diffs:
 

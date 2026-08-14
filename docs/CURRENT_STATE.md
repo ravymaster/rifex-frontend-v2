@@ -8,8 +8,9 @@ This document is the current documentation snapshot of observable repository sta
 |---|---|
 | Repository | `C:\proyectos\rifexv1.1\rifex-frontend-main` |
 | Branch | `main` |
-| HEAD | `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` |
-| HEAD message | fix: restore checkout page build |
+| HEAD | `1fc064a8517389873b7c8c57053cd7ed7f0440d2` |
+| HEAD message | docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony |
+| R4 implementation commit | `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` (fix: restore checkout page build), ancestor of HEAD |
 | Upstream | `origin/main` |
 | Fetch executed in A2 | No |
 | Functional certification | UNVERIFIED; Alignment A3 build failed at `/checkout`; no new functional validation during AA1-AA3 |
@@ -18,7 +19,7 @@ This document is the current documentation snapshot of observable repository sta
 
 ### HEAD
 
-HEAD `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` is the confirmed current checkpoint: the R4 implementation commit (`fix: restore checkout page build`). The Architecture Design closing checkpoint (`19e2899`) and the prior resume-handover checkpoint (`48013ce`) both precede it; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` and `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the reconciliation trail.
+HEAD `1fc064a8517389873b7c8c57053cd7ed7f0440d2` is the confirmed current checkpoint (`docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony`). `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` (`fix: restore checkout page build`, the R4 implementation commit), the Architecture Design closing checkpoint (`19e2899`), and the prior resume-handover checkpoint (`48013ce`) all precede it; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` and `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the reconciliation trail.
 
 ### WORKING TREE FUNCTIONAL DIFFS
 
@@ -198,7 +199,7 @@ Full report: `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`. A user test
 
 | Item | Status |
 |---|---|
-| Main working tree | NOT CLEAN at `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee`; a separate uncommitted documentation batch is pending (see below) |
+| Main working tree | At HEAD `1fc064a8517389873b7c8c57053cd7ed7f0440d2`; the documentation batch previously pending here was committed and pushed as `1fc064a` (see below) |
 | Recovery branch | `recovery/rifex-hardening-preserved` |
 | Recovery commit | `1c23702f401f8c501077ecfd265a213245e62a63` |
 | Recovery status | PRESERVED — UNVERIFIED — NOT ADOPTED |
@@ -207,6 +208,6 @@ Full report: `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`. A user test
 | Next eligible stage | DB Recovery Contract; NOT AUTHORIZED |
 | Handover | `docs/handover/HANDOVER_RIFEX_CURRENT.md` |
 
-Uncommitted documentation batch pending in the working tree at HEAD `bbaf8a0`: `README.md`, `docs/WOP.md`, `docs/CURRENT_STATE.md`, `docs/recovery/RECOVERY_PLAN.md` (modified), `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md` (new). `package.json`/`package-lock.json` carry the local-only `allowScripts` artifact (see `LOCAL PACKAGE MANAGER ARTIFACT` above) and are not intended to be committed.
+The documentation batch described above (`README.md`, `docs/WOP.md`, `docs/CURRENT_STATE.md`, `docs/recovery/RECOVERY_PLAN.md`, `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md`, `docs/recovery/R2_R3_MARKETPLACE_PAYMENT_TESTIMONY.md`) was committed and pushed to `origin/main` as `1fc064a`. `package.json`/`package-lock.json` still carry the local-only `allowScripts` artifact (see `LOCAL PACKAGE MANAGER ARTIFACT` above) and remain not intended to be committed.
 
 The preserved recovery branch contains `src/lib/mailer.js`, `src/pages/api/admin/reconcile-payments.js` and `src/pages/api/checkout/webhook.js`. These changes must not be mixed with R4 and require future selective certification as R1/R2/R3 work.
