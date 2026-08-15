@@ -12,26 +12,45 @@ export default function Home() {
       </Head>
 
       {/* HERO */}
-      <section className={styles.hero}>
+      <section className={styles.heroDark}>
+        <span className={styles.dot1} aria-hidden="true">07</span>
+        <span className={styles.dot2} aria-hidden="true">24</span>
+
         <div className="container">
-          <div className={styles.heroInner}>
-            <span className={styles.eyebrow}><span>🎟️</span> Rifas online, sin complicaciones</span>
-            <h1 className={styles.heroTitle}>
-              Organiza rifas <span>fácil y rápido</span>
+          <div className={styles.heroDarkInner}>
+            <span className={styles.badgeDark}><span>🎟️</span> Rifas online, sin complicaciones</span>
+            <h1 className={styles.heroTitleDark}>
+              Crea. Comparte. <span>Sortea.</span>
             </h1>
-            <p className={styles.heroSub}>
-              Crea tu rifa en minutos, comparte el enlace y cobra online. Sin instalar nada, sin planillas.
+            <p className={styles.heroSubDark}>
+              Organiza tu rifa online y cobra con Mercado Pago, sin planillas ni complicaciones.
             </p>
 
-            <div className={styles.ctaRow}>
-              <a href="/crear-rifa" className={`btn ${styles.ctaPrimary}`}>Crear rifa</a>
-              <a href="/rifas" className={`btn ${styles.ctaSecondary}`}>Ver rifas</a>
+            <div className={styles.ctaRowDark}>
+              <a href="/crear-rifa" className={`btn ${styles.ctaPrimaryDark}`}>Crear mi rifa</a>
+              <a href="/rifas" className={`btn ${styles.ctaGhostDark}`}>Ver rifas</a>
             </div>
+          </div>
 
-            <div className={styles.trustRow}>
-              <span>⚡ Publicación en minutos</span>
-              <span>💳 Pagos con Mercado Pago</span>
-              <span>🔒 Cobro seguro</span>
+          <p className={styles.showcaseLabel}>Así se ve una rifa en Rifex</p>
+          <div className={styles.showcase}>
+            <div className={styles.showcaseCard}>
+              <div className={styles.showcaseIcon} style={{ background: '#FAEEDA' }}>✈️</div>
+              <p className={styles.showcaseTitle}>Viaje a Cancún</p>
+              <p className={styles.showcasePrice}>$5.000 el número</p>
+              <div className={styles.showcaseBar}><div className={styles.showcaseBarFill} style={{ width: '68%', background: 'var(--turquesa)' }} /></div>
+            </div>
+            <div className={styles.showcaseCard}>
+              <div className={styles.showcaseIcon} style={{ background: '#E1F5EE' }}>📱</div>
+              <p className={styles.showcaseTitle}>iPhone 15 Pro</p>
+              <p className={styles.showcasePrice}>$3.000 el número</p>
+              <div className={styles.showcaseBar}><div className={styles.showcaseBarFill} style={{ width: '91%', background: 'var(--trebol)' }} /></div>
+            </div>
+            <div className={styles.showcaseCard}>
+              <div className={styles.showcaseIcon} style={{ background: '#FAECE7' }}>🚗</div>
+              <p className={styles.showcaseTitle}>Auto 0km</p>
+              <p className={styles.showcasePrice}>$10.000 el número</p>
+              <div className={styles.showcaseBar}><div className={styles.showcaseBarFill} style={{ width: '45%', background: 'var(--ultramar)' }} /></div>
             </div>
           </div>
         </div>

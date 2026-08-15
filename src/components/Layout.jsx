@@ -199,13 +199,35 @@ export default function Layout({
 
       <main className="container">{children}</main>
 
-      <footer className="foot">
-        <div className="inner">
-          <span>© {new Date().getFullYear()} Rifex</span>
-          <nav>
-            <a href="/terminos">Términos</a>
-            <a href="/contacto">Contacto</a>
-          </nav>
+      <footer className="rf-foot">
+        <div className="rf-foot__top">
+          <div className="rf-foot__brand">
+            <div className="rf-foot__logo">
+              <img src="/rifex-logo.png" alt="" width={22} height={22} />
+              <span>Rifex</span>
+            </div>
+            <p>La forma más simple de organizar y participar en rifas online.</p>
+          </div>
+          <div className="rf-foot__cols">
+            <div className="rf-foot__col">
+              <span className="rf-foot__colTitle">Producto</span>
+              <Link href="/rifas">Rifas</Link>
+              <Link href="/crear-rifa">Crear rifa</Link>
+              <Link href="/planes">Planes</Link>
+            </div>
+            <div className="rf-foot__col">
+              <span className="rf-foot__colTitle">Soporte</span>
+              <Link href="/contacto">Contacto</Link>
+              <Link href="/blog">Blog</Link>
+            </div>
+          </div>
+        </div>
+        <div className="rf-foot__bottom">
+          <span>© {new Date().getFullYear()} Rifex. Todos los derechos reservados.</span>
+          <div className="rf-foot__bottomRight">
+            <Link href="/terminos">Términos</Link>
+            <span className="rf-foot__pay">Pagos con Mercado Pago</span>
+          </div>
         </div>
       </footer>
 
@@ -216,25 +238,61 @@ export default function Layout({
           padding: 24px 16px;
           min-height: 60vh;
         }
-        .foot {
-          border-top: 1px solid #e5e7eb;
-          margin-top: 24px;
-          background: #fff;
+        .rf-foot {
+          margin-top: 48px;
+          background: #0c1636;
+          color: rgba(255, 255, 255, 0.6);
         }
-        .inner {
+        .rf-foot__top {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 14px 16px;
+          padding: 40px 16px 24px;
+          display: flex;
+          justify-content: space-between;
+          gap: 32px;
+          flex-wrap: wrap;
+        }
+        .rf-foot__brand { max-width: 280px; }
+        .rf-foot__logo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 800;
+          font-size: 15px;
+          color: #fff;
+          margin-bottom: 8px;
+        }
+        .rf-foot__logo img { border-radius: 6px; }
+        .rf-foot__brand p { font-size: 13px; line-height: 1.6; margin: 0; }
+
+        .rf-foot__cols { display: flex; gap: 48px; }
+        .rf-foot__col { display: flex; flex-direction: column; gap: 10px; }
+        .rf-foot__colTitle { font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.85); margin-bottom: 2px; }
+        .rf-foot__col :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; font-size: 13.5px; }
+        .rf-foot__col :global(a:hover) { color: #fff; }
+
+        .rf-foot__bottom {
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 16px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          font-size: 14px;
-          color: #6b7280;
+          font-size: 12px;
+          flex-wrap: wrap;
         }
-        .inner nav { display: flex; gap: 12px; }
-        .inner a { color: #1e3a8a; text-decoration: none; }
-        .inner a:hover { text-decoration: underline; }
+        .rf-foot__bottomRight { display: flex; align-items: center; gap: 16px; }
+        .rf-foot__bottomRight :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; }
+        .rf-foot__bottomRight :global(a:hover) { color: #fff; }
+        .rf-foot__pay { display: inline-flex; align-items: center; gap: 5px; }
+
+        @media (max-width: 640px) {
+          .rf-foot__top { flex-direction: column; gap: 24px; }
+          .rf-foot__cols { gap: 32px; }
+          .rf-foot__bottom { flex-direction: column; align-items: flex-start; }
+        }
 
         .rf-header {
           position: sticky;
