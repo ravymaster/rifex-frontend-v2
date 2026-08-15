@@ -219,13 +219,18 @@ export default function Layout({
               <span className="rf-foot__colTitle">Soporte</span>
               <Link href="/contacto">Contacto</Link>
               <Link href="/blog">Blog</Link>
+              <Link href="/preguntas-frecuentes">Preguntas frecuentes</Link>
+            </div>
+            <div className="rf-foot__col">
+              <span className="rf-foot__colTitle">Legal</span>
+              <Link href="/terminos">Términos</Link>
+              <Link href="/terminos#privacidad">Privacidad</Link>
             </div>
           </div>
         </div>
         <div className="rf-foot__bottom">
           <span>© {new Date().getFullYear()} Rifex. Todos los derechos reservados.</span>
           <div className="rf-foot__bottomRight">
-            <Link href="/terminos">Términos</Link>
             <span className="rf-foot__pay">Pagos con Mercado Pago</span>
           </div>
         </div>
@@ -265,7 +270,7 @@ export default function Layout({
         .rf-foot__logo img { border-radius: 6px; }
         .rf-foot__brand p { font-size: 13px; line-height: 1.6; margin: 0; }
 
-        .rf-foot__cols { display: flex; gap: 48px; }
+        .rf-foot__cols { display: flex; gap: 40px; flex-wrap: wrap; }
         .rf-foot__col { display: flex; flex-direction: column; gap: 10px; }
         .rf-foot__colTitle { font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.85); margin-bottom: 2px; }
         .rf-foot__col :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; font-size: 13.5px; }

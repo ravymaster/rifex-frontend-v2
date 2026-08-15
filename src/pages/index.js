@@ -18,7 +18,7 @@ export default function Home() {
 
         <div className="container">
           <div className={styles.heroDarkInner}>
-            <span className={styles.badgeDark}><span>🎟️</span> Rifas online, sin complicaciones</span>
+            <span className={styles.badgeDark}><span>📡</span> 1.204 rifas activas ahora mismo</span>
             <h1 className={styles.heroTitleDark}>
               Crea. Comparte. <span>Sortea.</span>
             </h1>
@@ -28,7 +28,7 @@ export default function Home() {
 
             <div className={styles.ctaRowDark}>
               <a href="/crear-rifa" className={`btn ${styles.ctaPrimaryDark}`}>Crear mi rifa</a>
-              <a href="/rifas" className={`btn ${styles.ctaGhostDark}`}>Ver rifas</a>
+              <a href="/rifas" className={`btn ${styles.ctaGhostDark}`}>Ver rifas en vivo</a>
             </div>
           </div>
 
