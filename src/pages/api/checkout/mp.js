@@ -11,6 +11,7 @@ const supabase = createClient(url, service || anon, {
 });
 
 const HOLD_MINUTES = parseInt(process.env.HOLD_MINUTES || "15", 10);
+const RIFEX_FEE_RATE = 0.07; // 7% de comisión Rifex vía marketplace_fee (redondeo hacia abajo)
 
 // URL base limpia (sin slash final) y respetando headers si falta env
 function resolveBaseUrl(req) {
@@ -158,6 +159,16 @@ export default async function handler(req, res) {
 
     const cleanTitle = `Rifa ${String(raffle.title || "Rifex").slice(0, 60)}`;
 
+    // Comisión Rifex vía marketplace_fee: solo tiene sentido cuando la preferencia
+    // se crea con el token OAuth de un vendedor real conectado (no con el token
+    // de plataforma usado como fallback), porque ahí es donde MP hace el split.
+    const totalCLP = unitPriceCLP * qty;
+    let marketplaceFee = undefined;
+    if (sellerToken) {
+      const rawFee = Math.floor(totalCLP * RIFEX_FEE_RATE);
+      marketplaceFee = Math.max(0, Math.min(rawFee, totalCLP));
+    }
+
     const prefBody = {
       items: [{
         title: cleanTitle,
@@ -165,6 +176,7 @@ export default async function handler(req, res) {
         unit_price: unitPriceCLP, // precio por número
         currency_id: "CLP",
       }],
+      ...(marketplaceFee != null ? { marketplace_fee: marketplaceFee } : {}),
       payer: { email: buyer_email || undefined, name: buyer_name || undefined },
       back_urls: {
         success: `${base}/rifas/${rid}?pay=success&pid=${purchase.id}`,
@@ -176,8 +188,13 @@ export default async function handler(req, res) {
       external_reference: String(purchase.id),
       notification_url: notificationUrl,
       statement_descriptor: "RIFEX",
-      metadata: { raffle_id: String(rid), purchase_id: String(purchase.id), numbers, seller_connected: !!sellerToken },
-      // ❌ NO enviar marketplace_fee aquí (solo para cuentas Marketplace Partner)
+      metadata: {
+        raffle_id: String(rid),
+        purchase_id: String(purchase.id),
+        numbers,
+        seller_connected: !!sellerToken,
+        marketplace_fee: marketplaceFee ?? 0,
+      },
     };
 
     let prefRes;
@@ -221,6 +238,7 @@ export default async function handler(req, res) {
       purchase_id: purchase.id,
       holds_until: holdsUntilIso,
       seller_connected: !!sellerToken,
+      marketplace_fee: marketplaceFee ?? 0,
     });
   } catch (e) {
     console.error("checkout/mp error:", e);
