@@ -62,6 +62,37 @@ None of these break anything today (dead code doesn't execute), but a redesign p
 
 `src/hooks/useIconsMap.js` is the only file under `src/hooks/`. It is a clean example of logic extracted from JSX into a reusable hook, consumed by `rifas/[id].jsx`. The redesign should follow this pattern when extracting logic from Findings 1 and 2, rather than inventing a new convention.
 
+## Finding 7 — Broken internal links (found while mapping page connections)
+
+Mapping which pages link to which (via `<Link href>`/`<a href>`) surfaced four internal links pointing at routes that do not exist in `src/pages`. Confirmed against the real file tree, not inferred:
+
+| Link found in | Target | Reality |
+|---|---|---|
+| `components/Header.jsx` (desktop nav **and** mobile drawer nav) | `/ayuda` | No `src/pages/ayuda*` exists. This is in the global navigation — present on every page — so it 404s from anywhere in the site. |
+| `pages/panel/bancos.js` ("Gestionar" and "Conectar" buttons for the Flow provider) | `/panel/flow` | No `src/pages/panel/flow*` exists. |
+| `pages/rifas/[id].jsx` ("Ir al chat de esta rifa") | `/rifas/{id}/chat` | Does not exist. The real chat page is `src/pages/chat/[raffleId].js`, i.e. `/chat/{id}`, a completely different path. |
+| `pages/rifas/[id].jsx` ("Ver perfil del creador") | `/perfil/{creatorId}` | Does not exist. `src/pages/perfil.js` is a single static page (the logged-in user's own profile) — there is no per-user dynamic profile route. |
+
+None of these are logic-separation issues — they are plain dead links, presumably left over from planned-but-never-built pages, or from `perfil.js`/`chat/[raffleId].js` being built without updating the links that were meant to point at them. Not fixed in this pass (out of scope for a read-only audit); flagged here because a redesign pass is exactly when someone might rename/move a page and make this worse without realizing these links were already broken beforehand.
+
+## Page ↔ API Connection Map
+
+Built by grepping every non-API page for `fetch("/api/...")` calls and every page/component for internal `<Link>`/`<a href>` targets, then verifying the less obvious cases (Finding 7) against the actual file tree.
+
+| Page | Calls these API routes |
+|---|---|
+| `login.jsx`, `register.jsx`, `reset-password.jsx` | `/api/verify-captcha` |
+| `crear-rifa.jsx` | `/api/rifas` (POST) |
+| `rifas.js` | `/api/rifas`, `/api/rifas?mine=true` (built from a variable, not a literal — missed by a naive grep) |
+| `rifas/[id].jsx` | `/api/checkout/mp`, `/api/checkout/confirm`, `/api/raffles/winner`, `/api/tickets/release-expired` |
+| `panel/index.js` | `/api/panel/raffles`, `/api/rifas/{id}` (PATCH), `/api/rifas/delete` |
+| `panel/bancos.js` | `/api/mp/disconnect`, `/api/mp/status`, `/api/mp/oauth/start` (via link, not fetch); writes `bank_accounts` directly via Supabase client (see Finding 1) |
+| `panel/mercado-pago.js` | `/api/checkout/mp`, `/api/merchant/mp/get`, `/api/merchant/mp/save` |
+
+Pages not listed above call no API routes at all (pure presentation, or Supabase Auth calls only — see Findings 1–3 for the pages that talk to Supabase directly instead of through an API route).
+
+**Caution for any future extraction work on this map**: this audit is a static reading of the code, not a behavioral one. The user has flagged that at least one of the three high-risk files (`panel/bancos.js`) encodes roughly 8 months of accumulated, hard-won fixes (RLS edge cases, validation behavior) with no comment marking most of it beyond "NO TOCAR" on two blocks. That kind of fragility is invisible to a code-reading audit — it was only caught because the user said so out loud. Treat this document as a map of *where* logic lives, not a certification that moving it is safe. Any actual extraction (not done in this pass) needs the user actively testing each change live, in a dedicated session, not a static review followed by a build check.
+
 ## Summary — Redesign risk ranking
 
 | Risk | Files |
