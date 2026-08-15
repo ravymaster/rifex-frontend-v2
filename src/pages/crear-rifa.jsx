@@ -4,18 +4,18 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 import Layout from "@/components/Layout";
-import stylesBtn from "@/styles/crearRifa.module.css"; // <-- CSS Module con .btnCreate
+import styles from "@/styles/crearRifa.module.css";
 
 const THEMES = [
-  { id: "mixto", label: "Mixto (100 íconos) – Gratis" },
-  { id: "universo", label: "Universo – Pro" },
-  { id: "mitologia", label: "Mitología – Pro" },
-  { id: "dinosaurios", label: "Dinosaurios – Pro" },
-  { id: "videojuegos", label: "Videojuegos – Pro" },
-  { id: "flora-fauna", label: "Flora y Fauna – Pro" },
-  { id: "comidas", label: "Comidas – Pro" },
-  { id: "deportes", label: "Deportes – Pro" },
-  { id: "viajes", label: "Viajes – Pro" },
+  { id: "mixto", label: "Mixto", icon: "🔀" },
+  { id: "universo", label: "Universo", icon: "🌌" },
+  { id: "mitologia", label: "Mitología", icon: "🏛️" },
+  { id: "dinosaurios", label: "Dinosaurios", icon: "🦕" },
+  { id: "videojuegos", label: "Videojuegos", icon: "🎮" },
+  { id: "flora-fauna", label: "Flora y Fauna", icon: "🌿" },
+  { id: "comidas", label: "Comidas", icon: "🍔" },
+  { id: "deportes", label: "Deportes", icon: "⚽" },
+  { id: "viajes", label: "Viajes", icon: "✈️" },
 ];
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -165,143 +165,168 @@ export default function CrearRifaPage() {
   return (
     <>
       <Head><title>Crear rifa — Rifex</title></Head>
-      <main style={{maxWidth:900, margin:"0 auto", padding:"24px 16px"}}>
-        <h1>Crear rifa</h1>
-        <p>Completa los datos. Al guardar, se crearán automáticamente los tickets <strong>1..N</strong>.</p>
+      <div className={styles.page}>
+        <div className="container">
+          <div className={styles.formCard}>
+            <h1 className={styles.title}>Crear rifa</h1>
+            <p className={styles.sub}>Completa los datos. Al guardar, se crearán automáticamente los tickets <strong>1..N</strong>.</p>
 
-        <form onSubmit={onSubmit} style={{display:"grid", gap:16, marginTop:16}}>
-          {/* Básicos */}
-          <input
-            placeholder="Título *"
-            value={title}
-            onChange={e=>setTitle(e.target.value)}
-            required
-            style={s.input}
-          />
-          <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
-            <input placeholder="Precio (CLP) *" inputMode="numeric" value={priceClp} onChange={e=>setPriceClp(e.target.value)} required style={s.input}/>
-            <input placeholder="Cupos / Total de números *" inputMode="numeric" value={totalNumbers} onChange={e=>setTotalNumbers(e.target.value)} required style={s.input}/>
+            <form onSubmit={onSubmit}>
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Datos básicos</div>
+                <div className={styles.field} style={{ marginBottom: 12 }}>
+                  <input
+                    className="rf-pill"
+                    placeholder="Título *"
+                    value={title}
+                    onChange={e=>setTitle(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className={styles.fieldGrid} style={{ marginBottom: 12 }}>
+                  <input className="rf-pill" placeholder="Precio (CLP) *" inputMode="numeric" value={priceClp} onChange={e=>setPriceClp(e.target.value)} required />
+                  <input className="rf-pill" placeholder="Cupos / Total de números *" inputMode="numeric" value={totalNumbers} onChange={e=>setTotalNumbers(e.target.value)} required />
+                </div>
+                <textarea className="rf-pill" rows={4} placeholder="Descripción (opcional)" value={description} onChange={e=>setDescription(e.target.value)} />
+              </div>
+
+              {/* Plan + Temática */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Plan y temática</div>
+                <div className="rf-toggle" style={{ marginBottom: 16 }}>
+                  <button type="button" className={`rf-toggle-btn${plan==="free" ? " active" : ""}`} onClick={()=>setPlan("free")}>Gratis</button>
+                  <button type="button" className={`rf-toggle-btn${plan==="pro" ? " active" : ""}`} onClick={()=>setPlan("pro")}>Pro</button>
+                </div>
+
+                <div className={styles.themeGrid}>
+                  {THEMES.map(t => {
+                    const locked = t.id !== "mixto" && proLocked;
+                    return (
+                      <button
+                        type="button"
+                        key={t.id}
+                        className={styles.themeCard}
+                        data-active={theme === t.id}
+                        data-locked={locked}
+                        onClick={() => !locked && setTheme(t.id)}
+                        aria-pressed={theme === t.id}
+                      >
+                        <div className={styles.themeIcon}>{t.icon}</div>
+                        <div className={styles.themeLabel}>{t.label}</div>
+                        {locked && <span className={styles.themeLockBadge}>🔒</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className={styles.fieldLabel} style={{ fontWeight: 400, color: "var(--gris)" }}>
+                  Con plan Gratis solo puedes usar la temática Mixto. Pasa a Pro para desbloquear el resto.
+                </p>
+              </div>
+
+              {/* Premio */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Tipo de premio</div>
+                <div className="rf-toggle" style={{ marginBottom: 16 }}>
+                  <button type="button" className={`rf-toggle-btn${prizeType==="money" ? " active" : ""}`} onClick={()=>setPrizeType("money")}>Dinero</button>
+                  <button type="button" className={`rf-toggle-btn${prizeType==="physical" ? " active" : ""}`} onClick={()=>setPrizeType("physical")}>Físico</button>
+                </div>
+
+                {prizeType==="money" && (
+                  <>
+                    <div className={styles.field} style={{ marginBottom: 12 }}>
+                      <span className={styles.fieldLabel}>Monto del premio (CLP)</span>
+                      <input className="rf-pill" type="number" min="0" step="1000" placeholder="Ej: 1000000" value={prizeAmount} onChange={e=>setPrizeAmount(e.target.value)} />
+                    </div>
+                    <div className={styles.field}>
+                      <span className={styles.fieldLabel}>Método de pago del premio</span>
+                      <select className="rf-pill" value={payoutMethod} onChange={e=>setPayoutMethod(e.target.value)}>
+                        <option value="rifex_transfer">Depósito por Rifex (Plan Gratis)</option>
+                        <option value="creator_direct" disabled={proLocked}>Transferencia directa del creador (Pro)</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {prizeType==="physical" && (
+                  <>
+                    <div className={styles.field} style={{ marginBottom: 12 }}>
+                      <span className={styles.fieldLabel}>Fotos del premio (hasta 3)</span>
+                      <input type="file" accept="image/*" multiple onChange={e=>setPrizePhotos(Array.from(e.target.files||[]))} />
+                    </div>
+                    <div className={styles.field}>
+                      <span className={styles.fieldLabel}>Método de entrega</span>
+                      <select className="rf-pill" value={deliveryMethod} onChange={e=>setDeliveryMethod(e.target.value)}>
+                        <option value="a_convenir">A convenir</option>
+                        <option value="retira_en_tienda">Retiro en punto</option>
+                        <option value="envio_pagado">Envío pagado por el ganador</option>
+                        <option value="envio_incluido">Envío incluido por el creador</option>
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Fechas + estado */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Fechas y estado</div>
+                <div className={styles.fieldGrid} style={{ marginBottom: 12 }}>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Inicio</span>
+                    <input className="rf-pill" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} />
+                  </div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Término</span>
+                    <input className="rf-pill" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Estado</span>
+                  <select className="rf-pill" value={status} onChange={e=>setStatus(e.target.value)}>
+                    <option value="draft">Borrador</option>
+                    <option value="active">Activa</option>
+                    <option value="closed">Cerrada</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Términos */}
+              <div className={styles.section}>
+                <label className={styles.checkRow}>
+                  <input type="checkbox" checked={okBuyer} onChange={e=>setOkBuyer(e.target.checked)} />
+                  Acepto los <a href="/terminos#comprador" target="_blank" rel="noreferrer">Términos del comprador</a>
+                </label>
+                <label className={styles.checkRow}>
+                  <input type="checkbox" checked={okCreator} onChange={e=>setOkCreator(e.target.checked)} />
+                  Acepto los <a href="/terminos#creador" target="_blank" rel="noreferrer">Términos del creador</a> y las <a href="/terminos#rifex" target="_blank" rel="noreferrer">Condiciones de Rifex</a>
+                </label>
+              </div>
+
+              <div className={styles.section} style={{ display: "flex", gap: 12 }}>
+                <button
+                  type="submit"
+                  className={styles.btnCreate}
+                  style={{
+                    background: "linear-gradient(135deg, var(--ultramar), var(--trebol))",
+                    boxShadow: "0 6px 14px rgba(24,169,87,.22)"
+                  }}
+                >
+                  Crear rifa
+                </button>
+
+                <a
+                  href="/panel"
+                  className={styles.btnCreate}
+                  style={{ background:"#fff", color:"var(--ultramar)", border:"1px solid #E5E7EB" }}
+                >
+                  Cancelar
+                </a>
+              </div>
+            </form>
           </div>
-          <textarea rows={4} placeholder="Descripción (opcional)" value={description} onChange={e=>setDescription(e.target.value)} style={s.input} />
-
-          {/* Plan + Temática */}
-          <fieldset style={s.card}>
-            <legend style={s.legend}>Plan y temática</legend>
-            <div style={s.row}>
-              <label><input type="radio" name="plan" value="free" checked={plan==="free"} onChange={()=>setPlan("free")} /> Plan Gratis</label>
-              <label><input type="radio" name="plan" value="pro" checked={plan==="pro"} onChange={()=>setPlan("pro")} /> Plan Pro</label>
-            </div>
-            <label>Temática</label>
-            <select value={theme} onChange={e=>setTheme(e.target.value)} style={s.input}>
-              {THEMES.map(t=>(
-                <option key={t.id} value={t.id} disabled={t.id!=="mixto" && proLocked}>
-                  {t.label}{t.id!=="mixto" && proLocked ? " (requiere Pro)" : ""}
-                </option>
-              ))}
-            </select>
-            <p style={s.hint}>Gratis: 100 íconos mixtos. Pro: eliges una temática (100 íconos).</p>
-          </fieldset>
-
-          {/* Premio */}
-          <fieldset style={s.card}>
-            <legend style={s.legend}>Tipo de premio</legend>
-            <div style={s.row}>
-              <label><input type="radio" name="ptype" value="money" checked={prizeType==="money"} onChange={()=>setPrizeType("money")} /> Dinero</label>
-              <label><input type="radio" name="ptype" value="physical" checked={prizeType==="physical"} onChange={()=>setPrizeType("physical")} /> Físico</label>
-            </div>
-
-            {prizeType==="money" && (
-              <div className="money-block">
-                <label>Monto del premio (CLP)</label>
-                <input type="number" min="0" step="1000" placeholder="Ej: 1000000" value={prizeAmount} onChange={e=>setPrizeAmount(e.target.value)} style={s.input}/>
-                <label style={{marginTop:8}}>Método de pago del premio</label>
-                <select value={payoutMethod} onChange={e=>setPayoutMethod(e.target.value)} style={s.input}>
-                  <option value="rifex_transfer">Depósito por Rifex (Plan Gratis)</option>
-                  <option value="creator_direct" disabled={proLocked}>Transferencia directa del creador (Pro)</option>
-                </select>
-              </div>
-            )}
-
-            {prizeType==="physical" && (
-              <div className="physical-block">
-                <label>Fotos del premio (hasta 3)</label>
-                <input type="file" accept="image/*" multiple onChange={e=>setPrizePhotos(Array.from(e.target.files||[]))} />
-                <label style={{marginTop:8}}>Método de entrega</label>
-                <select value={deliveryMethod} onChange={e=>setDeliveryMethod(e.target.value)} style={s.input}>
-                  <option value="a_convenir">A convenir</option>
-                  <option value="retira_en_tienda">Retiro en punto</option>
-                  <option value="envio_pagado">Envío pagado por el ganador</option>
-                  <option value="envio_incluido">Envío incluido por el creador</option>
-                </select>
-              </div>
-            )}
-          </fieldset>
-
-          {/* Fechas + estado */}
-          <fieldset style={s.card}>
-            <legend style={s.legend}>Fechas y estado</legend>
-            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
-              <div>
-                <label>Inicio</label>
-                <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} style={s.input}/>
-              </div>
-              <div>
-                <label>Término</label>
-                <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} style={s.input}/>
-              </div>
-            </div>
-            <label style={{marginTop:8}}>Estado</label>
-            <select value={status} onChange={e=>setStatus(e.target.value)} style={s.input}>
-              <option value="draft">Borrador</option>
-              <option value="active">Activa</option>
-              <option value="closed">Cerrada</option>
-            </select>
-          </fieldset>
-
-          {/* Términos */}
-          <div style={s.card}>
-            <label style={{display:"block", marginBottom:6}}>
-              <input type="checkbox" checked={okBuyer} onChange={e=>setOkBuyer(e.target.checked)} /> Acepto los <a href="/terminos#comprador" target="_blank" rel="noreferrer">Términos del comprador</a>
-            </label>
-            <label style={{display:"block"}}>
-              <input type="checkbox" checked={okCreator} onChange={e=>setOkCreator(e.target.checked)} /> Acepto los <a href="/terminos#creador" target="_blank" rel="noreferrer">Términos del creador</a> y las <a href="/terminos#rifex" target="_blank" rel="noreferrer">Condiciones de Rifex</a>
-            </label>
-          </div>
-
-          <div style={{display:"flex", gap:12}}>
-            <button
-              type="submit"
-              className={stylesBtn.btnCreate}
-              style={{
-                background: "linear-gradient(135deg, var(--ultramar), var(--trebol))",
-                boxShadow: "0 6px 14px rgba(24,169,87,.22)"
-              }}
-            >
-              Crear rifa
-            </button>
-
-            <a
-              href="/panel"
-              className={stylesBtn.btnCreate}
-              style={{ background:"#fff", color:"var(--ultramar)", border:"1px solid #E5E7EB" }}
-            >
-              Cancelar
-            </a>
-          </div>
-        </form>
-      </main>
+        </div>
+      </div>
     </>
   );
 }
 
 CrearRifaPage.getLayout = (page) => <Layout>{page}</Layout>;
-
-const s = {
-  input: { width:"100%", padding:"10px 12px", border:"1px solid #E5E7EB", borderRadius:10, background:"#fff" },
-  card: { border:"1px solid #E5E7EB", borderRadius:12, padding:12, background:"#fff" },
-  legend: { fontWeight:600 },
-  row: { display:"flex", gap:16, margin:"6px 0 10px" },
-  hint: { fontSize:12, color:"#6B7280", marginTop:6 },
-  btn: { display:"inline-flex", alignItems:"center", justifyContent:"center", padding:"10px 14px", border:"1px solid #E5E7EB", borderRadius:10, textDecoration:"none" },
-  btnPrimary: { background:"linear-gradient(135deg,#1E3A8A,#18A957)", color:"#fff", border:"none", padding:"10px 14px", borderRadius:10 }
-};

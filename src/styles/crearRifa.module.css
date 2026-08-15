@@ -182,6 +182,87 @@
     var(--fondo);
 }
 
+/* Secciones dentro del formCard */
+.section {
+  padding: 20px 0;
+  border-top: 1px solid var(--borde);
+}
+.section:first-child { border-top: none; padding-top: 0; }
+.sectionTitle {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--oscuro);
+  margin: 0 0 12px;
+}
+.fieldGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .fieldGrid { grid-template-columns: 1fr; }
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.fieldLabel { font-size: 13px; font-weight: 600; color: var(--oscuro); }
+
+/* Grilla de temáticas */
+.themeGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+@media (max-width: 560px) {
+  .themeGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+.themeCard {
+  position: relative;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 14px 8px;
+  text-align: center;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease, opacity .15s ease;
+  font-family: inherit;
+}
+.themeCard[data-active="true"] {
+  border: 2px solid var(--trebol);
+  background: #EAF3DE;
+}
+.themeCard[data-locked="true"] {
+  opacity: .5;
+  cursor: not-allowed;
+}
+.themeIcon { font-size: 22px; line-height: 1; }
+.themeLabel { font-size: 11.5px; font-weight: 700; margin-top: 6px; color: var(--oscuro); }
+.themeLockBadge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--borde);
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+}
+
+/* Checkbox de términos */
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--oscuro);
+  line-height: 1.5;
+}
+.checkRow input { margin-top: 3px; flex-shrink: 0; }
+.checkRow a { color: var(--ultramar); }
+
 /* styles/crearRifa.module.css */
 .btnCreate {
   cursor: pointer;                /* ← manito */
