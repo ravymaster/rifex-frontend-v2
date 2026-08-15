@@ -1,5 +1,6 @@
 // pages/terminos.js
 import Head from "next/head";
+import Layout from "@/components/Layout";
 
 export default function Terminos() {
   return (
@@ -101,3 +102,5 @@ export default function Terminos() {
     </>
   );
 }
+
+Terminos.getLayout = (page) => <Layout>{page}</Layout>;

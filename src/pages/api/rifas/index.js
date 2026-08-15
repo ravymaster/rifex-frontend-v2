@@ -53,9 +53,18 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const body = req.body || {};
-      // Datos del usuario (desde el navegador agregaremos estos headers)
-      const creator_email = (req.headers['x-user-email'] || '').toString().trim() || null;
-      const creator_id = (req.headers['x-user-id'] || '').toString().trim() || null;
+
+      // Identidad real del creador: se verifica el token contra Supabase,
+      // no se confía en headers que el cliente podría falsificar.
+      const authz = req.headers.authorization || '';
+      const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+      if (!token) return res.status(401).json({ ok: false, error: 'missing_auth' });
+
+      const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+      if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+
+      const creator_id = ures.user.id;
+      const creator_email = (ures.user.email || '').toLowerCase() || null;
 
       // Sanitizar payload
       const row = {};

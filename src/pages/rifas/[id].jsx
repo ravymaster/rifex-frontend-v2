@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
 import { getIconByNumber } from "../../hooks/useIconsMap";
+import Layout from "../../components/Layout";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
@@ -327,15 +328,22 @@ export default function RifaDetalle() {
     );
   }
 
-  const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
-
-  // —— FIX de superposición / stacking contexts ——
-  // Aislamos el contenedor de página para controlar las capas
-  const pageIsolated = { position: "relative", isolation: "isolate" };
-
   // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA
   const hasAnyModalOrOverlay =
     !!showIntro || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
+
+  // —— FIX de superposición / stacking contexts ——
+  // Aislamos el contenedor de página para controlar las capas.
+  // Cuando hay un overlay de pantalla completa (spinner de MP, modal de
+  // confirmación), subimos el z-index del propio contenedor por encima del
+  // header sticky del sitio: "isolation: isolate" atrapa hasta los elementos
+  // position:fixed dentro de este contexto, así que sin esto el header
+  // quedaría visualmente encima del overlay durante el flujo de pago.
+  const pageIsolated = {
+    position: "relative",
+    isolation: "isolate",
+    zIndex: hasAnyModalOrOverlay ? 3500 : "auto",
+  };
 
   const bannerStyle = (kind) => ({
     margin: "8px 0 12px",
@@ -459,8 +467,7 @@ export default function RifaDetalle() {
             <div className={styles.infoSub}>Estado: <b>{raffle.status || "activa"}</b></div>
           </div>
           <div className={styles.linksCol}>
-            {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>Ver perfil del creador</a>}
-            <a className={styles.linkSecondary} href={`/rifas/${id}/chat`}>Ir al chat de esta rifa</a>
+            <a className={styles.linkSecondary} href={`/chat/${id}`}>Ir al chat de esta rifa</a>
             <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">Términos de la rifa</a>
           </div>
         </div>
@@ -657,4 +664,6 @@ export default function RifaDetalle() {
     </div>
   );
 }
+
+RifaDetalle.getLayout = (page) => <Layout>{page}</Layout>;
 

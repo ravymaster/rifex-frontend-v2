@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Layout from '@/components/Layout';
 
 export default function NotFound() {
   return (
@@ -17,3 +18,5 @@ export default function NotFound() {
     </section>
   );
 }
+
+NotFound.getLayout = (page) => <Layout>{page}</Layout>;

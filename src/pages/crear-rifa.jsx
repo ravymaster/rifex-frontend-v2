@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
+import Layout from "@/components/Layout";
 import stylesBtn from "@/styles/crearRifa.module.css"; // <-- CSS Module con .btnCreate
 
 const THEMES = [
@@ -16,6 +17,40 @@ const THEMES = [
   { id: "deportes", label: "Deportes – Pro" },
   { id: "viajes", label: "Viajes – Pro" },
 ];
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const ALLOWED_PHOTO_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadPrizePhotos(files, token) {
+  const urls = [];
+  for (const file of files) {
+    if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
+      throw new Error(`Formato no permitido: ${file.name}`);
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      throw new Error(`${file.name} pesa más de 5MB.`);
+    }
+    const dataBase64 = await fileToBase64(file);
+    const res = await fetch("/api/rifas/upload-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ filename: file.name, contentType: file.type, dataBase64 }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data?.ok) throw new Error(data?.error || `No se pudo subir ${file.name}`);
+    urls.push(data.url);
+  }
+  return urls;
+}
 
 export default function CrearRifaPage() {
   const router = useRouter();
@@ -69,39 +104,45 @@ export default function CrearRifaPage() {
       return;
     }
 
-    const photos = Array.from(prizePhotos || []).slice(0, 3).map(f => f.name);
-
-    const payload = {
-      title,
-      price_cents: Math.round(Number(priceClp) * 100),
-      total_numbers: Number(totalNumbers),
-      description: description || null,
-
-      plan,
-      theme,
-      prize_type: prizeType,
-      prize_amount_cents: prizeType === "money" ? Math.round(Number(prizeAmount || 0) * 100) : null,
-      payout_method: prizeType === "money" ? payoutMethod : null,
-      delivery_method: prizeType === "physical" ? deliveryMethod : null,
-      prize_photos: prizeType === "physical" ? photos : null,
-
-      start_date: startDate || null,
-      end_date: endDate || null,
-      status,
-    };
+    const { data: sres } = await supabase.auth.getSession();
+    const token = sres?.session?.access_token;
+    if (!token) {
+      alert("Debes iniciar sesión para crear una rifa.");
+      router.push("/login");
+      return;
+    }
 
     try {
-      // Pasamos quién es el usuario logueado (cabeceras) para asignar creador en la API
-      const { data: ures } = await supabase.auth.getUser();
-      const user = ures?.user || null;
+      let photos = [];
+      if (prizeType === "physical" && prizePhotos?.length) {
+        photos = await uploadPrizePhotos(Array.from(prizePhotos).slice(0, 3), token);
+      }
 
-      const headers = { "Content-Type": "application/json" };
-      if (user?.id) headers["x-user-id"] = user.id;
-      if (user?.email) headers["x-user-email"] = user.email;
+      const payload = {
+        title,
+        price_cents: Math.round(Number(priceClp) * 100),
+        total_numbers: Number(totalNumbers),
+        description: description || null,
+
+        plan,
+        theme,
+        prize_type: prizeType,
+        prize_amount_cents: prizeType === "money" ? Math.round(Number(prizeAmount || 0) * 100) : null,
+        payout_method: prizeType === "money" ? payoutMethod : null,
+        delivery_method: prizeType === "physical" ? deliveryMethod : null,
+        prize_photos: prizeType === "physical" ? photos : null,
+
+        start_date: startDate || null,
+        end_date: endDate || null,
+        status,
+      };
 
       const res = await fetch("/api/rifas", {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -117,7 +158,7 @@ export default function CrearRifaPage() {
       }
     } catch (err) {
       console.error(err);
-      alert("No se pudo crear la rifa.");
+      alert(err?.message || "No se pudo crear la rifa.");
     }
   }
 
@@ -252,6 +293,8 @@ export default function CrearRifaPage() {
     </>
   );
 }
+
+CrearRifaPage.getLayout = (page) => <Layout>{page}</Layout>;
 
 const s = {
   input: { width:"100%", padding:"10px 12px", border:"1px solid #E5E7EB", borderRadius:10, background:"#fff" },

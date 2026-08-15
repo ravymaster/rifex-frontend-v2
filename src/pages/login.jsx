@@ -2,6 +2,7 @@ import Head from 'next/head';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import Layout from '@/components/Layout';
 import styles from '@/styles/login.module.css';
 
 /* Botón Google */
@@ -176,6 +177,8 @@ export default function Login() {
     </>
   );
 }
+
+Login.getLayout = (page) => <Layout>{page}</Layout>;
 
 
 

@@ -3,6 +3,7 @@ import Head from "next/head";
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
+import Layout from "@/components/Layout";
 
 export default function Protegida() {
   const router = useRouter();
@@ -66,4 +67,6 @@ export default function Protegida() {
     </>
   );
 }
+
+Protegida.getLayout = (page) => <Layout>{page}</Layout>;
 

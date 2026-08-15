@@ -1,5 +1,6 @@
 // pages/preguntas-frecuentes.js
 import Head from "next/head";
+import Layout from "@/components/Layout";
 
 export default function PreguntasFrecuentes() {
   return (
@@ -65,3 +66,5 @@ export default function PreguntasFrecuentes() {
     </>
   );
 }
+
+PreguntasFrecuentes.getLayout = (page) => <Layout>{page}</Layout>;

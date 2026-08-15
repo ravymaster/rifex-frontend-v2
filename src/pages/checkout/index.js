@@ -1,6 +1,7 @@
 // src/pages/checkout/index.js
 import Head from "next/head";
 import Link from "next/link";
+import Layout from "@/components/Layout";
 import styles from "@/styles/checkoutReturn.module.css";
 
 // Página de acceso directo a /checkout. No crea ni confirma pagos, no llama
@@ -30,3 +31,5 @@ export default function CheckoutIndex() {
     </>
   );
 }
+
+CheckoutIndex.getLayout = (page) => <Layout>{page}</Layout>;

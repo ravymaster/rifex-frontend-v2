@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import styles from "@/styles/reset-password.module.css";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
+import Layout from "@/components/Layout";
 
 export default function ResetPassword() {
   const router = useRouter();
@@ -265,4 +266,6 @@ export default function ResetPassword() {
     </>
   );
 }
+
+ResetPassword.getLayout = (page) => <Layout>{page}</Layout>;
 
