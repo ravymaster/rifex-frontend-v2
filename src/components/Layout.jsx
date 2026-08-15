@@ -303,10 +303,10 @@ export default function Layout({
           position: sticky;
           top: 0;
           z-index: 40;
-          background: rgba(255, 255, 255, 0.85);
+          background: rgba(12, 22, 54, 0.92);
           backdrop-filter: blur(10px);
           -webkit-backdrop-filter: blur(10px);
-          border-bottom: 1px solid #eef2f7;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
         }
         .rf-header-inner {
           max-width: 1200px;
@@ -323,7 +323,7 @@ export default function Layout({
           gap: 9px;
           font-weight: 800;
           font-size: 18px;
-          color: #0f172a;
+          color: #fff;
           text-decoration: none;
           letter-spacing: -0.2px;
           transition: opacity 0.15s ease;
@@ -336,14 +336,14 @@ export default function Layout({
           text-decoration: none;
           padding: 8px 14px;
           border-radius: 999px;
-          color: #475569;
+          color: rgba(255, 255, 255, 0.65);
           font-weight: 600;
           font-size: 14.5px;
           transition: background 0.15s ease, color 0.15s ease;
         }
-        .rf-nav__link:hover { background: #f1f5f9; color: #0f172a; }
+        .rf-nav__link:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
         .rf-nav__link[data-active='true'] {
-          background: #0f172a;
+          background: rgba(255, 255, 255, 0.12);
           color: #fff;
         }
 
@@ -360,8 +360,8 @@ export default function Layout({
           display: inline-flex;
           align-items: center;
         }
-        .rf-btn-ghost { color: #0f172a; }
-        .rf-btn-ghost:hover { background: #f1f5f9; }
+        .rf-btn-ghost { color: #fff; }
+        .rf-btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
         .rf-btn-primary {
           background: linear-gradient(135deg, #1e3a8a 0%, #18a957 100%);
           color: #fff;
@@ -375,13 +375,13 @@ export default function Layout({
           align-items: center;
           gap: 8px;
           background: transparent;
-          border: 1px solid #e5e7eb;
+          border: 1px solid rgba(255, 255, 255, 0.2);
           border-radius: 999px;
           padding: 5px 10px 5px 5px;
           cursor: pointer;
           transition: border-color 0.15s ease, background 0.15s ease;
         }
-        .rf-user__trigger:hover { background: #f8fafc; border-color: #cbd5e1; }
+        .rf-user__trigger:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.35); }
         .rf-user__avatar {
           width: 28px;
           height: 28px;
@@ -397,13 +397,13 @@ export default function Layout({
         .rf-user__email {
           font-size: 13.5px;
           font-weight: 600;
-          color: #334155;
+          color: rgba(255, 255, 255, 0.7);
           max-width: 160px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
-        .rf-user__chevron { color: #94a3b8; flex-shrink: 0; }
+        .rf-user__chevron { color: rgba(255, 255, 255, 0.5); flex-shrink: 0; }
 
         .rf-user__menu {
           position: absolute;
@@ -453,20 +453,20 @@ export default function Layout({
           cursor: pointer;
           flex-shrink: 0;
         }
-        .rf-hamburger:hover { background: #f1f5f9; }
+        .rf-hamburger:hover { background: rgba(255, 255, 255, 0.08); }
         .rf-hamburger span {
           display: block;
           width: 20px;
           height: 2px;
           border-radius: 999px;
-          background: #0f172a;
+          background: #fff;
           margin: 4px auto;
           transition: transform 0.15s ease;
         }
 
         .rf-mobile {
-          border-top: 1px solid #eef2f7;
-          background: #fff;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          background: #0c1636;
         }
         .rf-mobile-nav {
           display: grid;
@@ -479,19 +479,19 @@ export default function Layout({
           border-radius: 10px;
           font-weight: 700;
           font-size: 14.5px;
-          color: #0f172a;
-          background: #f8fafc;
+          color: #fff;
+          background: rgba(255, 255, 255, 0.06);
           border: none;
           text-align: left;
           cursor: pointer;
           font-family: inherit;
           width: 100%;
         }
-        .rf-mobile-link[data-active='true'] { background: #0f172a; color: #fff; }
-        .rf-mobile-link--danger { color: #b91c1c; }
+        .rf-mobile-link[data-active='true'] { background: var(--trebol); color: #fff; }
+        .rf-mobile-link--danger { color: #f87171; }
         .rf-mobile-divider {
           height: 1px;
-          background: #eef2f7;
+          background: rgba(255, 255, 255, 0.1);
           margin: 6px 4px;
         }
 
