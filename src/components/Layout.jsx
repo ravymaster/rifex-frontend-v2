@@ -317,7 +317,7 @@ export default function Layout({
           justify-content: space-between;
           gap: 16px;
         }
-        .rf-logo {
+        :global(.rf-logo) {
           display: inline-flex;
           align-items: center;
           gap: 9px;
@@ -328,11 +328,11 @@ export default function Layout({
           letter-spacing: -0.2px;
           transition: opacity 0.15s ease;
         }
-        .rf-logo:hover { opacity: 0.75; }
-        .rf-logo img { border-radius: 7px; }
+        :global(.rf-logo:hover) { opacity: 0.75; }
+        :global(.rf-logo img) { border-radius: 7px; }
 
         .rf-nav { display: flex; align-items: center; gap: 2px; }
-        .rf-nav__link {
+        :global(.rf-nav__link) {
           text-decoration: none;
           padding: 8px 14px;
           border-radius: 999px;
@@ -341,8 +341,8 @@ export default function Layout({
           font-size: 14.5px;
           transition: background 0.15s ease, color 0.15s ease;
         }
-        .rf-nav__link:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
-        .rf-nav__link[data-active='true'] {
+        :global(.rf-nav__link:hover) { background: rgba(255, 255, 255, 0.08); color: #fff; }
+        :global(.rf-nav__link[data-active='true']) {
           background: rgba(255, 255, 255, 0.12);
           color: #fff;
         }
@@ -350,7 +350,7 @@ export default function Layout({
         .rf-header-actions { display: flex; align-items: center; gap: 10px; }
 
         .rf-auth-actions { display: flex; align-items: center; gap: 8px; }
-        .rf-btn-ghost, .rf-btn-primary {
+        :global(.rf-btn-ghost), :global(.rf-btn-primary) {
           font-size: 14px;
           font-weight: 700;
           padding: 9px 16px;
@@ -360,14 +360,14 @@ export default function Layout({
           display: inline-flex;
           align-items: center;
         }
-        .rf-btn-ghost { color: #fff; }
-        .rf-btn-ghost:hover { background: rgba(255, 255, 255, 0.08); }
-        .rf-btn-primary {
+        :global(.rf-btn-ghost) { color: #fff; }
+        :global(.rf-btn-ghost:hover) { background: rgba(255, 255, 255, 0.08); }
+        :global(.rf-btn-primary) {
           background: linear-gradient(135deg, #1e3a8a 0%, #18a957 100%);
           color: #fff;
           box-shadow: 0 4px 14px rgba(24, 169, 87, 0.28);
         }
-        .rf-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(24, 169, 87, 0.36); }
+        :global(.rf-btn-primary:hover) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(24, 169, 87, 0.36); }
 
         .rf-user { position: relative; }
         .rf-user__trigger {
@@ -424,7 +424,7 @@ export default function Layout({
           from { opacity: 0; transform: translateY(-4px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .rf-user__item {
+        :global(.rf-user__item) {
           display: block;
           width: 100%;
           text-align: left;
@@ -439,9 +439,9 @@ export default function Layout({
           cursor: pointer;
           font-family: inherit;
         }
-        .rf-user__item:hover { background: #f1f5f9; }
-        .rf-user__item--danger { color: #b91c1c; }
-        .rf-user__item--danger:hover { background: #fef2f2; }
+        :global(.rf-user__item:hover) { background: #f1f5f9; }
+        :global(.rf-user__item--danger) { color: #b91c1c; }
+        :global(.rf-user__item--danger:hover) { background: #fef2f2; }
 
         .rf-hamburger {
           display: none;
@@ -473,7 +473,7 @@ export default function Layout({
           gap: 4px;
           padding: 10px 12px 16px;
         }
-        .rf-mobile-link {
+        :global(.rf-mobile-link) {
           text-decoration: none;
           padding: 11px 14px;
           border-radius: 10px;
@@ -487,8 +487,8 @@ export default function Layout({
           font-family: inherit;
           width: 100%;
         }
-        .rf-mobile-link[data-active='true'] { background: var(--trebol); color: #fff; }
-        .rf-mobile-link--danger { color: #f87171; }
+        :global(.rf-mobile-link[data-active='true']) { background: var(--trebol); color: #fff; }
+        :global(.rf-mobile-link--danger) { color: #f87171; }
         .rf-mobile-divider {
           height: 1px;
           background: rgba(255, 255, 255, 0.1);
