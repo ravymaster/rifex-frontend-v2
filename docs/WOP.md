@@ -30,14 +30,18 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | R4 SPRINT READINESS | GO |
 | SPRINT R4 | CLOSED - GO |
 | SPRINT | R4 CLOSED; OTHER SPRINTS NOT YET OPEN / NOT AUTHORIZED |
+| DB RECOVERY | DONE — 2026-08-14/15, informal/incident-driven, not via a Sprint packet (see Current Stage below) |
+| MERCADO PAGO DIRECT CHECKOUT | CONFIRMED FUNCTIONAL IN PRODUCTION |
+| ARCHITECTURE AUDIT — FRONTEND/LOGIC SEPARATION | OPEN - AUTHORIZED (2026-08-15) |
 
 
 ## Next Eligible Stage
 
 ```text
 SPRINT R4: CLOSED — GO
-NEXT ELIGIBLE STAGE: DB RECOVERY CONTRACT
-DB RECOVERY CONTRACT: NOT AUTHORIZED
+DB RECOVERY: DONE (informal, incident-driven)
+NEXT ELIGIBLE STAGE: ARCHITECTURE AUDIT — FRONTEND/LOGIC SEPARATION
+ARCHITECTURE AUDIT — FRONTEND/LOGIC SEPARATION: OPEN - AUTHORIZED
 OTHER SPRINTS: NOT AUTHORIZED
 ```
 ## Official Project States
@@ -57,7 +61,15 @@ OTHER SPRINTS: NOT AUTHORIZED
 
 ## Current Stage
 
-Rifex has closed `ALIGNMENT`, `ARCHITECTURE AUDIT` and `ARCHITECTURE DESIGN`. Architecture Design AD3 is documented with `GO`, Architecture Design Closing Gate is `GO`, R4 Sprint Readiness is `GO`, and Sprint R4 (Build Baseline Recovery) is now `CLOSED - GO`: implemented, Release Audit confirmed GO, committed and pushed at HEAD `bbaf8a0` (`fix: restore checkout page build`). This does not certify production readiness, does not adopt the three preserved recovery/hardening diffs, does not implement DB/R1/R2/R3/Fees Policy, and does not authorize or open any further Sprint.
+Rifex has closed `ALIGNMENT`, `ARCHITECTURE AUDIT` and `ARCHITECTURE DESIGN`. Architecture Design AD3 is documented with `GO`, Architecture Design Closing Gate is `GO`, R4 Sprint Readiness is `GO`, and Sprint R4 (Build Baseline Recovery) is `CLOSED - GO`: implemented, Release Audit confirmed GO, committed and pushed at HEAD `bbaf8a0` (`fix: restore checkout page build`).
+
+**DB Recovery — done, but not through the formal Sprint packet process.** On 2026-08-14/15, the user disclosed that the original production Supabase project (`huoepoxuqaodfgbtbalb`) had been deleted directly in Supabase (not through this repository). This was discovered mid-session, confirmed live (`rifex.pro/api/rifas` returning `TypeError: fetch failed`), and constituted an active production incident, not a planned Sprint. Recovery was executed through direct, explicitly authorized, turn-by-turn user instruction rather than a pre-written packet: Vercel's production `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` were repointed to a new Supabase project (`wrdkdfuiwlujfxxijpao`, already provisioned earlier the same session for local sandbox testing via `db/restore/001_schema_supabase_clean.sql`), all sandbox/test rows were purged from it first, and production was confirmed restored to a genuinely empty, functional state. This is recorded as `DONE`, not as a closed Sprint — the WOP's Git Rules and Stage Change Process were not fully followed (no packet, no isolated Sprint commit boundary) because incident response took priority over ceremony. See `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the full evidence trail.
+
+Two code fixes were also implemented and pushed the same session, each independently verified against real data before commit: `webhook_events` was never written to despite the table, its unique index and its `event_id` builder already existing (`7e8e6b7`); `mp/disconnect.js` only cleared 8 of 13 credential columns, leaving a live `mp_refresh_token` behind after "disconnecting" (`1aa97cd`). Both were found live, not from static review.
+
+**Production Validation, 2026-08-15.** After DB recovery, a real end-to-end purchase was completed on `rifex.pro`: a newly registered real Rifex account created a real raffle, the user's own real Mercado Pago account was connected as the seller via OAuth (no environment mismatch — this only reproduces cleanly in real production, not in sandbox, see Critical Risks), and a different real Mercado Pago account completed payment. Ticket sold, purchase approved, payment recorded, a real Mercado Pago webhook was received and logged, buyer/creator emails sent. This is the first `CONFIRMED FUNCTIONAL` evidence for the Mercado Pago checkout flow in this repository's documented history.
+
+This does not certify every flow, does not adopt the three preserved recovery/hardening diffs (which, correction: are already part of `main` at HEAD — see Baseline Decision below), does not implement Mercado Pago split payments (requires direct engagement with Mercado Pago's commercial team, not a code or certification path — see `docs/handover/HANDOVER_RIFEX_CURRENT.md`), and does not by itself authorize the newly opened Architecture Audit beyond its stated scope (frontend/logic separation, in preparation for a UI/UX redesign — explicitly authorized by the user on 2026-08-15).
 
 ## Baseline Decision
 
@@ -65,19 +77,22 @@ Rifex has closed `ALIGNMENT`, `ARCHITECTURE AUDIT` and `ARCHITECTURE DESIGN`. Ar
 PROPOSED BASELINE DECISION: C
 ```
 
-Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `1fc064a8517389873b7c8c57053cd7ed7f0440d2` is the current confirmed HEAD (`docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony`). `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` (`fix: restore checkout page build`), the R4 implementation commit, is an ancestor of HEAD. Previous citations (`b46ef9d`, then `48013ce`, then `bbaf8a0`) each lagged the real HEAD because the commit that closed a gate did not bump its own self-citation; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the first reconciliation (`STALE, NOT CORRUPTED`, no diverged history). The three pre-existing functional diffs are a candidate recovery/hardening line and are still not certified; they were not touched by R4. The PostgreSQL backup is sensitive evidence outside the Git baseline. R4 build-success is confirmed; functional/payment execution of the rest of this decision remains pending, and the working tree does not constitute a certified functional baseline.
+Decision C is the documentary baseline decision approved during Alignment A1 and carried forward through the A2 checkpoint. HEAD `1aa97cd43e63649d2d17255a42ee71600e631315` is the current confirmed HEAD (`fix: clear all credential fields on MP disconnect, not just half`). `bbaf8a02d2ff3681186e8f84317ce1c7cdd064ee` (`fix: restore checkout page build`), the R4 implementation commit, is an ancestor of HEAD. Previous citations (`b46ef9d`, `48013ce`, `bbaf8a0`, `1fc064a`) each lagged the real HEAD because the commit that closed a gate did not bump its own self-citation — a recurring pattern in this repository; see `docs/audits/EXECUTION_ENVIRONMENT_AUDIT.md` for the first reconciliation (`STALE, NOT CORRUPTED`, no diverged history). Correction to a separate stale claim: `mailer.js`, `reconcile-payments.js` and `webhook.js` are **not** an outstanding working-tree diff — `git diff --stat` against HEAD for those three files is empty; they are ordinary committed files in `main`. That claim was already stale before this session began. The PostgreSQL backup corresponds to the original Supabase project, which has since been deleted (see Current Stage) — it is now the only surviving evidence of that project's data, and remains sensitive evidence outside the Git baseline. R4 build-success is confirmed; beyond that, the Mercado Pago checkout flow is now `CONFIRMED FUNCTIONAL` in production (see Current Stage, Production Validation) — a materially stronger claim than "build-success only," scoped specifically to that flow.
 
 | Layer | Status |
 |---|---|
-| HEAD `1fc064a` | CONFIRMED current HEAD (docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony) |
+| HEAD `1aa97cd` | CONFIRMED current HEAD (fix: clear all credential fields on MP disconnect, not just half) |
 | R4 implementation commit `bbaf8a0` | CONFIRMED ancestor of HEAD (fix: restore checkout page build) |
-| Working tree functional diffs | CONFIRMED candidate recovery/hardening line, UNVERIFIED |
-| PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline |
+| `webhook_events` fix `7e8e6b7` | CONFIRMED; verified live with a real Mercado Pago webhook in production |
+| `mp/disconnect.js` fix `1aa97cd` | CONFIRMED; verified by seeding all 13 credential columns and confirming full clear |
+| Supabase project | CONFIRMED changed: original (`huoepoxuqaodfgbtbalb`) deleted by the user outside this repo; current baseline is `wrdkdfuiwlujfxxijpao`, used by **both** production and local dev — architecture gap, not target state |
+| PostgreSQL backup | CONFIRMED sensitive evidence outside Git baseline; corresponds to the deleted project, not the current one |
 | A2 documents | CONFIRMED documentation materialization |
 | Architecture Audit documents | CONFIRMED documentation materialization |
 | Architecture Design AD3 report | CONFIRMED documentation materialization |
 | R4 Sprint packet | CLOSED - GO; implemented at `bbaf8a0`, `npm run build` passes |
-| Recovery decision | B: split recovery into R4, DB, R1, R2, R3 Technical and Fees Policy |
+| Production Validation | CONFIRMED 2026-08-15; real seller, real buyer, real webhook — see Current Stage |
+| Recovery decision | B: split recovery into R4, DB, R1, R2, R3 Technical and Fees Policy; DB unit executed informally (incident-driven), R1/R2/R3/Fees Policy still not authorized |
 
 ## Recovery Sequence
 
@@ -95,27 +110,31 @@ Condition to open Architecture Design: Architecture Audit must be closed with `G
 
 ## Known Working Tree
 
-Pre-existing functional diffs:
-
-- `src/lib/mailer.js`
-- `src/pages/api/admin/reconcile-payments.js`
-- `src/pages/api/checkout/webhook.js`
+`src/lib/mailer.js`, `src/pages/api/admin/reconcile-payments.js` and `src/pages/api/checkout/webhook.js` were previously described here as "pre-existing functional diffs." Correction: they are ordinary committed files in `main` at HEAD, with no working-tree diff (`git diff --stat` against HEAD is empty). That description was already stale before this session began.
 
 Sensitive artifact:
 
-- `db_cluster-10-11-2025@05-41-59.backup.gz`
+- `db_cluster-10-11-2025@05-41-59.backup.gz` — corresponds to the original Supabase project (`huoepoxuqaodfgbtbalb`), deleted 2026-08-14/15. It is now the only surviving evidence of that project's data. Still outside the Git baseline; do not inspect, move or delete without a specific mission.
+
+New untracked artifact:
+
+- `db/restore/001_schema_supabase_clean.sql` — the schema-provisioning script actually used to build the current Supabase project (`wrdkdfuiwlujfxxijpao`), now serving both production and local dev. Untracked as of HEAD `1aa97cd`; should be committed, since it is no longer just a sandbox artifact.
 
 ## Blockers And Limits
 
 | Item | Classification |
 |---|---|
-| Functional verification | UNVERIFIED |
-| DB remote state | UNKNOWN |
-| Canonical ticket/purchase/payment states | CONTRADICTORY |
+| Functional verification | PARTIAL — Mercado Pago direct-collection checkout CONFIRMED FUNCTIONAL in production (2026-08-15); other flows remain UNVERIFIED |
+| DB remote state | CONFIRMED (new project `wrdkdfuiwlujfxxijpao`, schema applied, empty of legacy data, currently serving both production and local dev) |
+| Canonical ticket/purchase/payment states | CONTRADICTORY claim inherited from prior audits of the now-deleted original project; not re-verified against the new project's data model, which was restored from the same schema and is presumed to carry the same contradiction until checked |
+| Mercado Pago split payments (1:N) | NOT AVAILABLE; requires direct engagement with Mercado Pago's commercial team, not a code change or self-service certification |
+| Sandbox testing of Mercado Pago OAuth-connected-seller flow | BLOCKED as currently configured — the app has no sandbox-specific OAuth Client ID/Secret, so any OAuth-connected token comes back tied to the production Client ID (`APP_USR-` prefix, not `TEST-`), causing an environment mismatch when paired with a sandbox buyer. Only verified working in real production |
 | Architecture Audit | CLOSED - GO |
 | Architecture Design | CLOSED - GO |
 | R4 Sprint Readiness | GO |
 | Sprint R4 | CLOSED - GO |
+| DB Recovery | DONE — informal, incident-driven, 2026-08-14/15 |
+| Architecture Audit — Frontend/Logic Separation | OPEN - AUTHORIZED (2026-08-15) |
 | Sprint | R4 CLOSED; OTHERS NOT YET OPEN / NOT AUTHORIZED |
 
 ## Rules For AI Agents
@@ -147,7 +166,8 @@ Sensitive artifact:
 
 ## Stage Change Process
 
-A later stage can open only when the current gate is reported and the user authorizes the next stage. Sprint R4 was explicitly authorized, implemented, release-audited GO, committed and pushed. The next eligible stage (DB Recovery Contract) remains `NOT AUTHORIZED` until the user explicitly opens it.
+A later stage can open only when the current gate is reported and the user authorizes the next stage. Sprint R4 was explicitly authorized, implemented, release-audited GO, committed and pushed. DB Recovery was subsequently executed informally — not through this process — in direct response to a production incident (see Current Stage); it is `DONE`, not `CLOSED - GO` in the packet sense, and that distinction is preserved deliberately rather than retrofitted. The user has since explicitly authorized the next formal stage: `ARCHITECTURE AUDIT — FRONTEND/LOGIC SEPARATION` (2026-08-15), scoped to mapping business logic vs. presentation ahead of a UI/UX redesign — no redesign implementation is authorized yet.
+
 ## Resume Handover
 
 | Item | Status |
@@ -156,7 +176,9 @@ A later stage can open only when the current gate is reported and the user autho
 | Recovery branch | `recovery/rifex-hardening-preserved` |
 | Recovery commit | `1c23702f401f8c501077ecfd265a213245e62a63` |
 | Handover | `docs/handover/HANDOVER_RIFEX_CURRENT.md` |
-| R4 | CLOSED - GO at HEAD `bbaf8a0` |
-| Next eligible stage | DB Recovery Contract; NOT AUTHORIZED |
+| R4 | CLOSED - GO at ancestor `bbaf8a0` |
+| DB Recovery | DONE (informal, incident-driven, 2026-08-14/15) |
+| Production Validation | CONFIRMED 2026-08-15 — see Current Stage |
+| Next eligible / open stage | Architecture Audit — Frontend/Logic Separation; OPEN - AUTHORIZED |
 
-Recovery preservation keeps the hardening work recoverable without adopting it into `main`. R4 is closed. DB Recovery Contract is the next eligible stage, but it is not open until explicitly authorized. The documentation batch previously pending here (HEAD reconciliation, Execution Environment Audit, R2/R3 marketplace payment testimony) was committed and pushed as `1fc064a` (`docs: close R4 and reconcile HEAD, execution audit, R2/R3 testimony`) — see `docs/handover/HANDOVER_RIFEX_CURRENT.md`.
+Recovery preservation keeps the R1/R2/R3 hardening work on its own branch, recoverable without adopting it into `main` — that decision is unaffected by today's events, since the branch's three files are already present in `main` at HEAD regardless (see Baseline Decision correction). DB Recovery is done, but through incident response rather than the packet process; R1/R2/R3/Fees Policy remain `NOT AUTHORIZED`. The currently open stage is the Architecture Audit into frontend/logic separation, authorized 2026-08-15, in preparation for — but not itself authorizing — a UI/UX redesign. See `docs/handover/HANDOVER_RIFEX_CURRENT.md` for the full narrative.
