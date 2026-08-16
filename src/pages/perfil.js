@@ -11,6 +11,7 @@ export default function Perfil() {
   const router = useRouter();
 
   const [token, setToken] = useState(null);
+  const [viewerId, setViewerId] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -24,6 +25,7 @@ export default function Perfil() {
         return;
       }
       setToken(session.access_token);
+      setViewerId(session.user.id);
       try {
         const r = await fetch(`/api/perfil/${session.user.id}`);
         const j = await r.json();
@@ -55,6 +57,8 @@ export default function Perfil() {
               completed={data.completed}
               isOwner
               token={token}
+              viewerToken={token}
+              viewerId={viewerId}
               onProfileUpdate={(p) => setData((d) => ({ ...d, profile: p }))}
             />
           )}

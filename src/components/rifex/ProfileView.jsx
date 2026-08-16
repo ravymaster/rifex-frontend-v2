@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import styles from "@/styles/perfil.module.css";
+import RaffleChat from "@/components/rifex/RaffleChat";
 
 const MAX_AVATAR_BYTES = 3 * 1024 * 1024;
 const ALLOWED_AVATAR_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
@@ -20,21 +21,29 @@ function clp(cents) {
   return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 }
 
-function RaffleCard({ r }) {
+function RaffleCard({ r, chatOpen, onToggleChat, viewerToken, viewerId }) {
   const pct = r.total_numbers ? Math.round((r.sold / r.total_numbers) * 100) : 0;
   return (
-    <Link href={`/rifas/${r.id}`} className={styles.raffleCard}>
-      <div className={styles.raffleTitle}>{r.title}</div>
-      <div className={styles.rafflePrice}>{clp(r.price_cents)} el número</div>
-      <div className={styles.raffleBar}>
-        <div className={styles.raffleBarFill} style={{ width: `${pct}%` }} />
-      </div>
-    </Link>
+    <div className={styles.raffleCard}>
+      <Link href={`/rifas/${r.id}`} className={styles.raffleCardLink}>
+        <div className={styles.raffleTitle}>{r.title}</div>
+        <div className={styles.rafflePrice}>{clp(r.price_cents)} el número</div>
+        <div className={styles.raffleBar}>
+          <div className={styles.raffleBarFill} style={{ width: `${pct}%` }} />
+        </div>
+      </Link>
+      <button type="button" className={styles.chatToggle} onClick={() => onToggleChat(r.id)}>
+        💬 {chatOpen ? "Ocultar chat" : "Ver chat"}
+      </button>
+      {chatOpen && <RaffleChat raffleId={r.id} viewerToken={viewerToken} viewerId={viewerId} />}
+    </div>
   );
 }
 
-export default function ProfileView({ profile, stats, active, completed, isOwner, token, onProfileUpdate }) {
+export default function ProfileView({ profile, stats, active, completed, isOwner, token, viewerToken, viewerId, onProfileUpdate }) {
   const [tab, setTab] = useState("active");
+  const [openChatId, setOpenChatId] = useState(null);
+  const effectiveViewerToken = viewerToken || (isOwner ? token : null);
   const [editing, setEditing] = useState(false);
   const [nombre, setNombre] = useState(profile?.nombre || "");
   const [bio, setBio] = useState(profile?.bio || "");
@@ -123,7 +132,6 @@ export default function ProfileView({ profile, stats, active, completed, isOwner
           <div>
             <h1 className={styles.name}>{profile?.nombre || "Creador de Rifex"}</h1>
             {memberSince && <p className={styles.memberSince}>Miembro desde {memberSince}</p>}
-            {profile?.bio && !editing && <p className={styles.bio}>{profile.bio}</p>}
           </div>
         </div>
 
@@ -131,8 +139,8 @@ export default function ProfileView({ profile, stats, active, completed, isOwner
           <div className={styles.editForm}>
             <label className="label">Nombre</label>
             <input className="input" value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Tu nombre" />
-            <label className="label" style={{ marginTop: 10 }}>Bio</label>
-            <textarea className="input" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Contales a los compradores qué tipo de rifas organizas." maxLength={280} />
+            <label className="label" style={{ marginTop: 10 }}>Sobre mí</label>
+            <textarea className="input" value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Contales a los compradores qué tipo de rifas organizas, hace cuánto lo haces y qué te apasiona de esto." maxLength={500} />
             {err && <p style={{ color: "#b91c1c", fontSize: 13, marginTop: 8 }}>{err}</p>}
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               <button className="btn btn-primary" onClick={onSave} disabled={saving}>
@@ -146,6 +154,23 @@ export default function ProfileView({ profile, stats, active, completed, isOwner
         )}
         {isOwner && !editing && err && <p style={{ color: "#b91c1c", fontSize: 13, marginTop: 8 }}>{err}</p>}
       </div>
+
+      {!editing && (
+        <div className={styles.aboutCard}>
+          <h2 className={styles.aboutTitle}>Sobre mí</h2>
+          {profile?.bio ? (
+            <p className={styles.aboutText}>{profile.bio}</p>
+          ) : (
+            <p className={styles.aboutEmpty}>
+              {isOwner ? (
+                <>Todavía no contaste nada sobre vos. <button type="button" className={styles.aboutEditLink} onClick={() => setEditing(true)}>Agregar descripción</button></>
+              ) : (
+                "Este creador todavía no agregó una descripción."
+              )}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className={styles.statsGrid}>
         <div className={styles.statTile}>
@@ -173,7 +198,16 @@ export default function ProfileView({ profile, stats, active, completed, isOwner
 
       {list?.length ? (
         <div className={styles.raffleGrid}>
-          {list.map((r) => <RaffleCard key={r.id} r={r} />)}
+          {list.map((r) => (
+            <RaffleCard
+              key={r.id}
+              r={r}
+              chatOpen={openChatId === r.id}
+              onToggleChat={(id) => setOpenChatId((cur) => (cur === id ? null : id))}
+              viewerToken={effectiveViewerToken}
+              viewerId={viewerId}
+            />
+          ))}
         </div>
       ) : (
         <p className={styles.raffleEmpty}>

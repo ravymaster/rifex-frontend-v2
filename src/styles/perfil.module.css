@@ -45,6 +45,18 @@
 .editForm{ margin-top:16px; padding-top:16px; border-top:1px solid var(--borde); }
 .editForm textarea{ min-height:80px; resize:vertical; }
 
+.aboutCard{
+  background:#fff; border:1px solid var(--borde); border-radius:18px;
+  padding:20px 22px; margin-bottom:14px;
+}
+.aboutTitle{ margin:0 0 8px; font-size:14.5px; font-weight:800; color:var(--oscuro); }
+.aboutText{ margin:0; font-size:13.5px; color:#374151; line-height:1.55; white-space:pre-wrap; }
+.aboutEmpty{ margin:0; font-size:13.5px; color:var(--gris); }
+.aboutEditLink{
+  background:none; border:none; padding:0; margin-left:2px;
+  color:var(--ultramar); font-weight:700; font-size:13.5px; cursor:pointer; text-decoration:underline;
+}
+
 .statsGrid{
   display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;
 }
@@ -65,13 +77,20 @@
 
 .raffleGrid{
   display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px;
+  align-items:start;
 }
 .raffleCard{
   background:#fff; border:1px solid var(--borde); border-radius:14px; padding:14px;
-  text-decoration:none; display:block;
 }
+.raffleCardLink{ text-decoration:none; display:block; }
 .raffleTitle{ font-size:13.5px; font-weight:700; color:var(--oscuro); margin:0 0 3px; }
 .rafflePrice{ font-size:12px; color:var(--gris); margin:0 0 10px; }
 .raffleBar{ height:5px; background:#f1efe8; border-radius:999px; overflow:hidden; }
 .raffleBarFill{ height:100%; background:var(--trebol); border-radius:999px; }
 .raffleEmpty{ color:var(--gris); font-size:13.5px; padding:20px 0; text-align:center; }
+
+.chatToggle{
+  margin-top:10px; width:100%; text-align:left;
+  background:var(--fondo); border:1px solid var(--borde); border-radius:8px;
+  padding:6px 10px; font-size:12px; font-weight:700; color:var(--ultramar); cursor:pointer;
+}

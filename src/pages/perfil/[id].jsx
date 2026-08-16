@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import ProfileView from "@/components/rifex/ProfileView";
 import styles from "@/styles/perfil.module.css";
+import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 
 export default function PerfilPublico() {
   const router = useRouter();
@@ -13,6 +14,15 @@ export default function PerfilPublico() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewer, setViewer] = useState({ token: null, id: null });
+
+  useEffect(() => {
+    (async () => {
+      const { data: sres } = await supabase.auth.getSession();
+      const session = sres?.session;
+      if (session) setViewer({ token: session.access_token, id: session.user.id });
+    })();
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -48,6 +58,8 @@ export default function PerfilPublico() {
               active={data.active}
               completed={data.completed}
               isOwner={false}
+              viewerToken={viewer.token}
+              viewerId={viewer.id}
             />
           )}
         </div>
