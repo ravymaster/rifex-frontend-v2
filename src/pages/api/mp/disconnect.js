@@ -12,11 +12,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  // ⚠️ Usa tu auth real en server (JWT/cookie). Temporalmente aceptamos x-user-id.
-  const userId = req.headers["x-user-id"];
-  if (!userId) {
-    return res.status(401).json({ ok: false, error: "unauthorized: missing x-user-id" });
+  // Identidad verificada contra Supabase: no se confía en headers que el
+  // cliente controla (antes aceptaba x-user-id directo, sin validar nada).
+  const authz = req.headers.authorization || "";
+  const token = authz.startsWith("Bearer ") ? authz.slice(7) : null;
+  if (!token) {
+    return res.status(401).json({ ok: false, error: "missing_auth" });
   }
+  const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+  if (uerr || !ures?.user) {
+    return res.status(401).json({ ok: false, error: "invalid_auth" });
+  }
+  const userId = ures.user.id;
 
   try {
     // Limpia filas con provider 'mp' o 'mercadopago'

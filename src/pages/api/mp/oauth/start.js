@@ -1,6 +1,7 @@
 // src/pages/api/mp/oauth/start.js
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 
 export const config = { runtime: "nodejs" };
 
@@ -47,14 +48,17 @@ export default async function handler(req, res) {
       return res.writeHead(302, { Location: "/panel/bancos?mp=missing_creds" }).end();
     }
 
-    // Recibimos uid/email desde el link (bancos.js ya los manda)
-    const creatorEmail = (req.query.email || "").toString().trim().toLowerCase() || null;
-    const uid = (req.query.uid || "").toString().trim() || null;
-
-    if (!uid) {
-      // Sin uid no sabemos a qué usuario asociar el token
-      return res.writeHead(302, { Location: "/panel/bancos?mp=missing_uid" }).end();
+    // Identidad verificada por sesión (cookie): antes se aceptaba ?uid= sin
+    // validar nada, lo que permitía asociar la cuenta de Mercado Pago de
+    // CUALQUIERA (uid ajeno + autorización propia) al usuario elegido por
+    // quien arma el link — un secuestro directo de los ingresos de la rifa.
+    const s = getSupabaseServer(req, res);
+    const { data: { user } = {} } = await s.auth.getUser();
+    if (!user) {
+      return res.writeHead(302, { Location: "/login?next=/panel/bancos" }).end();
     }
+    const uid = user.id;
+    const creatorEmail = (user.email || "").toString().trim().toLowerCase() || null;
 
     // Limpieza best-effort de states viejos (> 60 min)
     try {

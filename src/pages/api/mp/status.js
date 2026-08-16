@@ -16,10 +16,18 @@ export default async function handler(req, res) {
       return res.status(405).json({ connected: false, error: "method_not_allowed" });
     }
 
-    const uid = String(req.query.uid || "").trim();
-    if (!uid) {
-      return res.status(400).json({ connected: false, error: "missing_uid" });
+    // Identidad verificada: antes se aceptaba ?uid= sin sesión, lo que permitía
+    // consultar el email de Mercado Pago vinculado de cualquier usuario.
+    const authz = req.headers.authorization || "";
+    const token = authz.startsWith("Bearer ") ? authz.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ connected: false, error: "missing_auth" });
     }
+    const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+    if (uerr || !ures?.user) {
+      return res.status(401).json({ connected: false, error: "invalid_auth" });
+    }
+    const uid = ures.user.id;
 
     const { data, error } = await supabase
       .from("merchant_gateways")
