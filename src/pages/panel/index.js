@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
-import '@/styles/panel.module.css';
 
 // -------------------- UI helpers --------------------
 function PesoCLP({ cents }) {
@@ -364,7 +363,7 @@ export default function Panel() {
         )}
 
         {/* Filtros */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <div data-panel="filters" style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
           {['all', 'active', 'draft', 'closed', 'deleted'].map((s) => (
             <button
               key={s}
@@ -381,7 +380,7 @@ export default function Panel() {
               {s}
             </button>
           ))}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <div data-panel="search" style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -394,7 +393,7 @@ export default function Panel() {
         </div>
 
         {/* KPIs */}
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12, marginBottom: 16 }}>
+        <section data-panel="kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12, marginBottom: 16 }}>
           <Kpi label="Recaudado (CLP)"><PesoCLP cents={totals.revenueCents} /></Kpi>
           <Kpi label="Rifas activas">{totals.active}</Kpi>
           <Kpi label="Participantes (aprox.)">{totals.participants.toLocaleString('es-CL')}</Kpi>
@@ -470,6 +469,19 @@ export default function Panel() {
         /* ===== Panel: Mobile polish ===== */
         @media (max-width: 640px) {
           main.container { font-size: 17px; line-height: 1.45; }
+
+          main.container [data-panel="search"]{
+            margin-left: 0 !important;
+            width: 100%;
+          }
+          main.container [data-panel="search"] input{
+            flex: 1 1 auto;
+            min-width: 0 !important;
+          }
+
+          main.container [data-panel="kpis"]{
+            grid-template-columns: 1fr !important;
+          }
 
           main.container section[data-panel="list"]{
             border: none !important;
