@@ -478,7 +478,6 @@ export default function RifaDetalle() {
 
         <div className={styles.linksRow}>
           {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
-          <a className={styles.linkSecondary} href={`/chat/${id}`}>💬 Ir al chat de esta rifa</a>
           <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
         </div>
 

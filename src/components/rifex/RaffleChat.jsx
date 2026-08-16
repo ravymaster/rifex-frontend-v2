@@ -1,8 +1,9 @@
 // src/components/rifex/RaffleChat.jsx
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 import styles from "@/styles/raffleChat.module.css";
+
+const GUEST_NAME_KEY = "rifex_guest_chat_name";
 
 function timeLabel(iso) {
   try {
@@ -16,9 +17,16 @@ export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
+  const [guestName, setGuestName] = useState("");
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState("");
   const listRef = useRef(null);
+
+  useEffect(() => {
+    if (!viewerToken) {
+      setGuestName(localStorage.getItem(GUEST_NAME_KEY) || "");
+    }
+  }, [viewerToken]);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +51,14 @@ export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
         { event: "INSERT", schema: "public", table: "raffle_messages", filter: `raffle_id=eq.${raffleId}` },
         (payload) => {
           const row = payload.new;
-          setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, { ...row, nombre: "Usuario", avatar_url: null }]));
+          setMessages((prev) => (prev.some((m) => m.id === row.id)
+            ? prev
+            : [...prev, {
+                ...row,
+                is_guest: !row.user_id,
+                nombre: row.user_id ? "Usuario" : (row.guest_name || "Invitado"),
+                avatar_url: null,
+              }]));
         }
       )
       .subscribe();
@@ -58,13 +73,23 @@ export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
     e.preventDefault();
     const body = text.trim();
     if (!body || sending) return;
+    if (!viewerToken && !guestName.trim()) {
+      setErr("Poné tu nombre para poder escribir.");
+      return;
+    }
     setSending(true);
     setErr("");
     try {
+      const headers = { "Content-Type": "application/json" };
+      if (viewerToken) headers.Authorization = `Bearer ${viewerToken}`;
+      const payload = viewerToken ? { body } : { body, guest_name: guestName.trim() };
+
+      if (!viewerToken) localStorage.setItem(GUEST_NAME_KEY, guestName.trim());
+
       const res = await fetch(`/api/chat/${raffleId}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${viewerToken}` },
-        body: JSON.stringify({ body }),
+        headers,
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || "No se pudo enviar el mensaje.");
@@ -84,9 +109,10 @@ export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
           <p className={styles.empty}>Cargando mensajes…</p>
         ) : messages.length ? (
           messages.map((m) => (
-            <div key={m.id} className={`${styles.msg} ${m.user_id === viewerId ? styles.me : ""}`}>
+            <div key={m.id} className={`${styles.msg} ${m.user_id && m.user_id === viewerId ? styles.me : ""}`}>
               <div className={styles.meta}>
                 <span className={styles.name}>{m.nombre}</span>
+                {m.is_guest && <span className={styles.guestTag}>Invitado</span>}
                 <span className={styles.time}>{timeLabel(m.created_at)}</span>
               </div>
               <div className={styles.bubble}>{m.body}</div>
@@ -97,25 +123,29 @@ export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
         )}
       </div>
 
-      {viewerToken ? (
-        <form className={styles.inputBar} onSubmit={onSend}>
+      <form className={styles.inputBar} onSubmit={onSend}>
+        {!viewerToken && (
           <input
-            className="input"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Escribe un mensaje…"
-            maxLength={500}
+            className={`input ${styles.guestNameInput}`}
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            placeholder="Tu nombre"
+            maxLength={40}
             disabled={sending}
           />
-          <button className="btn btn-primary" disabled={sending || !text.trim()}>
-            {sending ? "…" : "Enviar"}
-          </button>
-        </form>
-      ) : (
-        <p className={styles.loginHint}>
-          <Link href="/login">Inicia sesión</Link> para participar en el chat de esta rifa.
-        </p>
-      )}
+        )}
+        <input
+          className="input"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Escribe un mensaje…"
+          maxLength={500}
+          disabled={sending}
+        />
+        <button className="btn btn-primary" disabled={sending || !text.trim()}>
+          {sending ? "…" : "Enviar"}
+        </button>
+      </form>
       {err && <p className={styles.err}>{err}</p>}
     </div>
   );

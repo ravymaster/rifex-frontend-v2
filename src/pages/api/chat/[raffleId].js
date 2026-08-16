@@ -1,6 +1,7 @@
 // src/pages/api/chat/[raffleId].js
-// Chat público por rifa. GET es abierto (cualquiera puede leer, como el resto
-// del perfil público); POST exige sesión real vía Bearer token.
+// Chat público por rifa. GET es abierto. POST acepta sesión real (Bearer)
+// o invitado con solo nombre — los mensajes de invitado siempre se marcan
+// como tal para que nadie los confunda con el creador verificado.
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -10,6 +11,7 @@ const supabase = createClient(
 );
 
 const MAX_LEN = 500;
+const MAX_GUEST_NAME_LEN = 40;
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -20,13 +22,13 @@ export default async function handler(req, res) {
     try {
       const { data: messages, error } = await supabase
         .from('raffle_messages')
-        .select('id, user_id, body, created_at')
+        .select('id, user_id, guest_name, body, created_at')
         .eq('raffle_id', raffleId)
         .order('created_at', { ascending: true })
         .limit(200);
       if (error) throw error;
 
-      const userIds = [...new Set((messages || []).map((m) => m.user_id))];
+      const userIds = [...new Set((messages || []).map((m) => m.user_id).filter(Boolean))];
       let authorsById = {};
       if (userIds.length) {
         const { data: profiles } = await supabase
@@ -41,8 +43,9 @@ export default async function handler(req, res) {
         user_id: m.user_id,
         body: m.body,
         created_at: m.created_at,
-        nombre: authorsById[m.user_id]?.nombre || 'Usuario',
-        avatar_url: authorsById[m.user_id]?.avatar_url || null,
+        is_guest: !m.user_id,
+        nombre: m.user_id ? (authorsById[m.user_id]?.nombre || 'Usuario') : (m.guest_name || 'Invitado'),
+        avatar_url: m.user_id ? (authorsById[m.user_id]?.avatar_url || null) : null,
       }));
 
       return res.status(200).json({ ok: true, messages: out });
@@ -53,16 +56,35 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const authz = req.headers.authorization || '';
-    const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
-    if (!token) return res.status(401).json({ ok: false, error: 'missing_auth' });
-
-    const { data: ures, error: uerr } = await supabase.auth.getUser(token);
-    if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
-
     const body = String(req.body?.body || '').trim();
     if (!body) return res.status(400).json({ ok: false, error: 'empty_message' });
     if (body.length > MAX_LEN) return res.status(400).json({ ok: false, error: 'message_too_long' });
+
+    const authz = req.headers.authorization || '';
+    const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+
+    let userId = null;
+    let authorNombre = null;
+    let authorAvatar = null;
+    let guestName = null;
+
+    if (token) {
+      const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+      if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+      userId = ures.user.id;
+
+      const { data: profile } = await supabase
+        .from('users_profile')
+        .select('nombre, avatar_url')
+        .eq('user_id', userId)
+        .maybeSingle();
+      authorNombre = profile?.nombre || 'Usuario';
+      authorAvatar = profile?.avatar_url || null;
+    } else {
+      guestName = String(req.body?.guest_name || '').trim().slice(0, MAX_GUEST_NAME_LEN);
+      if (!guestName) return res.status(400).json({ ok: false, error: 'missing_guest_name' });
+      authorNombre = guestName;
+    }
 
     try {
       const { data: raffle } = await supabase
@@ -74,23 +96,18 @@ export default async function handler(req, res) {
 
       const { data: inserted, error: ierr } = await supabase
         .from('raffle_messages')
-        .insert({ raffle_id: raffleId, user_id: ures.user.id, body })
+        .insert({ raffle_id: raffleId, user_id: userId, guest_name: guestName, body })
         .select('id, user_id, body, created_at')
         .single();
       if (ierr) throw ierr;
-
-      const { data: profile } = await supabase
-        .from('users_profile')
-        .select('nombre, avatar_url')
-        .eq('user_id', ures.user.id)
-        .maybeSingle();
 
       return res.status(201).json({
         ok: true,
         message: {
           ...inserted,
-          nombre: profile?.nombre || 'Usuario',
-          avatar_url: profile?.avatar_url || null,
+          is_guest: !userId,
+          nombre: authorNombre,
+          avatar_url: authorAvatar,
         },
       });
     } catch (e) {
