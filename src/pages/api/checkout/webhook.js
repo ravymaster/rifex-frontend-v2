@@ -5,6 +5,7 @@ import {
   sendBuyerApprovedEmail,
   sendCreatorSaleEmail,
 } from "../../../lib/mailer";
+import { drawWinner, notifyWinnerDrawn } from "../../../lib/drawWinner";
 
 // ==== Runtime + raw body ====
 export const config = { api: { bodyParser: false }, runtime: "nodejs" };
@@ -372,6 +373,20 @@ export default async function handler(req, res) {
             .eq("mp_payment_id", mpIdStr);
         } catch (e) {
           console.error("[mailer] creator email error:", { eventId, err: e?.message || e });
+        }
+      }
+
+      // Sorteo automático si esta venta dejó la rifa agotada (idempotente:
+      // solo se sortea una vez, sea cual sea el disparador que llegue primero).
+      if (raffleId) {
+        try {
+          const draw = await drawWinner(raffleId);
+          if (draw.isNew) {
+            await supabase.from("raffles").update({ status: "closed" }).eq("id", raffleId);
+            await notifyWinnerDrawn(raffleId, draw.winner);
+          }
+        } catch (e) {
+          console.error("[mp webhook] draw winner error:", { eventId, err: e?.message || e });
         }
       }
     }

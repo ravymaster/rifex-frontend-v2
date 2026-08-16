@@ -77,9 +77,10 @@ function EditModal({ open, onClose, raffle, onSaved }) {
     e.preventDefault();
     setBusy(true);
     try {
+      const { data: sres } = await supabase.auth.getSession();
       const r = await fetch(`/api/rifas/${raffle.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
         body: JSON.stringify({
           prize_type: prizeType,
           prize_amount_cents: prizeType === 'money' ? Math.round(Number(prizeAmount || 0) * 100) : null,
@@ -137,9 +138,10 @@ function CloseDialog({ open, onClose, raffle, onClosed }) {
   async function doClose() {
     setBusy(true);
     try {
+      const { data: sres } = await supabase.auth.getSession();
       const r = await fetch(`/api/rifas/${raffle.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
         body: JSON.stringify({ status: 'closed', end_date: raffle.end_date || new Date().toISOString().slice(0, 10) })
       });
       const j = await r.json();
@@ -156,7 +158,7 @@ function CloseDialog({ open, onClose, raffle, onClosed }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
         <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Terminar rifa</h3>
-        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>Al cerrar la rifa, no se podrán comprar más números.</p>
+        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>Al cerrar la rifa, no se podrán comprar más números. Si ya hay números vendidos, se sortea el ganador al instante y le llega un correo a él y a vos.</p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <ActionButton tone="ghost" onClick={onClose}>Cancelar</ActionButton>
           <ActionButton tone="danger" onClick={doClose}>{busy ? 'Cerrando…' : 'Terminar ahora'}</ActionButton>

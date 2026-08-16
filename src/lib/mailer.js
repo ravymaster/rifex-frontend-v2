@@ -285,6 +285,118 @@ export async function sendCreatorSaleEmail({
   });
 }
 
+export async function sendWinnerEmail({
+  to,
+  winnerName,
+  raffleTitle,
+  number,
+  raffleLink, // opcional
+}) {
+  const subject = `🏆 ¡Ganaste! — ${raffleTitle}`;
+  const link = raffleLink ? raffleLink : BASE ? `${BASE}` : "#";
+
+  const html = `
+  <div style="font-family:Inter,Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px">
+    <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+      <div style="padding:18px 20px;border-bottom:1px solid #eef2f7;background:linear-gradient(135deg,#1e3a8a 0%,#18a957 100%);color:#fff">
+        <h2 style="margin:0;font-size:18px;line-height:1.25">🏆 ¡Felicidades, ganaste! — ${escapeHtml(
+          raffleTitle
+        )}</h2>
+      </div>
+      <div style="padding:18px 20px;color:#0f172a">
+        ${
+          winnerName
+            ? `<p style="margin:0 0 10px">¡Felicidades, ${escapeHtml(winnerName)}!</p>`
+            : `<p style="margin:0 0 10px">¡Felicidades!</p>`
+        }
+        <p style="margin:0 0 12px">Tu número resultó ganador en la rifa <b>${escapeHtml(raffleTitle)}</b>.</p>
+        <table style="width:100%;border-collapse:collapse;margin:8px 0 14px">
+          <tbody>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;width:40%"><b>Número ganador</b></td>
+              <td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(String(number))}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin:0 0 14px">El organizador de la rifa se va a poner en contacto para coordinar la entrega del premio.</p>
+        <a href="${link}"
+           style="display:inline-block;padding:10px 14px;border-radius:10px;background:#111827;color:#fff;text-decoration:none;font-weight:700">
+           Ver rifa
+        </a>
+      </div>
+      <div style="padding:14px 20px;background:#f8fafc;border-top:1px solid #eef2f7;color:#64748b;font-size:12px">
+        Rifex · Este es un mensaje automático, no respondas a este email.
+      </div>
+    </div>
+  </div>`;
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text: `¡Ganaste! Rifa: ${raffleTitle}. Número ganador: ${number}. El organizador se va a poner en contacto para coordinar la entrega.`,
+  });
+}
+
+export async function sendCreatorWinnerEmail({
+  to,
+  raffleTitle,
+  number,
+  winnerName,
+  winnerEmail,
+  raffleLink, // opcional
+}) {
+  const subject = `🎉 Ya hay ganador — ${raffleTitle}`;
+  const link = raffleLink ? raffleLink : BASE ? `${BASE}` : "#";
+
+  const html = `
+  <div style="font-family:Inter,Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px">
+    <div style="max-width:640px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden">
+      <div style="padding:18px 20px;border-bottom:1px solid #eef2f7;background:linear-gradient(135deg,#1e3a8a 0%,#18a957 100%);color:#fff">
+        <h2 style="margin:0;font-size:18px;line-height:1.25">🎉 Ya hay ganador — ${escapeHtml(
+          raffleTitle
+        )}</h2>
+      </div>
+      <div style="padding:18px 20px;color:#0f172a">
+        <p style="margin:0 0 12px">Se sorteó el ganador de tu rifa. Coordiná con esta persona la entrega del premio.</p>
+        <table style="width:100%;border-collapse:collapse;margin:8px 0 14px">
+          <tbody>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;width:40%"><b>Número ganador</b></td>
+              <td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(String(number))}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb"><b>Ganador</b></td>
+              <td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(winnerName || "-")}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb"><b>Contacto</b></td>
+              <td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(winnerEmail || "-")}</td>
+            </tr>
+          </tbody>
+        </table>
+        <a href="${link}"
+           style="display:inline-block;padding:10px 14px;border-radius:10px;background:#111827;color:#fff;text-decoration:none;font-weight:700">
+           Ver rifa
+        </a>
+      </div>
+      <div style="padding:14px 20px;background:#f8fafc;border-top:1px solid #eef2f7;color:#64748b;font-size:12px">
+        Rifex · Este es un mensaje automático, no respondas a este email.
+      </div>
+    </div>
+  </div>`;
+
+  return sendEmail({
+    to,
+    subject,
+    html,
+    text:
+      `Ya hay ganador en ${raffleTitle}. ` +
+      `Número: ${number}. Ganador: ${winnerName || "-"} (${winnerEmail || "-"}). ` +
+      `Coordiná la entrega del premio.`,
+  });
+}
+
 // ----------------------------------------------------------
 // Export utilitarios si los usas en otros módulos
 // ----------------------------------------------------------

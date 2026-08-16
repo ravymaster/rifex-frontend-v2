@@ -4,6 +4,7 @@ import {
   sendBuyerApprovedEmail,
   sendCreatorSaleEmail,
 } from "../../../lib/mailer";
+import { drawWinner, notifyWinnerDrawn } from "../../../lib/drawWinner";
 
 export const config = { runtime: "nodejs" };
 
@@ -184,6 +185,19 @@ async function processApproved(mp, fetchedVia) {
       await supabase.from("payments").update({ emailed_creator: true }).eq("mp_payment_id", mpIdStr);
     } catch (e) {
       console.error("[reconcile] creator email error:", e?.message || e);
+    }
+  }
+
+  // Sorteo automático si esta venta dejó la rifa agotada (idempotente).
+  if (raffleId) {
+    try {
+      const draw = await drawWinner(raffleId);
+      if (draw.isNew) {
+        await supabase.from("raffles").update({ status: "closed" }).eq("id", raffleId);
+        await notifyWinnerDrawn(raffleId, draw.winner);
+      }
+    } catch (e) {
+      console.error("[reconcile] draw winner error:", e?.message || e);
     }
   }
 
