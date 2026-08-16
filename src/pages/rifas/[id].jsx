@@ -270,6 +270,11 @@ export default function RifaDetalle() {
     return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
   }, [raffle?.prize_amount_cents]);
 
+  const selectedTotalCLP = useMemo(() => {
+    const n = (Number(raffle?.price_cents || 0) / 100) * selected.length;
+    return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+  }, [raffle?.price_cents, selected.length]);
+
   function isSelected(n) { return selected.includes(n); }
   function toggleNumber(n, isFree) {
     if (!isFree) return;
@@ -445,13 +450,14 @@ export default function RifaDetalle() {
 
         {/* Encabezado */}
         <div className={styles.head}>
+          <span className={styles.statusPill}>● {raffle.status || "activa"}</span>
           <h1 className={styles.title}>{titleCap}</h1>
           <p className={styles.sub}>{raffle.description || ""}</p>
         </div>
 
         {/* Info top */}
         <div className={styles.topInfo}>
-          <div className={styles.infoItem}>
+          <div className={`${styles.infoItem} ${styles.infoItemHi}`}>
             <div className={styles.infoLabel}>Premio</div>
             <div className={styles.infoValue}>{prizeCLP}</div>
             <div className={styles.infoSub}>{raffle.prize_description || "—"}</div>
@@ -464,17 +470,24 @@ export default function RifaDetalle() {
           <div className={styles.infoItem}>
             <div className={styles.infoLabel}>Termina</div>
             <div className={styles.infoValue}>{raffle.end_date ? new Date(raffle.end_date).toLocaleDateString("es-CL") : "—"}</div>
-            <div className={styles.infoSub}>Estado: <b>{raffle.status || "activa"}</b></div>
+            <div className={styles.infoSub}>{" "}</div>
           </div>
-          <div className={styles.linksCol}>
-            <a className={styles.linkSecondary} href={`/chat/${id}`}>Ir al chat de esta rifa</a>
-            <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">Términos de la rifa</a>
-          </div>
+        </div>
+
+        <div className={styles.linksRow}>
+          <a className={styles.linkSecondary} href={`/chat/${id}`}>💬 Ir al chat de esta rifa</a>
+          <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
         </div>
 
         {/* Grid de números */}
         <div className={styles.numbersWrap} style={{ position: "relative", zIndex: 1 }}>
-          <h3 className={styles.numbersTitle}>Números disponibles</h3>
+          <div className={styles.numbersHead}>
+            <h3 className={styles.numbersTitle}>Números disponibles</h3>
+            <div className={styles.legend}>
+              <span className={styles.legendItem}><span className={styles.legendDot} style={{ background: "#23B6C6" }} />Disponible</span>
+              <span className={styles.legendItem}><span className={styles.legendDot} style={{ background: "#94a3b8" }} />Vendido</span>
+            </div>
+          </div>
           <div className={styles.numbersBlock}>
             <div className={styles.numsGrid}>
               {tickets.map((t) => {
@@ -609,7 +622,9 @@ export default function RifaDetalle() {
               onClick={() => setShowBuyer(true)}
               style={{ position: "relative", zIndex: 1 }}
             >
-              {selected.length === 0 ? "Comprar (selecciona)" : `Comprar (${selected.length})`}
+              {selected.length === 0
+                ? "Selecciona un número para comprar"
+                : `Comprar ${selected.length} ${selected.length === 1 ? "número" : "números"} — ${selectedTotalCLP}`}
             </button>
           </div>
         )}
