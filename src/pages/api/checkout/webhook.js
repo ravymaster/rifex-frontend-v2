@@ -124,36 +124,6 @@ export default async function handler(req, res) {
     console.log("[mp webhook] HEADERS:", h);
     console.log("[mp webhook] RAW:", mask(raw.toString("utf8"), 512));
 
-    // ==== Validación de firma (relajada para simulación) ====
-    try {
-      const secret = process.env.MP_WEBHOOK_SECRET;
-      const signature = req.headers["x-signature"];
-      const reqId = req.headers["x-request-id"];
-
-      if (secret && signature && reqId) {
-        // signature: "ts=...,v1=..."
-        const parts = Object.fromEntries(
-          String(signature)
-            .split(",")
-            .map((kv) => kv.trim().split("="))
-        );
-        const signed = `id:${reqId};ts:${parts.ts};`;
-        const digest = crypto.createHmac("sha256", secret).update(signed).digest("hex");
-
-        if (digest !== parts.v1) {
-          // ⚠️ En simulación muchas veces no viene firma correcta: NO cortar con 400.
-          console.warn("[mp webhook] firma inválida (ignorada para simulación)", {
-            expected: digest,
-            got: parts.v1,
-            ts: parts.ts,
-          });
-        }
-      }
-    } catch (e) {
-      // No bloquear por error de parsing/validación en tests
-      console.warn("[mp webhook] error validando firma (continuo):", e?.message || e);
-    }
-
     // ==== Parse del cuerpo ====
     let body = safeJsonParse(raw);
     if (!body) {
@@ -179,6 +149,42 @@ export default async function handler(req, res) {
     }
 
     eventId = buildEventId(req, paymentId);
+
+    // ==== Validación de firma ====
+    // Manifiesto real de MP: "id:{data.id};request-id:{x-request-id};ts:{ts};"
+    // (la versión anterior omitía "request-id:" y usaba x-request-id como id,
+    // así que nunca validaba nada real, ni en producción). Solo rechazamos
+    // cuando la firma VINO y no calza — si falta directamente (p.ej. el
+    // simulador del dashboard de MP no siempre la manda), seguimos: el pago
+    // igual se vuelve a consultar contra la API real de MP más abajo, nunca
+    // se confía en el body del webhook por sí solo.
+    try {
+      const secret = process.env.MP_WEBHOOK_SECRET;
+      const signature = req.headers["x-signature"];
+      const reqId = req.headers["x-request-id"];
+
+      if (secret && signature && reqId) {
+        const parts = Object.fromEntries(
+          String(signature)
+            .split(",")
+            .map((kv) => kv.trim().split("="))
+        );
+        const signed = `id:${paymentId};request-id:${reqId};ts:${parts.ts};`;
+        const digest = crypto.createHmac("sha256", secret).update(signed).digest("hex");
+
+        if (digest !== parts.v1) {
+          console.error("[mp webhook] firma inválida — rechazado", {
+            eventId,
+            expected: digest,
+            got: parts.v1,
+            ts: parts.ts,
+          });
+          return res.status(401).json({ ok: false, error: "invalid_signature" });
+        }
+      }
+    } catch (e) {
+      console.warn("[mp webhook] error validando firma (continuo):", e?.message || e);
+    }
 
     // Hint de mp_user_id/collector para probar token del vendedor
     const hintMpUserId =
