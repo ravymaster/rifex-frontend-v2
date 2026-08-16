@@ -1,46 +1,40 @@
-// src/pages/perfil.js
+// src/pages/perfil/[id].jsx
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
 import ProfileView from "@/components/rifex/ProfileView";
 import styles from "@/styles/perfil.module.css";
-import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 
-export default function Perfil() {
+export default function PerfilPublico() {
   const router = useRouter();
+  const { id } = router.query;
 
-  const [token, setToken] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!id) return;
     (async () => {
-      const { data: sres } = await supabase.auth.getSession();
-      const session = sres?.session;
-      if (!session) {
-        router.push("/login?next=/perfil");
-        return;
-      }
-      setToken(session.access_token);
+      setLoading(true);
       try {
-        const r = await fetch(`/api/perfil/${session.user.id}`);
+        const r = await fetch(`/api/perfil/${id}`);
         const j = await r.json();
-        if (!r.ok || !j.ok) throw new Error(j?.error || "No se pudo cargar tu perfil.");
+        if (!r.ok || !j.ok) throw new Error(j?.error || "No se pudo cargar el perfil.");
         setData(j);
         setError(null);
       } catch (e) {
-        setError(e?.message || "No se pudo cargar tu perfil.");
+        setError(e?.message || "No se pudo cargar el perfil.");
       } finally {
         setLoading(false);
       }
     })();
-  }, [router]);
+  }, [id]);
 
   return (
     <>
-      <Head><title>Mi perfil — Rifex</title></Head>
+      <Head><title>{`${data?.profile?.nombre || "Perfil"} — Rifex`}</title></Head>
       <section className={styles.page}>
         <div className="container" style={{ maxWidth: 760 }}>
           {loading ? (
@@ -53,9 +47,7 @@ export default function Perfil() {
               stats={data.stats}
               active={data.active}
               completed={data.completed}
-              isOwner
-              token={token}
-              onProfileUpdate={(p) => setData((d) => ({ ...d, profile: p }))}
+              isOwner={false}
             />
           )}
         </div>
@@ -64,4 +56,4 @@ export default function Perfil() {
   );
 }
 
-Perfil.getLayout = (page) => <Layout>{page}</Layout>;
+PerfilPublico.getLayout = (page) => <Layout>{page}</Layout>;

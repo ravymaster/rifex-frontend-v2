@@ -20,7 +20,7 @@ export default function Post() {
   return (
     <>
       <Head>
-        <title>{post.title} — Blog Rifex</title>
+        <title>{`${post.title} — Blog Rifex`}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 

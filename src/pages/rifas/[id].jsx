@@ -333,6 +333,8 @@ export default function RifaDetalle() {
     );
   }
 
+  const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
+
   // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA
   const hasAnyModalOrOverlay =
     !!showIntro || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
@@ -392,7 +394,7 @@ export default function RifaDetalle() {
 
   return (
     <div className={styles.page} style={pageIsolated}>
-      <Head><title>{titleCap || "Rifa"} — Rifex</title></Head>
+      <Head><title>{`${titleCap || "Rifa"} — Rifex`}</title></Head>
 
       {/* Overlay spinner durante la redirección a MP */}
       {redirecting && (
@@ -475,6 +477,7 @@ export default function RifaDetalle() {
         </div>
 
         <div className={styles.linksRow}>
+          {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
           <a className={styles.linkSecondary} href={`/chat/${id}`}>💬 Ir al chat de esta rifa</a>
           <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
         </div>
