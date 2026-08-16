@@ -96,9 +96,17 @@ export default function Bancos({ ssrUser, ssrBank }) {
     return qs ? `${base}?${qs}` : base;
   }, [user]);
 
-  async function refreshMpStatus(uid) {
+  async function refreshMpStatus() {
     try {
-      const r = await fetch(`/api/mp/status?uid=${encodeURIComponent(uid)}`);
+      const { data: sres } = await supabase.auth.getSession();
+      const token = sres?.session?.access_token;
+      if (!token) {
+        setMpConnected(false);
+        return;
+      }
+      const r = await fetch("/api/mp/status", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const j = await r.json();
       setMpConnected(!!j?.connected);
     } catch {
@@ -114,9 +122,38 @@ export default function Bancos({ ssrUser, ssrBank }) {
           setMpConnected(false);
           return;
         }
-        await refreshMpStatus(user.id);
+        await refreshMpStatus();
       } finally {
         setCheckingMp(false);
+      }
+    })();
+  }, [user?.id]);
+
+  // ------- Ganancias -------
+  const [earnings, setEarnings] = useState(null);
+  const [loadingEarnings, setLoadingEarnings] = useState(true);
+  const clp = (cents) => Math.round((cents || 0) / 100).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+
+  useEffect(() => {
+    (async () => {
+      if (!user?.id) {
+        setLoadingEarnings(false);
+        return;
+      }
+      setLoadingEarnings(true);
+      try {
+        const { data: sres } = await supabase.auth.getSession();
+        const token = sres?.session?.access_token;
+        if (!token) return;
+        const r = await fetch("/api/panel/earnings", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const j = await r.json();
+        if (j.ok) setEarnings(j);
+      } catch {
+        setEarnings(null);
+      } finally {
+        setLoadingEarnings(false);
       }
     })();
   }, [user?.id]);
@@ -174,8 +211,6 @@ export default function Bancos({ ssrUser, ssrBank }) {
     }
   }
 
-  const flowConnected = true;
-
   return (
     <>
       <Head>
@@ -193,6 +228,50 @@ export default function Bancos({ ssrUser, ssrBank }) {
               </p>
             </div>
           </header>
+
+          <section className={styles.card} style={{ marginBottom: 16 }}>
+            <h2 className={styles.cardTitle}>Ganancias</h2>
+            <p className={styles.cardSub}>Lo que has vendido, tu comisión y lo que te queda neto.</p>
+
+            {loadingEarnings ? (
+              <p>Cargando…</p>
+            ) : !earnings || earnings.totals.sales_count === 0 ? (
+              <p style={{ color: "var(--gris)" }}>Todavía no tienes ventas aprobadas.</p>
+            ) : (
+              <>
+                <div className={styles.statsGrid}>
+                  <div className={styles.statTile}>
+                    <div className={styles.statLabel}>Vendido (bruto)</div>
+                    <div className={styles.statValue}>{clp(earnings.totals.gross_cents)}</div>
+                  </div>
+                  <div className={styles.statTile}>
+                    <div className={styles.statLabel}>Comisión Rifex</div>
+                    <div className={styles.statValue}>{clp(earnings.totals.fee_cents)}</div>
+                  </div>
+                  <div className={styles.statTile}>
+                    <div className={styles.statLabel}>Neto recibido</div>
+                    <div className={styles.statValue} data-tone="accent">{clp(earnings.totals.net_cents)}</div>
+                  </div>
+                </div>
+
+                {earnings.recent?.length > 0 && (
+                  <div className={styles.earningsList}>
+                    {earnings.recent.map((s, i) => (
+                      <div key={i} className={styles.earningsRow}>
+                        <div>
+                          <div className={styles.earningsRowTitle}>{s.raffle_title}</div>
+                          <div className={styles.earningsRowSub}>
+                            N.º {s.numbers.join(", ")} · {new Date(s.created_at).toLocaleDateString("es-CL")}
+                          </div>
+                        </div>
+                        <div className={styles.earningsRowNet}>+{clp(s.net_cents)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </section>
 
           <div className={styles.grid}>
             {/* Datos bancarios (NO TOCAR) */}
@@ -343,18 +422,20 @@ export default function Bancos({ ssrUser, ssrBank }) {
                         if (!confirm("¿Seguro que deseas desconectar tu cuenta de Mercado Pago?")) return;
                         try {
                           setMpBusy(true);
+                          const { data: sres } = await supabase.auth.getSession();
+                          const token = sres?.session?.access_token;
+                          if (!token) throw new Error("Debes iniciar sesión.");
                           const r = await fetch("/api/mp/disconnect", {
                             method: "POST",
                             headers: {
                               "Content-Type": "application/json",
-                              // ❗ Quita este header cuando tu API ya lea el user desde auth
-                              "x-user-id": user.id,
+                              Authorization: `Bearer ${token}`,
                             },
                           });
                           const j = await r.json();
                           if (!j.ok) throw new Error(j.error || "No se pudo desconectar");
 
-                          await refreshMpStatus(user.id);
+                          await refreshMpStatus();
                           alert("Cuenta de Mercado Pago desconectada. Puedes volver a conectar cuando quieras.");
                         } catch (err) {
                           alert(err.message || "Error al desconectar.");
@@ -365,44 +446,6 @@ export default function Bancos({ ssrUser, ssrBank }) {
                     >
                       {mpBusy ? "Desconectando…" : "Desconectar"}
                     </button>
-                  </div>
-                </div>
-
-                {/* Flow (sin cambios) */}
-                <div className={styles.providerCard}>
-                  <div className={styles.providerHead}>
-                    <div className={styles.providerInfo}>
-                      <div className={styles.providerLogo}>F</div>
-                      <div>
-                        <div className={styles.providerName}>Flow</div>
-                        <div className={styles.providerDesc}>
-                          Pagos locales y link de pago.
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      className={styles.status}
-                      data-state={flowConnected ? "ok" : "off"}
-                    >
-                      {flowConnected ? "Conectado" : "No conectado"}
-                    </span>
-                  </div>
-
-                  <div className={styles.providerActions}>
-                    {flowConnected ? (
-                      <>
-                        <a className={styles.btnManage} href="/panel/flow">
-                          Gestionar
-                        </a>
-                        <button className={styles.btnDanger} disabled>
-                          Desconectar
-                        </button>
-                      </>
-                    ) : (
-                      <a className={styles.btnConnect} href="/panel/flow">
-                        Conectar
-                      </a>
-                    )}
                   </div>
                 </div>
               </div>

@@ -48,8 +48,8 @@ export default function PreguntasFrecuentes() {
         <section>
           <h2>¿Cuánto cobra Rifex?</h2>
           <p>
-            Depende del plan del creador (Gratis, Básico o Pro), más la comisión de la pasarela de pago.
-            El detalle de cada plan está en los <a href="/terminos#creador">Términos del Creador</a>.
+            Un 7% sobre cada número vendido, descontado automáticamente por Mercado Pago al momento del pago —
+            no hay planes ni suscripciones. Más detalle en los <a href="/terminos#creador">Términos del Creador</a>.
           </p>
         </section>
 

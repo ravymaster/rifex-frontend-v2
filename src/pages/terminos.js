@@ -8,7 +8,7 @@ export default function Terminos() {
       <Head><title>Términos y Condiciones — Rifex</title></Head>
       <main style={{maxWidth:900, margin:"0 auto", padding:"24px 16px"}}>
         <h1 style={{marginBottom:8}}>Términos y Condiciones</h1>
-        <p style={{color:"#6B7280"}}>Última actualización: 10/09/2025</p>
+        <p style={{color:"#6B7280"}}>Última actualización: 15/08/2026</p>
 
         <hr style={{margin:"16px 0"}}/>
 
@@ -26,7 +26,7 @@ export default function Terminos() {
             <li><strong>Qué es Rifex.</strong> Rifex (rifex.pro) conecta a <em>creadores</em> con <em>compradores</em> para rifas. Salvo indicación expresa, Rifex no es propietario del premio ni el organizador.</li>
             <li><strong>Requisitos.</strong> Mayor de 18 años; datos veraces; no usar medios de pago ajenos sin autorización.</li>
             <li><strong>Estados de números.</strong> Disponible, Reservado, Vendido. Si hay colisión, prevalece el pago aprobado primero por la pasarela.</li>
-            <li><strong>Pagos.</strong> Se procesan con pasarelas (p. ej., Mercado Pago) y aplican sus comisiones/condiciones. Rifex puede cobrar cargo de servicio según plan del creador.</li>
+            <li><strong>Pagos.</strong> Se procesan con pasarelas (p. ej., Mercado Pago) y aplican sus comisiones/condiciones. Rifex cobra una comisión del 7% sobre cada número vendido, descontada automáticamente por la pasarela al momento del pago.</li>
             <li><strong>Premio y sorteo.</strong> Definidos por el creador y visibles en la ficha; debe publicar evidencia del sorteo. En “Depósito por Rifex”, Rifex transfiere el premio en dinero en el plazo informado.</li>
             <li><strong>Entrega del premio.</strong> Dinero: transferencia. Físico: a convenir / retiro / envío pagado / envío incluido (según rifa).</li>
             <li><strong>Reembolsos y disputas.</strong> Cargo duplicado o error: gestionar con pasarela y notificar a Rifex. Incumplimiento del creador: abre ticket con evidencia; Rifex puede sancionar al creador, sin garantizar reembolso fuera de lo exigido por ley/pasarela.</li>
@@ -42,13 +42,7 @@ export default function Terminos() {
           <h2>Términos del Creador</h2>
           <ol>
             <li><strong>Responsabilidades.</strong> Describir claramente premio, precio, cupos, fechas, reglas y modalidad de entrega/pago; cumplir normativa; publicar evidencia de sorteo y entrega/pago.</li>
-            <li><strong>Planes y flujo.</strong>
-              <ul>
-                <li><strong>Gratis:</strong> Rifex cobra y deposita en 3–5 días hábiles; 7% Rifex + pasarela (3–5,5%); 1 rifa limitada.</li>
-                <li><strong>Básico:</strong> 3% Rifex + pasarela; 2–3 rifas/mes; transferencias en 48 h hábiles.</li>
-                <li><strong>Pro:</strong> 0% Rifex (solo pasarela); rifas ilimitadas; pagos directos en ~24 h según pasarela.</li>
-              </ul>
-            </li>
+            <li><strong>Comisión y flujo de pago.</strong> No hay planes ni suscripciones: cualquier creador puede publicar rifas ilimitadas conectando su propia cuenta de Mercado Pago. Rifex cobra un 7% de comisión sobre cada número vendido, descontado automáticamente en cada pago aprobado; el resto se acredita directo en la cuenta del creador, más la comisión propia de la pasarela.</li>
             <li><strong>Prohibiciones.</strong> Premios ilícitos/restringidos, publicidad engañosa, infracción de marcas/copyright, manipulación del sorteo.</li>
             <li><strong>Auditoría.</strong> Rifex puede solicitar comprobantes; la falta puede implicar suspensión.</li>
             <li><strong>Fraude y chargebacks.</strong> Rifex puede pausar, retener fondos, cancelar transacciones y bloquear cuentas.</li>
@@ -64,7 +58,7 @@ export default function Terminos() {
           <ol>
             <li><strong>Cuenta y acceso.</strong> Mantén credenciales seguras; Rifex puede suspender ante violaciones.</li>
             <li><strong>Servicio.</strong> Infraestructura técnica para rifas, pagos, paneles y comunicaciones; puede cambiar o interrumpirse por mantenimiento o fuerza mayor.</li>
-            <li><strong>Tarifas vigentes.</strong> Ver sección de planes en estos términos (Gratis/Básico/Pro). Pueden actualizarse con aviso razonable.</li>
+            <li><strong>Tarifas vigentes.</strong> Comisión única del 7% por número vendido (ver sección de Comisión y flujo de pago en los Términos del Creador). Puede actualizarse con aviso razonable.</li>
             <li><strong>Propiedad intelectual.</strong> Software y marcas de Rifex; contenido de rifas pertenece al creador; Rifex obtiene licencia para mostrarlo en la plataforma.</li>
             <li><strong>Limitación de responsabilidad.</strong> Sin responsabilidad por daños indirectos o lucro cesante; tope: comisiones pagadas a Rifex en los últimos 3 meses, cuando legalmente aplique.</li>
             <li><strong>Ley y jurisdicción.</strong> Chile; tribunales del domicilio de Rifex, salvo normas imperativas de consumo.</li>

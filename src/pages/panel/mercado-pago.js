@@ -110,9 +110,9 @@ export default function MercadoPagoSetup() {
           Asistente paso a paso para obtener tus claves y probar un pago en <b>Sandbox</b>.
         </p>
 
-        {/* Estado del plan / integración */}
+        {/* Estado de la integración */}
         <div className={styles.planBadge}>
-          Tu plan actual es <b>free</b>. Esta integración completa está disponible en <b>Plan Pro</b>.
+          Rifex cobra un 7% de comisión sobre cada número vendido, descontado automáticamente por Mercado Pago. Sin planes ni suscripciones.
         </div>
 
         {/* Paso 1 */}

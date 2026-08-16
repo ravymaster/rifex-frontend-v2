@@ -61,14 +61,13 @@ export default function CrearRifaPage() {
   const [totalNumbers, setTotalNumbers] = useState("");
   const [description, setDescription] = useState("");
 
-  // Plan/temática
-  const [plan, setPlan] = useState("free"); // free | pro
+  // Temática
   const [theme, setTheme] = useState("mixto");
 
   // Premio
   const [prizeType, setPrizeType] = useState("money"); // money | physical
   const [prizeAmount, setPrizeAmount] = useState("");  // CLP
-  const [payoutMethod, setPayoutMethod] = useState("rifex_transfer"); // rifex_transfer | creator_direct
+  const [payoutMethod, setPayoutMethod] = useState("creator_direct"); // rifex_transfer | creator_direct
   const [deliveryMethod, setDeliveryMethod] = useState("a_convenir");
   const [prizePhotos, setPrizePhotos] = useState([]); // File[]
 
@@ -80,13 +79,6 @@ export default function CrearRifaPage() {
   // Términos
   const [okBuyer, setOkBuyer] = useState(false);
   const [okCreator, setOkCreator] = useState(false);
-
-  const proLocked = plan === "free";
-
-  useEffect(() => {
-    if (proLocked && theme !== "mixto") setTheme("mixto");
-    if (proLocked && payoutMethod === "creator_direct") setPayoutMethod("rifex_transfer");
-  }, [proLocked, theme, payoutMethod]);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -124,7 +116,7 @@ export default function CrearRifaPage() {
         total_numbers: Number(totalNumbers),
         description: description || null,
 
-        plan,
+        plan: "free",
         theme,
         prize_type: prizeType,
         prize_amount_cents: prizeType === "money" ? Math.round(Number(prizeAmount || 0) * 100) : null,
@@ -190,36 +182,26 @@ export default function CrearRifaPage() {
                 <textarea className="rf-pill" rows={4} placeholder="Descripción (opcional)" value={description} onChange={e=>setDescription(e.target.value)} />
               </div>
 
-              {/* Plan + Temática */}
+              {/* Temática */}
               <div className={styles.section}>
-                <div className={styles.sectionTitle}>Plan y temática</div>
-                <div className="rf-toggle" style={{ marginBottom: 16 }}>
-                  <button type="button" className={`rf-toggle-btn${plan==="free" ? " active" : ""}`} onClick={()=>setPlan("free")}>Gratis</button>
-                  <button type="button" className={`rf-toggle-btn${plan==="pro" ? " active" : ""}`} onClick={()=>setPlan("pro")}>Pro</button>
-                </div>
-
+                <div className={styles.sectionTitle}>Temática</div>
                 <div className={styles.themeGrid}>
-                  {THEMES.map(t => {
-                    const locked = t.id !== "mixto" && proLocked;
-                    return (
-                      <button
-                        type="button"
-                        key={t.id}
-                        className={styles.themeCard}
-                        data-active={theme === t.id}
-                        data-locked={locked}
-                        onClick={() => !locked && setTheme(t.id)}
-                        aria-pressed={theme === t.id}
-                      >
-                        <div className={styles.themeIcon}>{t.icon}</div>
-                        <div className={styles.themeLabel}>{t.label}</div>
-                        {locked && <span className={styles.themeLockBadge}>🔒</span>}
-                      </button>
-                    );
-                  })}
+                  {THEMES.map(t => (
+                    <button
+                      type="button"
+                      key={t.id}
+                      className={styles.themeCard}
+                      data-active={theme === t.id}
+                      onClick={() => setTheme(t.id)}
+                      aria-pressed={theme === t.id}
+                    >
+                      <div className={styles.themeIcon}>{t.icon}</div>
+                      <div className={styles.themeLabel}>{t.label}</div>
+                    </button>
+                  ))}
                 </div>
                 <p className={styles.fieldLabel} style={{ fontWeight: 400, color: "var(--gris)" }}>
-                  Con plan Gratis solo puedes usar la temática Mixto. Pasa a Pro para desbloquear el resto.
+                  Elige el set de íconos para los números de tu rifa.
                 </p>
               </div>
 
@@ -240,8 +222,8 @@ export default function CrearRifaPage() {
                     <div className={styles.field}>
                       <span className={styles.fieldLabel}>Método de pago del premio</span>
                       <select className="rf-pill" value={payoutMethod} onChange={e=>setPayoutMethod(e.target.value)}>
-                        <option value="rifex_transfer">Depósito por Rifex (Plan Gratis)</option>
-                        <option value="creator_direct" disabled={proLocked}>Transferencia directa del creador (Pro)</option>
+                        <option value="creator_direct">Transferencia directa del creador</option>
+                        <option value="rifex_transfer">Depósito por Rifex</option>
                       </select>
                     </div>
                   </>
