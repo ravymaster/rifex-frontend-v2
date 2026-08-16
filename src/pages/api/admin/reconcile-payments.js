@@ -85,6 +85,13 @@ async function processApproved(mp, fetchedVia) {
   const amount_cents = Math.round(Number(mp?.transaction_amount || 0) * 100);
   const mpIdStr = String(mp?.id);
 
+  const applicationFee = Array.isArray(mp?.fee_details)
+    ? mp.fee_details.find((f) => f?.type === "application_fee")
+    : null;
+  const marketplace_fee_cents = applicationFee
+    ? Math.round(Number(applicationFee.amount || 0) * 100)
+    : null;
+
   // idempotente
   const { data: payRow } = await supabase
     .from("payments")
@@ -99,6 +106,7 @@ async function processApproved(mp, fetchedVia) {
         status,
         status_detail: mp?.status_detail || null,
         amount_cents,
+        marketplace_fee_cents,
         via: fetchedVia,
       },
       { onConflict: "mp_payment_id" }

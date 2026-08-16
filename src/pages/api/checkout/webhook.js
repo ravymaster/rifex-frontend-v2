@@ -257,6 +257,15 @@ export default async function handler(req, res) {
     const amount_cents = Math.round(Number(mp?.transaction_amount || 0) * 100);
     const mpIdStr = String(mp?.id || paymentId);
 
+    // Comisión Rifex real, tal como la registró MP en el pago (fee_details),
+    // no recalculada acá — así el log queda fiel a lo que MP efectivamente cobró.
+    const applicationFee = Array.isArray(mp?.fee_details)
+      ? mp.fee_details.find((f) => f?.type === "application_fee")
+      : null;
+    const marketplace_fee_cents = applicationFee
+      ? Math.round(Number(applicationFee.amount || 0) * 100)
+      : null;
+
     // ==== Upsert en payments (idempotente) ====
     const { data: payRow, error: payErr } = await supabase
       .from("payments")
@@ -271,6 +280,7 @@ export default async function handler(req, res) {
           status,
           status_detail,
           amount_cents,
+          marketplace_fee_cents,
           via: fetched.via, // plataforma o seller
         },
         { onConflict: "mp_payment_id" }
