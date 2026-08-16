@@ -6,13 +6,18 @@ import Layout from '@/components/Layout';
 import styles from '@/styles/login.module.css';
 
 /* Botón Google */
-function GoogleButton({ label = 'Continuar con Google', className = '', nextPath = '/panel' }) {
+function GoogleButton({ label = 'Continuar con Google', className = '' }) {
   async function signInGoogle() {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    // Se lee directo de la URL (no de router.query) para no depender de que
+    // React ya haya hidratado — si no, el click puede pisar el valor con el
+    // default antes de que el next real esté disponible.
+    const raw = new URLSearchParams(window.location.search).get('next') || '';
+    const nextPath = raw.startsWith('/') ? raw : '/panel';
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${origin}${nextPath}`,
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         queryParams: { prompt: 'select_account' },
       },
     });
@@ -168,7 +173,7 @@ export default function Login() {
 
               <div className={styles.oauthArea}>
                 <div className={styles.hr}><span>o</span></div>
-                <GoogleButton label="Continuar con Google" className={styles.oauthBtn} nextPath={nextPath} />
+                <GoogleButton label="Continuar con Google" className={styles.oauthBtn} />
               </div>
             </section>
           </div>
