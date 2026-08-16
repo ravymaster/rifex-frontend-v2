@@ -8,7 +8,6 @@ import { getSupabaseServer } from "@/lib/supabaseServer";
 
 /**
  * SSR: no redirige si no hay sesión (evita loops).
- * Trae el usuario y, si existe, su bank_account.
  */
 export async function getServerSideProps(ctx) {
   const s = getSupabaseServer(ctx.req, ctx.res);
@@ -21,18 +20,6 @@ export async function getServerSideProps(ctx) {
     user = null;
   }
 
-  let bank = null;
-  if (user?.id) {
-    const { data: row } = await s
-      .from("bank_accounts")
-      .select(
-        "holder_name, tax_id, bank_name, account_type, account_number, payout_email"
-      )
-      .eq("user_id", user.id)
-      .maybeSingle();
-    bank = row || null;
-  }
-
   return {
     props: {
       ssrUser: user
@@ -41,12 +28,11 @@ export async function getServerSideProps(ctx) {
             email: user.email || null,
           }
         : null,
-      ssrBank: bank || null,
     },
   };
 }
 
-export default function Bancos({ ssrUser, ssrBank }) {
+export default function Bancos({ ssrUser }) {
   // ------- auth state (hidrata desde SSR y revalida en CSR) -------
   const [user, setUser] = useState(ssrUser);
   const [loadingUser, setLoadingUser] = useState(!ssrUser);
@@ -63,24 +49,6 @@ export default function Bancos({ ssrUser, ssrBank }) {
       }
     })();
   }, [ssrUser]);
-
-  // ------- form state (NO TOCAR) -------
-  const [holderName, setHolderName] = useState(ssrBank?.holder_name || "");
-  const [taxId, setTaxId] = useState(ssrBank?.tax_id || "");
-  const [bankName, setBankName] = useState(ssrBank?.bank_name || "");
-  const [accountType, setAccountType] = useState(
-    ssrBank?.account_type || "corriente"
-  );
-  const [accountNumber, setAccountNumber] = useState(
-    ssrBank?.account_number || ""
-  );
-  const [payoutEmail, setPayoutEmail] = useState(
-    ssrBank?.payout_email || (ssrUser?.email || "")
-  );
-
-  const [saving, setSaving] = useState(false);
-  const [savedOk, setSavedOk] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
 
   // ------- MP status -------
   const [mpConnected, setMpConnected] = useState(false);
@@ -158,59 +126,6 @@ export default function Bancos({ ssrUser, ssrBank }) {
     })();
   }, [user?.id]);
 
-  // ------- Save (NO TOCAR) -------
-  async function onSave(e) {
-    e?.preventDefault?.();
-    setErrorMsg("");
-    setSavedOk(false);
-
-    if (!user?.id) {
-      setErrorMsg("Debes iniciar sesión.");
-      return;
-    }
-    if (!holderName.trim()) return setErrorMsg("Ingresa el nombre del titular.");
-    if (!payoutEmail.trim())
-      return setErrorMsg("Ingresa el email de liquidaciones.");
-
-    setSaving(true);
-    try {
-      const row = {
-        user_id: user.id,
-        holder_name: holderName.trim(),
-        tax_id: taxId.trim() || null,
-        bank_name: bankName.trim() || null,
-        account_type: accountType || "corriente",
-        account_number: accountNumber.trim() || null,
-        payout_email: payoutEmail.trim().toLowerCase(),
-        updated_at: new Date().toISOString(),
-      };
-
-      // upsert con RLS (user solo puede tocar su fila)
-      const { error } = await supabase
-        .from("bank_accounts")
-        .upsert(row, { onConflict: "user_id" });
-
-      if (error) {
-        if (
-          `${error.message}`.toLowerCase().includes("row-level security") ||
-          `${error.message}`.toLowerCase().includes("rls")
-        ) {
-          throw new Error(
-            "No tienes permisos para guardar (RLS). Revisa las políticas de 'bank_accounts' para el usuario actual."
-          );
-        }
-        throw error;
-      }
-
-      setSavedOk(true);
-    } catch (err) {
-      setErrorMsg(err?.message || "No se pudo guardar.");
-    } finally {
-      setSaving(false);
-      setTimeout(() => setSavedOk(false), 2000);
-    }
-  }
-
   return (
     <>
       <Head>
@@ -224,7 +139,7 @@ export default function Bancos({ ssrUser, ssrBank }) {
             <div>
               <h1 className={styles.title}>Bancos & Pagos</h1>
               <p className={styles.sub}>
-                Configura tus datos bancarios y conecta proveedores de pago.
+                Conecta tu cuenta de Mercado Pago y revisa tus ganancias.
               </p>
             </div>
           </header>
@@ -273,109 +188,8 @@ export default function Bancos({ ssrUser, ssrBank }) {
             )}
           </section>
 
-          <div className={styles.grid}>
-            {/* Datos bancarios (NO TOCAR) */}
-            <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Datos bancarios</h2>
-              <p className={styles.cardSub}>Se usarán para tus retiros.</p>
-
-              {loadingUser ? (
-                <p>Cargando…</p>
-              ) : !user ? (
-                <p>Debes iniciar sesión para gestionar tus datos.</p>
-              ) : (
-                <form onSubmit={onSave}>
-                  <label className="label">Titular</label>
-                  <input
-                    className="input"
-                    placeholder="Nombre del titular"
-                    value={holderName}
-                    onChange={(e) => setHolderName(e.target.value)}
-                  />
-
-                  <label className="label" style={{ marginTop: 10 }}>
-                    ID fiscal
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="RUT / DNI / CUIT"
-                    value={taxId}
-                    onChange={(e) => setTaxId(e.target.value)}
-                  />
-
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Banco
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="Nombre de banco"
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                  />
-
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Tipo de cuenta
-                  </label>
-                  <select
-                    className="input"
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
-                  >
-                    <option value="corriente">Cuenta Corriente</option>
-                    <option value="vista">Cuenta Vista</option>
-                    <option value="ahorro">Cuenta de Ahorro</option>
-                  </select>
-
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Número de cuenta
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="0000 0000 0000"
-                    inputMode="numeric"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                  />
-
-                  <label className="label" style={{ marginTop: 10 }}>
-                    Email para liquidaciones
-                  </label>
-                  <input
-                    className="input"
-                    type="email"
-                    placeholder="tucorreo@dominio.com"
-                    value={payoutEmail}
-                    onChange={(e) => setPayoutEmail(e.target.value)}
-                  />
-
-                  {errorMsg ? (
-                    <p style={{ color: "#b91c1c", marginTop: 10 }}>{errorMsg}</p>
-                  ) : null}
-                  {savedOk ? (
-                    <p style={{ color: "#065f46", marginTop: 10 }}>
-                      Guardado correctamente.
-                    </p>
-                  ) : null}
-
-                  <div className={styles.actions}>
-                    <button className="btn btn-primary" disabled={saving}>
-                      {saving ? "Guardando…" : "Guardar"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      onClick={() => window.location.reload()}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </form>
-              )}
-            </section>
-
-            {/* Integraciones de pago */}
-            <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Proveedores de pago</h2>
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}>Proveedores de pago</h2>
               <p className={styles.cardSub}>
                 Conecta tu cuenta para recibir pagos automáticamente.
               </p>
@@ -450,7 +264,6 @@ export default function Bancos({ ssrUser, ssrBank }) {
                 </div>
               </div>
             </section>
-          </div>
         </div>
       </section>
     </>

@@ -29,7 +29,6 @@ export default function Layout({
   const accountItems = [
     { label: 'Panel',          href: '/panel' },
     { label: 'Bancos & Pagos', href: '/panel/bancos' },
-    { label: 'Mercado Pago',   href: '/panel/mercado-pago' },
     { label: 'Perfil',         href: '/perfil' },
   ];
 
