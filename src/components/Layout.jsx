@@ -28,6 +28,7 @@ export default function Layout({
 
   const accountItems = [
     { label: 'Panel',          href: '/panel' },
+    { label: 'Mis campañas',   href: '/crear-colecta' },
     { label: 'Bancos & Pagos', href: '/panel/bancos' },
     { label: 'Perfil',         href: '/perfil' },
   ];
