@@ -447,8 +447,9 @@ export default function Panel() {
               <div><PesoCLP cents={row.price_cents} /></div>
               <div>{row.end_date || '—'}</div>
               {/* ⬇️ Celda de acciones con data-cell="actions" */}
-              <div data-cell="actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <div data-cell="actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <LinkButtonGhost href={`/rifas/${row.id}`}>Ver</LinkButtonGhost>
+                <a href={`/api/rifas/${row.id}/qr.png`} download style={{ background: '#fff', color: '#111827', border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 8, fontWeight: 600, display: 'inline-block', textDecoration: 'none' }}>Descargar QR</a>
                 <ActionButton tone="ghost" onClick={() => setEditRaffle(row)}>Editar</ActionButton>
                 {row.status !== 'closed' && (
                   <ActionButton tone="danger" onClick={() => setCloseRaffle(row)}>Terminar</ActionButton>
