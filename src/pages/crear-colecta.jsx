@@ -55,21 +55,30 @@ function blobToBase64(blob) {
   });
 }
 
-async function uploadPhoto(file, token, kind) {
-  if (!ALLOWED_PHOTO_TYPES.has(file.type)) throw new Error(`Formato no permitido: ${file.name}`);
-  if (file.size > MAX_RAW_INPUT_BYTES) throw new Error(`${file.name} es demasiado grande para procesar.`);
+const COVER_TARGET = { w: 1600, h: 700 };
+const GALLERY_TARGET = { w: 900, h: 900 };
 
-  const target = kind === 'cover' ? { w: 1600, h: 700 } : { w: 900, h: 900 };
-  const resized = await resizeToBlob(file, target);
-  const dataBase64 = await blobToBase64(resized);
+// Recorta ya en el momento de elegir el archivo, no recién al subir. Así
+// lo que el usuario ve en la vista previa ES la imagen final (misma que
+// va a quedar publicada), no la foto cruda que sacó del celular — nunca
+// tiene que achicarla ni recortarla él mismo antes de subir.
+async function processPhoto(file, kind) {
+  const target = kind === 'cover' ? COVER_TARGET : GALLERY_TARGET;
+  const blob = await resizeToBlob(file, target);
+  const baseName = String(file.name || 'foto').replace(/\.[a-zA-Z0-9]+$/, '');
+  return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+}
+
+async function uploadPhoto(processedFile, token, kind) {
+  const dataBase64 = await blobToBase64(processedFile);
   const res = await fetch('/api/colectas/upload-photo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ filename: file.name, contentType: 'image/jpeg', dataBase64, kind: kind === 'cover' ? 'cover' : 'gallery' }),
+    body: JSON.stringify({ filename: processedFile.name, contentType: 'image/jpeg', dataBase64, kind: kind === 'cover' ? 'cover' : 'gallery' }),
   });
   let data;
-  try { data = await res.json(); } catch { throw new Error(`No se pudo subir ${file.name}`); }
-  if (!res.ok || !data?.ok) throw new Error(data?.error || `No se pudo subir ${file.name}`);
+  try { data = await res.json(); } catch { throw new Error(`No se pudo subir ${processedFile.name}`); }
+  if (!res.ok || !data?.ok) throw new Error(data?.error || `No se pudo subir ${processedFile.name}`);
   return data.url;
 }
 
@@ -91,7 +100,9 @@ export default function CrearColecta() {
   const [durationDays, setDurationDays] = useState(30);
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
+  const [coverProcessing, setCoverProcessing] = useState(false);
   const [galleryFiles, setGalleryFiles] = useState([]);
+  const [galleryProcessing, setGalleryProcessing] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -130,16 +141,25 @@ export default function CrearColecta() {
     return () => URL.revokeObjectURL(url);
   }, [coverFile]);
 
-  function onCoverChange(e) {
+  async function onCoverChange(e) {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     if (!ALLOWED_PHOTO_TYPES.has(file.type)) { setErr(`Formato no permitido: ${file.name}`); return; }
     if (file.size > MAX_RAW_INPUT_BYTES) { setErr(`${file.name} es demasiado grande para procesar.`); return; }
     setErr('');
-    setCoverFile(file);
+    setCoverProcessing(true);
+    try {
+      const processed = await processPhoto(file, 'cover');
+      setCoverFile(processed);
+    } catch {
+      setErr(`No se pudo procesar ${file.name}.`);
+    } finally {
+      setCoverProcessing(false);
+    }
   }
 
-  function onGalleryChange(e) {
+  async function onGalleryChange(e) {
     const incoming = Array.from(e.target.files || []);
     e.target.value = '';
     if (!incoming.length) return;
@@ -154,8 +174,17 @@ export default function CrearColecta() {
       accepted.push(file);
       if (accepted.length >= room) break;
     }
-    if (accepted.length) setErr('');
-    setGalleryFiles((prev) => [...prev, ...accepted].slice(0, MAX_GALLERY));
+    if (!accepted.length) return;
+    setErr('');
+    setGalleryProcessing(true);
+    try {
+      const processed = await Promise.all(accepted.map((file) => processPhoto(file, 'gallery')));
+      setGalleryFiles((prev) => [...prev, ...processed].slice(0, MAX_GALLERY));
+    } catch {
+      setErr('No se pudieron procesar algunas fotos.');
+    } finally {
+      setGalleryProcessing(false);
+    }
   }
 
   function removeGalleryFile(idx) {
@@ -245,18 +274,19 @@ export default function CrearColecta() {
 
               <div className={styles.field}>
                 <label>Foto principal</label>
-                <label className={styles.uploadBtn}>
-                  📷 {coverFile ? 'Cambiar foto' : 'Elegir foto'}
-                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onCoverChange} />
+                <label className={styles.uploadBtn} data-disabled={coverProcessing}>
+                  📷 {coverProcessing ? 'Ajustando…' : coverFile ? 'Cambiar foto' : 'Elegir foto'}
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={onCoverChange} disabled={coverProcessing} />
                 </label>
+                <p className={styles.hint}>Se recorta y ajusta sola al subirla — cualquier foto sirve, no hace falta editarla antes.</p>
                 {coverPreview && <img src={coverPreview} alt="" className={styles.coverPreview} />}
               </div>
 
               <div className={styles.field}>
                 <label>Fotos adicionales ({galleryFiles.length}/{MAX_GALLERY})</label>
-                <label className={styles.uploadBtn} data-disabled={galleryFiles.length >= MAX_GALLERY}>
-                  🖼️ Agregar fotos
-                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={onGalleryChange} disabled={galleryFiles.length >= MAX_GALLERY} />
+                <label className={styles.uploadBtn} data-disabled={galleryFiles.length >= MAX_GALLERY || galleryProcessing}>
+                  🖼️ {galleryProcessing ? 'Ajustando…' : 'Agregar fotos'}
+                  <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple onChange={onGalleryChange} disabled={galleryFiles.length >= MAX_GALLERY || galleryProcessing} />
                 </label>
                 {galleryFiles.length > 0 && (
                   <div className={styles.previewGrid}>
@@ -269,7 +299,7 @@ export default function CrearColecta() {
 
               {justCreatedTitle && <p className={styles.ok}>¡Listo! "{justCreatedTitle}" ya está activa y visible públicamente.</p>}
               {err && <p className={styles.err}>{err}</p>}
-              <button className="btn btn-primary" disabled={saving}>{saving ? 'Creando…' : 'Crear campaña'}</button>
+              <button className="btn btn-primary" disabled={saving || coverProcessing || galleryProcessing}>{saving ? 'Creando…' : 'Crear campaña'}</button>
             </form>
           </div>
 
