@@ -3,9 +3,21 @@
 // sesión) — el QR apunta exclusivamente a /colectas/[id], que ya es
 // pública; no se expone nada que no se pudiera ver entrando directo a esa
 // URL. No es el QR transaccional de Evento (eso no se implementa acá).
+//
+// El texto de la tarjeta se renderiza con satori, que convierte cada
+// glifo en un <path> vectorial usando la fuente empaquetada en
+// src/assets/fonts/ — nunca depende de que el servidor tenga una fuente
+// sans-serif instalada (el bug original: en el entorno serverless de
+// Vercel no hay ninguna, y sharp/SVG con <text> + font-family caía a
+// glifos vacíos). Fuente: Inter (SIL Open Font License), la misma que ya
+// usa el sitio, descargada una vez y versionada en el repo — nunca se
+// pide a una URL externa ni a Google Fonts en tiempo de ejecución.
 import { createClient } from '@supabase/supabase-js';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
+import satori from 'satori';
+import fs from 'fs';
+import path from 'path';
 import { deriveEffectiveStatus } from '@/lib/colectaStatus';
 
 const supabase = createClient(
@@ -14,26 +26,35 @@ const supabase = createClient(
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
 
-function escapeXml(s) {
-  return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
+// Fuerza a Vercel a empaquetar los .woff dentro de la función serverless —
+// el trazado automático de archivos no siempre detecta un fs.readFileSync
+// con una ruta armada por path.join(), y si el archivo falta en el bundle
+// de producción esto fallaría con ENOENT ahí, aunque funcione en local.
+export const config = {
+  unstable_includeFiles: ['src/assets/fonts/*.woff'],
+};
+
+const FONTS_DIR = path.join(process.cwd(), 'src/assets/fonts');
+let fontRegular = null;
+let fontBold = null;
+function loadFonts() {
+  if (!fontRegular) fontRegular = fs.readFileSync(path.join(FONTS_DIR, 'Inter-Regular.woff'));
+  if (!fontBold) fontBold = fs.readFileSync(path.join(FONTS_DIR, 'Inter-Bold.woff'));
+  return [
+    { name: 'Inter', data: fontRegular, weight: 400, style: 'normal' },
+    { name: 'Inter', data: fontBold, weight: 700, style: 'normal' },
+    { name: 'Inter', data: fontBold, weight: 800, style: 'normal' },
+  ];
 }
 
-// Corta un texto largo en un máximo de 2 líneas para el título de la tarjeta.
-function wrapTitle(title, maxCharsPerLine = 28) {
-  const words = String(title || '').split(/\s+/);
-  const lines = [];
-  let current = '';
-  for (const w of words) {
-    if ((current + ' ' + w).trim().length > maxCharsPerLine) {
-      if (current) lines.push(current.trim());
-      current = w;
-    } else {
-      current = (current + ' ' + w).trim();
-    }
-    if (lines.length === 2) break;
-  }
-  if (current && lines.length < 2) lines.push(current.trim());
-  return lines.slice(0, 2);
+const CARD_W = 700;
+const CARD_H = 860;
+const QR_SIZE = 460;
+const MAX_TITLE_CHARS = 80;
+
+function truncateTitle(title) {
+  const t = String(title || 'Colecta');
+  return t.length > MAX_TITLE_CHARS ? `${t.slice(0, MAX_TITLE_CHARS - 1).trim()}…` : t;
 }
 
 export default async function handler(req, res) {
@@ -60,35 +81,43 @@ export default async function handler(req, res) {
 
     const qrBuffer = await QRCode.toBuffer(url, {
       type: 'png',
-      width: 520,
+      width: QR_SIZE,
       margin: 1,
       color: { dark: '#111111', light: '#FFFFFFFF' },
     });
+    const qrDataUri = `data:image/png;base64,${qrBuffer.toString('base64')}`;
 
-    const cardW = 700;
-    const cardH = 980;
-    const qrTop = 210;
-    const qrLeft = Math.round((cardW - 520) / 2);
-    const titleLines = wrapTitle(colecta.title);
+    const tree = {
+      type: 'div',
+      props: {
+        style: {
+          width: CARD_W, height: CARD_H, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', background: '#F7F8FA', fontFamily: 'Inter', padding: 20,
+        },
+        children: [
+          {
+            type: 'div',
+            props: {
+              style: {
+                width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', background: '#FFFFFF', borderRadius: 24,
+                border: '2px solid #E5E7EB', padding: '36px 40px',
+              },
+              children: [
+                { type: 'div', props: { style: { fontSize: 28, fontWeight: 800, color: '#1E3A8A', display: 'flex' }, children: 'Rifex' } },
+                { type: 'div', props: { style: { fontSize: 21, fontWeight: 700, color: '#111111', marginTop: 12, display: 'flex', textAlign: 'center', maxWidth: 520 }, children: truncateTitle(colecta.title) } },
+                { type: 'img', props: { src: qrDataUri, width: QR_SIZE, height: QR_SIZE, style: { marginTop: 24, borderRadius: 16, border: '2px solid #E5E7EB' } } },
+                { type: 'div', props: { style: { fontSize: 19, fontWeight: 700, color: '#18A957', marginTop: 22, display: 'flex' }, children: 'Escanea para ayudar' } },
+                { type: 'div', props: { style: { fontSize: 13, color: '#6B7280', marginTop: 6, display: 'flex' }, children: url } },
+              ],
+            },
+          },
+        ],
+      },
+    };
 
-    const svg = `
-      <svg width="${cardW}" height="${cardH}" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100%" height="100%" fill="#F7F8FA"/>
-        <rect x="24" y="24" width="${cardW - 48}" height="${cardH - 48}" rx="24" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2"/>
-        <text x="50%" y="90" font-size="30" font-weight="800" fill="#1E3A8A" text-anchor="middle" font-family="Arial, sans-serif">Rifex</text>
-        ${titleLines.map((line, i) => `<text x="50%" y="${140 + i * 32}" font-size="24" font-weight="700" fill="#111111" text-anchor="middle" font-family="Arial, sans-serif">${escapeXml(line)}</text>`).join('')}
-        <rect x="${qrLeft - 16}" y="${qrTop - 16}" width="552" height="552" rx="16" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="2"/>
-        <text x="50%" y="${qrTop + 590}" font-size="20" font-weight="700" fill="#18A957" text-anchor="middle" font-family="Arial, sans-serif">Escanea para ayudar</text>
-        <text x="50%" y="${qrTop + 622}" font-size="14" fill="#6B7280" text-anchor="middle" font-family="Arial, sans-serif">${escapeXml(url)}</text>
-      </svg>`;
-
-    const png = await sharp({ create: { width: cardW, height: cardH, channels: 4, background: '#F7F8FA' } })
-      .composite([
-        { input: Buffer.from(svg), top: 0, left: 0 },
-        { input: qrBuffer, top: qrTop, left: qrLeft },
-      ])
-      .png()
-      .toBuffer();
+    const svg = await satori(tree, { width: CARD_W, height: CARD_H, fonts: loadFonts() });
+    const png = await sharp(Buffer.from(svg)).png().toBuffer();
 
     const safeSlug = String(colecta.title || 'colecta').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
     res.setHeader('Content-Type', 'image/png');
