@@ -810,3 +810,78 @@ Código generado por Claude Code (Claude Sonnet 5) a partir del prompt de Doris,
 ### GO / NO-GO para publicar el Dashboard de Colectas
 
 **GO**, condicionado a que el usuario confirme el valor de `NEXT_PUBLIC_BASE_URL` en producción antes de compartir cualquier QR real. Todo lo demás — aislamiento entre usuarios, cálculo financiero, vencimiento, checkout, Protected Baseline — quedó probado con datos reales, no solo revisado por código.
+
+---
+
+## Post-sprint: fix de fuente en QR, hardening de fotos, rediseño de página pública, C5R (reconciliación) y primer pago real
+
+Entre el Dashboard sprint y el cierre de V1 se hicieron, en sesiones posteriores, las siguientes fases — resumidas acá porque el detalle completo de auditoría/pruebas de cada una ya está en el historial de commits y en `docs/handover/HANDOVER_RIFEX_COLECTAS_CURRENT.md`:
+
+- **Fix de fuente en el QR** (`aa103d0`): el texto de la ficha salía como cuadros vacíos en producción — `sharp`/SVG con `<text>`+`font-family` depende de fuentes instaladas en el sistema, que no existen en el entorno serverless de Vercel. Reemplazado por `satori` (texto como `<path>` vectoriales) + Inter empaquetada en `src/assets/fonts/` (SIL OFL). Verificado decodificando el QR real de producción.
+- **Hardening de fotos** (`9992c7b`, `84023be`): ninguna foto se rechaza por peso — se recorta/comprime en el navegador y **siempre** se vuelve a decodificar/re-codificar server-side con `sharp` antes de guardar, nunca se persiste el buffer del cliente. Probado con un archivo "polyglot" (jpeg + payload pegado) — el archivo final no contiene el payload.
+- **Página pública rediseñada** (`887d742`): dos columnas, tarjeta de "Recaudado" (con meta opcional, `goal_cents` nullable) y QR embebido. `raised_cents`/`contributor_count` ahora públicos, siempre calculados en vivo.
+- **Navegación** (`a86beb4`): acceso "Mis campañas" agregado al menú de cuenta.
+- **QR de Rifa** (`0302d29`): mismo patrón (satori+sharp+Inter) reutilizado para agregar "Descargar QR" al panel de Rifas — cambio aditivo, no toca ningún flujo financiero de Rifa.
+- **C5R — Reconciliación de Colecta** (`7d83f66`): mecanismo de respaldo si el webhook no llega. Busca pagos por `external_reference = contribution.id` (nunca por `mp_payment_id`, que no existe todavía en una fila `pending`), con fallback al token del vendedor resuelto por `creator_id` (no por un "hint" ambiguo). Archivo nuevo (`src/lib/colectaReconcile.js`, `src/pages/api/admin/reconcile-colecta-payments.js`), `webhook-colecta.js` quedó 100% intacto. 36/36 pruebas.
+
+### Primer aporte real de Colecta — evidencia E2E certificada
+
+Aporte real de **$500 CLP** ejecutado y verificado independientemente contra la API de Mercado Pago (no solo contra la base de datos propia):
+
+```text
+contribution_id:     d35c7d38-6f5b-489f-a1c4-7f3e859150b2
+colecta_id:           b4703ec1-5a77-4774-8ccd-40474f142c79 ("prueba de uso, ayuda a bruno")
+mp_payment_id:        173393385525
+live_mode:             true   (pago real, no sandbox)
+status:                approved
+transaction_amount:    500 CLP
+collector_id:          2501448870  == mp_user_id del creador conectado (dinero al destino correcto)
+fee_details:           application_fee = 35 CLP  (7% exacto de 500)
+metadata:               { product:"colecta", colecta_id, contribution_id } — coincide byte a byte con la fila
+external_reference:     = contribution_id (confirma que el diseño de C5R por external_reference es correcto)
+pending -> approved:    ~40s (creado 20:12:32, actualizado 20:13:13)
+raised_cents público:   50000  (coincide)
+contributor_count:      1      (coincide)
+C5R sobre este mismo aporte: {"already_processed":true,"status":"approved"} — coincide con el webhook, no lo re-procesó ni lo degradó
+```
+
+Verificado con `GET /v1/payments/{id}` real usando el token del vendedor, no asumido desde la base de datos propia.
+
+---
+
+## C6 — Notificaciones (correo al aportante y al creador)
+
+### Autoauditoría previa
+
+- HEAD, `origin/main`, working tree limpios antes de empezar — confirmado con `git rev-parse`/`git status`.
+- Revisado `src/lib/mailer.js` (motor genérico `sendEmail()` vía Resend + templates de Rifa) — **no está en la lista de Protected Baseline de Rifa**, pero es importado por archivos protegidos (`checkout/webhook.js`, `admin/reconcile-payments.js`), así que se trató con el mismo cuidado: se reutiliza `sendEmail()`/`__mailer_utils` tal cual (import de solo lectura), nunca se edita el archivo.
+- Resuelto cómo obtener el email del creador: `colectas` no lo guarda (decisión documentada desde C1 — "se resuelve consultando `auth.users`/`users_profile` por `creator_id` en el momento"). Confirmado que `users_profile` no tiene columna `email`; `supabase.auth.admin.getUserById(creator_id)` sí la resuelve — es el mecanismo usado.
+- **Punto de decisión reportado antes de codear**: el único lugar natural para notificar "aporte aprobado" es dentro de `webhook-colecta.js` y `reconcile-colecta-payments.js`, en la rama que ya ganó la transición `pending→approved` — archivos financieros ya certificados de Colecta. Se preguntó explícitamente antes de tocarlos; el usuario autorizó la Opción A (enganchar ahí, mismo patrón que ya usa Rifa en sus propios `webhook.js`/`reconcile-payments.js` certificados) con condiciones estrictas.
+
+### Diseño
+
+- **`src/lib/colectaMailer.js`** (nuevo) — `sendColectaContributorEmail`, `sendColectaCreatorEmail` (templates propios, nunca incluyen `mp_payment_id`, comisión/`marketplace_fee` ni datos financieros internos — verificado interceptando el body real enviado a Resend, no solo revisando el código fuente) y `notifyColectaApproved()`, el punto único de entrada: resuelve colecta+creador, decide qué correos son válidos (`isValidEmail`), llama a ambos templates, **nunca lanza** (try/catch propio + el caller también envuelve la llamada en try/catch, doble capa).
+- **Idempotencia de las notificaciones**: no se creó ningún mecanismo nuevo. Se apoya 100% en el guard financiero ya certificado (`UPDATE ... WHERE status='pending' ... .select().maybeSingle()`): el correo solo se intenta dentro del `if (newStatus === "approved")` que sigue inmediatamente a un `updated` no-nulo — es decir, solo el proceso que efectivamente ganó la transición llega ahí. Cualquier otro caso (ya aprobado, carrera perdida, rejected, pending sin pago) usa una rama de retorno que ya existía **antes** de C6 y que nunca llega a esa línea. No se agregaron columnas `emailed_*` ni ninguna migración — no hicieron falta.
+- Cambios en los dos archivos financieros: **puramente aditivos** — un import + un bloque `if (...approved) { try { await notifyColectaApproved(...) } catch {...} }` insertado después de la línea que ya loggeaba la transición exitosa. Cero líneas existentes modificadas (ver diff completo en el handover).
+
+### Hallazgo colateral (fuera de alcance, no corregido)
+
+Durante las pruebas de idempotencia se encontró que `merchant_gateways` tiene el mismo `mp_user_id` en dos filas reales distintas (dos usuarios de Rifex conectaron, en momentos distintos, la misma cuenta de Mercado Pago) — esto rompe el fallback por "hint" (`.eq('mp_user_id', hint).maybeSingle()`) que ya tenía `webhook-colecta.js` desde C5, entrando en modo de falla segura (`fetch_payment_failed`, sin escribir nada, sin notificar). No es un bug de C6, no se tocó (está dentro de una función ya certificada, fuera del alcance autorizado). C5R no sufre este problema porque resuelve el token por `creator_id` (único), no por `mp_user_id` (ambiguo) — una razón concreta más para confiar en el diseño de C5R sobre el mecanismo heredado del webhook.
+
+### Pruebas ejecutadas
+
+- 14 unitarias sobre `colectaMailer.js` (copia verbatim, con datos reales de Supabase y direcciones `@rifex-test.local` no entregables a nadie real): caso feliz, aportante sin email, email inválido, creador no resoluble, Resend fallando de verdad (proceso hijo con `EMAIL_FROM` vacío desde el arranque), contenido real interceptado (nunca menciona comisión/7%/`mp_payment_id`).
+- 10 de idempotencia/concurrencia contra el servidor real + el único pago real existente (sin generar ningún pago nuevo): webhook duplicado, C5R después del webhook, C5R repetido, dos C5R concurrentes, dos webhooks concurrentes, estado sin cambios (`updated_at` idéntico antes/después), pending fresca sin pago (`kept_pending`, tampoco notifica).
+- Caso `rejected` no reprobado con un pago real (no se iba a fabricar/gastar dinero para eso) — cubierto por revisión de código: el `if (newStatus === "approved")` / `if (transition.newStatus === 'approved')` excluye explícitamente `rejected`, y `computeColectaTransition` ya estaba probado unitariamente en C5R devolviendo `rejected` para `mp_rejected`/`cancelled`/`amount_mismatch`.
+
+### Build
+
+`npm run build` — `exit code 0`, sin errores.
+
+### Protected Baseline — verificación
+
+`git diff v1.0-rifex-baseline` = 0 en todos los archivos protegidos individuales, incluyendo `src/lib/mailer.js` (0, intacto). Único cambio dentro de directorios financieros de Colecta: las dos ediciones aditivas ya descritas.
+
+### GO / NO-GO para certificar Campañas V1
+
+**GO.** Ver informe de cierre completo en `docs/handover/HANDOVER_RIFEX_COLECTAS_CURRENT.md`.

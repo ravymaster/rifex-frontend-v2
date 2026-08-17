@@ -4,6 +4,7 @@
 // sale de volver a consultar el pago real en la API de Mercado Pago.
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { notifyColectaApproved } from "@/lib/colectaMailer";
 
 export const config = { api: { bodyParser: false }, runtime: "nodejs" };
 
@@ -281,6 +282,26 @@ export default async function handler(req, res) {
     }
 
     console.log("[colecta webhook] transición aplicada", { eventId, contributionId, colectaId, newStatus, paymentId });
+
+    // C6: notificación no financiera. Solo llega acá el proceso que
+    // efectivamente ganó la transición de arriba (updated no-null) — el
+    // pago ya quedó escrito antes de esta línea, nada de lo que pase acá
+    // puede tocarlo. Un fallo de Resend queda contenido y no cambia la
+    // respuesta HTTP financiera de abajo.
+    if (newStatus === "approved") {
+      try {
+        await notifyColectaApproved({
+          colectaId,
+          contributionId,
+          amountCents: updated.amount_cents,
+          contributorName: updated.contributor_name,
+          contributorEmail: updated.contributor_email,
+        });
+      } catch (e) {
+        console.error("[colecta webhook] notify error (no afecta el pago)", { eventId, contributionId, err: e?.message || e });
+      }
+    }
+
     return res.status(200).json({ ok: true, contribution_id: contributionId, status: newStatus, eventId });
   } catch (e) {
     console.error("[colecta webhook] fatal error", e);

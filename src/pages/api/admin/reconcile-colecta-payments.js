@@ -21,6 +21,7 @@ import {
   computeColectaTransition,
   logReconcileTrace,
 } from '@/lib/colectaReconcile';
+import { notifyColectaApproved } from '@/lib/colectaMailer';
 
 export const config = { runtime: 'nodejs' };
 
@@ -159,6 +160,26 @@ async function reconcileOne(contributionId) {
     contributionId, colectaId: colecta.id, paymentId: mp.id,
     previousStatus: 'pending', resultingStatus: transition.newStatus, reason: transition.reason,
   });
+
+  // C6: notificación no financiera. Solo llega acá el proceso que
+  // efectivamente ganó la transición de arriba (updated no-null) — el
+  // pago ya quedó escrito antes de esta línea, nada de lo que pase acá
+  // puede tocarlo. Un fallo de Resend queda contenido y no cambia el
+  // resultado de la reconciliación.
+  if (transition.newStatus === 'approved') {
+    try {
+      await notifyColectaApproved({
+        colectaId: colecta.id,
+        contributionId,
+        amountCents: updated.amount_cents,
+        contributorName: updated.contributor_name,
+        contributorEmail: updated.contributor_email,
+      });
+    } catch (e) {
+      console.error('[reconcile-colecta] notify error (no afecta el pago)', { contributionId, err: e?.message || e });
+    }
+  }
+
   return { contribution_id: contributionId, ok: true, status: transition.newStatus, payment_id: mp.id, reason: transition.reason };
 }
 
