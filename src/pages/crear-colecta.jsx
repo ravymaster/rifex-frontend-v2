@@ -97,6 +97,7 @@ export default function CrearColecta() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [goalClp, setGoalClp] = useState('');
   const [durationDays, setDurationDays] = useState(30);
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
@@ -195,6 +196,9 @@ export default function CrearColecta() {
     e.preventDefault();
     if (!title.trim()) { setErr('Ponele un título a tu campaña.'); return; }
     if (!description.trim()) { setErr('Contá de qué se trata.'); return; }
+    if (goalClp.trim() && (!Number.isFinite(Number(goalClp)) || Number(goalClp) <= 0)) {
+      setErr('La meta tiene que ser un monto válido.'); return;
+    }
     if (!token) return;
 
     setSaving(true);
@@ -218,13 +222,14 @@ export default function CrearColecta() {
           cover_image_url: coverUrl,
           gallery_urls: galleryUrls,
           duration_days: durationDays,
+          goal_cents: goalClp.trim() ? Math.round(Number(goalClp) * 100) : null,
         }),
       });
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo crear la campaña.');
 
       setJustCreatedTitle(data.colecta.title);
-      setTitle(''); setDescription(''); setCoverFile(null); setGalleryFiles([]); setDurationDays(30);
+      setTitle(''); setDescription(''); setGoalClp(''); setCoverFile(null); setGalleryFiles([]); setDurationDays(30);
       loadMine(token);
     } catch (e2) {
       setErr(e2?.message || 'No se pudo crear la campaña.');
@@ -252,6 +257,20 @@ export default function CrearColecta() {
                 <label>Descripción / historia</label>
                 <textarea className="input" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} placeholder="Contá de qué se trata, para qué es la plata, y cualquier detalle que ayude a que confíen." />
                 <p className={styles.hint}>{description.trim().length}/5000</p>
+              </div>
+
+              <div className={styles.field}>
+                <label>Meta de recaudación (opcional)</label>
+                <input
+                  className="input"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={goalClp}
+                  onChange={(e) => setGoalClp(e.target.value)}
+                  placeholder="Ej: 1200000"
+                />
+                <p className={styles.hint}>Si la dejás vacía, la campaña queda como aporte libre: se muestra el recaudado pero sin barra de progreso.</p>
               </div>
 
               <div className={styles.field}>

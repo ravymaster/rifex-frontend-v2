@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   try {
     const { data: colecta, error } = await supabase
       .from('colectas')
-      .select('id, creator_id, title, description, cover_image_url, gallery_urls, status, start_at, end_at, created_at')
+      .select('id, creator_id, title, description, cover_image_url, gallery_urls, status, goal_cents, start_at, end_at, created_at')
       .eq('id', id)
       .in('status', ['active', 'closed'])
       .maybeSingle();
@@ -35,6 +35,18 @@ export default async function handler(req, res) {
       .eq('user_id', colecta.creator_id)
       .maybeSingle();
 
+    // Recaudado y cantidad de aportes son públicos (solo el total, nunca
+    // los aportes individuales — colecta_contributions sigue sin RLS
+    // pública), calculados en vivo igual que en el panel del creador.
+    const { data: approved, error: cErr } = await supabase
+      .from('colecta_contributions')
+      .select('amount_cents')
+      .eq('colecta_id', id)
+      .eq('status', 'approved');
+    if (cErr) throw cErr;
+    const raisedCents = (approved || []).reduce((sum, r) => sum + (r.amount_cents || 0), 0);
+    const contributorCount = (approved || []).length;
+
     return res.status(200).json({
       ok: true,
       colecta: {
@@ -44,6 +56,9 @@ export default async function handler(req, res) {
         cover_image_url: colecta.cover_image_url,
         gallery_urls: colecta.gallery_urls || [],
         status: deriveEffectiveStatus(colecta),
+        goal_cents: colecta.goal_cents ?? null,
+        raised_cents: raisedCents,
+        contributor_count: contributorCount,
         start_at: colecta.start_at,
         end_at: colecta.end_at,
         created_at: colecta.created_at,

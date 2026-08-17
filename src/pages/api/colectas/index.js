@@ -49,6 +49,17 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'invalid_duration' });
   }
 
+  // Meta opcional: sigue siendo aporte libre por defecto (goal_cents null,
+  // sin barra de progreso). Si mandan una, tiene que ser un número > 0.
+  let goalCents = null;
+  if (req.body?.goal_cents != null && req.body.goal_cents !== '') {
+    const g = Number(req.body.goal_cents);
+    if (!Number.isFinite(g) || g <= 0 || !Number.isInteger(g)) {
+      return res.status(400).json({ ok: false, error: 'invalid_goal' });
+    }
+    goalCents = g;
+  }
+
   if (!title || title.length > 140) {
     return res.status(400).json({ ok: false, error: 'invalid_title' });
   }
@@ -71,6 +82,7 @@ export default async function handler(req, res) {
         description,
         cover_image_url: coverImageUrl,
         gallery_urls: galleryUrls,
+        goal_cents: goalCents,
         status: 'active',
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),

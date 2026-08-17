@@ -1,8 +1,8 @@
 // src/pages/colectas/[id].jsx
-// Página pública de una Colecta. No requiere sesión. C4: el panel de montos
-// ya crea una intención de aporte real y redirige al checkout de Mercado
-// Pago — pero la aprobación/confirmación (webhook) todavía no existe, eso
-// es C5. Hasta entonces, un aporte queda en estado 'pending' sin más.
+// Página pública de una Colecta. No requiere sesión. Layout de dos
+// columnas: historia a la izquierda, tarjeta de "Recaudado" + QR a la
+// derecha (se apilan en mobile). Meta es opcional — sin ella se muestra
+// el recaudado sin barra de progreso, sigue siendo aporte libre.
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
@@ -18,6 +18,12 @@ function clp(n) {
   return Number(n || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 }
 
+function daysLeft(endAt) {
+  if (!endAt) return null;
+  const ms = new Date(endAt).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / 86400000));
+}
+
 export default function ColectaPublica() {
   const router = useRouter();
   const { id } = router.query;
@@ -26,6 +32,7 @@ export default function ColectaPublica() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const [selectedAmount, setSelectedAmount] = useState(null);
   const [customAmount, setCustomAmount] = useState('');
@@ -99,6 +106,79 @@ export default function ColectaPublica() {
   }
 
   const isActive = colecta.status === 'active';
+  const base = (process.env.NEXT_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/+$/, '');
+  const publicUrl = `${base}/colectas/${colecta.id}`;
+  const displayUrl = publicUrl.replace(/^https?:\/\//, '');
+  const qrUrl = `/api/colectas/${colecta.id}/qr.png`;
+  const hasGoal = Number(colecta.goal_cents) > 0;
+  const pct = hasGoal ? Math.min(100, Math.round((colecta.raised_cents / colecta.goal_cents) * 100)) : 0;
+  const remainingDays = daysLeft(colecta.end_at);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {}
+  }
+
+  const helpPanel = isActive && showHelp && (
+    <div className={styles.helpPanel}>
+      <h3>¿Cuánto querés aportar?</h3>
+      <div className={styles.amountsGrid}>
+        {SUGGESTED_AMOUNTS.map((a) => (
+          <button
+            key={a}
+            type="button"
+            className={styles.amountPill}
+            data-selected={!useCustom && selectedAmount === a}
+            onClick={() => { setSelectedAmount(a); setUseCustom(false); }}
+          >
+            {clp(a)}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={styles.amountPill}
+          data-other="true"
+          data-selected={useCustom}
+          onClick={() => setUseCustom(true)}
+        >
+          Otro monto
+        </button>
+      </div>
+
+      {useCustom && (
+        <div className={styles.helpField}>
+          <label>Monto (CLP)</label>
+          <input
+            className="input"
+            type="number"
+            min="500"
+            value={customAmount}
+            onChange={(e) => setCustomAmount(e.target.value)}
+            placeholder="Ej: 15000"
+          />
+        </div>
+      )}
+
+      <div className={styles.helpField}>
+        <label>Tu nombre</label>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre y apellido" />
+      </div>
+      <div className={styles.helpField}>
+        <label>Tu email</label>
+        <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
+      </div>
+
+      {helpErr && <p className={styles.helpErr}>{helpErr}</p>}
+
+      <button type="button" className={styles.submitBtn} onClick={onContribute} disabled={submitting}>
+        {submitting ? 'Redirigiendo a Mercado Pago…' : 'Aportar'}
+      </button>
+      <p className={styles.feeNote}>No necesitás cuenta en Rifex para aportar.</p>
+    </div>
+  );
 
   return (
     <>
@@ -108,119 +188,109 @@ export default function ColectaPublica() {
       </Head>
 
       <section className={styles.page}>
-        <div className={styles.hero}>
-          {colecta.cover_image_url ? (
-            <img src={colecta.cover_image_url} alt="" />
-          ) : (
-            <span className={styles.heroFallback}>🤝</span>
-          )}
-        </div>
+        <div className={styles.layout}>
+          <div className={styles.leftCard}>
+            <div className={styles.hero}>
+              {colecta.cover_image_url ? (
+                <img src={colecta.cover_image_url} alt="" />
+              ) : (
+                <span className={styles.heroFallback}>🤝</span>
+              )}
+            </div>
 
-        <div className={styles.body}>
-          <span className={styles.statusBadge} data-status={colecta.status}>
-            ● {STATUS_LABEL_ES[colecta.status] || colecta.status}
-          </span>
+            <div className={styles.body}>
+              <span className={styles.statusBadge} data-status={colecta.status}>
+                ● {STATUS_LABEL_ES[colecta.status] || colecta.status}
+              </span>
 
-          <h1 className={styles.title}>{colecta.title}</h1>
+              <h1 className={styles.title}>{colecta.title}</h1>
 
-          <Link href={`/perfil/${colecta.creator.id}`} className={styles.creatorRow}>
-            {colecta.creator.avatar_url ? (
-              <img className={styles.creatorAvatar} src={colecta.creator.avatar_url} alt="" />
-            ) : (
-              <div className={styles.creatorFallback}>{(colecta.creator.nombre || '?').charAt(0).toUpperCase()}</div>
-            )}
-            <span className={styles.creatorName}>Organiza <b>{colecta.creator.nombre}</b></span>
-          </Link>
+              <Link href={`/perfil/${colecta.creator.id}`} className={styles.creatorRow}>
+                {colecta.creator.avatar_url ? (
+                  <img className={styles.creatorAvatar} src={colecta.creator.avatar_url} alt="" />
+                ) : (
+                  <div className={styles.creatorFallback}>{(colecta.creator.nombre || '?').charAt(0).toUpperCase()}</div>
+                )}
+                <span className={styles.creatorName}>Organiza <b>{colecta.creator.nombre}</b></span>
+              </Link>
 
-          <p className={styles.description}>{colecta.description}</p>
+              <p className={styles.description}>{colecta.description}</p>
 
-          {colecta.gallery_urls?.length > 0 && (
-            <>
-              <h2 className={styles.galleryTitle}>Fotos</h2>
-              <div className={styles.gallery}>
-                {colecta.gallery_urls.map((url, i) => (
-                  <div key={i} className={styles.galleryTile}>
-                    <img src={url} alt="" />
+              {colecta.gallery_urls?.length > 0 && (
+                <>
+                  <h2 className={styles.galleryTitle}>Fotos</h2>
+                  <div className={styles.gallery}>
+                    {colecta.gallery_urls.map((url, i) => (
+                      <div key={i} className={styles.galleryTile}>
+                        <img src={url} alt="" />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div className={styles.ctaWrap}>
-            {isActive ? (
-              !showHelp && (
-                <button type="button" className={styles.ctaBtn} onClick={openHelp}>
-                  🤝 Ir a ayudar
-                </button>
-              )
-            ) : (
-              <>
-                <button type="button" className={styles.ctaBtn} disabled>
-                  {colecta.status === 'finished' ? 'Esta campaña ya venció' : 'Esta campaña ya cerró'}
-                </button>
-                <p className={styles.closedNote}>Ya no acepta más aportes.</p>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
 
-          {isActive && showHelp && (
-            <div className={styles.helpPanel}>
-              <h3>¿Cuánto querés aportar?</h3>
-              <div className={styles.amountsGrid}>
-                {SUGGESTED_AMOUNTS.map((a) => (
-                  <button
-                    key={a}
-                    type="button"
-                    className={styles.amountPill}
-                    data-selected={!useCustom && selectedAmount === a}
-                    onClick={() => { setSelectedAmount(a); setUseCustom(false); }}
-                  >
-                    {clp(a)}
-                  </button>
-                ))}
-                <button
-                  type="button"
-                  className={styles.amountPill}
-                  data-other="true"
-                  data-selected={useCustom}
-                  onClick={() => setUseCustom(true)}
-                >
-                  Otro monto
-                </button>
-              </div>
+          <div className={styles.rightCol}>
+            <div className={styles.sideCard}>
+              <p className={styles.raisedLabel}>Recaudado</p>
+              <p className={styles.raisedAmount}>{clp(colecta.raised_cents / 100)}</p>
+              {hasGoal && <p className={styles.raisedGoal}>de {clp(colecta.goal_cents / 100)}</p>}
 
-              {useCustom && (
-                <div className={styles.helpField}>
-                  <label>Monto (CLP)</label>
-                  <input
-                    className="input"
-                    type="number"
-                    min="500"
-                    value={customAmount}
-                    onChange={(e) => setCustomAmount(e.target.value)}
-                    placeholder="Ej: 15000"
-                  />
+              {hasGoal && (
+                <div className={styles.progressTrack}>
+                  <div className={styles.progressFill} style={{ width: `${pct}%` }} />
                 </div>
               )}
 
-              <div className={styles.helpField}>
-                <label>Tu nombre</label>
-                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre y apellido" />
-              </div>
-              <div className={styles.helpField}>
-                <label>Tu email</label>
-                <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@email.com" />
+              <div className={styles.statsRow}>
+                <div className={styles.statBlock}>
+                  <p className={styles.statValue}>{isActive ? remainingDays : 0}</p>
+                  <p className={styles.statLabel}>{isActive ? 'Quedan días' : 'Finalizada'}</p>
+                  <p className={styles.statSub}>para finalizar</p>
+                </div>
+                <div className={styles.statBlock} data-align="right">
+                  <p className={styles.statValue}>{colecta.contributor_count}</p>
+                  <p className={styles.statLabel}>Aportes</p>
+                  <p className={styles.statSub}>personas</p>
+                </div>
               </div>
 
-              {helpErr && <p className={styles.helpErr}>{helpErr}</p>}
+              {isActive ? (
+                !showHelp && (
+                  <button type="button" className={styles.sideCta} onClick={openHelp}>
+                    🤝 Quiero ayudar
+                  </button>
+                )
+              ) : (
+                <>
+                  <button type="button" className={styles.sideCta} disabled>
+                    {colecta.status === 'finished' ? 'Esta campaña ya venció' : 'Esta campaña ya cerró'}
+                  </button>
+                  <p className={styles.closedNote}>Ya no acepta más aportes.</p>
+                </>
+              )}
 
-              <button type="button" className={styles.submitBtn} onClick={onContribute} disabled={submitting}>
-                {submitting ? 'Redirigiendo a Mercado Pago…' : 'Aportar'}
-              </button>
-              <p className={styles.feeNote}>No necesitás cuenta en Rifex para aportar.</p>
+              {helpPanel}
             </div>
-          )}
+
+            <div className={styles.sideCard}>
+              <p className={styles.qrCardTitle}>Escanea para ayudar</p>
+              <div className={styles.qrImgWrap}>
+                <img src={qrUrl} alt="Código QR de la campaña" />
+              </div>
+              <p className={styles.qrCaption}>Escanea este código con tu celular para ir a la campaña y realizar tu aporte.</p>
+              <div className={styles.linkBox}>
+                <div>
+                  <span className={styles.linkLabel}>Enlace</span>
+                  <span className={styles.linkUrl}>{displayUrl}</span>
+                </div>
+                <button type="button" className={styles.copyBtn} onClick={copyLink} aria-label="Copiar enlace" title="Copiar enlace">
+                  {copied ? '✓' : '📋'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </>
