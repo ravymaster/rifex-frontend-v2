@@ -9,6 +9,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/colectaPublica.module.css';
+import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
 
 const SUGGESTED_AMOUNTS = [1000, 2000, 5000, 10000, 50000, 100000];
 const isValidEmail = (s) => typeof s === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
@@ -117,7 +118,7 @@ export default function ColectaPublica() {
 
         <div className={styles.body}>
           <span className={styles.statusBadge} data-status={colecta.status}>
-            {isActive ? '● Activa' : '● Cerrada'}
+            ● {STATUS_LABEL_ES[colecta.status] || colecta.status}
           </span>
 
           <h1 className={styles.title}>{colecta.title}</h1>
@@ -155,7 +156,9 @@ export default function ColectaPublica() {
               )
             ) : (
               <>
-                <button type="button" className={styles.ctaBtn} disabled>Esta colecta ya cerró</button>
+                <button type="button" className={styles.ctaBtn} disabled>
+                  {colecta.status === 'finished' ? 'Esta campaña ya venció' : 'Esta campaña ya cerró'}
+                </button>
                 <p className={styles.closedNote}>Ya no acepta más aportes.</p>
               </>
             )}

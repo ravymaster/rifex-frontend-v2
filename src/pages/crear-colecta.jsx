@@ -1,17 +1,20 @@
 // src/pages/crear-colecta.jsx
-// Fase C2: solo el flujo de creación. Todavía no hay página pública,
-// montos, aportes ni checkout — al crear, se muestra una confirmación
-// en vez de redirigir a una página pública que no existe todavía.
+// Formulario de creación (arriba) + panel "Mis campañas" (abajo). Identidad
+// del creador siempre desde la sesión; recaudado y estado vienen ya
+// calculados y resueltos por /api/colectas/mine, no se recalculan acá.
 import Head from 'next/head';
+import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearColecta.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const MAX_GALLERY = 10;
+const DURATIONS = [15, 30, 60];
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -36,19 +39,45 @@ async function uploadPhoto(file, token) {
   return data.url;
 }
 
+function clp(cents) {
+  return (Number(cents || 0) / 100).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: '2-digit' }); }
+  catch { return '—'; }
+}
+
 export default function CrearColecta() {
   const router = useRouter();
   const [token, setToken] = useState(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [durationDays, setDurationDays] = useState(30);
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
   const [galleryFiles, setGalleryFiles] = useState([]);
 
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
-  const [created, setCreated] = useState(null);
+  const [justCreatedTitle, setJustCreatedTitle] = useState('');
+
+  const [mine, setMine] = useState(null);
+  const [mpConnected, setMpConnected] = useState(true);
+  const [mineLoading, setMineLoading] = useState(true);
+
+  const loadMine = useCallback(async (tok) => {
+    if (!tok) return;
+    setMineLoading(true);
+    try {
+      const r = await fetch('/api/colectas/mine', { headers: { Authorization: `Bearer ${tok}` } });
+      const j = await r.json();
+      if (r.ok && j.ok) { setMine(j.items); setMpConnected(!!j.mp_connected); }
+    } finally {
+      setMineLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -56,8 +85,9 @@ export default function CrearColecta() {
       const session = data?.session;
       if (!session) { router.push('/login?next=/crear-colecta'); return; }
       setToken(session.access_token);
+      loadMine(session.access_token);
     })();
-  }, [router]);
+  }, [router, loadMine]);
 
   useEffect(() => {
     if (!coverFile) { setCoverPreview(null); return; }
@@ -100,12 +130,13 @@ export default function CrearColecta() {
 
   async function onSubmit(e) {
     e.preventDefault();
-    if (!title.trim()) { setErr('Ponele un título a tu colecta.'); return; }
+    if (!title.trim()) { setErr('Ponele un título a tu campaña.'); return; }
     if (!description.trim()) { setErr('Contá de qué se trata.'); return; }
     if (!token) return;
 
     setSaving(true);
     setErr('');
+    setJustCreatedTitle('');
     try {
       let coverUrl = null;
       if (coverFile) coverUrl = await uploadPhoto(coverFile, token);
@@ -123,40 +154,29 @@ export default function CrearColecta() {
           description: description.trim(),
           cover_image_url: coverUrl,
           gallery_urls: galleryUrls,
+          duration_days: durationDays,
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo crear la colecta.');
-      setCreated(data.colecta);
+      if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo crear la campaña.');
+
+      setJustCreatedTitle(data.colecta.title);
+      setTitle(''); setDescription(''); setCoverFile(null); setGalleryFiles([]); setDurationDays(30);
+      loadMine(token);
     } catch (e2) {
-      setErr(e2?.message || 'No se pudo crear la colecta.');
+      setErr(e2?.message || 'No se pudo crear la campaña.');
     } finally {
       setSaving(false);
     }
   }
 
-  if (created) {
-    return (
-      <section className={styles.page}>
-        <div className="container" style={{ maxWidth: 640 }}>
-          <div className={styles.card}>
-            <p className={styles.ok}>¡Listo! Tu colecta "{created.title}" quedó creada.</p>
-            <p className={styles.sub}>
-              Por ahora queda guardada como borrador — la parte pública (donde la gente puede ir a ayudar) todavía no está lista, es el siguiente paso.
-            </p>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <>
-      <Head><title>Crear colecta — Rifex</title></Head>
+      <Head><title>Mis campañas — Rifex</title></Head>
       <section className={styles.page}>
-        <div className="container" style={{ maxWidth: 640 }}>
+        <div className="container" style={{ maxWidth: 900 }}>
           <div className={styles.card}>
-            <h1 className={styles.title}>Crear colecta</h1>
+            <h1 className={styles.title}>Crear campaña</h1>
             <p className={styles.sub}>Aporte libre, sin meta ni premio — contá tu historia y la gente decide cuánto ayudar.</p>
 
             <form onSubmit={onSubmit}>
@@ -169,6 +189,24 @@ export default function CrearColecta() {
                 <label>Descripción / historia</label>
                 <textarea className="input" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} placeholder="Contá de qué se trata, para qué es la plata, y cualquier detalle que ayude a que confíen." />
                 <p className={styles.hint}>{description.trim().length}/5000</p>
+              </div>
+
+              <div className={styles.field}>
+                <label>Duración de la campaña</label>
+                <div className={styles.durationRow}>
+                  {DURATIONS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={styles.durationPill}
+                      data-selected={durationDays === d}
+                      onClick={() => setDurationDays(d)}
+                    >
+                      {d} días
+                    </button>
+                  ))}
+                </div>
+                <p className={styles.hint}>Máximo 60 días. Después de vencer, deja de aceptar aportes automáticamente.</p>
               </div>
 
               <div className={styles.field}>
@@ -195,12 +233,71 @@ export default function CrearColecta() {
                 )}
               </div>
 
+              {justCreatedTitle && <p className={styles.ok}>¡Listo! "{justCreatedTitle}" ya está activa y visible públicamente.</p>}
               {err && <p className={styles.err}>{err}</p>}
-              <button className="btn btn-primary" disabled={saving}>{saving ? 'Creando…' : 'Crear colecta'}</button>
+              <button className="btn btn-primary" disabled={saving}>{saving ? 'Creando…' : 'Crear campaña'}</button>
             </form>
+          </div>
+
+          {!mineLoading && !mpConnected && (
+            <div className={styles.mpBanner}>
+              <span>⚠️ Conecta Mercado Pago para recibir aportes</span>
+              <Link href="/panel/bancos" className={styles.mpBannerBtn}>Ir a Banco</Link>
+            </div>
+          )}
+
+          <div className={styles.dashCard}>
+            <h2 className={styles.dashTitle}>Mis campañas</h2>
+
+            {mineLoading ? (
+              <p className={styles.dashEmpty}>Cargando…</p>
+            ) : !mine?.length ? (
+              <p className={styles.dashEmpty}>Todavía no creaste ninguna campaña.</p>
+            ) : (
+              <>
+                <div data-dash="hdr" className={styles.dashRow}>
+                  <div>Campaña</div>
+                  <div>Inicio</div>
+                  <div>Fin</div>
+                  <div>Recaudado</div>
+                  <div>Estado</div>
+                  <div>QR</div>
+                </div>
+                {mine.map((c) => (
+                  <div key={c.id} data-dash="row" className={styles.dashRow}>
+                    <div data-label="Campaña"><Link href={`/colectas/${c.id}`} className={styles.dashCampaignLink}>{c.title}</Link></div>
+                    <div data-label="Inicio">{fmtDate(c.start_at)}</div>
+                    <div data-label="Fin">{fmtDate(c.end_at)}</div>
+                    <div data-label="Recaudado">{clp(c.raised_cents)}</div>
+                    <div data-label="Estado"><span className={styles.statusPill} data-status={c.status}>{STATUS_LABEL_ES[c.status] || c.status}</span></div>
+                    <div data-label="QR"><a className={styles.qrLink} href={`/api/colectas/${c.id}/qr.png`} download>Descargar QR</a></div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </section>
+
+      <style jsx global>{`
+        @media (max-width: 720px) {
+          main.container [data-dash="hdr"] { display: none !important; }
+          main.container [data-dash="row"] {
+            grid-template-columns: 1fr !important;
+            row-gap: 6px;
+            padding: 14px !important;
+            margin: 10px 0;
+            border: 1px solid #E5E7EB;
+            border-radius: 14px;
+            background: #fff;
+          }
+          main.container [data-dash="row"] > div { display: flex; justify-content: space-between; gap: 10px; }
+          main.container [data-dash="row"] > div[data-label]::before {
+            content: attr(data-label);
+            color: #6B7280; font-size: 11.5px; font-weight: 700; flex-shrink: 0;
+          }
+        }
+      `}</style>
     </>
   );
 }

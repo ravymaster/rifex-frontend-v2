@@ -21,6 +21,7 @@
 }
 .statusBadge[data-status="active"]{ background:rgba(24,169,87,0.12); color:var(--trebol); }
 .statusBadge[data-status="closed"]{ background:var(--fondo); color:var(--gris); border:1px solid var(--borde); }
+.statusBadge[data-status="finished"]{ background:var(--fondo); color:var(--gris); border:1px solid var(--borde); }
 
 .title{ font-size:24px; font-weight:800; color:var(--oscuro); margin:0 0 12px; line-height:1.3; }
 

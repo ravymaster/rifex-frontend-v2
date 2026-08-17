@@ -5,6 +5,7 @@
 // de aporte (pending) y la preference de MP.
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { isAcceptingContributions } from "@/lib/colectaStatus";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -54,12 +55,16 @@ export default async function handler(req, res) {
     // que tenía la página al cargar, se re-consulta en cada intento.
     const { data: colecta, error: cErr } = await supabase
       .from("colectas")
-      .select("id, title, creator_id, status")
+      .select("id, title, creator_id, status, end_at")
       .eq("id", colecta_id)
       .maybeSingle();
     if (cErr) throw cErr;
     if (!colecta) return res.status(404).json({ ok: false, error: "colecta_not_found" });
-    if (colecta.status !== "active") return res.status(409).json({ ok: false, error: "colecta_not_active" });
+    // No alcanza con mirar status: una campaña activa cuyo end_at ya pasó
+    // tampoco puede iniciar un checkout — misma autoridad que usa la
+    // página pública (deriveEffectiveStatus), nunca el estado que traía la
+    // página al cargar.
+    if (!isAcceptingContributions(colecta)) return res.status(409).json({ ok: false, error: "colecta_not_active" });
 
     // 3) Conexión MP del CREADOR (resuelta desde colecta.creator_id, jamás
     // desde algo que mande el cliente) — si no está conectado, no hay forma

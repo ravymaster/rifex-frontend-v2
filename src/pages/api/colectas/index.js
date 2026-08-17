@@ -1,8 +1,15 @@
 // src/pages/api/colectas/index.js
 // Crea una Colecta. La identidad del creador sale SIEMPRE de la sesión
 // verificada — nunca se confía en un creator_id/email mandado por el
-// cliente. Queda en estado 'draft' (contrato C1); todavía no hay
-// aportes/checkout/pública — eso es fase aparte.
+// cliente.
+//
+// Cambio de esta fase (sprint dashboard): antes quedaba en 'draft' y no
+// existía ningún paso que la pasara a 'active' — ninguna colecta creada
+// por un usuario real se hacía pública sola. Ahora, como la duración
+// (start_at/end_at) se define en el momento de crear, la campaña queda
+// directa en 'active' — no se inventa un botón "Publicar" que nadie pidió.
+// 'draft' sigue siendo un estado válido en el esquema, solo que hoy no se
+// genera desde esta ruta.
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -12,6 +19,8 @@ const supabase = createClient(
 );
 
 const MAX_GALLERY = 10;
+const ALLOWED_DURATION_DAYS = new Set([15, 30, 60]);
+const DEFAULT_DURATION_DAYS = 30;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -32,6 +41,14 @@ export default async function handler(req, res) {
     ? req.body.gallery_urls.map((u) => String(u)).filter(Boolean)
     : [];
 
+  // Duración: nunca se confía en fechas mandadas por el cliente, solo en
+  // cuál de las 3 opciones válidas eligió. start_at/end_at se calculan acá.
+  const durationDaysRaw = Number(req.body?.duration_days);
+  const durationDays = ALLOWED_DURATION_DAYS.has(durationDaysRaw) ? durationDaysRaw : DEFAULT_DURATION_DAYS;
+  if (req.body?.duration_days != null && !ALLOWED_DURATION_DAYS.has(durationDaysRaw)) {
+    return res.status(400).json({ ok: false, error: 'invalid_duration' });
+  }
+
   if (!title || title.length > 140) {
     return res.status(400).json({ ok: false, error: 'invalid_title' });
   }
@@ -42,6 +59,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'too_many_images' });
   }
 
+  const startAt = new Date();
+  const endAt = new Date(startAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
   try {
     const { data: inserted, error } = await supabase
       .from('colectas')
@@ -51,9 +71,11 @@ export default async function handler(req, res) {
         description,
         cover_image_url: coverImageUrl,
         gallery_urls: galleryUrls,
-        status: 'draft',
+        status: 'active',
+        start_at: startAt.toISOString(),
+        end_at: endAt.toISOString(),
       })
-      .select('id, title, status, created_at')
+      .select('id, title, status, start_at, end_at, created_at')
       .single();
     if (error) throw error;
 

@@ -690,3 +690,123 @@ Código generado por Claude Code (Claude Sonnet 5) a partir del prompt de Doris,
 **GO condicional.** El webhook está firme para todo lo que se pudo probar con datos reales; la única pieza sin ejercitar de punta a punta es la transición `approved` real de una Colecta (ver limitación arriba). C6 (correos al aportante y al creador cuando hay una transición) puede construirse sobre esta base sin cambios adicionales — pero antes de darlo por "probado en producción" de verdad, en algún momento hace falta que pase al menos un aporte real por acá, aunque sea de monto mínimo.
 
 **Detenido acá. No se implementa C6.**
+
+---
+
+## Sprint — Dashboard de Campañas (duración, recaudación, MP, QR)
+
+**Fecha:** 2026-08-16
+**Alcance:** `/crear-colecta` pasa a ser mini dashboard ("Mis campañas"), duración de campaña (15/30/60 días, máximo 60), recaudación calculada en vivo, aviso de MP no conectado, QR descargable. Sin correos, sin C6.
+
+### Autoauditoría previa
+
+- Git: `HEAD` en `7b1dc77` (después del push de C1-C5), sin diferencias contra baseline en Rifa.
+- **Hallazgo real antes de tocar nada**: `POST /api/colectas` siempre creaba en `status:'draft'`, y ningún código existente lo pasaba nunca a `active` — ninguna campaña creada por un usuario real se hacía pública sola. Decisión tomada y documentada: como la duración ahora se define al crear, la campaña queda directo en `active` (con `start_at`/`end_at` calculados en el servidor). `draft` sigue siendo un estado válido del esquema, solo que esta ruta ya no lo genera.
+- No existía ninguna librería de QR. Se instaló `qrcode` (paquete chico, sin dependencias nativas) — auditado con `npm audit`: no agrega ninguna vulnerabilidad nueva, las que aparecen ya eran de dependencias previas del proyecto (`next`, `postcss`, `sharp`, `mercadopago`, `ws`). Para componer la tarjeta (marca + título + QR + texto + URL) se usa `sharp`, que **ya estaba en `package.json` pero nunca se usaba en ningún archivo** — se probó de forma aislada antes de integrarlo.
+- RLS: `colecta_contributions` sigue sin ninguna policy de lectura para clientes — el cálculo de recaudación se hace con el cliente de service-role (mismo patrón que toda la sesión), no requirió ninguna policy nueva.
+
+### 1. Duración de campañas
+
+```sql
+alter table colectas add column if not exists start_at timestamptz;
+alter table colectas add column if not exists end_at timestamptz;
+```
+
+`POST /api/colectas` acepta `duration_days` — solo `15`, `30` o `60` (default `30`); cualquier otro valor (probado con `90`) devuelve `400 invalid_duration`. `start_at`/`end_at` se calculan siempre en el servidor a partir de `Date.now()`, nunca se acepta una fecha mandada por el cliente.
+
+**Autoridad de vencimiento — una sola función, `src/lib/colectaStatus.js`:**
+```js
+deriveEffectiveStatus(colecta) // 'draft' | 'active' | 'finished' | 'closed' | 'deleted'
+isAcceptingContributions(colecta) // true solo si el status efectivo es 'active'
+```
+Una campaña con `status:'active'` en la base pero `end_at` ya pasado se calcula como `'finished'` en el momento de leerla — no hace falta ningún cron ni proceso que la actualice, y por lo tanto **nunca puede quedar desincronizada** (el requisito explícito de "aunque algún dato legacy haya quedado desactualizado" se cumple por diseño, no por disciplina operativa). Esta misma función la usan los tres lugares que necesitan saber si una campaña sigue viva: la página pública (`api/colectas/[id].js`), el checkout (`api/checkout/colecta.js`) y el dashboard (`api/colectas/mine.js`).
+
+Probado: crear con 15/30/60 días da el `end_at` exacto esperado; una campaña vencida se lee como `finished` aunque su `status` en la base siga diciendo `active`; el checkout la rechaza con `409 colecta_not_active`.
+
+### 2. `/crear-colecta` como mini dashboard
+
+Se mantiene el formulario de creación arriba (con el selector de duración agregado) y se agregó abajo la sección "Mis campañas", alimentada por `GET /api/colectas/mine` (Bearer, identidad siempre de la sesión). Tabla en desktop, tarjetas en mobile — mismo patrón de `data-attribute` + `<style jsx global>` ya probado en el panel de Rifa esta sesión, sin inventar uno nuevo. Columnas: Campaña (link a la página pública), Inicio, Fin, Recaudado, Estado, QR.
+
+### 3. Recaudado
+
+Se calcula **siempre** sumando `colecta_contributions.amount_cents` donde `status='approved'`, agrupado por `colecta_id`, en el momento de la consulta. No existe ni existirá una columna de recaudación editable — probado explícitamente: una campaña con aportes `pending` + `approved` + `rejected` mezclados solo suma los `approved` (verificado con montos distintos para poder detectar si se colaba alguno que no correspondía).
+
+### 4. Estado
+
+Cuatro estados representados en el dashboard (`Borrador`/`Activa`/`Finalizada`/`Eliminada`, más `Cerrada` para el cierre manual que ya existía) — todos derivados de `deriveEffectiveStatus`, nunca leídos crudos desde `status`.
+
+### 5. Mercado Pago
+
+`GET /api/colectas/mine` incluye `mp_connected` (lectura de `merchant_gateways`, mismo criterio que usa el checkout — `provider='mp'`, `status='connected'`). Si es `false`, el dashboard muestra el aviso con el botón "Ir a Banco" hacia `/panel/bancos` (la página bancaria existente de Rifa). No se tocó `merchant_gateways`, no se tocó el flujo OAuth, no se duplicó ningún formulario de datos bancarios dentro de Colecta.
+
+### 6. QR de campaña
+
+`GET /api/colectas/[id]/qr.png` — público (mismo criterio de visibilidad que la página pública: `draft`/`deleted` devuelven 404). Genera una ficha descargable (`Content-Disposition: attachment`) con: nombre Rifex, título de la campaña, QR grande, "Escanea para ayudar", URL legible — compuesta con `qrcode` (codifica el QR) + `sharp` (arma la tarjeta completa vía un overlay SVG). El QR codifica exclusivamente `/colectas/[id]`, la misma URL pública que ya existía — nada de información privada, nada de lógica transaccional (no es el QR de Evento).
+
+**Verificado decodificando el QR de verdad** (no solo asumiendo que el PNG se generó bien): se leyó el contenido del QR resultante con un decodificador y se confirmó que apunta exactamente a la URL de esa campaña, no a otra.
+
+**Nota para el usuario, no un bug de código:** el QR de prueba salió apuntando a una URL de túnel de desarrollo (`NEXT_PUBLIC_BASE_URL` en este `.env.local` es un túnel local, no `rifex.pro`). El código usa esa variable si existe, y si no, cae automáticamente al dominio real de la petición — pero si esa variable estuviera mal configurada en Vercel (con un valor viejo o de desarrollo), el QR de producción apuntaría mal. **Queda pendiente que el usuario confirme el valor de `NEXT_PUBLIC_BASE_URL` en Vercel.**
+
+### Archivos creados
+
+- `src/lib/colectaStatus.js`
+- `src/pages/api/colectas/mine.js`
+- `src/pages/api/colectas/[id]/qr.png.js`
+
+### Archivos modificados
+
+- `src/pages/api/colectas/index.js` (duración + `status:'active'` en vez de `'draft'`)
+- `src/pages/api/colectas/[id].js` (devuelve `start_at`/`end_at`, usa `deriveEffectiveStatus`)
+- `src/pages/api/checkout/colecta.js` (rechaza checkout si la campaña está vencida, no solo si `status !== 'active'`)
+- `src/pages/colectas/[id].jsx` (badge/CTA distinguen `finished` de `closed`)
+- `src/styles/colectaPublica.module.css` (estilo del badge `finished`)
+- `src/pages/crear-colecta.jsx` (reescrito como dashboard)
+- `src/styles/crearColecta.module.css` (estilos del dashboard, duración, banner de MP)
+- `package.json`/`package-lock.json` (nueva dependencia: `qrcode`)
+
+### Protected Baseline — verificación
+
+```
+git diff v1.0-rifex-baseline -- src/pages/api/checkout/mp.js src/pages/api/checkout/webhook.js \
+  src/pages/api/checkout/confirm.js src/pages/api/admin/reconcile-payments.js src/lib/drawWinner.js \
+  src/pages/api/mp/ src/pages/api/rifas/ src/pages/api/raffles/ src/pages/panel/ src/pages/rifas/
+```
+Resultado: **vacío**. `panel/bancos.js` se enlaza (un link nuevo apunta ahí), no se modifica. El dashboard de Rifa (`panel/index.js`) no se tocó ni se generalizó — sigue siendo exclusivo de rifas, tal como pedía el punto 7 del prompt.
+
+### Pruebas ejecutadas (19/19)
+
+1. Usuario sin campañas → `items: []`, `mp_connected: false` ✅
+2. Duración 15/30/60 días → `end_at` calculado exacto en cada caso ✅
+3. Duración 90 días → `400 invalid_duration` ✅
+4. Campaña recién creada → `status: 'active'` directo (no `draft`) ✅
+5. Usuario A ve exactamente sus propias campañas, nunca las de otro (probado creando una campaña real de un usuario B y confirmando que no aparece en la lista de A) ✅
+6. Campaña sin aportes → recaudado `$0` ✅
+7. Mezcla `pending`+`approved`+`approved`+`rejected` → recaudado suma **solo** los dos `approved`, con montos elegidos a propósito para poder detectar si se colaba alguno indebido ✅
+8. Campaña vencida → la página pública la muestra `finished` aunque la DB diga `active`; el checkout la rechaza con `409` ✅
+9. Creador **con** MP conectado → checkout funciona, preference real de MP ✅
+10. QR responde `200`, `image/png`, con `Content-Disposition: attachment` (descarga real, no solo se ve inline) ✅
+11. **QR decodificado de verdad** → el contenido apunta exactamente a `/colectas/{id}` de esa campaña, confirmado programáticamente, no supuesto ✅
+12. QR de una campaña `draft` → `404`, no expone nada ✅
+13. Cliente anónimo no puede leer `colecta_contributions` directo — la recaudación no es consultable por fuera del endpoint del propio creador ✅
+
+### Build
+
+`npm run build` — completó sin errores (`exit code 0`). `/colectas/[id]` (2.62 kB) y `/crear-colecta` (4.03 kB) compilaron limpio. Servidor reiniciado con cache limpia y re-verificado después.
+
+### Trazabilidad / autoría
+
+Código generado por Claude Code (Claude Sonnet 5) a partir del prompt de Doris, mismo criterio de autoría que las fases anteriores.
+
+### Autoauditoría posterior — intentando romper el sprint
+
+- ¿Puede un usuario listar campañas ajenas? No — `api/colectas/mine.js` filtra siempre por el `uid` que sale de `supabase.auth.getUser(token)`, nunca de un parámetro; probado con dos usuarios reales, cero fuga.
+- ¿Puede un usuario consultar cuánto recaudó otro por algún endpoint público? No — la recaudación no aparece en `api/colectas/[id].js` (la ruta pública), solo en `api/colectas/mine.js`, que exige la sesión del propio creador; y `colecta_contributions` no tiene ninguna policy de lectura para ningún cliente.
+- ¿Puede iniciarse un checkout sobre una campaña vencida jugando con las fechas del navegador? No — la verificación de expiración es 100% server-side, re-leyendo `end_at` de la base en cada intento, nunca confiando en lo que el cliente cree que es la fecha actual.
+- ¿El QR puede usarse para filtrar algo privado? No — codifica únicamente la URL pública que ya era accesible sin login; se generó también para una campaña `draft` intencionalmente, y respondió `404`.
+- ¿Algún cambio de este sprint afecta a Rifa? No — diff vacío contra Protected Baseline; `panel/bancos.js` solo recibe un link nuevo, no se modificó.
+
+**No se encontró ninguna falla.** Único punto no resuelto por el código (es una configuración externa, no un bug): confirmar `NEXT_PUBLIC_BASE_URL` en Vercel para que el QR de producción apunte a `rifex.pro` y no a un dominio de desarrollo.
+
+### GO / NO-GO para publicar el Dashboard de Colectas
+
+**GO**, condicionado a que el usuario confirme el valor de `NEXT_PUBLIC_BASE_URL` en producción antes de compartir cualquier QR real. Todo lo demás — aislamiento entre usuarios, cálculo financiero, vencimiento, checkout, Protected Baseline — quedó probado con datos reales, no solo revisado por código.

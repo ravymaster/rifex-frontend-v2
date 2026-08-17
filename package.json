@@ -15,11 +15,15 @@
     "mercadopago": "^2.8.0",
     "next": "^14.2.32",
     "node-fetch": "^3.3.2",
+    "qrcode": "^1.5.4",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "replicate": "^1.1.0",
     "resend": "^6.1.0",
     "sharp": "^0.34.3",
     "slugify": "^1.6.6"
+  },
+  "allowScripts": {
+    "sharp@0.34.3": true
   }
 }
