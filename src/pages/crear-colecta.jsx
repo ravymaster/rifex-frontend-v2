@@ -11,30 +11,64 @@ import styles from '@/styles/crearColecta.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
 
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+// Tope solo para que el navegador no se cuelgue decodificando algo absurdo.
+// No es un rechazo de "archivo muy pesado": toda foto se recorta y
+// comprime acá mismo antes de salir del navegador, así que aunque llegue
+// una foto de 50MB nunca se le muestra un error al usuario por el peso.
+const MAX_RAW_INPUT_BYTES = 40 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const MAX_GALLERY = 10;
 const DURATIONS = [15, 30, 60];
 
-function fileToBase64(file) {
+// Recorta y comprime la foto en un <canvas> antes de subirla. Como el
+// canvas solo puede reexportar los píxeles que realmente decodificó, esto
+// también descarta cualquier dato ajeno pegado al archivo original (el
+// servidor vuelve a hacer lo mismo con sharp, que es el límite real de
+// seguridad — esto es solo para no mandar 50MB por la red).
+function resizeToBlob(file, { w, h, quality = 0.82 }) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      const srcRatio = img.width / img.height;
+      const dstRatio = w / h;
+      let sx, sy, sw, sh;
+      if (srcRatio > dstRatio) { sh = img.height; sw = sh * dstRatio; sy = 0; sx = (img.width - sw) / 2; }
+      else { sw = img.width; sh = sw / dstRatio; sx = 0; sy = (img.height - sh) / 2; }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo procesar la imagen'))), 'image/jpeg', quality);
+    };
+    img.onerror = () => reject(new Error('Archivo de imagen inválido'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function blobToBase64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
     reader.onerror = reject;
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
 }
 
-async function uploadPhoto(file, token) {
+async function uploadPhoto(file, token, kind) {
   if (!ALLOWED_PHOTO_TYPES.has(file.type)) throw new Error(`Formato no permitido: ${file.name}`);
-  if (file.size > MAX_PHOTO_BYTES) throw new Error(`${file.name} pesa más de 5MB.`);
-  const dataBase64 = await fileToBase64(file);
+  if (file.size > MAX_RAW_INPUT_BYTES) throw new Error(`${file.name} es demasiado grande para procesar.`);
+
+  const target = kind === 'cover' ? { w: 1600, h: 700 } : { w: 900, h: 900 };
+  const resized = await resizeToBlob(file, target);
+  const dataBase64 = await blobToBase64(resized);
   const res = await fetch('/api/colectas/upload-photo', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ filename: file.name, contentType: file.type, dataBase64 }),
+    body: JSON.stringify({ filename: file.name, contentType: 'image/jpeg', dataBase64, kind: kind === 'cover' ? 'cover' : 'gallery' }),
   });
-  const data = await res.json();
+  let data;
+  try { data = await res.json(); } catch { throw new Error(`No se pudo subir ${file.name}`); }
   if (!res.ok || !data?.ok) throw new Error(data?.error || `No se pudo subir ${file.name}`);
   return data.url;
 }
@@ -100,7 +134,7 @@ export default function CrearColecta() {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!ALLOWED_PHOTO_TYPES.has(file.type)) { setErr(`Formato no permitido: ${file.name}`); return; }
-    if (file.size > MAX_PHOTO_BYTES) { setErr(`${file.name} pesa más de 5MB.`); return; }
+    if (file.size > MAX_RAW_INPUT_BYTES) { setErr(`${file.name} es demasiado grande para procesar.`); return; }
     setErr('');
     setCoverFile(file);
   }
@@ -116,7 +150,7 @@ export default function CrearColecta() {
     const accepted = [];
     for (const file of incoming) {
       if (!ALLOWED_PHOTO_TYPES.has(file.type)) { setErr(`Formato no permitido: ${file.name}`); continue; }
-      if (file.size > MAX_PHOTO_BYTES) { setErr(`${file.name} pesa más de 5MB.`); continue; }
+      if (file.size > MAX_RAW_INPUT_BYTES) { setErr(`${file.name} es demasiado grande para procesar.`); continue; }
       accepted.push(file);
       if (accepted.length >= room) break;
     }
@@ -139,11 +173,11 @@ export default function CrearColecta() {
     setJustCreatedTitle('');
     try {
       let coverUrl = null;
-      if (coverFile) coverUrl = await uploadPhoto(coverFile, token);
+      if (coverFile) coverUrl = await uploadPhoto(coverFile, token, 'cover');
 
       const galleryUrls = [];
       for (const file of galleryFiles) {
-        galleryUrls.push(await uploadPhoto(file, token));
+        galleryUrls.push(await uploadPhoto(file, token, 'gallery'));
       }
 
       const res = await fetch('/api/colectas', {
