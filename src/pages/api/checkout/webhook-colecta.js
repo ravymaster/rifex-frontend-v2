@@ -71,20 +71,32 @@ async function fetchPayment(paymentId, hintMpUserId = null) {
     platformFail = { status: r.status, json: await r.json().catch(() => ({})) };
   }
   if (hintMpUserId) {
-    const { data: gw } = await supabase
+    // El mismo mp_user_id puede estar conectado a más de un usuario Rifex —
+    // nada en el OAuth lo impide, y no tiene por qué (dos personas pueden
+    // compartir legítimamente una cuenta MP). No se puede asumir una sola
+    // fila: se traen todas las candidatas y se prueba cada token contra la
+    // API real de MP — es la propia respuesta de MP, no una suposición
+    // nuestra, la que decide cuál token puede ver el pago. El chequeo de
+    // metadata más abajo (colecta_id/contribution_id reales del pago)
+    // sigue siendo la autoridad final de a qué campaña pertenece.
+    const { data: candidates } = await supabase
       .from("merchant_gateways")
-      .select("access_token, mp_user_id")
+      .select("access_token")
       .eq("mp_user_id", String(hintMpUserId))
       .eq("provider", "mp")
-      .maybeSingle();
-    const sellerToken = gw?.access_token || null;
-    if (sellerToken) {
+      .limit(10);
+
+    let lastSellerFail = null;
+    for (const gw of candidates || []) {
+      const sellerToken = gw?.access_token || null;
+      if (!sellerToken) continue;
       const r2 = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
         headers: { Authorization: `Bearer ${sellerToken}` },
       });
       if (r2.ok) return { ok: true, json: await r2.json(), via: "seller" };
-      return { ok: false, status: r2.status, json: await r2.json().catch(() => ({})), via: "seller" };
+      lastSellerFail = { status: r2.status, json: await r2.json().catch(() => ({})) };
     }
+    if (lastSellerFail) return { ok: false, status: lastSellerFail.status, json: lastSellerFail.json, via: "seller" };
   }
   if (platformFail) return { ok: false, status: platformFail.status, json: platformFail.json, via: "platform" };
   return { ok: false, status: 401, json: { error: "no_token_available" }, via: "none" };
