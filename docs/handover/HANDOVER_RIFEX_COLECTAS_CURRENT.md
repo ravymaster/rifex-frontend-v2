@@ -3,30 +3,33 @@
 ## Estado
 
 ```text
-Colecta/Campañas V1 — CERTIFIED
+CAMPAÑAS V1 — CERTIFIED / PRODUCTION READY
 ```
 
 Producto completo verificado de punta a punta con datos y un pago reales:
 `crear campaña → publicar → compartir/QR → aportar → Mercado Pago → webhook →
-approved → recaudado → dashboard → C5R (reconciliación) → notificaciones`.
+approved → recaudado → dashboard → C5R (reconciliación) → notificaciones →
+C6F (resolución de ownership sin mp_user_id ambiguo)`.
 
-## HEAD
+## HEAD final — desplegado y verificado en producción
 
 ```text
-branch:  main
-HEAD antes de esta sesión: 7d83f66f3fcf5fe3d8bf79b626ed0cac12c6f641 (C5R)
-origin/main: igual a ese HEAD
-
-Cambios de C6 en esta sesión — TODAVÍA NO COMMITEADOS NI PUSHEADOS:
- M src/pages/api/checkout/webhook-colecta.js
- M src/pages/api/admin/reconcile-colecta-payments.js
-?? src/lib/colectaMailer.js
+branch:      main
+HEAD:        bb6bc917a1cce874a8b8577fcc67dbeb15016606
+origin/main: igual a HEAD (0 ahead, 0 behind)
+tag:         v1.0-colectas-certified -> bb6bc91 (apunta exactamente a este commit)
+working tree: limpio (solo ?? .claude/, local, no se commitea)
 ```
 
-Commit/push/tag de C6 quedan pendientes de autorización explícita por separado
-(no autorizados en esta sesión a propósito).
+Commits de cierre (más reciente primero):
 
-## Producto certificado — qué está en producción hoy (sin contar C6, aún no pusheado)
+```text
+bb6bc91  fix: C6F — resolver ownership de merchant_gateways sin mp_user_id ambiguo
+e2e3d59  feat: C6 — notificaciones de aporte para Colecta + certificación V1
+7d83f66  feat: C5R — reconciliación de respaldo para pagos de Colecta
+```
+
+## Producto certificado — qué está en producción hoy
 
 - Creación de campaña (`/crear-colecta`), duración fija (15/30/60 días), meta opcional (`goal_cents`, nullable).
 - Fotos: recorte/compresión en navegador + **re-encode server-side obligatorio** con `sharp` (nunca se persiste el buffer del cliente — probado con archivo polyglot).
@@ -58,7 +61,7 @@ C5R sobre este mismo aporte: already_processed:true, status:approved — no lo r
 
 Verificado independientemente contra `GET /v1/payments/{id}` con el token real del vendedor, no solo contra la base propia.
 
-## C6 — Notificaciones (esta sesión, no pusheado aún)
+## C6 — Notificaciones
 
 **Archivos:**
 - Nuevo: `src/lib/colectaMailer.js` — `notifyColectaApproved()`, `sendColectaContributorEmail()`, `sendColectaCreatorEmail()`. Reutiliza `sendEmail()`/`__mailer_utils` de `mailer.js` (import de solo lectura, `mailer.js` queda intacto — 0 diff).
@@ -68,7 +71,15 @@ Verificado independientemente contra `GET /v1/payments/{id}` con el token real d
 
 **Qué NO incluyen los correos:** `mp_payment_id`, comisión/`marketplace_fee`, ni ningún dato financiero interno — verificado interceptando el body real que se arma para Resend, no solo revisando el código fuente.
 
-**Hallazgo colateral, fuera de alcance, no corregido:** `merchant_gateways` tiene el mismo `mp_user_id` en dos filas reales (dos usuarios de Rifex conectaron la misma cuenta MP en momentos distintos) — rompe el fallback por "hint" de `fetchPayment()` en `webhook-colecta.js` (ya certificado, no tocado). Falla en modo seguro (no escribe nada, no notifica). C5R no lo sufre porque resuelve por `creator_id` (único), no por `mp_user_id`.
+## C6F — Resolución de ownership sin `mp_user_id` ambiguo
+
+**Hallazgo (auditado, causa raíz confirmada):** `merchant_gateways` upsertea por `(user_id, provider)` — cada usuario Rifex tiene su propia fila, pero `mp_user_id` nunca tuvo restricción de unicidad. Nada en el OAuth de MP impide que dos usuarios Rifex distintos conecten la misma cuenta MP real; ocurrió con datos reales (`4b4c1cef...` y `020bb993...`, el creador real de la colecta de Bruno, ambas conexiones legítimas). Esto rompía `.eq('mp_user_id', hint).maybeSingle()` en `fetchPayment()` de `webhook-colecta.js`.
+
+**Decisión:** no se agregó `UNIQUE(mp_user_id)` — una misma cuenta MP conectada a más de un usuario Rifex no es necesariamente ilegítima, y el dinero siempre va a la cuenta MP real conectada independientemente de cuál login Rifex la usó. El problema era de **resolución**, no de integridad de datos.
+
+**Fix (confinado a `fetchPayment()` en `webhook-colecta.js`, único archivo tocado):** en vez de asumir una sola fila candidata, se traen todas y se prueba cada token contra la API real de MP — la propia respuesta de MP decide cuál token puede ver el pago, no una suposición nuestra. El chequeo de metadata que ya existía más abajo (`colecta_id`/`contribution_id` reales del pago) sigue siendo la autoridad final. `reconcile-colecta-payments.js` no se tocó (ya resolvía por `creator_id`, único, nunca sufrió este problema).
+
+**Probado contra el escenario real** (las dos filas reales, sin fabricar nada): webhook replicado en producción → `already_processed:true, status:approved`, **converge exactamente con C5R** sobre el mismo aporte. Prueba aislada de `fetchPayment()` extraída verbatim (4/4): primera candidata falla → prueba la segunda con éxito; primera funciona → no sigue de más; ambas fallan → falla segura; sin candidatas → no llama a MP. `updated_at` del aporte real idéntico antes/después en todas las corridas — cero notificaciones duplicadas (el código de C6 sigue siendo inalcanzable desde la rama "ya procesada").
 
 ## Protected Baseline (Rifa) — verificado, intacto
 
@@ -82,19 +93,25 @@ commit: 18138ae3f04319e43caa22dd881240cd65cb0dd0
 ### Qué NO debe tocarse al retomar
 
 - Todo lo listado arriba.
-- El bug conocido de `fetchPayment()` en el webhook de Rifa (404 con token plataforma no cae al fallback) — no corregir dentro de Colecta.
-- El hallazgo colateral de `merchant_gateways.mp_user_id` duplicado — no corregir sin decisión explícita (afecta datos reales de dos usuarios reales conectados a la misma cuenta MP).
+- El bug conocido de `fetchPayment()` en el webhook de **Rifa** (404 con token plataforma no cae al fallback) — sigue sin corregir, deliberadamente fuera de scope de Colecta (es el equivalente exacto de lo que sí se corrigió en `webhook-colecta.js` con C6F, pero tocar el archivo de Rifa no está autorizado).
 - `panel/bancos.js` — solo enlazado.
 
 ## Riesgos y deudas conocidas
 
-1. Webhook certificado de Rifa: comportamiento conocido (404 → no fallback). Fuera de scope, documentado.
-2. `merchant_gateways.mp_user_id` no es único — rompe el fallback por hint del webhook de Colecta si la misma cuenta MP se conecta a 2+ usuarios. Falla en modo seguro. No corregido (fuera de alcance de C6).
-3. Admin real de Rifex, pendiente para etapa posterior.
-4. C6 no probó el envío real a una bandeja de entrada humana verificable (por diseño — se usaron solo direcciones `@rifex-test.local`, no entregables, para no mandar correos de prueba a personas reales). El motor de envío (`sendEmail`/Resend) ya está certificado y en producción para Rifa desde antes; lo nuevo en C6 es únicamente el enganche de idempotencia + los templates de Colecta, ambos probados exhaustivamente.
+1. Webhook certificado de Rifa: comportamiento conocido (404 → no fallback), idéntico en naturaleza al que C6F corrigió del lado de Colecta. Fuera de scope, documentado, no tocado.
+2. Admin real de Rifex, pendiente para etapa posterior.
+3. C6 no probó el envío real a una bandeja de entrada humana verificable (por diseño — se usaron solo direcciones `@rifex-test.local`, no entregables, para no mandar correos de prueba a personas reales). El motor de envío (`sendEmail`/Resend) ya está certificado y en producción para Rifa desde antes; lo nuevo en C6 es únicamente el enganche de idempotencia + los templates de Colecta, ambos probados exhaustivamente.
 
-## Pendiente — orden acordado
+## Cerrado
 
-1. **Certificación de este informe** (Doris revisa el cierre).
-2. Autorización separada de: commit → push → verificación en producción → tag/checkpoint final de Colecta V1.
-3. Después: Evento. El QR de Evento será **transaccional**, distinto en naturaleza al QR público/informativo de Colecta — no reusar el mismo diseño sin pensarlo de nuevo.
+`merchant_gateways.mp_user_id` duplicado entre dos usuarios reales — **resuelto por C6F** (ver arriba). Ya no es un riesgo abierto.
+
+## Tag de cierre
+
+```text
+v1.0-colectas-certified -> bb6bc917a1cce874a8b8577fcc67dbeb15016606
+```
+
+## Siguiente etapa
+
+Evento. El QR de Evento será **transaccional**, distinto en naturaleza al QR público/informativo de Colecta — no reusar el mismo diseño sin pensarlo de nuevo.
