@@ -42,8 +42,11 @@ async function reconcileOne(contributionId) {
   if (cErr) return { contribution_id: contributionId, ok: false, error: 'db_error', detail: cErr.message };
   if (!contribution) return { contribution_id: contributionId, ok: false, error: 'contribution_not_found' };
 
-  if (contribution.status !== 'pending') {
-    return { contribution_id: contributionId, ok: true, already_processed: true, status: contribution.status };
+  // ==== Máquina de estados (C6F2) — mismo criterio que webhook-colecta.js ====
+  // approved es terminal. rejected NO es terminal frente a evidencia real
+  // de un approved posterior (retry legítimo sobre la misma preference).
+  if (contribution.status === 'approved') {
+    return { contribution_id: contributionId, ok: true, already_processed: true, status: 'approved' };
   }
 
   const { data: colecta, error: colErr } = await supabase
@@ -55,7 +58,7 @@ async function reconcileOne(contributionId) {
   if (!colecta) {
     await logReconcileTrace({
       contributionId, colectaId: contribution.colecta_id, paymentId: null,
-      previousStatus: 'pending', resultingStatus: 'pending', reason: 'colecta_not_found',
+      previousStatus: contribution.status, resultingStatus: contribution.status, reason: 'colecta_not_found',
     });
     return { contribution_id: contributionId, ok: false, error: 'colecta_not_found' };
   }
@@ -64,7 +67,7 @@ async function reconcileOne(contributionId) {
   if (!sellerToken) {
     await logReconcileTrace({
       contributionId, colectaId: colecta.id, paymentId: null,
-      previousStatus: 'pending', resultingStatus: 'pending', reason: 'no_seller_token',
+      previousStatus: contribution.status, resultingStatus: contribution.status, reason: 'no_seller_token',
     });
     return { contribution_id: contributionId, ok: false, error: 'no_seller_token' };
   }
@@ -73,7 +76,7 @@ async function reconcileOne(contributionId) {
   if (!search.ok) {
     await logReconcileTrace({
       contributionId, colectaId: colecta.id, paymentId: null,
-      previousStatus: 'pending', resultingStatus: 'pending', reason: 'search_failed',
+      previousStatus: contribution.status, resultingStatus: contribution.status, reason: 'search_failed',
       error: `status=${search.status} via=${search.via}`,
     });
     return { contribution_id: contributionId, ok: false, error: 'search_failed', status: search.status, via: search.via };
@@ -82,13 +85,14 @@ async function reconcileOne(contributionId) {
   const mp = pickBestPayment(search.results);
   if (!mp) {
     // No hay ningún payment de MP con esta referencia todavía — el
-    // aportante nunca terminó el checkout, o MP aún no lo procesó.
-    // 'pending' es el estado correcto, no un error.
+    // aportante nunca terminó el checkout, o MP aún no lo procesó. Solo
+    // puede pasar con la fila todavía 'pending' (una fila 'rejected'
+    // siempre tiene al menos ese payment rechazado encontrable acá).
     await logReconcileTrace({
       contributionId, colectaId: colecta.id, paymentId: null,
-      previousStatus: 'pending', resultingStatus: 'pending', reason: 'no_payment_found',
+      previousStatus: contribution.status, resultingStatus: contribution.status, reason: 'no_payment_found',
     });
-    return { contribution_id: contributionId, ok: true, kept_pending: true, reason: 'no_payment_found' };
+    return { contribution_id: contributionId, ok: true, kept_pending: contribution.status === 'pending', already_processed: contribution.status !== 'pending', reason: 'no_payment_found' };
   }
 
   // Defensa adicional: la metadata REAL del payment (no el body de nadie)
@@ -97,7 +101,7 @@ async function reconcileOne(contributionId) {
   if (!metadataMatches(mp, colecta.id, contribution.id)) {
     await logReconcileTrace({
       contributionId, colectaId: colecta.id, paymentId: mp?.id || null,
-      previousStatus: 'pending', resultingStatus: 'pending', reason: 'metadata_mismatch',
+      previousStatus: contribution.status, resultingStatus: contribution.status, reason: 'metadata_mismatch',
       error: JSON.stringify({ expected: { colecta_id: colecta.id, contribution_id: contribution.id }, got: mp?.metadata || {} }),
     });
     return { contribution_id: contributionId, ok: false, error: 'metadata_mismatch' };
@@ -106,19 +110,31 @@ async function reconcileOne(contributionId) {
   const transition = computeColectaTransition(contribution, mp);
 
   if (!transition.newStatus) {
-    // Estado intermedio real de MP (pending/in_process/authorized/etc) —
-    // se mantiene pending, no es un error.
+    // Estado intermedio real de MP (pending/in_process/authorized/etc).
+    // Si la fila ya estaba pending, se mantiene pending. Si ya estaba
+    // rejected, un intermedio no la reabre — sigue rejected, sin tocar.
     await logReconcileTrace({
       contributionId, colectaId: colecta.id, paymentId: mp.id,
-      previousStatus: 'pending', resultingStatus: 'pending', reason: transition.reason,
+      previousStatus: contribution.status, resultingStatus: contribution.status, reason: transition.reason,
       error: transition.mpStatus ? `mp_status=${transition.mpStatus}` : null,
     });
-    return { contribution_id: contributionId, ok: true, kept_pending: true, mp_status: transition.mpStatus, payment_id: mp.id };
+    return { contribution_id: contributionId, ok: true, kept_pending: contribution.status === 'pending', already_processed: contribution.status !== 'pending', mp_status: transition.mpStatus, payment_id: mp.id };
   }
 
-  // Guard .eq('status','pending') de nuevo: si el webhook (o otra corrida
-  // de reconciliación) ya la procesó justo ahora, esta pierde la carrera
-  // sin romper nada.
+  // rejected -> rejected (el mismo payment rechazado, u otro intento
+  // también rechazado): nada financiero que cambiar, no-op conservador.
+  if (contribution.status === 'rejected' && transition.newStatus !== 'approved') {
+    await logReconcileTrace({
+      contributionId, colectaId: colecta.id, paymentId: mp.id,
+      previousStatus: 'rejected', resultingStatus: 'rejected', reason: transition.reason,
+    });
+    return { contribution_id: contributionId, ok: true, already_processed: true, status: 'rejected', payment_id: mp.id };
+  }
+
+  // Guard atómico: exige que la fila siga EXACTAMENTE en el estado que se
+  // acaba de leer (pending, o rejected si esto es una recuperación real
+  // rejected->approved). Si el webhook (u otra corrida de reconciliación)
+  // ya la procesó justo ahora, esta pierde la carrera sin romper nada.
   const { data: updated, error: uErr } = await supabase
     .from('colecta_contributions')
     .update({
@@ -128,7 +144,7 @@ async function reconcileOne(contributionId) {
     })
     .eq('id', contributionId)
     .eq('colecta_id', colecta.id)
-    .eq('status', 'pending')
+    .eq('status', contribution.status)
     .select()
     .maybeSingle();
 
@@ -137,13 +153,13 @@ async function reconcileOne(contributionId) {
       // unique(mp_payment_id): este payment_id ya acreditó otra contribution.
       await logReconcileTrace({
         contributionId, colectaId: colecta.id, paymentId: mp.id,
-        previousStatus: 'pending', resultingStatus: 'pending', reason: 'payment_already_used',
+        previousStatus: contribution.status, resultingStatus: contribution.status, reason: 'payment_already_used',
       });
       return { contribution_id: contributionId, ok: false, error: 'payment_already_used', payment_id: mp.id };
     }
     await logReconcileTrace({
       contributionId, colectaId: colecta.id, paymentId: mp.id,
-      previousStatus: 'pending', resultingStatus: 'pending', reason: 'db_error', error: uErr.message,
+      previousStatus: contribution.status, resultingStatus: contribution.status, reason: 'db_error', error: uErr.message,
     });
     return { contribution_id: contributionId, ok: false, error: 'db_error', detail: uErr.message };
   }
@@ -151,14 +167,14 @@ async function reconcileOne(contributionId) {
   if (!updated) {
     await logReconcileTrace({
       contributionId, colectaId: colecta.id, paymentId: mp.id,
-      previousStatus: 'pending', resultingStatus: 'race_lost', reason: transition.reason,
+      previousStatus: contribution.status, resultingStatus: 'race_lost', reason: transition.reason,
     });
     return { contribution_id: contributionId, ok: true, already_processed: true, race: true };
   }
 
   await logReconcileTrace({
     contributionId, colectaId: colecta.id, paymentId: mp.id,
-    previousStatus: 'pending', resultingStatus: transition.newStatus, reason: transition.reason,
+    previousStatus: contribution.status, resultingStatus: transition.newStatus, reason: transition.reason,
   });
 
   // C6: notificación no financiera. Solo llega acá el proceso que

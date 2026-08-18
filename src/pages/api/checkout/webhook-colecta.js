@@ -228,10 +228,19 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false, error: "colecta_mismatch" });
     }
 
-    // Ya procesada (aprobada o rechazada) -> evento repetido/tardío, inocuo.
-    if (contribution.status !== "pending") {
-      console.log("[colecta webhook] ya procesada, no se degrada", { eventId, contributionId, status: contribution.status });
-      return res.status(200).json({ ok: true, already_processed: true, status: contribution.status });
+    // ==== Máquina de estados (C6F2) ====
+    // approved es terminal: una vez ahí, ningún evento posterior —
+    // apruebe, rechace, o quede intermedio— puede volver a tocar la fila.
+    // rejected NO es terminal frente a evidencia real de un approved
+    // posterior: Mercado Pago permite reintentar la misma
+    // preference/external_reference con otra tarjeta, y eso puede terminar
+    // en un pago aprobado real que hoy quedaba invisible para Rifex. Sí es
+    // terminal frente a cualquier otra cosa que no sea un approved real
+    // (otro rechazo, o un intermedio) — eso se resuelve más abajo, sin
+    // reescribir la fila.
+    if (contribution.status === "approved") {
+      console.log("[colecta webhook] ya approved, terminal — no se toca", { eventId, contributionId });
+      return res.status(200).json({ ok: true, already_processed: true, status: "approved" });
     }
 
     // Monto real pagado debe calzar EXACTO con lo que se esperaba cobrar.
@@ -240,11 +249,15 @@ export default async function handler(req, res) {
       console.error("[colecta webhook] monto no coincide — rechazado", {
         eventId, contributionId, expected: contribution.amount_cents, got: paidAmountCents,
       });
-      await supabase
-        .from("colecta_contributions")
-        .update({ status: "rejected", mp_payment_id: String(paymentId) })
-        .eq("id", contributionId)
-        .eq("status", "pending");
+      if (contribution.status === "pending") {
+        await supabase
+          .from("colecta_contributions")
+          .update({ status: "rejected", mp_payment_id: String(paymentId) })
+          .eq("id", contributionId)
+          .eq("status", "pending");
+      }
+      // Si ya estaba rejected, un intento adicional con monto incorrecto no
+      // cambia nada — sigue rejected, sin reescribir (no-op conservador).
       return res.status(200).json({ ok: false, error: "amount_mismatch" });
     }
 
@@ -254,8 +267,16 @@ export default async function handler(req, res) {
 
     if (!newStatus) {
       // pending / in_process / authorized / etc — estado intermedio real de
-      // MP, no se aprueba ni se rechaza todavía.
+      // MP. Si la fila ya estaba rejected, un intermedio no la reabre.
       return res.status(200).json({ ok: true, intermediate: true, mp_status: mpStatus });
+    }
+
+    // rejected -> rejected (segundo/tercer intento también rechazado): no
+    // hay nada financiero que cambiar, el intento anterior ya quedó
+    // completo en webhook_events — no-op conservador, sin reescribir.
+    if (contribution.status === "rejected" && newStatus !== "approved") {
+      console.log("[colecta webhook] ya rejected, nuevo intento también no-approved — no se toca", { eventId, contributionId, newStatus });
+      return res.status(200).json({ ok: true, already_processed: true, status: "rejected" });
     }
 
     const applicationFee = Array.isArray(mp?.fee_details)
@@ -265,8 +286,10 @@ export default async function handler(req, res) {
       ? Math.round(Number(applicationFee.amount || 0) * 100)
       : contribution.marketplace_fee_cents ?? null;
 
-    // Guard .eq('status','pending') de nuevo acá: si dos webhooks llegaron
-    // casi al mismo tiempo, solo el primero en llegar a la DB gana.
+    // Guard atómico: exige que la fila siga EXACTAMENTE en el estado que
+    // se acaba de leer (pending, o rejected si esto es una recuperación
+    // real rejected->approved). Si otro proceso ya la cambió mientras
+    // tanto (otro webhook, o C5R), este UPDATE no matchea ninguna fila.
     const { data: updated, error: uErr } = await supabase
       .from("colecta_contributions")
       .update({
@@ -276,7 +299,7 @@ export default async function handler(req, res) {
       })
       .eq("id", contributionId)
       .eq("colecta_id", colectaId)
-      .eq("status", "pending")
+      .eq("status", contribution.status)
       .select()
       .maybeSingle();
 
@@ -293,7 +316,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, already_processed: true, race: true });
     }
 
-    console.log("[colecta webhook] transición aplicada", { eventId, contributionId, colectaId, newStatus, paymentId });
+    console.log("[colecta webhook] transición aplicada", { eventId, contributionId, colectaId, previousStatus: contribution.status, newStatus, paymentId });
 
     // C6: notificación no financiera. Solo llega acá el proceso que
     // efectivamente ganó la transición de arriba (updated no-null) — el
