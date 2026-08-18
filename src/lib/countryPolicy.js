@@ -1,20 +1,44 @@
 // src/lib/countryPolicy.js
-// Única fuente de verdad de países para Rifex (G1). Módulo puro — sin
+// Única fuente de verdad de países para Rifex (G1 + G2). Módulo puro — sin
 // imports de Supabase ni nada server-only — se puede importar tanto desde
 // páginas cliente como desde API routes sin traer secretos ni side effects.
 //
-// V1: solo CL está enabled. El resto queda modelado (moneda, locale) pero
-// deshabilitado — habilitarlos después no debería requerir tocar Rifas ni
-// Campañas, solo flipear `enabled` acá y (en la fase de Country Gate) los
-// puntos que ya consultan esta tabla.
+// V1: solo CL está enabled, con las tres capabilities habilitadas. El resto
+// queda modelado (moneda, locale, capabilities todas en false) pero
+// deshabilitado — habilitar un país o una capability puntual después es
+// solo tocar esta tabla, nunca los endpoints que la consultan (G2:
+// countryGate.js / los 5 puntos protegidos).
+export const CAPABILITIES = ["raffles", "fundraising", "mercadoPago"];
+
 export const COUNTRY_POLICY = {
-  CL: { enabled: true, label: "Chile", flag: "🇨🇱", currency: "CLP", locale: "es-CL" },
-  AR: { enabled: false, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR" },
-  BR: { enabled: false, label: "Brasil", flag: "🇧🇷", currency: "BRL", locale: "pt-BR" },
-  MX: { enabled: false, label: "México", flag: "🇲🇽", currency: "MXN", locale: "es-MX" },
-  CO: { enabled: false, label: "Colombia", flag: "🇨🇴", currency: "COP", locale: "es-CO" },
-  PE: { enabled: false, label: "Perú", flag: "🇵🇪", currency: "PEN", locale: "es-PE" },
-  UY: { enabled: false, label: "Uruguay", flag: "🇺🇾", currency: "UYU", locale: "es-UY" },
+  CL: {
+    enabled: true, label: "Chile", flag: "🇨🇱", currency: "CLP", locale: "es-CL",
+    capabilities: { raffles: true, fundraising: true, mercadoPago: true },
+  },
+  AR: {
+    enabled: false, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR",
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+  },
+  BR: {
+    enabled: false, label: "Brasil", flag: "🇧🇷", currency: "BRL", locale: "pt-BR",
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+  },
+  MX: {
+    enabled: false, label: "México", flag: "🇲🇽", currency: "MXN", locale: "es-MX",
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+  },
+  CO: {
+    enabled: false, label: "Colombia", flag: "🇨🇴", currency: "COP", locale: "es-CO",
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+  },
+  PE: {
+    enabled: false, label: "Perú", flag: "🇵🇪", currency: "PEN", locale: "es-PE",
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+  },
+  UY: {
+    enabled: false, label: "Uruguay", flag: "🇺🇾", currency: "UYU", locale: "es-UY",
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+  },
 };
 
 export const COUNTRY_CODES = Object.keys(COUNTRY_POLICY);
@@ -32,6 +56,23 @@ export function isEnabledCountry(code) {
 // pero si llegara a existir por otra vía) cuenta como "ya completado".
 export function needsCountryOnboarding(countryCode) {
   return !countryCode;
+}
+
+// Decisión pura del Country Gate (G2). No toca DB — countryGate.js resuelve
+// countryCode contra users_profile y le pasa el resultado acá. Dos motivos
+// posibles, nunca un error genérico: 'needs_onboarding' (no hay país
+// declarado, o el código es desconocido — mismo remedio: onboarding) vs
+// 'country_not_available' (el país es válido pero esa capability puntual
+// sigue deshabilitada).
+export function evaluateCountryGate(countryCode, capability) {
+  if (!countryCode || !isKnownCountry(countryCode)) {
+    return { ok: false, reason: "needs_onboarding" };
+  }
+  const policy = COUNTRY_POLICY[countryCode];
+  if (!policy.enabled || policy.capabilities?.[capability] !== true) {
+    return { ok: false, reason: "country_not_available" };
+  }
+  return { ok: true, reason: null };
 }
 
 // Sanitiza un `next` recibido por query string: solo rutas internas

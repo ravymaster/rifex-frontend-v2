@@ -226,7 +226,7 @@ export default function CrearColecta() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo crear la campaña.');
+      if (!res.ok || !data?.ok) throw new Error(data?.message || data?.error || 'No se pudo crear la campaña.');
 
       setJustCreatedTitle(data.colecta.title);
       setTitle(''); setDescription(''); setGoalClp(''); setCoverFile(null); setGalleryFiles([]); setDurationDays(30);

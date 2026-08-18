@@ -1,5 +1,6 @@
 // src/pages/api/rifas/index.js
 import { createClient } from '@supabase/supabase-js';
+import { assertCountryGate } from '@/lib/countryGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -68,6 +69,11 @@ export default async function handler(req, res) {
 
       const creator_id = ures.user.id;
       const creator_email = (ures.user.email || '').toLowerCase() || null;
+
+      // Country Gate (G2): país operativo del creador, autoridad única =
+      // users_profile.country_code server-side.
+      const gate = await assertCountryGate(creator_id, 'raffles');
+      if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
 
       // Sanitizar payload
       const row = {};

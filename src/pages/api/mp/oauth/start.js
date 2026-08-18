@@ -2,6 +2,7 @@
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { assertCountryGate } from "@/lib/countryGate";
 
 export const config = { runtime: "nodejs" };
 
@@ -59,6 +60,14 @@ export default async function handler(req, res) {
     }
     const uid = user.id;
     const creatorEmail = (user.email || "").toString().trim().toLowerCase() || null;
+
+    // Country Gate (G2): bloquea ANTES de crear ningún state/PKCE — si el
+    // país no habilita mercadoPago, nunca llega a existir un state válido
+    // que alguien pudiera reusar contra el callback.
+    const gate = await assertCountryGate(uid, "mercadoPago");
+    if (!gate.ok) {
+      return res.writeHead(302, { Location: `/panel/bancos?mp=${gate.reason}` }).end();
+    }
 
     // Limpieza best-effort de states viejos (> 60 min)
     try {

@@ -6,6 +6,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { isAcceptingContributions } from "@/lib/colectaStatus";
+import { assertCountryGate } from "@/lib/countryGate";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -65,6 +66,12 @@ export default async function handler(req, res) {
     // página pública (deriveEffectiveStatus), nunca el estado que traía la
     // página al cargar.
     if (!isAcceptingContributions(colecta)) return res.status(409).json({ ok: false, error: "colecta_not_active" });
+
+    // Country Gate (G2): país operativo del CREADOR de la colecta, no del
+    // aportante (sigue siendo público, sin sesión). Precondición temprana —
+    // antes de tocar merchant_gateways/idempotencia/insert.
+    const gate = await assertCountryGate(colecta.creator_id, "fundraising");
+    if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
 
     // 3) Conexión MP del CREADOR (resuelta desde colecta.creator_id, jamás
     // desde algo que mande el cliente) — si no está conectado, no hay forma

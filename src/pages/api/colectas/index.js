@@ -11,6 +11,7 @@
 // 'draft' sigue siendo un estado válido en el esquema, solo que hoy no se
 // genera desde esta ruta.
 import { createClient } from '@supabase/supabase-js';
+import { assertCountryGate } from '@/lib/countryGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,6 +34,11 @@ export default async function handler(req, res) {
 
   const { data: ures, error: uerr } = await supabase.auth.getUser(token);
   if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+
+  // Country Gate (G2): país operativo del creador, autoridad única =
+  // users_profile.country_code server-side.
+  const gate = await assertCountryGate(ures.user.id, 'fundraising');
+  if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
 
   const title = String(req.body?.title || '').trim();
   const description = String(req.body?.description || '').trim();

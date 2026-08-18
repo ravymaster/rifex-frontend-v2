@@ -1,6 +1,7 @@
 // src/pages/api/checkout/mp.js
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
+import { assertCountryGate } from "@/lib/countryGate";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -54,6 +55,14 @@ export default async function handler(req, res) {
     if (!rdata) return res.status(404).json({ ok: false, error: "raffle_not_found" });
 
     const raffle = rdata;
+
+    // Country Gate (G2): país operativo del CREADOR de la rifa, no del
+    // comprador (el comprador sigue siendo público, sin sesión). Precondición
+    // temprana — antes de reservar tickets ni crear la purchase, para no
+    // tener que revertir nada si el país no habilita raffles.
+    const gate = await assertCountryGate(raffle.creator_id, "raffles");
+    if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
+
     const pricePerNumberCents = Number(raffle.price_cents || 0);
     const unitPriceCLP = Math.round(pricePerNumberCents / 100); // CLP entero por número
     const qty = numbers.length;

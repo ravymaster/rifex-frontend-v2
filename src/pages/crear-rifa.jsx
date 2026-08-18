@@ -138,7 +138,7 @@ export default function CrearRifaPage() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || "Error");
+      if (!res.ok || !data?.ok) throw new Error(data?.message || data?.error || "Error");
 
       // Redirige a la rifa creada (API devuelve id en la raíz)
       if (data.id) {

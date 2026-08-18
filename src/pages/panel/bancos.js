@@ -1,6 +1,7 @@
 // src/pages/panel/bancos.js
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
 import styles from "@/styles/bancos.module.css";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
@@ -32,7 +33,19 @@ export async function getServerSideProps(ctx) {
   };
 }
 
+// Country Gate (G2): únicos dos valores de ?mp= que este sprint necesita
+// mostrar. El resto de los valores históricos (?mp=connected, error, etc.)
+// queda tal como estaba — fuera de alcance, no se tocan acá.
+const COUNTRY_GATE_MP_MESSAGES = {
+  needs_onboarding: "Antes de conectar Mercado Pago, dinos en qué país operarás con Rifex.",
+  country_not_available:
+    "Rifex todavía no está disponible para crear y recaudar en tu país. Estamos preparando su lanzamiento.",
+};
+
 export default function Bancos({ ssrUser }) {
+  const router = useRouter();
+  const countryGateMsg = COUNTRY_GATE_MP_MESSAGES[router.query?.mp] || null;
+
   // ------- auth state (hidrata desde SSR y revalida en CSR) -------
   const [user, setUser] = useState(ssrUser);
   const [loadingUser, setLoadingUser] = useState(!ssrUser);
@@ -143,6 +156,17 @@ export default function Bancos({ ssrUser }) {
               </p>
             </div>
           </header>
+
+          {countryGateMsg && (
+            <div
+              style={{
+                background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E",
+                borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontWeight: 600,
+              }}
+            >
+              {countryGateMsg}
+            </div>
+          )}
 
           <section className={styles.card} style={{ marginBottom: 16 }}>
             <h2 className={styles.cardTitle}>Ganancias</h2>
