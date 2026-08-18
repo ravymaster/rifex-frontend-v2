@@ -87,8 +87,13 @@ export default function Terminos() {
         <section id="cookies">
           <h2>Política de Cookies (resumen)</h2>
           <ul>
-            <li>Usamos cookies esenciales (sesión/seguridad) y analíticas opcionales.</li>
+            <li>Usamos cookies esenciales (sesión/seguridad) y analíticas/publicitarias opcionales.</li>
             <li>La pasarela puede usar cookies/almacenamiento para completar pagos.</li>
+            <li>
+              Usamos Meta Pixel (Facebook) como tecnología de medición y publicidad para entender cómo se usa
+              Rifex. Solo se activa si aceptas el aviso de consentimiento que aparece al entrar al sitio — podés
+              rechazarlo, y tu elección se recuerda para tus próximas visitas.
+            </li>
             <li>Puedes limitar cookies no esenciales desde tu navegador.</li>
           </ul>
         </section>
