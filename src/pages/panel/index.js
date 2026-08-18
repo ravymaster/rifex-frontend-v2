@@ -1,8 +1,10 @@
 // src/pages/panel/index.jsx
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
 
 // -------------------- UI helpers --------------------
 function PesoCLP({ cents }) {
@@ -223,6 +225,7 @@ function DeleteDialog({ open, onClose, raffle, onDeleted }) {
 
 // -------------------- Página Panel --------------------
 export default function Panel() {
+  const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
@@ -279,7 +282,18 @@ export default function Panel() {
       } catch (e) {
         console.warn('profile bootstrap:', e?.message);
       }
+
+      // G1: red de seguridad para el caso registro-manual (aterriza directo
+      // acá tras confirmar el email, sin pasar por auth/callback ni login.jsx).
+      // Si falta país, onboarding antes de dejar ver el panel.
+      try {
+        const onboardingUrl = await resolveCountryOnboardingRedirect('/panel');
+        if (onboardingUrl) router.replace(onboardingUrl);
+      } catch (e) {
+        console.warn('country onboarding check:', e?.message);
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Carga del panel con auth Bearer

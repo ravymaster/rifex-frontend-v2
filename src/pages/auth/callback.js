@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -19,11 +20,14 @@ export default function AuthCallback() {
     // El cliente (@supabase/ssr) ya detecta y canjea el ?code= solo al cargar
     // la página — acá solo esperamos a que esa sesión aparezca.
     let done = false;
-    const finish = (session) => {
+    const finish = async (session) => {
       if (done) return;
       done = true;
-      if (session) router.replace(next);
-      else setErr('No se pudo completar el inicio de sesión con Google.');
+      if (!session) { setErr('No se pudo completar el inicio de sesión con Google.'); return; }
+      // G1: si falta declarar país operativo, el onboarding pasa primero —
+      // preserva `next` para volver ahí una vez completado.
+      const onboardingUrl = await resolveCountryOnboardingRedirect(next);
+      router.replace(onboardingUrl || next);
     };
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {

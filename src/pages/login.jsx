@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import Layout from '@/components/Layout';
 import styles from '@/styles/login.module.css';
+import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
 
 /* Botón Google */
 function GoogleButton({ label = 'Continuar con Google', className = '' }) {
@@ -92,8 +93,9 @@ export default function Login() {
         return;
       }
 
-      // Ok → a nextPath
-      router.push(nextPath);
+      // Ok → onboarding de país primero si falta, si no directo a nextPath
+      const onboardingUrl = await resolveCountryOnboardingRedirect(nextPath);
+      router.push(onboardingUrl || nextPath);
     } catch (e) {
       console.error('[login]', e);
       setErr('Error iniciando sesión. Intenta de nuevo.');
