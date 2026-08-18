@@ -62,6 +62,14 @@ export default function AdminHome() {
   const [metrics, setMetrics] = useState(null);
   const [overview, setOverview] = useState(null);
   const [errMsg, setErrMsg] = useState("");
+  const [accessToken, setAccessToken] = useState(null);
+
+  const [q, setQ] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchErr, setSearchErr] = useState("");
+  const [searchResults, setSearchResults] = useState(null);
+  const [reconcileBusy, setReconcileBusy] = useState({});
+  const [reconcileResult, setReconcileResult] = useState({});
 
   useEffect(() => {
     (async () => {
@@ -71,6 +79,7 @@ export default function AdminHome() {
         router.replace(`/login?next=${encodeURIComponent("/admin")}`);
         return;
       }
+      setAccessToken(token);
 
       try {
         const r = await fetch("/api/admin/me", { headers: { Authorization: `Bearer ${token}` } });
@@ -98,6 +107,46 @@ export default function AdminHome() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function runSearch(e) {
+    e?.preventDefault?.();
+    const query = q.trim();
+    if (query.length < 2) { setSearchErr("Escribe al menos 2 caracteres."); return; }
+    setSearching(true);
+    setSearchErr("");
+    setSearchResults(null);
+    try {
+      const r = await fetch(`/api/admin/search?q=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const j = await r.json().catch(() => ({ ok: false }));
+      if (r.ok && j?.ok) setSearchResults(j);
+      else setSearchErr(j?.error === "query_too_short" ? "Escribe al menos 2 caracteres." : "No se pudo buscar.");
+    } catch (err) {
+      console.error("[admin] search error", err);
+      setSearchErr("No se pudo buscar.");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function runReconcile(product, id) {
+    setReconcileBusy((s) => ({ ...s, [id]: true }));
+    try {
+      const r = await fetch("/api/admin/reconcile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ product, id }),
+      });
+      const j = await r.json().catch(() => ({ ok: false }));
+      setReconcileResult((s) => ({ ...s, [id]: j }));
+    } catch (err) {
+      console.error("[admin] reconcile error", err);
+      setReconcileResult((s) => ({ ...s, [id]: { ok: false, error: "network_error" } }));
+    } finally {
+      setReconcileBusy((s) => ({ ...s, [id]: false }));
+    }
+  }
+
   const gapRaffles = metrics?.data_gaps?.raffles_approved_without_fee || 0;
   const gapCampaigns = metrics?.data_gaps?.campaigns_approved_without_fee || 0;
   const pendingStale = overview?.alerts?.pending_stale?.items || [];
@@ -123,6 +172,130 @@ export default function AdminHome() {
             <h1 style={{ fontSize: 22, fontWeight: 800 }}>Panel Admin</h1>
             <p style={{ color: "#6B7280", marginTop: 8 }}>Acceso confirmado{email ? ` — ${email}` : ""}.</p>
             {errMsg && <p style={{ color: "#b91c1c", marginTop: 16 }}>{errMsg}</p>}
+
+            {/* ---- Búsqueda operativa ---- */}
+            <section style={section}>
+              <div style={sectionTitle}>Búsqueda operativa</div>
+              <form onSubmit={runSearch} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  className="input"
+                  placeholder="payment_id, ID de rifa/campaña/contribution/purchase, email o título"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  style={{ flex: 1, minWidth: 240, padding: "10px 12px", borderRadius: 10, border: "1px solid var(--borde, #E5E7EB)" }}
+                />
+                <button className="btn" type="submit" disabled={searching} style={{ padding: "10px 16px", borderRadius: 10, fontWeight: 700 }}>
+                  {searching ? "Buscando…" : "Buscar"}
+                </button>
+              </form>
+              {searchErr && <p style={{ color: "#b91c1c", marginTop: 8, fontSize: 13 }}>{searchErr}</p>}
+
+              {searchResults && (
+                <div style={{ marginTop: 16 }}>
+                  {searchResults.raffles.length === 0 && searchResults.campaigns.length === 0 && searchResults.payments.length === 0 && (
+                    <p style={{ fontSize: 13, color: "#6B7280" }}>Sin resultados para "{searchResults.query}".</p>
+                  )}
+
+                  {searchResults.raffles.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Rifas</div>
+                      <div style={tableWrap}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                          <tbody>
+                            {searchResults.raffles.map((r) => (
+                              <tr key={r.id}>
+                                <td style={td}>{r.title}</td>
+                                <td style={td}>{r.creator_email || "—"}</td>
+                                <td style={td}>{STATUS_LABEL[r.status] || r.status}</td>
+                                <td style={td}>{fmtDate(r.created_at)}</td>
+                                <td style={td}><a href={r.public_url} target="_blank" rel="noreferrer">Ver</a></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.campaigns.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Campañas</div>
+                      <div style={tableWrap}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                          <tbody>
+                            {searchResults.campaigns.map((c) => (
+                              <tr key={c.id}>
+                                <td style={td}>{c.title}</td>
+                                <td style={td}>{STATUS_LABEL[c.status] || c.status}</td>
+                                <td style={td}>{fmtDate(c.created_at)}</td>
+                                <td style={td}><a href={c.public_url} target="_blank" rel="noreferrer">Ver</a></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {searchResults.payments.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Pagos / aportes</div>
+                      {searchResults.payments.map((p) => (
+                        <div key={p.id} style={{ ...card, marginBottom: 12 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                            <div>
+                              <strong>{p.product === "raffle" ? "Rifa" : "Campaña"}</strong>
+                              {p.title ? ` — ${p.title}` : ""}{" "}
+                              {p.public_url && <a href={p.public_url} target="_blank" rel="noreferrer">(ver)</a>}
+                            </div>
+                            <div style={{ fontSize: 13, color: "#6B7280" }}>{fmtDate(p.created_at)}</div>
+                          </div>
+                          <div style={{ fontSize: 13, marginTop: 8, display: "grid", gap: 4, gridTemplateColumns: "repeat(auto-fit, minmax(160px,1fr))" }}>
+                            <div>Creador: {p.creator_email || "—"}</div>
+                            <div>Comprador/aportante: {p.counterpart_email || "—"}</div>
+                            <div>Monto: {clp(p.amount_cents)}</div>
+                            <div>Fee Rifex: {clp(p.fee_cents)}</div>
+                            <div>Estado: {p.status}</div>
+                            <div>Payment ID: {p.mp_payment_id || "—"}</div>
+                          </div>
+
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280" }}>Webhooks relacionados</div>
+                            {p.webhook_events.length === 0 && <div style={{ fontSize: 12, color: "#6B7280" }}>Sin eventos registrados.</div>}
+                            {p.webhook_events.map((w, i) => (
+                              <div key={i} style={{ fontSize: 12 }}>
+                                {w.event_type} — {fmtDate(w.received_at)}{w.reason ? ` — ${w.reason}` : ""}
+                              </div>
+                            ))}
+                            {!p.reconcile_trace_supported && (
+                              <div style={{ fontSize: 12, color: "#92400E", marginTop: 4 }}>
+                                Rifas no registra traza de reconciliación en webhook_events hoy — limitación conocida, no simulada.
+                              </div>
+                            )}
+                          </div>
+
+                          <div style={{ marginTop: 10 }}>
+                            <button
+                              className="btn"
+                              onClick={() => runReconcile(p.product, p.id)}
+                              disabled={reconcileBusy[p.id]}
+                              style={{ padding: "8px 14px", borderRadius: 10, fontWeight: 700, fontSize: 13 }}
+                            >
+                              {reconcileBusy[p.id] ? "Reconciliando…" : "Reconciliar"}
+                            </button>
+                            {reconcileResult[p.id] && (
+                              <span style={{ marginLeft: 10, fontSize: 12, color: reconcileResult[p.id].ok ? "#166534" : "#b91c1c" }}>
+                                {JSON.stringify(reconcileResult[p.id])}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </section>
 
             {/* ---- Métricas financieras ---- */}
             {metrics && (
