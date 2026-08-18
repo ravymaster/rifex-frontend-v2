@@ -36,14 +36,14 @@ export default function Contacto() {
 
               <div className={styles.actions}>
                 <button className="btn btn-primary">Enviar</button>
-                <a className="btn btn-ghost" href="mailto:hola@rifex.app">Escribir a soporte</a>
+                <a className="btn btn-ghost" href="mailto:contacto@rifex.pro">Escribir a soporte</a>
               </div>
             </section>
 
             <aside className={styles.card}>
               <h2 className={styles.cardTitle}>Información</h2>
               <ul className={styles.list}>
-                <li>📧 <a href="mailto:hola@rifex.app">hola@rifex.app</a></li>
+                <li>📧 <a href="mailto:contacto@rifex.pro">contacto@rifex.pro</a></li>
                 <li>🕑 Lun a Vie · 09:00–18:00</li>
                 <li>📄 <a href="/terminos">Términos y condiciones</a></li>
                 <li>💳 <a href="/panel/bancos">Pagos & bancos</a></li>

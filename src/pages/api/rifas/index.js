@@ -38,7 +38,10 @@ export default async function handler(req, res) {
       if (status && status !== 'all') {
         query = query.eq('status', status);
       } else {
-        query = query.neq('status', 'deleted');
+        // Listado público real: solo lo que efectivamente está activo o
+        // cerrado (con página pública visitable) — nunca draft ni ningún
+        // otro estado intermedio, aunque no sea 'deleted'.
+        query = query.in('status', ['active', 'closed']);
       }
 
       if (q && String(q).trim()) {

@@ -115,3 +115,32 @@ v1.0-colectas-certified -> bb6bc917a1cce874a8b8577fcc67dbeb15016606
 ## Siguiente etapa
 
 Evento. El QR de Evento será **transaccional**, distinto en naturaleza al QR público/informativo de Colecta — no reusar el mismo diseño sin pensarlo de nuevo.
+
+---
+
+## Sprint de cierre UX previo a Country Gate (posterior a la certificación V1)
+
+Tres pendientes visibles resueltos, **cero cambios al flujo financiero** (checkout, webhook, C5R, `marketplace_fee`, OAuth MP, `merchant_gateways`, comisión 7% — todos en 0 diff). Sin commitear/pushear todavía a la espera de autorización.
+
+### 1. Home multiproducto
+`src/pages/index.js` + `src/styles/index.module.css`. El hero pasó de ser 100% rifa (`"Crea. Comparte. Sortea."`, badge con una estadística inventada de rifas) a mencionar ambos productos explícitamente, y se agregó una sección nueva "Dos formas de recaudar con Rifex" con una tarjeta por producto (Rifas / Campañas de recaudación), cada una con su propio CTA. Grid con `auto-fit`/`minmax` a propósito — agregar una tercera tarjeta (Eventos) más adelante no requiere tocar el CSS. En el marketing de Home el producto se llama **"Campañas de recaudación"**, nunca "Colecta" — el término interno `colecta` sigue igual en rutas/tablas/código.
+
+### 2. Fix `/rifas` (listado público vacío)
+**Causa raíz, doble bug, no relacionado a datos ni a RLS:**
+1. `GET /api/rifas` siempre devolvió `{ ok, items }`, pero `src/pages/rifas.js` leía `j?.data` (`undefined` siempre) → `items` quedaba vacío sin importar cuántas rifas reales activas existieran. Fix: leer `j?.items`.
+2. Los campos del render eran nombres en español (`r.titulo`, `r.precio_clp`, `r.cupos`, `r.estado`, `r.temas`) que **nunca existieron** en `raffles` (la tabla usa inglés: `title`, `price_cents`, `total_numbers`, `status`, `theme`). Fix: usar los nombres reales.
+3. Hallazgo adicional durante la auditoría: el filtro público por defecto era `.neq('status','deleted')` — más laxo de lo debido (dejaría pasar cualquier estado que no fuera `deleted`, incluido un hipotético `draft`). Se acotó a `.in('status', ['active','closed'])` en `src/pages/api/rifas/index.js` — el único archivo tocado dentro de `api/rifas/*` (protegido), cambio de una línea, sin tocar nada financiero.
+4. Hallazgo adicional: `"Mis rifas"` nunca filtró por dueño (el parámetro `mine=true` no se leía en el backend, y el fetch no mandaba token). Se resolvió reusando `/api/panel/raffles` (endpoint ya existente, ya probado, con filtro real por `creator_id`/`creator_email`) en vez de reinventar la lógica.
+
+Probado (9/9, intentando romperlo): rifa real `Prueba` aparece en público; `active`/`closed` de prueba aparecen; `deleted` y `draft` NO aparecen en público; `draft` SÍ aparece en "Mis rifas" del dueño; un usuario ajeno no ve las rifas de otro; sin sesión, `/api/panel/raffles` responde `401`.
+
+### 3. Contacto oficial
+Búsqueda completa del repo: **solo** `src/pages/contacto.js` tenía `hola@rifex.app` (2 apariciones) — reemplazadas por `contacto@rifex.pro`. `terminos.js` y `preguntas-frecuentes.js` ya usaban `contacto@rifex.pro` correctamente, sin cambios. Placeholders de formularios (`tucorreo@dominio.com`, `tu@email.com`) no se tocaron a propósito — no son el contacto oficial.
+
+### Pendientes explícitos después de este sprint (en orden)
+
+1. **COUNTRY GATE V1 — Chile only**
+2. **Rifex Admin / Operations Backend V1**
+3. **Production V1 final audit → lanzamiento/publicidad**
+
+**Pendiente financiero obligatorio antes del lanzamiento comercial definitivo:** falta la prueba real de `marketplace_fee` con una **segunda cuenta Mercado Pago genuinamente distinta** de la que hoy es dueña de la app `rifexv3` (confirmado por auditoría: hoy el owner de `rifexv3` y el vendedor de prueba son la misma cuenta MP — `2501448870` — por eso el primer pago real de $500 no descontó la comisión Rifex). No bloqueó este sprint de UX; sí bloquea el lanzamiento comercial.

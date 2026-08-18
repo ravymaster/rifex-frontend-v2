@@ -18,16 +18,17 @@ export default function Home() {
 
         <div className="container">
           <div className={styles.heroDarkInner}>
-            <span className={styles.badgeDark}><span>📡</span> 1.204 rifas activas ahora mismo</span>
+            <span className={styles.badgeDark}><span>📡</span> Rifas y campañas de recaudación</span>
             <h1 className={styles.heroTitleDark}>
-              Crea. Comparte. <span>Sortea.</span>
+              Crea. Comparte. <span>Recauda.</span>
             </h1>
             <p className={styles.heroSubDark}>
-              Organiza tu rifa online y cobra con Mercado Pago, sin planillas ni complicaciones.
+              Organiza rifas o campañas de recaudación y cobra con Mercado Pago, sin planillas ni complicaciones.
             </p>
 
             <div className={styles.ctaRowDark}>
-              <a href="/crear-rifa" className={`btn ${styles.ctaPrimaryDark}`}>Crear mi rifa</a>
+              <a href="/crear-rifa" className={`btn ${styles.ctaPrimaryDark}`}>Crear rifa</a>
+              <a href="/crear-colecta" className={`btn ${styles.ctaPrimaryDark}`}>Crear campaña</a>
               <a href="/rifas" className={`btn ${styles.ctaGhostDark}`}>Ver rifas en vivo</a>
             </div>
           </div>
@@ -52,6 +53,36 @@ export default function Home() {
               <p className={styles.showcasePrice}>$10.000 el número</p>
               <div className={styles.showcaseBar}><div className={styles.showcaseBarFill} style={{ width: '45%', background: 'var(--ultramar)' }} /></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* PRODUCTOS */}
+      <section className={styles.products}>
+        <div className="container">
+          <div className={styles.sectionHead}>
+            <h2 className={styles.sectionTitle}>Dos formas de recaudar con Rifex</h2>
+            <p className={styles.sectionSub}>Elige la que mejor se adapte a lo que necesitas.</p>
+          </div>
+          <div className={styles.productsGrid}>
+            <article className={styles.productCard}>
+              <div className={styles.productIcon}>🎟️</div>
+              <h3 className={styles.productTitle}>Rifas</h3>
+              <p className={styles.productText}>Crea una rifa, comparte tus números y administra todo desde Rifex.</p>
+              <div className={styles.productCtas}>
+                <a href="/crear-rifa" className={`btn btn-primary ${styles.productCtaPrimary}`}>Crear rifa</a>
+                <a href="/rifas" className={styles.productCtaGhost}>Ver rifas públicas</a>
+              </div>
+            </article>
+
+            <article className={styles.productCard}>
+              <div className={styles.productIcon}>🤝</div>
+              <h3 className={styles.productTitle}>Campañas de recaudación</h3>
+              <p className={styles.productText}>Crea una campaña, comparte tu historia y recibe aportes directamente en tu Mercado Pago.</p>
+              <div className={styles.productCtas}>
+                <a href="/crear-colecta" className={`btn btn-primary ${styles.productCtaPrimary}`}>Crear campaña</a>
+              </div>
+            </article>
           </div>
         </div>
       </section>
