@@ -18,12 +18,15 @@ export default function Layout({
   const userMenuRef = useRef(null);
 
   // Nav principal: solo páginas de cara al público. Todo lo de cuenta va al menú de usuario.
+  // UX/CRO-1: "Rifas" queda temporalmente fuera del nav (sigue existiendo y
+  // accesible por URL directa, y desde el footer/CTAs) a favor de la guía
+  // pública /wizard.
   const navItems = [
-    { label: 'Inicio',     href: '/' },
-    { label: 'Rifas',      href: '/rifas' },
-    { label: 'Crear rifa', href: '/crear-rifa' },
-    { label: 'Planes',     href: '/planes' },
-    { label: 'Blog',       href: '/blog' },
+    { label: 'Inicio',         href: '/' },
+    { label: 'Cómo funciona',  href: '/wizard' },
+    { label: 'Crear rifa',     href: '/crear-rifa' },
+    { label: 'Planes',         href: '/planes' },
+    { label: 'Blog',           href: '/blog' },
   ];
 
   const accountItems = [
