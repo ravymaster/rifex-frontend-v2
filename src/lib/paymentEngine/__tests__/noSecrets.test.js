@@ -15,6 +15,7 @@ const PURE_CORE_FILES = [
   "../contracts.js",
   "../providerRegistry.js",
   "../adapters/mercadoPagoAdapter.js",
+  "../feePolicy.js",
 ].map((p) => path.join(__dirname, p));
 
 test("núcleo puro del payment engine no referencia process.env ni secretos", () => {

@@ -7,6 +7,9 @@ import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { isAcceptingContributions } from "@/lib/colectaStatus";
 import { assertCountryGate } from "@/lib/countryGate";
+import { resolveAdapterForSeller } from "@/lib/paymentEngine/engine";
+import { computePlatformFeeMinor } from "@/lib/paymentEngine/feePolicy";
+import { createPaymentIntent } from "@/lib/paymentEngine/contracts";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -139,13 +142,50 @@ export default async function handler(req, res) {
     const mpClient = new MercadoPagoConfig({ accessToken: sellerToken });
     const preference = new Preference(mpClient);
 
-    const rawFee = Math.floor(amount * RIFEX_FEE_RATE);
-    const marketplaceFee = Math.max(0, Math.min(rawFee, amount));
+    // P2: primer consumidor real del Payment Engine (P1) — resuelve
+    // country/currency/provider. Si por cualquier motivo no resuelve (no
+    // debería pasar para CL, que ya pasó el Country Gate arriba), cae al
+    // comportamiento legado exacto — cero cambio observable garantizado.
+    let currency = "CLP";
+    let providerId = "mercado_pago";
+    let engineCountry = null;
+    try {
+      const routed = await resolveAdapterForSeller(colecta.creator_id, "mercadoPago");
+      if (routed.ok) {
+        currency = routed.currency || currency;
+        providerId = routed.provider || providerId;
+        engineCountry = routed.country;
+      } else {
+        console.warn("[checkout/colecta][payment-engine] fallback a legado:", routed.reason);
+      }
+    } catch (e) {
+      console.warn("[checkout/colecta][payment-engine] error resolviendo, fallback a legado:", e?.message || e);
+    }
+
+    const engineFee = computePlatformFeeMinor(amount, engineCountry || "CL", providerId);
+    const marketplaceFee = engineFee != null
+      ? engineFee
+      : Math.max(0, Math.min(Math.floor(amount * RIFEX_FEE_RATE), amount)); // fallback exacto, no debería ejecutarse hoy para CL
+
+    try {
+      createPaymentIntent({
+        country: engineCountry || "CL",
+        currency,
+        provider: providerId,
+        productType: "colecta_contribution",
+        sellerId: colecta.creator_id,
+        externalReference: String(contribution.id),
+        grossAmountMinor: amount,
+        platformFeeMinor: marketplaceFee,
+      });
+    } catch (e) {
+      console.warn("[checkout/colecta][payment-engine] contrato neutral no construido (no bloquea):", e?.message || e);
+    }
 
     const cleanTitle = `Aporte a "${String(colecta.title || "Colecta").slice(0, 50)}"`;
 
     const prefBody = {
-      items: [{ title: cleanTitle, quantity: 1, unit_price: amount, currency_id: "CLP" }],
+      items: [{ title: cleanTitle, quantity: 1, unit_price: amount, currency_id: currency }],
       marketplace_fee: marketplaceFee,
       payer: { email, name },
       back_urls: {
