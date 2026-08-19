@@ -4,6 +4,7 @@ import Layout from '@/components/Layout';
 import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { isDevStage } from '@/lib/environmentPolicy';
+import { verifyCaptchaOrDevBypass } from '@/lib/captchaGate';
 
 /* ========= RUT helpers (Chile) ========= */
 function cleanRut(rut){ return String(rut||'').replace(/[^0-9kK]/g,'').toUpperCase(); }
@@ -107,15 +108,9 @@ export default function Register(){
 
     setLoading(true);
     try {
-      // Captcha (👉 sin pasar el div; usa el único widget de la página)
-      const token = window.hcaptcha?.getResponse();
-      if (!token) { setErr("Completa el captcha."); return; }
-      const r = await fetch("/api/verify-captcha", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token })
-      });
-      const j = await r.json().catch(()=>({ok:false}));
-      if (!j.ok) { setErr("Captcha inválido."); return; }
+      // Captcha (bypass solo si isDevStage() — ver captchaGate.js)
+      const captcha = await verifyCaptchaOrDevBypass();
+      if (!captcha.ok) { setErr(captcha.error); return; }
 
       // Registro (solo metadata; NO upsert profile aquí)
       const origin = typeof window !== 'undefined' ? window.location.origin : '';

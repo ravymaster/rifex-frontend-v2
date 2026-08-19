@@ -5,6 +5,7 @@ import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import Layout from '@/components/Layout';
 import styles from '@/styles/login.module.css';
 import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
+import { verifyCaptchaOrDevBypass } from '@/lib/captchaGate';
 
 /* Botón Google */
 function GoogleButton({ label = 'Continuar con Google', className = '' }) {
@@ -71,16 +72,9 @@ export default function Login() {
     setErr('');
     setLoading(true);
     try {
-      // hCaptcha
-      const token = window.hcaptcha?.getResponse();
-      if (!token) { setErr('Completa el captcha.'); return; }
-
-      const verify = await fetch('/api/verify-captcha', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      });
-      const j = await verify.json().catch(()=>({ok:false}));
-      if (!j.ok) { setErr('Captcha inválido.'); return; }
+      // hCaptcha (bypass solo si isDevStage() — ver captchaGate.js)
+      const captcha = await verifyCaptchaOrDevBypass();
+      if (!captcha.ok) { setErr(captcha.error); return; }
 
       const { error } = await supabase.auth.signInWithPassword({ email, password: pass });
       if (error) {
