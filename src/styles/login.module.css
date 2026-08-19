@@ -11,7 +11,7 @@
 
 /* Tarjeta con gradiente Rifex (compacta) */
 .shell{
-  width:100%; max-width:980px;
+  width:100%; max-width:980px; min-width: 0; /* ver nota en .inner */
   background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
   border-radius: 22px;
   padding: 12px;
@@ -22,6 +22,10 @@
 .inner{
   display:grid; gap:12px;
   grid-template-columns: 1fr;
+  min-width: 0; /* el widget de hCaptcha tiene ancho intrínseco fijo (~302px);
+                   sin esto, el grid se niega a encoger por debajo de ese
+                   ancho y la tarjeta termina más ancha que el viewport en
+                   mobile angosto (causa real del desplazamiento reportado) */
 }
 @media (min-width: 900px){
   .inner{ grid-template-columns: 1.05fr 0.95fr; }
@@ -54,6 +58,7 @@
   border-radius: 16px; border: 1px solid rgba(255,255,255,0.20);
   padding: 16px;
   box-shadow: 0 10px 22px rgba(0,0,0,.06);
+  min-width: 0; /* ver nota en .inner */
 }
 
 /* Títulos form */
@@ -109,8 +114,14 @@
   border:1.5px solid var(--ultramar);
 }
 
-/* hCaptcha */
-.captchaWrap{ margin: 12px 0 4px; }
+/* hCaptcha — el widget tiene ~302px de ancho fijo; en mobile angosto no
+   entra completo, así que se lo deja hacer scroll horizontal SOLO dentro
+   de esta franja en vez de forzar ancha a toda la tarjeta. */
+.captchaWrap{
+  margin: 12px 0 4px;
+  max-width: 100%;
+  overflow-x: auto;
+}
 
 /* OAuth separator */
 .oauthArea{ margin-top: 12px; }
