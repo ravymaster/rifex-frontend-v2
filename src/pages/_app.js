@@ -5,6 +5,8 @@ import { useRouter } from 'next/router';
 import { getStoredConsent, setStoredConsent } from '@/lib/consent';
 import { initMetaPixel, trackPageView } from '@/lib/metaPixel';
 import ConsentBanner from '@/components/ConsentBanner';
+import DevBanner from '@/components/DevBanner';
+import { isDevStage } from '@/lib/environmentPolicy';
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
@@ -48,6 +50,7 @@ export default function App({ Component, pageProps }) {
     <>
       {getLayout(<Component {...pageProps} />)}
       {consent === null && <ConsentBanner onAccept={handleAccept} onReject={handleReject} />}
+      {isDevStage() && <DevBanner />}
     </>
   );
 }

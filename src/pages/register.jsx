@@ -3,6 +3,7 @@ import styles from '@/styles/register.module.css';
 import Layout from '@/components/Layout';
 import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { isDevStage } from '@/lib/environmentPolicy';
 
 /* ========= RUT helpers (Chile) ========= */
 function cleanRut(rut){ return String(rut||'').replace(/[^0-9kK]/g,'').toUpperCase(); }
@@ -74,6 +75,7 @@ export default function Register(){
   const [confirm,setConfirm]=useState('');
   const [rut,setRut]=useState('');
   const [pwIssues,setPwIssues]=useState([]);
+  const rutRequired = !isDevStage();
 
   const [loading,setLoading]=useState(false);
   const [err,setErr]=useState('');
@@ -98,7 +100,10 @@ export default function Register(){
     const issues = passwordIssues(pass, email, name);
     if (issues.length) { setErr("Contraseña insegura: " + issues[0]); return; }
     if (pass !== confirm) { setErr("Las contraseñas no coinciden"); return; }
-    if (!rutIsValid(rut)) { setErr("El RUT no es válido. Ej: 14.182.309-4"); return; }
+    // DEV: RUT no es obligatorio (facilita crear usuarios de prueba). PROD
+    // no cambia — sigue exigiendo un RUT válido, igual que siempre.
+    if (rutRequired && !rutIsValid(rut)) { setErr("El RUT no es válido. Ej: 14.182.309-4"); return; }
+    if (!rutRequired && rut && !rutIsValid(rut)) { setErr("El RUT no es válido. Ej: 14.182.309-4"); return; }
 
     setLoading(true);
     try {
@@ -118,7 +123,7 @@ export default function Register(){
         email,
         password: pass,
         options: {
-          data: { full_name: name, rut_beneficiario: cleanRut(rut) },
+          data: { full_name: name, rut_beneficiario: rut ? cleanRut(rut) : null },
           emailRedirectTo: `${origin}/panel`
         }
       });
@@ -167,9 +172,9 @@ export default function Register(){
                 <label className="label" htmlFor="email" style={{ marginTop:10 }}>Email</label>
                 <input id="email" className="input" type="email" placeholder="tucorreo@dominio.com" value={email} onChange={(e)=>setEmail(e.target.value)} required />
 
-                <label className="label" htmlFor="rut" style={{ marginTop:10 }}>RUT beneficiario</label>
-                <input id="rut" className="input" placeholder="14.182.309-4" value={formatRut(rut)} onChange={(e)=>setRut(e.target.value)} required />
-                <p className={styles.hint}>Validaremos tu cuenta con este RUT.</p>
+                <label className="label" htmlFor="rut" style={{ marginTop:10 }}>RUT beneficiario{!rutRequired && " (opcional en DEV)"}</label>
+                <input id="rut" className="input" placeholder="14.182.309-4" value={formatRut(rut)} onChange={(e)=>setRut(e.target.value)} required={rutRequired} />
+                <p className={styles.hint}>{rutRequired ? "Validaremos tu cuenta con este RUT." : "Entorno de desarrollo: puedes dejarlo en blanco."}</p>
 
                 <label className="label" htmlFor="pass" style={{ marginTop:10 }}>Contraseña</label>
                 <input
