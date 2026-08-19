@@ -1,5 +1,6 @@
 // src/pages/api/mp/oauth/callback.js
 import { createClient } from "@supabase/supabase-js";
+import { getMpAppConfig } from "@/lib/paymentEngine/mpAppConfig";
 
 const supabaseSR = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,7 +29,7 @@ export default async function handler(req, res) {
     // 1) Recuperar PKCE + metadatos del state guardado en DB
     const { data: st, error: stErr } = await supabaseSR
       .from("mp_oauth_state")
-      .select("id, code_verifier, creator_email, uid")
+      .select("id, code_verifier, creator_email, uid, country")
       .eq("id", state)
       .maybeSingle();
 
@@ -41,9 +42,17 @@ export default async function handler(req, res) {
       return res.redirect("/panel/bancos?mp=missing_uid");
     }
 
-    const clientId = process.env.MP_CLIENT_ID;
-    const clientSecret = process.env.MP_CLIENT_SECRET || null; // opcional si usas PKCE
-    if (!clientId) return res.redirect("/panel/bancos?mp=missing_creds");
+    // AR2: misma app de MP resuelta en start.js, guardada en el state — no
+    // se vuelve a inferir país acá. `st.country` puede venir null solo en
+    // un state legado (creado antes de este deploy) — se trata como CL
+    // para conservar el comportamiento existente sin interrupciones.
+    const country = st.country || "CL";
+    const mpAppConfig = getMpAppConfig(country);
+    if (!mpAppConfig || !mpAppConfig.clientId) {
+      return res.redirect("/panel/bancos?mp=country_config_missing");
+    }
+    const clientId = mpAppConfig.clientId;
+    const clientSecret = mpAppConfig.clientSecret; // opcional si usas PKCE
 
     const redirectUri = `${resolveBaseUrl(req)}/api/mp/oauth/callback`;
 
@@ -108,6 +117,7 @@ export default async function handler(req, res) {
     const upsertRow = {
       user_id: String(st.uid),
       provider: "mp",
+      country,
       mp_user_id,
       linked_email,
       mp_public_key,

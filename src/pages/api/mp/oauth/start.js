@@ -3,6 +3,8 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { assertCountryGate } from "@/lib/countryGate";
+import { routeSellerToProvider } from "@/lib/paymentEngine/countryRouter";
+import { getMpAppConfig } from "@/lib/paymentEngine/mpAppConfig";
 
 export const config = { runtime: "nodejs" };
 
@@ -44,11 +46,6 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
 
   try {
-    const clientId = process.env.MP_CLIENT_ID;
-    if (!clientId) {
-      return res.writeHead(302, { Location: "/panel/bancos?mp=missing_creds" }).end();
-    }
-
     // Identidad verificada por sesión (cookie): antes se aceptaba ?uid= sin
     // validar nada, lo que permitía asociar la cuenta de Mercado Pago de
     // CUALQUIERA (uid ajeno + autorización propia) al usuario elegido por
@@ -69,6 +66,20 @@ export default async function handler(req, res) {
       return res.writeHead(302, { Location: `/panel/bancos?mp=${gate.reason}` }).end();
     }
 
+    // AR2: la app de MP a usar depende del país AUTORITATIVO del seller
+    // (nunca de un país que mande el cliente) — CL sigue leyendo
+    // MP_CLIENT_ID de siempre; cualquier otro país sin su propia app
+    // configurada falla cerrado, nunca cae a la de Chile.
+    const routed = await routeSellerToProvider(uid, "mercadoPago");
+    if (!routed.ok) {
+      return res.writeHead(302, { Location: `/panel/bancos?mp=${routed.reason}` }).end();
+    }
+    const mpAppConfig = getMpAppConfig(routed.country);
+    if (!mpAppConfig || !mpAppConfig.clientId) {
+      return res.writeHead(302, { Location: "/panel/bancos?mp=country_config_missing" }).end();
+    }
+    const clientId = mpAppConfig.clientId;
+
     // Limpieza best-effort de states viejos (> 60 min)
     try {
       const cutoff = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -88,6 +99,7 @@ export default async function handler(req, res) {
       code_verifier: verifier,
       creator_email: creatorEmail,
       uid,
+      country: routed.country,
       created_at: new Date().toISOString(),
     });
     if (insErr) {

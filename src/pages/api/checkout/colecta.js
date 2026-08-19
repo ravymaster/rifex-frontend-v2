@@ -10,6 +10,7 @@ import { assertCountryGate } from "@/lib/countryGate";
 import { resolveAdapterForSeller } from "@/lib/paymentEngine/engine";
 import { computePlatformFeeMinor } from "@/lib/paymentEngine/feePolicy";
 import { createPaymentIntent } from "@/lib/paymentEngine/contracts";
+import { resolveFallbackDecision } from "@/lib/paymentEngine/fallbackPolicy";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -142,24 +143,35 @@ export default async function handler(req, res) {
     const mpClient = new MercadoPagoConfig({ accessToken: sellerToken });
     const preference = new Preference(mpClient);
 
-    // P2: primer consumidor real del Payment Engine (P1) — resuelve
-    // country/currency/provider. Si por cualquier motivo no resuelve (no
-    // debería pasar para CL, que ya pasó el Country Gate arriba), cae al
-    // comportamiento legado exacto — cero cambio observable garantizado.
+    // P2/AR2: primer consumidor real del Payment Engine (P1) — resuelve
+    // country/currency/provider. Si el motor no resuelve para CL (no
+    // debería pasar, ya pasó el Country Gate arriba), cae al comportamiento
+    // legado exacto — cero cambio observable garantizado. Si el país
+    // autoritativo NO es CL, AR2 exige fail closed: nunca se completa el
+    // checkout con configuración/moneda de Chile para otro país.
     let currency = "CLP";
     let providerId = "mercado_pago";
     let engineCountry = null;
+    let routed;
     try {
-      const routed = await resolveAdapterForSeller(colecta.creator_id, "mercadoPago");
-      if (routed.ok) {
-        currency = routed.currency || currency;
-        providerId = routed.provider || providerId;
-        engineCountry = routed.country;
-      } else {
-        console.warn("[checkout/colecta][payment-engine] fallback a legado:", routed.reason);
-      }
+      routed = await resolveAdapterForSeller(colecta.creator_id, "mercadoPago");
     } catch (e) {
-      console.warn("[checkout/colecta][payment-engine] error resolviendo, fallback a legado:", e?.message || e);
+      console.warn("[checkout/colecta][payment-engine] error resolviendo:", e?.message || e);
+      routed = { ok: false, reason: "engine_error", country: null };
+    }
+
+    const decision = resolveFallbackDecision(routed);
+    if (decision === "fail_closed") {
+      console.error("[checkout/colecta][payment-engine] FAIL CLOSED — país no-CL sin motor listo:", routed.country, routed.reason);
+      await supabase.from("colecta_contributions").update({ status: "rejected" }).eq("id", contribution.id);
+      return res.status(400).json({ ok: false, error: "country_payment_engine_unavailable" });
+    }
+    if (decision === "use_engine") {
+      currency = routed.currency || currency;
+      providerId = routed.provider || providerId;
+      engineCountry = routed.country;
+    } else {
+      console.warn("[checkout/colecta][payment-engine] fallback a legado CL:", routed.reason);
     }
 
     const engineFee = computePlatformFeeMinor(amount, engineCountry || "CL", providerId);
