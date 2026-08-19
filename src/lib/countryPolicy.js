@@ -8,6 +8,14 @@
 // deshabilitado — habilitar un país o una capability puntual después es
 // solo tocar esta tabla, nunca los endpoints que la consultan (G2:
 // countryGate.js / los 5 puntos protegidos).
+//
+// AR1: `enabled` NUNCA cambia de significado — sigue siendo "habilitado en
+// todos los entornos", exactamente como hoy. Un país puede además llevar
+// `devOnly: true`, que solo lo activa cuando isDevStage() es true (ver
+// isCountryActive más abajo) — nunca en PROD, sin importar el valor de
+// `enabled`. Un solo objeto, sin duplicar la tabla por entorno.
+import { isDevStage } from "./environmentPolicy.js";
+
 export const CAPABILITIES = ["raffles", "fundraising", "mercadoPago"];
 
 export const COUNTRY_POLICY = {
@@ -16,8 +24,12 @@ export const COUNTRY_POLICY = {
     capabilities: { raffles: true, fundraising: true, mercadoPago: true },
   },
   AR: {
-    enabled: false, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR",
-    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+    // Solo activo cuando isDevStage() es true (ver isCountryActive). MP
+    // Argentina todavía no tiene adapter real — ver providerRegistry.js
+    // (ADAPTER_READY) — así que aunque el país esté activo, el Payment
+    // Engine se detiene limpio antes de intentar cobrar.
+    enabled: false, devOnly: true, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR",
+    capabilities: { raffles: true, fundraising: true, mercadoPago: true },
   },
   BR: {
     enabled: false, label: "Brasil", flag: "🇧🇷", currency: "BRL", locale: "pt-BR",
@@ -47,8 +59,18 @@ export function isKnownCountry(code) {
   return typeof code === "string" && Object.prototype.hasOwnProperty.call(COUNTRY_POLICY, code);
 }
 
+// Único punto donde "enabled" se evalúa junto con "devOnly". `enabled` puro
+// (el campo) nunca se lee en otro lado — todo pasa por acá, así que hay un
+// solo lugar que sabe qué significa "activo ahora mismo".
+export function isCountryActive(code) {
+  if (!isKnownCountry(code)) return false;
+  const policy = COUNTRY_POLICY[code];
+  if (policy.enabled === true) return true;
+  return policy.devOnly === true && isDevStage();
+}
+
 export function isEnabledCountry(code) {
-  return isKnownCountry(code) && COUNTRY_POLICY[code].enabled === true;
+  return isCountryActive(code);
 }
 
 // null/undefined/"" -> falta onboarding. Cualquier código ya guardado
@@ -69,7 +91,7 @@ export function evaluateCountryGate(countryCode, capability) {
     return { ok: false, reason: "needs_onboarding" };
   }
   const policy = COUNTRY_POLICY[countryCode];
-  if (!policy.enabled || policy.capabilities?.[capability] !== true) {
+  if (!isCountryActive(countryCode) || policy.capabilities?.[capability] !== true) {
     return { ok: false, reason: "country_not_available" };
   }
   return { ok: true, reason: null };

@@ -8,7 +8,7 @@ import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
 import styles from "@/styles/onboarding.module.css";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
-import { COUNTRY_POLICY, COUNTRY_CODES, sanitizeNextPath } from "@/lib/countryPolicy";
+import { COUNTRY_POLICY, COUNTRY_CODES, sanitizeNextPath, isEnabledCountry } from "@/lib/countryPolicy";
 
 export default function OnboardingPais() {
   const router = useRouter();
@@ -36,7 +36,7 @@ export default function OnboardingPais() {
 
   async function onSelect(code) {
     if (saving) return;
-    if (!COUNTRY_POLICY[code]?.enabled) return; // defensa extra, aunque el botón ya está disabled
+    if (!isEnabledCountry(code)) return; // defensa extra, aunque el botón ya está disabled
     setErr("");
     setSaving(true);
     try {
@@ -79,7 +79,7 @@ export default function OnboardingPais() {
             <div className={styles.grid}>
               {COUNTRY_CODES.map((code) => {
                 const c = COUNTRY_POLICY[code];
-                if (c.enabled) {
+                if (isEnabledCountry(code)) {
                   return (
                     <button
                       key={code}
