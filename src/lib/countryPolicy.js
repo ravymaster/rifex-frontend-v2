@@ -21,6 +21,7 @@ export const CAPABILITIES = ["raffles", "fundraising", "mercadoPago"];
 export const COUNTRY_POLICY = {
   CL: {
     enabled: true, label: "Chile", flag: "🇨🇱", currency: "CLP", locale: "es-CL",
+    defaultTimezone: "America/Santiago",
     capabilities: { raffles: true, fundraising: true, mercadoPago: true },
   },
   AR: {
@@ -29,26 +30,32 @@ export const COUNTRY_POLICY = {
     // (ADAPTER_READY) — así que aunque el país esté activo, el Payment
     // Engine se detiene limpio antes de intentar cobrar.
     enabled: false, devOnly: true, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR",
+    defaultTimezone: "America/Argentina/Buenos_Aires",
     capabilities: { raffles: true, fundraising: true, mercadoPago: true },
   },
   BR: {
     enabled: false, label: "Brasil", flag: "🇧🇷", currency: "BRL", locale: "pt-BR",
+    defaultTimezone: "America/Sao_Paulo",
     capabilities: { raffles: false, fundraising: false, mercadoPago: false },
   },
   MX: {
     enabled: false, label: "México", flag: "🇲🇽", currency: "MXN", locale: "es-MX",
+    defaultTimezone: "America/Mexico_City",
     capabilities: { raffles: false, fundraising: false, mercadoPago: false },
   },
   CO: {
     enabled: false, label: "Colombia", flag: "🇨🇴", currency: "COP", locale: "es-CO",
+    defaultTimezone: "America/Bogota",
     capabilities: { raffles: false, fundraising: false, mercadoPago: false },
   },
   PE: {
     enabled: false, label: "Perú", flag: "🇵🇪", currency: "PEN", locale: "es-PE",
+    defaultTimezone: "America/Lima",
     capabilities: { raffles: false, fundraising: false, mercadoPago: false },
   },
   UY: {
     enabled: false, label: "Uruguay", flag: "🇺🇾", currency: "UYU", locale: "es-UY",
+    defaultTimezone: "America/Montevideo",
     capabilities: { raffles: false, fundraising: false, mercadoPago: false },
   },
 };

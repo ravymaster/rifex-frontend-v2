@@ -1,6 +1,5 @@
 // src/pages/api/rifas/[id]/index.js
 import { createClient } from '@supabase/supabase-js';
-import { drawWinner, notifyWinnerDrawn } from '../../../../lib/drawWinner';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -53,6 +52,23 @@ export default async function handler(req, res) {
       if ('prize_amount_cents' in updates) {
         updates.prize_amount_cents = Math.max(0, Math.round(Number(updates.prize_amount_cents || 0)));
       }
+
+      // DRAW-1: campos congelados desde la primera venta (premio). Precio
+      // por número, total de números y extension_limit ya no son editables
+      // por este endpoint desde antes de DRAW-1 (no están en ALLOWED_FIELDS),
+      // así que quedan protegidos por construcción, sin cambios adicionales.
+      if ('prize_type' in updates || 'prize_amount_cents' in updates) {
+        const { count: soldCount, error: sErr } = await supabase
+          .from('tickets')
+          .select('id', { count: 'exact', head: true })
+          .eq('raffle_id', id)
+          .eq('status', 'sold');
+        if (sErr) throw sErr;
+        if ((soldCount ?? 0) > 0) {
+          return res.status(409).json({ ok: false, error: 'fields_locked_after_first_sale' });
+        }
+      }
+
       const closingNow = 'status' in updates && updates.status === 'closed' && raffle.status !== 'closed';
       if (closingNow && !updates.end_date) {
         updates.end_date = new Date().toISOString().slice(0, 10);
@@ -72,17 +88,12 @@ export default async function handler(req, res) {
       if (error) throw error;
       if (!data) return res.status(404).json({ ok: false, error: 'not_found' });
 
-      // Cerrar la rifa a mano también sortea (entre los números ya vendidos,
-      // aunque no se haya agotado) — cerrar ES lanzar el sorteo.
-      if (closingNow) {
-        try {
-          const draw = await drawWinner(id, { force: true });
-          if (draw.isNew) await notifyWinnerDrawn(id, draw.winner);
-        } catch (e) {
-          console.error('[api/rifas/[id]] draw winner error', e?.message || e);
-        }
-      }
-
+      // DRAW-1: "cerrar ventas" ya NO sortea automáticamente. Cerrar detiene
+      // la venta (vía el gate de tiempo en checkout/mp.js si sales_end_at
+      // estaba configurado, y de todos modos deja de mostrarse como activa);
+      // elegir ganador es una acción explícita y separada — ver
+      // POST /api/rifas/[id]/draw. El sorteo automático por sold-out (vía
+      // webhook/reconciliación) sigue exactamente igual, sin cambios.
       return res.status(200).json({ ok: true, data });
     }
 

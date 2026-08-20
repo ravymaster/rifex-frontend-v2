@@ -386,7 +386,7 @@ export default async function handler(req, res) {
       // solo se sortea una vez, sea cual sea el disparador que llegue primero).
       if (raffleId) {
         try {
-          const draw = await drawWinner(raffleId);
+          const draw = await drawWinner(raffleId, { triggerSource: "sold_out_auto" });
           if (draw.isNew) {
             await supabase.from("raffles").update({ status: "closed" }).eq("id", raffleId);
             await notifyWinnerDrawn(raffleId, draw.winner);

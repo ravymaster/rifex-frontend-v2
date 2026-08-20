@@ -12,11 +12,15 @@ const isValidEmail = (s) => typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$
 /**
  * Sortea (o devuelve el resultado ya existente) para una rifa.
  * @param {string} raffleId
- * @param {{ force?: boolean }} opts  force=true salta el chequeo de "agotada"
- *   (para el cierre manual, donde puede quedar rifa sin vender del todo).
+ * @param {{ force?: boolean, triggerSource?: string|null, triggeredBy?: string|null }} opts
+ *   force=true salta el chequeo de "agotada" (sorteo manual explícito).
+ *   triggerSource/triggeredBy: auditoría mínima (DRAW-1) de qué disparó el
+ *   sorteo — 'sold_out_auto' | 'reconcile_auto' | 'manual_draw' | etc. —,
+ *   y quién (uid) si fue una acción humana explícita. Nunca afecta la
+ *   lógica de selección ni la protección exactly-once existente.
  * @returns {Promise<{ winner: object|null, isNew: boolean, ready: boolean }>}
  */
-export async function drawWinner(raffleId, { force = false } = {}) {
+export async function drawWinner(raffleId, { force = false, triggerSource = null, triggeredBy = null } = {}) {
   if (!raffleId) return { winner: null, isNew: false, ready: false };
 
   const { data: existing, error: e1 } = await supabaseAdmin
@@ -64,6 +68,8 @@ export async function drawWinner(raffleId, { force = false } = {}) {
     buyer_email: purchase?.buyer_email ?? null,
     buyer_name: purchase?.buyer_name ?? null,
     purchase_id: purchase?.id ?? null,
+    trigger_source: triggerSource,
+    triggered_by: triggeredBy,
   };
 
   const { data: saved, error: e5 } = await supabaseAdmin

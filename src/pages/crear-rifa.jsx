@@ -76,9 +76,17 @@ export default function CrearRifaPage() {
   const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState("active"); // draft | active | closed
 
+  // DRAW-1: sorteo (opcional) — fecha/hora "de pared"; la zona horaria la
+  // resuelve el backend desde el país real del creador, nunca desde el cliente.
+  const [drawDate, setDrawDate] = useState("");
+  const [drawTime, setDrawTime] = useState("");
+  const [extensionLimit, setExtensionLimit] = useState("0"); // "0".."3"
+
   // Términos
   const [okBuyer, setOkBuyer] = useState(false);
   const [okCreator, setOkCreator] = useState(false);
+  const [okAge, setOkAge] = useState(false);
+  const [okPrize, setOkPrize] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -91,8 +99,20 @@ export default function CrearRifaPage() {
       alert("Debes aceptar los términos.");
       return;
     }
+    if (!okAge) {
+      alert("Debes declarar que tienes 18 años o más.");
+      return;
+    }
+    if (!okPrize) {
+      alert("Debes declarar que la información del premio es real.");
+      return;
+    }
     if (prizeType === "money" && !prizeAmount) {
       alert("Indica el monto del premio en CLP.");
+      return;
+    }
+    if ((drawDate && !drawTime) || (!drawDate && drawTime)) {
+      alert("Completa fecha y hora del sorteo, o deja ambas vacías.");
       return;
     }
 
@@ -127,6 +147,12 @@ export default function CrearRifaPage() {
         start_date: startDate || null,
         end_date: endDate || null,
         status,
+
+        draw_date: drawDate || null,
+        draw_time: drawTime || null,
+        extension_limit: Number(extensionLimit) || 0,
+        age_confirmed: okAge,
+        prize_declaration_confirmed: okPrize,
       };
 
       const res = await fetch("/api/rifas", {
@@ -271,6 +297,34 @@ export default function CrearRifaPage() {
                 </div>
               </div>
 
+              {/* Sorteo (DRAW-1) */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Sorteo (opcional)</div>
+                <p className={styles.fieldLabel} style={{ fontWeight: 400, color: "var(--gris)", marginBottom: 10 }}>
+                  Define cuándo se sortea el ganador. Es distinto de la fecha de término de arriba: las ventas
+                  se cierran automáticamente 5 minutos antes del sorteo.
+                </p>
+                <div className={styles.fieldGrid} style={{ marginBottom: 12 }}>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Fecha del sorteo</span>
+                    <input className="rf-pill" type="date" value={drawDate} onChange={e=>setDrawDate(e.target.value)} />
+                  </div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Hora del sorteo</span>
+                    <input className="rf-pill" type="time" value={drawTime} onChange={e=>setDrawTime(e.target.value)} />
+                  </div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>¿Esta rifa podrá extender su fecha de sorteo?</span>
+                  <select className="rf-pill" value={extensionLimit} onChange={e=>setExtensionLimit(e.target.value)}>
+                    <option value="0">No</option>
+                    <option value="1">Hasta 1 vez</option>
+                    <option value="2">Hasta 2 veces</option>
+                    <option value="3">Hasta 3 veces</option>
+                  </select>
+                </div>
+              </div>
+
               {/* Términos */}
               <div className={styles.section}>
                 <label className={styles.checkRow}>
@@ -280,6 +334,14 @@ export default function CrearRifaPage() {
                 <label className={styles.checkRow}>
                   <input type="checkbox" checked={okCreator} onChange={e=>setOkCreator(e.target.checked)} />
                   Acepto los <a href="/terminos#creador" target="_blank" rel="noreferrer">Términos del creador</a> y las <a href="/terminos#rifex" target="_blank" rel="noreferrer">Condiciones de Rifex</a>
+                </label>
+                <label className={styles.checkRow}>
+                  <input type="checkbox" checked={okAge} onChange={e=>setOkAge(e.target.checked)} />
+                  Declaro que tengo 18 años o más. Debes tener 18 años o más para crear una rifa en Rifex.
+                </label>
+                <label className={styles.checkRow}>
+                  <input type="checkbox" checked={okPrize} onChange={e=>setOkPrize(e.target.checked)} />
+                  Declaro que la información y fotografías del premio son reales y que tengo derecho a ofrecerlo.
                 </label>
               </div>
 

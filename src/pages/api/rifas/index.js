@@ -1,6 +1,9 @@
 // src/pages/api/rifas/index.js
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
+import { COUNTRY_POLICY } from '@/lib/countryPolicy';
+import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
+import { recordDeclarations, DECLARATION_TYPES } from '@/lib/legalDeclarations';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -23,8 +26,11 @@ const ALLOWED_CREATE_FIELDS = new Set([
   'prize_photos',
   'start_date',
   'end_date',
-  'status'
+  'status',
+  'extension_limit',
 ]);
+
+const MAX_EXTENSION_LIMIT = 3;
 
 export default async function handler(req, res) {
   try {
@@ -75,6 +81,15 @@ export default async function handler(req, res) {
       const gate = await assertCountryGate(creator_id, 'raffles');
       if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
 
+      // DRAW-1: declaraciones obligatorias — 18+ y propiedad del premio.
+      // Server-side siempre (nunca confiar solo en el checkbox del cliente).
+      if (body.age_confirmed !== true) {
+        return res.status(400).json({ ok: false, error: 'age_confirmation_required' });
+      }
+      if (body.prize_declaration_confirmed !== true) {
+        return res.status(400).json({ ok: false, error: 'prize_declaration_required' });
+      }
+
       // Sanitizar payload
       const row = {};
       for (const k of Object.keys(body)) {
@@ -89,9 +104,41 @@ export default async function handler(req, res) {
       }
       if (!row.status) row.status = 'active';
 
+      row.extension_limit = Math.max(0, Math.min(MAX_EXTENSION_LIMIT, Math.round(Number(row.extension_limit || 0))));
+
       // Asignar creador si viene (evitamos depender del trigger)
       if (creator_email) row.creator_email = creator_email;
       if (creator_id) row.creator_id = creator_id;
+
+      // DRAW-1: fecha/hora de sorteo — opcional. El creador solo entrega
+      // fecha/hora "de pared"; la zona horaria SIEMPRE se resuelve server-side
+      // desde el país real del creador (users_profile.country_code), nunca
+      // desde un valor que mande el cliente — mismo criterio que el Country
+      // Gate. Si no se entrega, la rifa queda exactamente en modelo V1
+      // (draw_at/sales_end_at/timezone en NULL, sin gate de tiempo).
+      const { draw_date, draw_time } = body || {};
+      if (draw_date && draw_time) {
+        const { data: profile } = await supabase
+          .from('users_profile')
+          .select('country_code')
+          .eq('user_id', creator_id)
+          .maybeSingle();
+        const countryCode = profile?.country_code || null;
+        const timeZone = COUNTRY_POLICY[countryCode]?.defaultTimezone || null;
+        if (!timeZone) {
+          return res.status(400).json({ ok: false, error: 'country_timezone_unavailable' });
+        }
+        const drawAtIso = zonedTimeToUtcISOString(draw_date, draw_time, timeZone);
+        if (!drawAtIso) {
+          return res.status(400).json({ ok: false, error: 'invalid_draw_datetime' });
+        }
+        if (new Date(drawAtIso).getTime() <= Date.now()) {
+          return res.status(400).json({ ok: false, error: 'draw_at_must_be_future' });
+        }
+        row.draw_at = drawAtIso;
+        row.sales_end_at = computeSalesEndAt(drawAtIso);
+        row.timezone = timeZone;
+      }
 
       // Crear rifa
       const { data: created, error: insErr } = await supabase
@@ -100,6 +147,18 @@ export default async function handler(req, res) {
         .select('*')
         .single();
       if (insErr) throw insErr;
+
+      // DRAW-1: registrar declaraciones legales (reusable para Campañas después).
+      try {
+        await recordDeclarations({
+          userId: creator_id,
+          entityType: 'raffle',
+          entityId: created.id,
+          types: [DECLARATION_TYPES.AGE_18, DECLARATION_TYPES.PRIZE_OWNERSHIP],
+        });
+      } catch (e) {
+        console.error('[api/rifas] legal declarations error (no bloquea la creación)', e?.message || e);
+      }
 
       // Crear tickets 1..N
       const tickets = Array.from({ length: created.total_numbers }, (_, i) => ({

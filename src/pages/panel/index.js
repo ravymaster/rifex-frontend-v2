@@ -5,6 +5,12 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
+import { formatDrawAt } from '@/lib/raffleTime';
+
+const TZ_LABELS_PANEL = {
+  'America/Santiago': 'Chile',
+  'America/Argentina/Buenos_Aires': 'Argentina',
+};
 
 // -------------------- UI helpers --------------------
 function PesoCLP({ cents }) {
@@ -158,13 +164,112 @@ function CloseDialog({ open, onClose, raffle, onClosed }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
-        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Terminar rifa</h3>
-        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>Al cerrar la rifa, no se podrán comprar más números. Si ya hay números vendidos, se sortea el ganador al instante y le llega un correo a él y a vos.</p>
+        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Cerrar ventas</h3>
+        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
+          Al cerrar, no se podrán comprar más números. Esto <b>no</b> elige un ganador todavía — para eso, usa
+          &quot;Sortear ganador ahora&quot; una vez que las ventas estén cerradas.
+        </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <ActionButton tone="ghost" onClick={onClose}>Cancelar</ActionButton>
-          <ActionButton tone="danger" onClick={doClose}>{busy ? 'Cerrando…' : 'Terminar ahora'}</ActionButton>
+          <ActionButton tone="danger" onClick={doClose}>{busy ? 'Cerrando…' : 'Cerrar ventas'}</ActionButton>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DrawDialog({ open, onClose, raffle, onDrawn }) {
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+  async function doDraw() {
+    setBusy(true);
+    try {
+      const { data: sres } = await supabase.auth.getSession();
+      const r = await fetch(`/api/rifas/${raffle.id}/draw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'draw_failed');
+      onDrawn?.(raffle.id);
+      onClose();
+    } catch (err) {
+      alert(err.message || 'draw_failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Sortear ganador ahora</h3>
+        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
+          Esta acción elige un ganador entre los números vendidos de esta rifa <b>ahora mismo, de forma
+          definitiva</b>. No se puede deshacer y le llegará un correo al ganador y a vos.
+        </p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <ActionButton tone="ghost" onClick={onClose}>Cancelar</ActionButton>
+          <ActionButton tone="danger" onClick={doDraw}>{busy ? 'Sorteando…' : 'Sí, sortear ahora'}</ActionButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExtendDialog({ open, onClose, raffle, onExtended }) {
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+  async function doExtend(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { data: sres } = await supabase.auth.getSession();
+      const r = await fetch(`/api/rifas/${raffle.id}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
+        body: JSON.stringify({ new_draw_date: newDate, new_draw_time: newTime, reason: reason || null }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'extend_failed');
+      onExtended?.(j.data);
+      onClose();
+    } catch (err) {
+      alert(err.message || 'extend_failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const usedSoFar = raffle?.extensions_used ?? 0;
+  const limit = raffle?.extension_limit ?? 0;
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
+      <form onSubmit={doExtend} style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Extender fecha de sorteo</h3>
+        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
+          {usedSoFar} de {limit} extensiones utilizadas. La nueva fecha debe ser posterior a la actual.
+        </p>
+        <div style={{ display: 'grid', gap: 12 }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Nueva fecha</span>
+            <input type="date" required value={newDate} onChange={(e) => setNewDate(e.target.value)} style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }} />
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Nueva hora</span>
+            <input type="time" required value={newTime} onChange={(e) => setNewTime(e.target.value)} style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }} />
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Motivo (opcional)</span>
+            <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }} />
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+          <ActionButton tone="ghost" onClick={onClose}>Cancelar</ActionButton>
+          <ActionButton tone="default" type="submit">{busy ? 'Guardando…' : 'Extender fecha'}</ActionButton>
+        </div>
+      </form>
     </div>
   );
 }
@@ -232,6 +337,8 @@ export default function Panel() {
   const [editRaffle, setEditRaffle] = useState(null);
   const [closeRaffle, setCloseRaffle] = useState(null);
   const [deleteRaffle, setDeleteRaffle] = useState(null);
+  const [drawRaffle, setDrawRaffle] = useState(null);
+  const [extendRaffle, setExtendRaffle] = useState(null);
 
   const [status, setStatus] = useState('all'); // all|active|draft|closed|deleted
   const [q, setQ] = useState('');
@@ -358,6 +465,12 @@ export default function Panel() {
   function onRaffleDeleted(id) {
     setData((d) => ({ ...d, items: d.items.filter((x) => x.id !== id) }));
   }
+  function onRaffleDrawn(raffleId) {
+    setData((d) => ({ ...d, items: d.items.map((x) => (x.id === raffleId ? { ...x, has_winner: true } : x)) }));
+  }
+  function onRaffleExtended(updated) {
+    setData((d) => ({ ...d, items: d.items.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)) }));
+  }
 
   return (
     <Layout>
@@ -455,6 +568,16 @@ export default function Panel() {
                 <div style={{ fontWeight: 600 }}>{row.title || '(sin título)'}</div>
                 <div style={{ fontSize: 12, color: '#6B7280' }}>ID: {row.id}</div>
                 <div style={{ marginTop: 8 }}><Progress value={row.sold} max={row.total_numbers || 1} /></div>
+                {row.draw_at && row.timezone && (() => {
+                  const info = formatDrawAt(row.draw_at, row.timezone);
+                  const tz = TZ_LABELS_PANEL[row.timezone] || row.timezone;
+                  return info ? (
+                    <div style={{ marginTop: 6, fontSize: 12, color: '#6B7280' }}>
+                      Sorteo: {info.date} · {info.time} ({tz})
+                      {(row.extension_limit ?? 0) > 0 && ` · ${row.extensions_used ?? 0}/${row.extension_limit} extensiones`}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <div><Badge tone={row.status === 'active' ? 'green' : row.status === 'closed' ? 'red' : 'gray'}>{row.status}</Badge></div>
               <div>{row.sold}/{row.total_numbers}</div>
@@ -466,7 +589,13 @@ export default function Panel() {
                 <a href={`/api/rifas/${row.id}/qr.png`} download style={{ background: '#fff', color: '#111827', border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 8, fontWeight: 600, display: 'inline-block', textDecoration: 'none' }}>Descargar QR</a>
                 <ActionButton tone="ghost" onClick={() => setEditRaffle(row)}>Editar</ActionButton>
                 {row.status !== 'closed' && (
-                  <ActionButton tone="danger" onClick={() => setCloseRaffle(row)}>Terminar</ActionButton>
+                  <ActionButton tone="danger" onClick={() => setCloseRaffle(row)}>Cerrar ventas</ActionButton>
+                )}
+                {row.status === 'closed' && !row.has_winner && (
+                  <ActionButton tone="danger" onClick={() => setDrawRaffle(row)}>Sortear ganador ahora</ActionButton>
+                )}
+                {(row.extension_limit ?? 0) > 0 && (row.extensions_used ?? 0) < row.extension_limit && !row.has_winner && (
+                  <ActionButton tone="ghost" onClick={() => setExtendRaffle(row)}>Extender fecha</ActionButton>
                 )}
                 <ActionButton tone="danger" onClick={() => setDeleteRaffle(row)}>Eliminar</ActionButton>
               </div>
@@ -477,6 +606,8 @@ export default function Panel() {
 
       <EditModal   open={!!editRaffle}   onClose={() => setEditRaffle(null)}   raffle={editRaffle}   onSaved={onRaffleSaved} />
       <CloseDialog open={!!closeRaffle}  onClose={() => setCloseRaffle(null)}  raffle={closeRaffle}  onClosed={onRaffleClosed} />
+      <DrawDialog  open={!!drawRaffle}   onClose={() => setDrawRaffle(null)}   raffle={drawRaffle}   onDrawn={onRaffleDrawn} />
+      <ExtendDialog open={!!extendRaffle} onClose={() => setExtendRaffle(null)} raffle={extendRaffle} onExtended={onRaffleExtended} />
       <DeleteDialog open={!!deleteRaffle} onClose={() => setDeleteRaffle(null)} raffle={deleteRaffle} onDeleted={(id) => onRaffleDeleted(id)} />
 
       {/* CSS responsive móvil-only */}

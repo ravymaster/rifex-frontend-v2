@@ -191,7 +191,7 @@ async function processApproved(mp, fetchedVia) {
   // Sorteo automático si esta venta dejó la rifa agotada (idempotente).
   if (raffleId) {
     try {
-      const draw = await drawWinner(raffleId);
+      const draw = await drawWinner(raffleId, { triggerSource: "reconcile_auto" });
       if (draw.isNew) {
         await supabase.from("raffles").update({ status: "closed" }).eq("id", raffleId);
         await notifyWinnerDrawn(raffleId, draw.winner);
