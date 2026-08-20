@@ -9,8 +9,13 @@ import Layout from "../../components/Layout";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
+import { formatDrawAt } from "../../lib/raffleTime";
 
 const TERMS_VERSION = "v1.0";
+const TZ_LABELS = {
+  "America/Santiago": "Hora de Chile",
+  "America/Argentina/Buenos_Aires": "Hora de Argentina",
+};
 const BANNER_AUTO_HIDE_MS = 15000; // 15s
 const MODAL_AUTO_HIDE_MS  = 12000; // 12s
 
@@ -275,9 +280,15 @@ export default function RifaDetalle() {
     return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
   }, [raffle?.price_cents, selected.length]);
 
+  // DRAW-1: gate de tiempo — solo si la rifa configuró sales_end_at. Rifas
+  // V1 (sales_end_at=NULL) nunca quedan bloqueadas acá.
+  const salesClosed = !!(raffle?.sales_end_at && Date.now() >= new Date(raffle.sales_end_at).getTime());
+  const drawInfo = raffle?.draw_at && raffle?.timezone ? formatDrawAt(raffle.draw_at, raffle.timezone) : null;
+  const tzLabel = raffle?.timezone ? (TZ_LABELS[raffle.timezone] || raffle.timezone) : null;
+
   function isSelected(n) { return selected.includes(n); }
   function toggleNumber(n, isFree) {
-    if (!isFree) return;
+    if (!isFree || salesClosed) return;
     setSelected((prev) => prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]);
   }
 
@@ -476,6 +487,24 @@ export default function RifaDetalle() {
           </div>
         </div>
 
+        {/* DRAW-1: estado público del lifecycle temporal (sin copy técnico) */}
+        {(drawInfo || (raffle?.extension_limit ?? 0) > 0) && !winner && (
+          <div style={{ margin: "4px 0 12px", padding: "12px 14px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#f8fafc", color: "#0f172a", fontSize: 14, lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 700 }}>{salesClosed ? "Ventas cerradas" : "Ventas abiertas"}</div>
+            {drawInfo && (
+              <div>Sorteo: {drawInfo.date} · {drawInfo.time}{tzLabel ? ` · ${tzLabel}` : ""}</div>
+            )}
+            {drawInfo && <div style={{ color: "#64748b" }}>Ventas cierran 5 minutos antes del sorteo.</div>}
+            {(raffle?.extension_limit ?? 0) > 0 && (
+              <div style={{ color: "#64748b" }}>
+                {(raffle?.extensions_used ?? 0) > 0
+                  ? `Fecha actualizada · ${raffle.extensions_used} de ${raffle.extension_limit} extensiones utilizadas.`
+                  : `Esta rifa puede extender su fecha de sorteo hasta ${raffle.extension_limit} ${raffle.extension_limit === 1 ? "vez" : "veces"}. Cualquier cambio será informado a los participantes.`}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className={styles.linksRow}>
           {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
           <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
@@ -620,11 +649,13 @@ export default function RifaDetalle() {
             <button
               type="button"
               className={styles.cta}
-              disabled={selected.length === 0}
+              disabled={salesClosed || selected.length === 0}
               onClick={() => setShowBuyer(true)}
               style={{ position: "relative", zIndex: 1 }}
             >
-              {selected.length === 0
+              {salesClosed
+                ? "Ventas cerradas"
+                : selected.length === 0
                 ? "Selecciona un número para comprar"
                 : `Comprar ${selected.length} ${selected.length === 1 ? "número" : "números"} — ${selectedTotalCLP}`}
             </button>

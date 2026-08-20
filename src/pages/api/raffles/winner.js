@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, winner: existing || null });
     }
 
-    const result = await drawWinner(rid);
+    const result = await drawWinner(rid, { triggerSource: "buyer_ensure_auto" });
     if (result.isNew) {
       notifyWinnerDrawn(rid, result.winner).catch((e) =>
         console.error("[winner api] notify error:", e?.message || e)

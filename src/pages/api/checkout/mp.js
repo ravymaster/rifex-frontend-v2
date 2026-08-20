@@ -48,13 +48,20 @@ export default async function handler(req, res) {
     // 2) Rifa
     const { data: rdata, error: rerr } = await supabase
       .from("raffles")
-      .select("id, title, price_cents, creator_id, creator_email")
+      .select("id, title, price_cents, creator_id, creator_email, sales_end_at")
       .eq("id", rid)
       .maybeSingle();
     if (rerr) throw rerr;
     if (!rdata) return res.status(404).json({ ok: false, error: "raffle_not_found" });
 
     const raffle = rdata;
+
+    // DRAW-1: gate de tiempo — solo bloquea si la rifa configuró
+    // sales_end_at (modelo temporal nuevo). Rifas V1 con sales_end_at=NULL
+    // conservan el comportamiento legado exacto (sin gate de tiempo).
+    if (raffle.sales_end_at && Date.now() >= new Date(raffle.sales_end_at).getTime()) {
+      return res.status(409).json({ ok: false, error: "sales_closed" });
+    }
 
     // Country Gate (G2): país operativo del CREADOR de la rifa, no del
     // comprador (el comprador sigue siendo público, sin sesión). Precondición

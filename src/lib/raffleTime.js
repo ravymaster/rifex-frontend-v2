@@ -1,0 +1,77 @@
+// src/lib/raffleTime.js
+// Utilidades temporales puras para el lifecycle de sorteo (DRAW-1). Sin
+// dependencias externas: convierte hora local en una zona IANA a un
+// instante UTC usando Intl.DateTimeFormat (funciona igual en Node y en el
+// navegador), evitando agregar una librería de timezones a mitad de sprint.
+// Nunca comparar por offset fijo — todo pasa por el nombre IANA para que el
+// horario de verano se resuelva solo.
+
+const T5_MINUTES_DEFAULT = 5;
+
+/**
+ * Convierte fecha+hora "de pared" en una zona IANA a un instante UTC real.
+ * @param {string} dateStr 'YYYY-MM-DD'
+ * @param {string} timeStr 'HH:mm'
+ * @param {string} timeZone IANA, ej. 'America/Santiago'
+ * @returns {Date|null}
+ */
+export function zonedTimeToUtc(dateStr, timeStr, timeZone) {
+  const [y, m, d] = String(dateStr || "").split("-").map(Number);
+  const [hh, mm] = String(timeStr || "").split(":").map(Number);
+  if (!y || !m || !d || Number.isNaN(hh) || Number.isNaN(mm) || !timeZone) return null;
+
+  // 1) Adivinar el instante asumiendo que la hora de pared ES UTC.
+  const guessUtcMs = Date.UTC(y, m - 1, d, hh, mm, 0);
+
+  // 2) Ver qué hora de pared produce ese instante EN la zona objetivo.
+  let parts;
+  try {
+    const dtf = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+    parts = Object.fromEntries(dtf.formatToParts(new Date(guessUtcMs)).map((p) => [p.type, p.value]));
+  } catch {
+    return null; // timeZone inválida
+  }
+  const hour24 = parts.hour === "24" ? 0 : Number(parts.hour);
+  const asIfLocalMs = Date.UTC(
+    Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+    hour24, Number(parts.minute), Number(parts.second)
+  );
+
+  // 3) La diferencia entre "como si fuera local" y nuestro guess es el
+  //    offset real de la zona en ese instante (ya incluye DST si aplica).
+  const offsetMs = asIfLocalMs - guessUtcMs;
+  return new Date(guessUtcMs - offsetMs);
+}
+
+export function zonedTimeToUtcISOString(dateStr, timeStr, timeZone) {
+  const dt = zonedTimeToUtc(dateStr, timeStr, timeZone);
+  return dt ? dt.toISOString() : null;
+}
+
+export function computeSalesEndAt(drawAtISO, minutesBefore = T5_MINUTES_DEFAULT) {
+  if (!drawAtISO) return null;
+  const t = new Date(drawAtISO).getTime();
+  if (Number.isNaN(t)) return null;
+  return new Date(t - minutesBefore * 60_000).toISOString();
+}
+
+/** Presenta un instante UTC en la zona/locale de la rifa. Solo lectura/UI. */
+export function formatDrawAt(utcISOString, timeZone, locale = "es-CL") {
+  if (!utcISOString || !timeZone) return null;
+  const d = new Date(utcISOString);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const date = new Intl.DateTimeFormat(locale, { timeZone, day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+    const time = new Intl.DateTimeFormat(locale, { timeZone, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+    return { date, time };
+  } catch {
+    return null;
+  }
+}
+
+export const T5_MINUTES = T5_MINUTES_DEFAULT;
