@@ -115,6 +115,15 @@ export default function CrearRifaPage() {
       alert("Completa fecha y hora del sorteo, o deja ambas vacías.");
       return;
     }
+    if (drawDate && drawTime) {
+      // Chequeo blando en el navegador (referencia, no autoritativo — el
+      // backend valida la anticipación mínima real en la timezone del país).
+      const approx = new Date(`${drawDate}T${drawTime}`);
+      if (!Number.isNaN(approx.getTime()) && approx.getTime() < Date.now() + 10 * 60000) {
+        alert("El sorteo debe ser al menos 10 minutos en el futuro.");
+        return;
+      }
+    }
 
     const { data: sres } = await supabase.auth.getSession();
     const token = sres?.session?.access_token;
