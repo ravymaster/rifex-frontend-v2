@@ -1,10 +1,10 @@
 // src/pages/api/rifas/[id]/extend.js
-// DRAW-1: extensión de fecha/hora de sorteo, dentro del límite declarado en
-// creación (extension_limit, inmutable desde entonces). Reusa la MISMA
-// timezone ya guardada en la rifa (no re-deriva del país actual del
-// creador) para que una extensión nunca cambie silenciosamente la zona
-// horaria de una rifa ya publicada. Cada extensión queda auditada en
-// raffle_date_extensions — nunca sobreescribe el historial.
+// DRAW-1B: extensión de fecha/hora de sorteo, atómica vía RPC
+// (extend_raffle_draw) — ownership, límite, ganador previo, fecha futura y
+// anticipación mínima se validan TODOS dentro de la transacción con row
+// lock (FOR UPDATE), así dos extensiones concurrentes nunca pueden pisarse
+// ni duplicar extensions_used. Reusa la MISMA timezone ya guardada en la
+// rifa (no re-deriva del país actual del creador).
 import { createClient } from '@supabase/supabase-js';
 import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
 
@@ -13,6 +13,20 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
+
+// Excepciones de la RPC -> status HTTP. Mensaje de la RPC llega tal cual en error.message.
+const ERROR_STATUS = {
+  raffle_not_found: 404,
+  not_your_raffle: 403,
+  no_draw_at_configured: 400,
+  extensions_not_allowed: 400,
+  extension_limit_reached: 409,
+  draw_at_already_passed: 409,
+  winner_already_exists: 409,
+  new_draw_at_must_be_future: 400,
+  new_draw_at_must_be_later: 400,
+  new_draw_at_too_soon: 400,
+};
 
 export default async function handler(req, res) {
   const { id } = req.query || {};
@@ -27,38 +41,17 @@ export default async function handler(req, res) {
     const { data: ures, error: uerr } = await supabase.auth.getUser(token);
     if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
     const uid = ures.user.id;
-    const email = (ures.user.email || '').toLowerCase();
 
+    // Solo para poder convertir fecha/hora "de pared" a UTC con la MISMA
+    // zona de la rifa — no es una decisión de autoridad, esa vive en la RPC.
     const { data: raffle, error: rErr } = await supabase
       .from('raffles')
-      .select('id,creator_id,creator_email,draw_at,sales_end_at,timezone,extension_limit,extensions_used')
+      .select('timezone')
       .eq('id', id)
       .maybeSingle();
     if (rErr) throw rErr;
     if (!raffle) return res.status(404).json({ ok: false, error: 'not_found' });
-    const isOwner = raffle.creator_id === uid || (raffle.creator_email || '').toLowerCase() === email;
-    if (!isOwner) return res.status(403).json({ ok: false, error: 'not_your_raffle' });
-
-    if (!raffle.draw_at || !raffle.timezone) {
-      return res.status(400).json({ ok: false, error: 'no_draw_at_configured' });
-    }
-    if ((raffle.extension_limit || 0) <= 0) {
-      return res.status(400).json({ ok: false, error: 'extensions_not_allowed' });
-    }
-    if ((raffle.extensions_used || 0) >= raffle.extension_limit) {
-      return res.status(409).json({ ok: false, error: 'extension_limit_reached' });
-    }
-    if (new Date(raffle.draw_at).getTime() <= Date.now()) {
-      return res.status(409).json({ ok: false, error: 'draw_at_already_passed' });
-    }
-
-    const { data: existingWinner, error: wErr } = await supabase
-      .from('raffle_results')
-      .select('raffle_id')
-      .eq('raffle_id', id)
-      .maybeSingle();
-    if (wErr) throw wErr;
-    if (existingWinner) return res.status(409).json({ ok: false, error: 'winner_already_exists' });
+    if (!raffle.timezone) return res.status(400).json({ ok: false, error: 'no_draw_at_configured' });
 
     const { new_draw_date, new_draw_time, reason } = req.body || {};
     if (!new_draw_date || !new_draw_time) {
@@ -67,37 +60,20 @@ export default async function handler(req, res) {
 
     const newDrawAtIso = zonedTimeToUtcISOString(new_draw_date, new_draw_time, raffle.timezone);
     if (!newDrawAtIso) return res.status(400).json({ ok: false, error: 'invalid_draw_datetime' });
-    if (new Date(newDrawAtIso).getTime() <= Date.now()) {
-      return res.status(400).json({ ok: false, error: 'new_draw_at_must_be_future' });
-    }
-    if (new Date(newDrawAtIso).getTime() <= new Date(raffle.draw_at).getTime()) {
-      return res.status(400).json({ ok: false, error: 'new_draw_at_must_be_later' });
-    }
-
     const newSalesEndAtIso = computeSalesEndAt(newDrawAtIso);
 
-    const { data: updated, error: updErr } = await supabase
-      .from('raffles')
-      .update({
-        draw_at: newDrawAtIso,
-        sales_end_at: newSalesEndAtIso,
-        extensions_used: (raffle.extensions_used || 0) + 1,
-      })
-      .eq('id', id)
-      .select('*')
-      .maybeSingle();
-    if (updErr) throw updErr;
-
-    const { error: histErr } = await supabase.from('raffle_date_extensions').insert({
-      raffle_id: id,
-      previous_draw_at: raffle.draw_at,
-      new_draw_at: newDrawAtIso,
-      previous_sales_end_at: raffle.sales_end_at,
-      new_sales_end_at: newSalesEndAtIso,
-      changed_by: uid,
-      reason: reason || null,
+    const { data: updated, error: rpcErr } = await supabase.rpc('extend_raffle_draw', {
+      p_raffle_id: id,
+      p_user_id: uid,
+      p_new_draw_at: newDrawAtIso,
+      p_new_sales_end_at: newSalesEndAtIso,
+      p_reason: reason || null,
     });
-    if (histErr) throw histErr;
+
+    if (rpcErr) {
+      const status = ERROR_STATUS[rpcErr.message] || 500;
+      return res.status(status).json({ ok: false, error: rpcErr.message });
+    }
 
     return res.status(200).json({ ok: true, data: updated });
   } catch (e) {

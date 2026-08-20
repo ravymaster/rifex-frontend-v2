@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
 import { COUNTRY_POLICY } from '@/lib/countryPolicy';
 import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
-import { recordDeclarations, DECLARATION_TYPES } from '@/lib/legalDeclarations';
+import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -31,6 +31,9 @@ const ALLOWED_CREATE_FIELDS = new Set([
 ]);
 
 const MAX_EXTENSION_LIMIT = 3;
+// DRAW-1B: anticipación mínima — con T-5, esto deja al menos 5 minutos
+// reales de venta antes de que sales_end_at cierre las compras.
+const MIN_LEAD_MINUTES = 10;
 
 export default async function handler(req, res) {
   try {
@@ -132,33 +135,24 @@ export default async function handler(req, res) {
         if (!drawAtIso) {
           return res.status(400).json({ ok: false, error: 'invalid_draw_datetime' });
         }
-        if (new Date(drawAtIso).getTime() <= Date.now()) {
-          return res.status(400).json({ ok: false, error: 'draw_at_must_be_future' });
+        if (new Date(drawAtIso).getTime() < Date.now() + MIN_LEAD_MINUTES * 60_000) {
+          return res.status(400).json({ ok: false, error: 'draw_at_too_soon', message: `El sorteo debe ser al menos ${MIN_LEAD_MINUTES} minutos en el futuro.` });
         }
         row.draw_at = drawAtIso;
         row.sales_end_at = computeSalesEndAt(drawAtIso);
         row.timezone = timeZone;
       }
 
-      // Crear rifa
-      const { data: created, error: insErr } = await supabase
-        .from('raffles')
-        .insert(row)
-        .select('*')
-        .single();
-      if (insErr) throw insErr;
-
-      // DRAW-1: registrar declaraciones legales (reusable para Campañas después).
-      try {
-        await recordDeclarations({
-          userId: creator_id,
-          entityType: 'raffle',
-          entityId: created.id,
-          types: [DECLARATION_TYPES.AGE_18, DECLARATION_TYPES.PRIZE_OWNERSHIP],
-        });
-      } catch (e) {
-        console.error('[api/rifas] legal declarations error (no bloquea la creación)', e?.message || e);
-      }
+      // DRAW-1B: crear rifa + declaraciones legales en una sola transacción
+      // (RPC atómica) — si el registro de 18+/premio falla, la rifa
+      // tampoco queda creada. Nunca dejar una rifa sin evidencia de
+      // aceptación (fail-closed).
+      const { data: created, error: rpcErr } = await supabase.rpc('create_raffle_with_declarations', {
+        p_raffle: row,
+        p_user_id: creator_id,
+        p_declaration_types: [DECLARATION_TYPES.AGE_18, DECLARATION_TYPES.PRIZE_OWNERSHIP],
+      });
+      if (rpcErr) throw rpcErr;
 
       // Crear tickets 1..N
       const tickets = Array.from({ length: created.total_numbers }, (_, i) => ({
