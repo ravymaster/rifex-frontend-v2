@@ -38,7 +38,30 @@ export async function drawWinner(raffleId, { force = false, triggerSource = null
       .eq("raffle_id", raffleId)
       .in("status", ["available", "free", "pending"]);
     if (e2) throw e2;
+
     if ((remaining ?? 0) > 0) return { winner: null, isNew: false, ready: false };
+
+    // DRAW-2 FINAL: una rifa con draw_at futuro configurado NUNCA sortea
+    // por sold-out automático (webhook/reconciliación/ensure) — solo el
+    // scheduler (force:true, en/después de draw_at) o el sorteo manual
+    // explícito (force:true) pueden hacerlo. Si además ya está agotada acá,
+    // cerramos ventas (sales_end_at=now()) para que la UI y el gate de
+    // checkout queden consistentes, sin tocar status ni draw_at — así el
+    // scheduler la sigue encontrando exactamente en su hora. Rifas V1
+    // (draw_at=NULL) no entran a esta rama, comportamiento intacto.
+    const { data: raffleRow } = await supabaseAdmin
+      .from("raffles")
+      .select("draw_at,sales_end_at")
+      .eq("id", raffleId)
+      .maybeSingle();
+    const drawAtFuture = raffleRow?.draw_at && new Date(raffleRow.draw_at).getTime() > Date.now();
+    if (drawAtFuture) {
+      const salesEndAtFuture = !raffleRow.sales_end_at || new Date(raffleRow.sales_end_at).getTime() > Date.now();
+      if (salesEndAtFuture) {
+        await supabaseAdmin.from("raffles").update({ sales_end_at: new Date().toISOString() }).eq("id", raffleId);
+      }
+      return { winner: null, isNew: false, ready: false };
+    }
   }
 
   const { data: soldTickets, error: e3 } = await supabaseAdmin
