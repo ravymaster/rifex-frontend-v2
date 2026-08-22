@@ -25,6 +25,7 @@ const ERROR_STATUS = {
   winner_already_exists: 409,
   new_draw_at_must_be_future: 400,
   new_draw_at_must_be_later: 400,
+  extension_too_long: 400, // EXT-1: excede current_draw_at + MAX_EXTENSION_DAYS
   new_draw_at_too_soon: 400,
 };
 
