@@ -494,6 +494,11 @@ export default function RifaDetalle() {
             {drawInfo && (
               <div>Sorteo: {drawInfo.date} · {drawInfo.time}{tzLabel ? ` · ${tzLabel}` : ""}</div>
             )}
+            {drawInfo && (
+              <div style={{ color: "#94a3b8", fontSize: 12 }}>
+                Sorteo automático: puede ejecutarse hasta 5 minutos después de la hora indicada.
+              </div>
+            )}
             {drawInfo && <div style={{ color: "#64748b" }}>Ventas cierran 5 minutos antes del sorteo.</div>}
             {(raffle?.extension_limit ?? 0) > 0 && (
               <div style={{ color: "#64748b" }}>

@@ -323,6 +323,9 @@ export default function CrearRifaPage() {
                     <input className="rf-pill" type="time" value={drawTime} onChange={e=>setDrawTime(e.target.value)} />
                   </div>
                 </div>
+                <p style={{ fontSize: 12, color: "var(--gris)", margin: "-6px 0 12px" }}>
+                  Sorteo automático: puede ejecutarse hasta 5 minutos después de la hora indicada.
+                </p>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>¿Esta rifa podrá extender su fecha de sorteo?</span>
                   <select className="rf-pill" value={extensionLimit} onChange={e=>setExtensionLimit(e.target.value)}>
