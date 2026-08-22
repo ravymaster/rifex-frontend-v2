@@ -214,7 +214,6 @@ export default function Layout({
           <div className="rf-foot__cols">
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Producto</span>
-              <Link href="/rifas">Rifas</Link>
               <Link href="/crear-rifa">Crear rifa</Link>
               <Link href="/planes">Planes</Link>
             </div>
