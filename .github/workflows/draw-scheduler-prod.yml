@@ -1,0 +1,36 @@
+name: DRAW scheduler (PROD)
+
+# Único disparador periódico real de DRAW en producción. Permanece INERTE
+# mientras este archivo viva fuera de la rama default del repo — GitHub
+# solo ejecuta el trigger `schedule` desde main. Vivir en `develop` no lo
+# activa; es intencional mientras DRAW no se promueva conscientemente.
+#
+# Antes de promover a main, deben existir en este repositorio:
+#   - GitHub Secret CRON_SECRET_PROD (valor nuevo, nunca el de
+#     CRON_SECRET_DEV)
+#   - GitHub Variable DRAW_SCHEDULER_URL_PROD (apuntando al proyecto
+#     Vercel PROD, rifex-frontend-v2 / rifex.pro)
+#   - El mismo CRON_SECRET_PROD configurado como variable de entorno en
+#     Vercel PROD (proyecto rifex-frontend-v2)
+#
+# Cada 5 minutos es una solución temporal: NO garantiza ejecutar
+# exactamente en draw_at, garantiza una ventana de 0 a 5 minutos después.
+# La funcionalidad /tv (contador en tiempo real) requerirá una estrategia
+# de temporización más precisa — no resuelta en este sprint.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger-draw-scheduler-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call PROD draw scheduler endpoint
+        run: |
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${CRON_SECRET_PROD}" \
+            "${DRAW_SCHEDULER_URL_PROD}"
+        env:
+          CRON_SECRET_PROD: ${{ secrets.CRON_SECRET_PROD }}
+          DRAW_SCHEDULER_URL_PROD: ${{ vars.DRAW_SCHEDULER_URL_PROD }}

@@ -23,6 +23,25 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
+      const authz = req.headers.authorization || '';
+      const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+      if (!token) return res.status(401).json({ ok: false, error: 'missing_auth' });
+
+      const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+      if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+      const uid = ures.user.id;
+      const email = (ures.user.email || '').toLowerCase();
+
+      const { data: raffle, error: rErr } = await supabase
+        .from('raffles')
+        .select('id,creator_id,creator_email,status')
+        .eq('id', id)
+        .maybeSingle();
+      if (rErr) throw rErr;
+      if (!raffle) return res.status(404).json({ ok: false, error: 'not_found' });
+      const isOwner = raffle.creator_id === uid || (raffle.creator_email || '').toLowerCase() === email;
+      if (!isOwner) return res.status(403).json({ ok: false, error: 'not_your_raffle' });
+
       const body = req.body || {};
       const updates = {};
 
@@ -33,7 +52,25 @@ export default async function handler(req, res) {
       if ('prize_amount_cents' in updates) {
         updates.prize_amount_cents = Math.max(0, Math.round(Number(updates.prize_amount_cents || 0)));
       }
-      if ('status' in updates && updates.status === 'closed' && !updates.end_date) {
+
+      // DRAW-1: campos congelados desde la primera venta (premio). Precio
+      // por número, total de números y extension_limit ya no son editables
+      // por este endpoint desde antes de DRAW-1 (no están en ALLOWED_FIELDS),
+      // así que quedan protegidos por construcción, sin cambios adicionales.
+      if ('prize_type' in updates || 'prize_amount_cents' in updates) {
+        const { count: soldCount, error: sErr } = await supabase
+          .from('tickets')
+          .select('id', { count: 'exact', head: true })
+          .eq('raffle_id', id)
+          .eq('status', 'sold');
+        if (sErr) throw sErr;
+        if ((soldCount ?? 0) > 0) {
+          return res.status(409).json({ ok: false, error: 'fields_locked_after_first_sale' });
+        }
+      }
+
+      const closingNow = 'status' in updates && updates.status === 'closed' && raffle.status !== 'closed';
+      if (closingNow && !updates.end_date) {
         updates.end_date = new Date().toISOString().slice(0, 10);
       }
 
@@ -50,6 +87,13 @@ export default async function handler(req, res) {
 
       if (error) throw error;
       if (!data) return res.status(404).json({ ok: false, error: 'not_found' });
+
+      // DRAW-1: "cerrar ventas" ya NO sortea automáticamente. Cerrar detiene
+      // la venta (vía el gate de tiempo en checkout/mp.js si sales_end_at
+      // estaba configurado, y de todos modos deja de mostrarse como activa);
+      // elegir ganador es una acción explícita y separada — ver
+      // POST /api/rifas/[id]/draw. El sorteo automático por sold-out (vía
+      // webhook/reconciliación) sigue exactamente igual, sin cambios.
       return res.status(200).json({ ok: true, data });
     }
 
@@ -59,5 +103,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 }
-
-

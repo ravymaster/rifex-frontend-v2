@@ -50,7 +50,7 @@ function GoogleButton({ label = "Continuar con Google", className = "" }) {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/panel`,
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/panel")}`,
         queryParams: { prompt: "select_account" }
       },
     });

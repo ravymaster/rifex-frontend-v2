@@ -5,11 +5,17 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
 import { getIconByNumber } from "../../hooks/useIconsMap";
+import Layout from "../../components/Layout";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
+import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 
 const TERMS_VERSION = "v1.0";
+const TZ_LABELS = {
+  "America/Santiago": "Hora de Chile",
+  "America/Argentina/Buenos_Aires": "Hora de Argentina",
+};
 const BANNER_AUTO_HIDE_MS = 15000; // 15s
 const MODAL_AUTO_HIDE_MS  = 12000; // 12s
 
@@ -269,9 +275,20 @@ export default function RifaDetalle() {
     return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
   }, [raffle?.prize_amount_cents]);
 
+  const selectedTotalCLP = useMemo(() => {
+    const n = (Number(raffle?.price_cents || 0) / 100) * selected.length;
+    return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+  }, [raffle?.price_cents, selected.length]);
+
+  // DRAW-1: gate de tiempo — solo si la rifa configuró sales_end_at. Rifas
+  // V1 (sales_end_at=NULL) nunca quedan bloqueadas acá.
+  const salesClosed = !!(raffle?.sales_end_at && Date.now() >= new Date(raffle.sales_end_at).getTime());
+  const drawInfo = raffle?.draw_at && raffle?.timezone ? formatDrawAt(raffle.draw_at, raffle.timezone) : null;
+  const tzLabel = raffle?.timezone ? (TZ_LABELS[raffle.timezone] || raffle.timezone) : null;
+
   function isSelected(n) { return selected.includes(n); }
   function toggleNumber(n, isFree) {
-    if (!isFree) return;
+    if (!isFree || salesClosed) return;
     setSelected((prev) => prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]);
   }
 
@@ -329,9 +346,22 @@ export default function RifaDetalle() {
 
   const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
 
+  // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA
+  const hasAnyModalOrOverlay =
+    !!showIntro || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
+
   // —— FIX de superposición / stacking contexts ——
-  // Aislamos el contenedor de página para controlar las capas
-  const pageIsolated = { position: "relative", isolation: "isolate" };
+  // Aislamos el contenedor de página para controlar las capas.
+  // Cuando hay un overlay de pantalla completa (spinner de MP, modal de
+  // confirmación), subimos el z-index del propio contenedor por encima del
+  // header sticky del sitio: "isolation: isolate" atrapa hasta los elementos
+  // position:fixed dentro de este contexto, así que sin esto el header
+  // quedaría visualmente encima del overlay durante el flujo de pago.
+  const pageIsolated = {
+    position: "relative",
+    isolation: "isolate",
+    zIndex: hasAnyModalOrOverlay ? 3500 : "auto",
+  };
 
   const bannerStyle = (kind) => ({
     margin: "8px 0 12px",
@@ -339,7 +369,7 @@ export default function RifaDetalle() {
     borderRadius: 10,
     fontWeight: 700,
     position: "relative",
-    zIndex: 200, // <- por encima de la grilla
+    zIndex: 200, // <- por encima de la grilla/CTA
     ...(kind === "success"
       ? { background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }
       : kind === "error"
@@ -375,7 +405,7 @@ export default function RifaDetalle() {
 
   return (
     <div className={styles.page} style={pageIsolated}>
-      <Head><title>{titleCap || "Rifa"} — Rifex</title></Head>
+      <Head><title>{`${titleCap || "Rifa"} — Rifex`}</title></Head>
 
       {/* Overlay spinner durante la redirección a MP */}
       {redirecting && (
@@ -433,13 +463,14 @@ export default function RifaDetalle() {
 
         {/* Encabezado */}
         <div className={styles.head}>
+          <span className={styles.statusPill}>● {raffle.status || "activa"}</span>
           <h1 className={styles.title}>{titleCap}</h1>
           <p className={styles.sub}>{raffle.description || ""}</p>
         </div>
 
         {/* Info top */}
         <div className={styles.topInfo}>
-          <div className={styles.infoItem}>
+          <div className={`${styles.infoItem} ${styles.infoItemHi}`}>
             <div className={styles.infoLabel}>Premio</div>
             <div className={styles.infoValue}>{prizeCLP}</div>
             <div className={styles.infoSub}>{raffle.prize_description || "—"}</div>
@@ -451,19 +482,48 @@ export default function RifaDetalle() {
           </div>
           <div className={styles.infoItem}>
             <div className={styles.infoLabel}>Termina</div>
-            <div className={styles.infoValue}>{raffle.end_date ? new Date(raffle.end_date).toLocaleDateString("es-CL") : "—"}</div>
-            <div className={styles.infoSub}>Estado: <b>{raffle.status || "activa"}</b></div>
+            <div className={styles.infoValue}>{raffle.end_date ? (formatDateOnly(raffle.end_date) ?? "—") : "—"}</div>
+            <div className={styles.infoSub}>{" "}</div>
           </div>
-          <div className={styles.linksCol}>
-            {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>Ver perfil del creador</a>}
-            <a className={styles.linkSecondary} href={`/rifas/${id}/chat`}>Ir al chat de esta rifa</a>
-            <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">Términos de la rifa</a>
+        </div>
+
+        {/* DRAW-1: estado público del lifecycle temporal (sin copy técnico) */}
+        {(drawInfo || (raffle?.extension_limit ?? 0) > 0) && !winner && (
+          <div style={{ margin: "4px 0 12px", padding: "12px 14px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#f8fafc", color: "#0f172a", fontSize: 14, lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 700 }}>{salesClosed ? "Ventas cerradas" : "Ventas abiertas"}</div>
+            {drawInfo && (
+              <div>Sorteo: {drawInfo.date} · {drawInfo.time}{tzLabel ? ` · ${tzLabel}` : ""}</div>
+            )}
+            {drawInfo && (
+              <div style={{ color: "#94a3b8", fontSize: 12 }}>
+                Sorteo automático: puede ejecutarse hasta 5 minutos después de la hora indicada.
+              </div>
+            )}
+            {drawInfo && <div style={{ color: "#64748b" }}>Ventas cierran 5 minutos antes del sorteo.</div>}
+            {(raffle?.extension_limit ?? 0) > 0 && (
+              <div style={{ color: "#64748b" }}>
+                {(raffle?.extensions_used ?? 0) > 0
+                  ? `Fecha de sorteo modificada · ${raffle.extensions_used} de ${raffle.extension_limit} extensiones utilizadas.`
+                  : `Esta rifa puede extender su fecha de sorteo hasta ${raffle.extension_limit} ${raffle.extension_limit === 1 ? "vez" : "veces"}. Cualquier cambio será informado a los participantes.`}
+              </div>
+            )}
           </div>
+        )}
+
+        <div className={styles.linksRow}>
+          {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
+          <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
         </div>
 
         {/* Grid de números */}
         <div className={styles.numbersWrap} style={{ position: "relative", zIndex: 1 }}>
-          <h3 className={styles.numbersTitle}>Números disponibles</h3>
+          <div className={styles.numbersHead}>
+            <h3 className={styles.numbersTitle}>Números disponibles</h3>
+            <div className={styles.legend}>
+              <span className={styles.legendItem}><span className={styles.legendDot} style={{ background: "#23B6C6" }} />Disponible</span>
+              <span className={styles.legendItem}><span className={styles.legendDot} style={{ background: "#94a3b8" }} />Vendido</span>
+            </div>
+          </div>
           <div className={styles.numbersBlock}>
             <div className={styles.numsGrid}>
               {tickets.map((t) => {
@@ -584,16 +644,25 @@ export default function RifaDetalle() {
           </div>
         </div>
 
-        {/* CTA abajo — se oculta mientras el modal BuyerForm o el modal de pago estén abiertos */}
-        {!showBuyer && !paymentResult && (
-          <div className={styles.bottomCta} style={{ position: "relative", zIndex: 50 }}>
+        {/* CTA abajo — oculto cuando hay banner/intro/modales/redirect */}
+        {!hasAnyModalOrOverlay && (
+          <div
+            className={styles.bottomCta}
+            style={{ position: "relative", zIndex: 10, marginTop: 12 }}
+            aria-hidden={hasAnyModalOrOverlay}
+          >
             <button
               type="button"
               className={styles.cta}
-              disabled={selected.length === 0}
+              disabled={salesClosed || selected.length === 0}
               onClick={() => setShowBuyer(true)}
+              style={{ position: "relative", zIndex: 1 }}
             >
-              {selected.length === 0 ? "Comprar (selecciona)" : `Comprar (${selected.length})`}
+              {salesClosed
+                ? "Ventas cerradas"
+                : selected.length === 0
+                ? "Selecciona un número para comprar"
+                : `Comprar ${selected.length} ${selected.length === 1 ? "número" : "números"} — ${selectedTotalCLP}`}
             </button>
           </div>
         )}
@@ -648,3 +717,6 @@ export default function RifaDetalle() {
     </div>
   );
 }
+
+RifaDetalle.getLayout = (page) => <Layout>{page}</Layout>;
+

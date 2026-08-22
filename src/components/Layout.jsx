@@ -1,55 +1,105 @@
 // src/components/Layout.jsx
+import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
-export default function Layout({ children }) {
-  const { pathname } = useRouter();
+export default function Layout({
+  title = 'Rifex',
+  description = 'Crea rifas en minutos, comparte el enlace y cobra online.',
+  children,
+}) {
+  const router = useRouter();
+  const { pathname } = router;
   const [open, setOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const userMenuRef = useRef(null);
 
-  const items = [
-    { label: 'Inicio',     href: '/' },
-    { label: 'Rifas',      href: '/rifas' },
-    { label: 'Crear rifa', href: '/crear-rifa' },
-    { label: 'Planes',     href: '/planes' },
-    { label: 'Blog',       href: '/blog' },
-    { label: 'Contacto',   href: '/contacto' },
-    { label: 'Términos',   href: '/terminos' },
-    { label: 'Panel',      href: '/panel' },
-    { label: 'Bancos',     href: '/panel/bancos' },
-    { label: 'Perfil',     href: '/perfil' },
-    { label: 'Chat (demo)',href: '/chat/123' },
-    { label: 'Login',      href: '/login' },
-    { label: 'Registro',   href: '/register' },
-    { label: 'MP Setup',   href: '/panel/mercado-pago' },
+  // Nav principal: solo páginas de cara al público. Todo lo de cuenta va al menú de usuario.
+  // UX/CRO-1: "Rifas" queda temporalmente fuera del nav (sigue existiendo y
+  // accesible por URL directa, y desde el footer/CTAs) a favor de la guía
+  // pública /wizard.
+  const navItems = [
+    { label: 'Inicio',         href: '/' },
+    { label: 'Cómo funciona',  href: '/wizard' },
+    { label: 'Crear rifa',     href: '/crear-rifa' },
+    { label: 'Planes',         href: '/planes' },
+    { label: 'Blog',           href: '/blog' },
+  ];
+
+  const accountItems = [
+    { label: 'Panel',          href: '/panel' },
+    { label: 'Mis campañas',   href: '/crear-colecta' },
+    { label: 'Bancos & Pagos', href: '/panel/bancos' },
+    { label: 'Perfil',         href: '/perfil' },
   ];
 
   const isActive = (href) => {
-    if (href.startsWith('/chat')) return pathname.startsWith('/chat');
-    return pathname === href;
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(href + '/');
   };
 
-  // Cierra el menú al navegar o pulsar ESC
-  useEffect(() => { setOpen(false); }, [pathname]);
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+    let mounted = true;
+    supabase.auth.getUser().then(({ data }) => {
+      if (mounted) setUser(data?.user || null);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user || null);
+    });
+    return () => {
+      mounted = false;
+      sub?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  // Cierra los menús al navegar o pulsar ESC
+  useEffect(() => { setOpen(false); setUserOpen(false); }, [pathname]);
+  useEffect(() => {
+    const onKey = (e) => e.key === 'Escape' && (setOpen(false), setUserOpen(false));
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // Cierra el menú de usuario al hacer click afuera
+  useEffect(() => {
+    if (!userOpen) return;
+    const onClick = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [userOpen]);
+
+  async function handleLogout() {
+    try { await supabase.auth.signOut(); } catch {}
+    setUserOpen(false);
+    router.push('/login');
+  }
+
+  const initial = (user?.email || '?').trim().charAt(0).toUpperCase();
+
   return (
     <>
+      <Head>
+        <title>{title}</title>
+        <meta name="description" content={description} />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+
       <header className="rf-header" role="banner">
         <div className="rf-header-inner">
-          {/* Marca (logo izquierda) */}
           <Link href="/" className="rf-logo" aria-label="Ir al inicio">
             <img src="/rifex-logo.png" alt="" width={28} height={28} />
             <span>Rifex</span>
           </Link>
 
-          {/* Navegación de escritorio (todas las páginas a la vista) */}
           <nav className="rf-nav rf-nav-desktop" aria-label="Principal">
-            {items.map((it) => (
+            {navItems.map((it) => (
               <Link
                 key={it.href}
                 href={it.href}
@@ -61,21 +111,56 @@ export default function Layout({ children }) {
             ))}
           </nav>
 
-          {/* Botón hamburguesa (solo móvil) */}
-          <button
-            className="rf-hamburger"
-            aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
-            aria-expanded={open}
-            aria-controls="rf-mobile-menu"
-            onClick={() => setOpen((v) => !v)}
-          >
-            <span />
-            <span />
-            <span />
-          </button>
+          <div className="rf-header-actions">
+            {user ? (
+              <div className="rf-user" ref={userMenuRef}>
+                <button
+                  className="rf-user__trigger"
+                  onClick={() => setUserOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={userOpen}
+                >
+                  <span className="rf-user__avatar">{initial}</span>
+                  <span className="rf-user__email rf-nav-desktop-only">{user.email}</span>
+                  <svg className="rf-user__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {userOpen && (
+                  <div className="rf-user__menu" role="menu">
+                    {accountItems.map((it) => (
+                      <Link key={it.href} href={it.href} className="rf-user__item" role="menuitem">
+                        {it.label}
+                      </Link>
+                    ))}
+                    <button className="rf-user__item rf-user__item--danger" onClick={handleLogout} role="menuitem">
+                      Cerrar sesión
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rf-auth-actions rf-nav-desktop-only">
+                <Link href="/login" className="rf-btn-ghost">Ingresar</Link>
+                <Link href="/register" className="rf-btn-primary">Crear cuenta</Link>
+              </div>
+            )}
+
+            <button
+              className="rf-hamburger"
+              aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+              aria-expanded={open}
+              aria-controls="rf-mobile-menu"
+              onClick={() => setOpen((v) => !v)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+          </div>
         </div>
 
-        {/* Menú móvil desplegable (mismo set de páginas) */}
         <div
           id="rf-mobile-menu"
           className="rf-mobile"
@@ -83,7 +168,7 @@ export default function Layout({ children }) {
           aria-hidden={!open}
         >
           <nav className="rf-mobile-nav" aria-label="Menú móvil">
-            {items.map((it) => (
+            {navItems.map((it) => (
               <Link
                 key={it.href}
                 href={it.href}
@@ -93,111 +178,331 @@ export default function Layout({ children }) {
                 {it.label}
               </Link>
             ))}
+            <div className="rf-mobile-divider" />
+            {user ? (
+              <>
+                {accountItems.map((it) => (
+                  <Link key={it.href} href={it.href} className="rf-mobile-link" data-active={isActive(it.href)}>
+                    {it.label}
+                  </Link>
+                ))}
+                <button className="rf-mobile-link rf-mobile-link--danger" onClick={handleLogout}>
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="rf-mobile-link">Ingresar</Link>
+                <Link href="/register" className="rf-mobile-link">Crear cuenta</Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
 
-      <main>{children}</main>
+      <main className="container">{children}</main>
 
-      {/* Styles */}
+      <footer className="rf-foot">
+        <div className="rf-foot__top">
+          <div className="rf-foot__brand">
+            <div className="rf-foot__logo">
+              <img src="/rifex-logo.png" alt="" width={22} height={22} />
+              <span>Rifex</span>
+            </div>
+            <p>La forma más simple de organizar y participar en rifas online.</p>
+          </div>
+          <div className="rf-foot__cols">
+            <div className="rf-foot__col">
+              <span className="rf-foot__colTitle">Producto</span>
+              <Link href="/crear-rifa">Crear rifa</Link>
+              <Link href="/planes">Planes</Link>
+            </div>
+            <div className="rf-foot__col">
+              <span className="rf-foot__colTitle">Soporte</span>
+              <Link href="/contacto">Contacto</Link>
+              <Link href="/blog">Blog</Link>
+              <Link href="/preguntas-frecuentes">Preguntas frecuentes</Link>
+            </div>
+            <div className="rf-foot__col">
+              <span className="rf-foot__colTitle">Legal</span>
+              <Link href="/terminos">Términos</Link>
+              <Link href="/terminos#privacidad">Privacidad</Link>
+            </div>
+          </div>
+        </div>
+        <div className="rf-foot__bottom">
+          <span>© {new Date().getFullYear()} Rifex. Todos los derechos reservados.</span>
+          <div className="rf-foot__bottomRight">
+            <span className="rf-foot__pay">Pagos con Mercado Pago</span>
+          </div>
+        </div>
+      </footer>
+
       <style jsx>{`
-        .rf-header {
-          position: sticky;
-          top: 0;
-          z-index: 40;
-          background: #ffffffcc;
-          backdrop-filter: blur(8px);
-          border-bottom: 1px solid #eef2f7;
-        }
-        .rf-header-inner {
-          max-width: 1100px;
+        .container {
+          max-width: 1200px;
           margin: 0 auto;
-          padding: 10px 12px;
+          padding: 24px 16px;
+          min-height: 60vh;
+        }
+        .rf-foot {
+          margin-top: 48px;
+          background: #0c1636;
+          color: rgba(255, 255, 255, 0.6);
+        }
+        .rf-foot__top {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 40px 16px 24px;
+          display: flex;
+          justify-content: space-between;
+          gap: 32px;
+          flex-wrap: wrap;
+        }
+        .rf-foot__brand { max-width: 280px; }
+        .rf-foot__logo {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 800;
+          font-size: 15px;
+          color: #fff;
+          margin-bottom: 8px;
+        }
+        .rf-foot__logo img { border-radius: 6px; }
+        .rf-foot__brand p { font-size: 13px; line-height: 1.6; margin: 0; }
+
+        .rf-foot__cols { display: flex; gap: 40px; flex-wrap: wrap; }
+        .rf-foot__col { display: flex; flex-direction: column; gap: 10px; }
+        .rf-foot__colTitle { font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.85); margin-bottom: 2px; }
+        .rf-foot__col :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; font-size: 13.5px; }
+        .rf-foot__col :global(a:hover) { color: #fff; }
+
+        .rf-foot__bottom {
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 16px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
+          font-size: 12px;
+          flex-wrap: wrap;
         }
-        .rf-logo {
+        .rf-foot__bottomRight { display: flex; align-items: center; gap: 16px; }
+        .rf-foot__bottomRight :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; }
+        .rf-foot__bottomRight :global(a:hover) { color: #fff; }
+        .rf-foot__pay { display: inline-flex; align-items: center; gap: 5px; }
+
+        @media (max-width: 640px) {
+          .rf-foot__top { flex-direction: column; gap: 24px; }
+          .rf-foot__cols { gap: 32px; }
+          .rf-foot__bottom { flex-direction: column; align-items: flex-start; }
+        }
+
+        .rf-header {
+          position: sticky;
+          top: 0;
+          z-index: 40;
+          background: rgba(12, 22, 54, 0.92);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .rf-header-inner {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 12px 16px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+        }
+        :global(.rf-logo) {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          font-weight: 900;
+          gap: 9px;
+          font-weight: 800;
           font-size: 18px;
-          color: #0f172a;
+          color: #fff;
           text-decoration: none;
-          letter-spacing: .2px;
+          letter-spacing: -0.2px;
+          transition: opacity 0.15s ease;
         }
-        .rf-nav {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-        .rf-nav__link {
+        :global(.rf-logo:hover) { opacity: 0.75; }
+        :global(.rf-logo img) { border-radius: 7px; }
+
+        .rf-nav { display: flex; align-items: center; gap: 2px; }
+        :global(.rf-nav__link) {
           text-decoration: none;
-          padding: 8px 10px;
-          border-radius: 10px;
-          color: #0f172a;
+          padding: 8px 14px;
+          border-radius: 999px;
+          color: rgba(255, 255, 255, 0.65);
           font-weight: 600;
-          transition: background .15s ease;
+          font-size: 14.5px;
+          transition: background 0.15s ease, color 0.15s ease;
         }
-        .rf-nav__link:hover { background: #f1f5f9; }
-        .rf-nav__link[data-active="true"] {
-          background: #0f172a;
+        :global(.rf-nav__link:hover) { background: rgba(255, 255, 255, 0.08); color: #fff; }
+        :global(.rf-nav__link[data-active='true']) {
+          background: rgba(255, 255, 255, 0.12);
           color: #fff;
         }
 
-        /* Hamburger */
+        .rf-header-actions { display: flex; align-items: center; gap: 10px; }
+
+        .rf-auth-actions { display: flex; align-items: center; gap: 8px; }
+        :global(.rf-btn-ghost), :global(.rf-btn-primary) {
+          font-size: 14px;
+          font-weight: 700;
+          padding: 9px 16px;
+          border-radius: 999px;
+          text-decoration: none;
+          transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.15s ease;
+          display: inline-flex;
+          align-items: center;
+        }
+        :global(.rf-btn-ghost) { color: #fff; }
+        :global(.rf-btn-ghost:hover) { background: rgba(255, 255, 255, 0.08); }
+        :global(.rf-btn-primary) {
+          background: linear-gradient(135deg, #1e3a8a 0%, #18a957 100%);
+          color: #fff;
+          box-shadow: 0 4px 14px rgba(24, 169, 87, 0.28);
+        }
+        :global(.rf-btn-primary:hover) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(24, 169, 87, 0.36); }
+
+        .rf-user { position: relative; }
+        .rf-user__trigger {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: transparent;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 999px;
+          padding: 5px 10px 5px 5px;
+          cursor: pointer;
+          transition: border-color 0.15s ease, background 0.15s ease;
+        }
+        .rf-user__trigger:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.35); }
+        .rf-user__avatar {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #1e3a8a 0%, #23b6c6 100%);
+          color: #fff;
+          font-weight: 700;
+          font-size: 13px;
+          display: grid;
+          place-items: center;
+          flex-shrink: 0;
+        }
+        .rf-user__email {
+          font-size: 13.5px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.7);
+          max-width: 160px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .rf-user__chevron { color: rgba(255, 255, 255, 0.5); flex-shrink: 0; }
+
+        .rf-user__menu {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          min-width: 200px;
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 14px;
+          box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+          padding: 6px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          animation: rf-menu-in 0.12s ease;
+        }
+        @keyframes rf-menu-in {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        :global(.rf-user__item) {
+          display: block;
+          width: 100%;
+          text-align: left;
+          padding: 9px 12px;
+          border-radius: 9px;
+          border: none;
+          background: transparent;
+          color: #0f172a;
+          font-size: 14px;
+          font-weight: 600;
+          text-decoration: none;
+          cursor: pointer;
+          font-family: inherit;
+        }
+        :global(.rf-user__item:hover) { background: #f1f5f9; }
+        :global(.rf-user__item--danger) { color: #b91c1c; }
+        :global(.rf-user__item--danger:hover) { background: #fef2f2; }
+
         .rf-hamburger {
           display: none;
-          width: 40px;
-          height: 40px;
+          width: 38px;
+          height: 38px;
           border: 0;
           background: transparent;
           border-radius: 10px;
           cursor: pointer;
+          flex-shrink: 0;
         }
-        .rf-hamburger:hover { background: #f1f5f9; }
+        .rf-hamburger:hover { background: rgba(255, 255, 255, 0.08); }
         .rf-hamburger span {
           display: block;
-          width: 22px;
-          height: 3px;
+          width: 20px;
+          height: 2px;
           border-radius: 999px;
-          background: #0f172a;
+          background: #fff;
           margin: 4px auto;
+          transition: transform 0.15s ease;
         }
 
-        /* Mobile menu container */
         .rf-mobile {
-          border-top: 1px solid #eef2f7;
-          background: #fff;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          background: #0c1636;
         }
         .rf-mobile-nav {
           display: grid;
-          gap: 6px;
-          padding: 10px 12px 14px;
+          gap: 4px;
+          padding: 10px 12px 16px;
         }
-        .rf-mobile-link {
+        :global(.rf-mobile-link) {
           text-decoration: none;
-          padding: 10px 12px;
+          padding: 11px 14px;
           border-radius: 10px;
           font-weight: 700;
-          color: #0f172a;
-          background: #f8fafc;
-        }
-        .rf-mobile-link[data-active="true"] {
-          background: #0f172a;
+          font-size: 14.5px;
           color: #fff;
+          background: rgba(255, 255, 255, 0.06);
+          border: none;
+          text-align: left;
+          cursor: pointer;
+          font-family: inherit;
+          width: 100%;
+        }
+        :global(.rf-mobile-link[data-active='true']) { background: var(--trebol); color: #fff; }
+        :global(.rf-mobile-link--danger) { color: #f87171; }
+        .rf-mobile-divider {
+          height: 1px;
+          background: rgba(255, 255, 255, 0.1);
+          margin: 6px 4px;
         }
 
-        /* Breakpoints */
         @media (max-width: 900px) {
-          .rf-nav-desktop { display: none; }   /* Oculta todo el menú ancho */
-          .rf-hamburger { display: inline-grid; place-items: center; } /* Muestra el botón */
+          .rf-nav-desktop { display: none; }
+          .rf-nav-desktop-only { display: none; }
+          .rf-hamburger { display: inline-grid; place-items: center; }
         }
       `}</style>
     </>
   );
 }
-
-
