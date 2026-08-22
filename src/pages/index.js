@@ -29,7 +29,6 @@ export default function Home() {
             <div className={styles.ctaRowDark}>
               <a href="/crear-rifa" className={`btn ${styles.ctaPrimaryDark}`}>Crear rifa</a>
               <a href="/crear-colecta" className={`btn ${styles.ctaPrimaryDark}`}>Crear campaña</a>
-              <a href="/rifas" className={`btn ${styles.ctaGhostDark}`}>Ver rifas en vivo</a>
             </div>
           </div>
 

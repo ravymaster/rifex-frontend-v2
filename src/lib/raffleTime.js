@@ -74,4 +74,21 @@ export function formatDrawAt(utcISOString, timeZone, locale = "es-CL") {
   }
 }
 
+/**
+ * Presenta una fecha-solo ('YYYY-MM-DD', columna `date`, ej. `end_date`) sin
+ * pasar por `new Date(...)`: ese constructor interpreta 'YYYY-MM-DD' como
+ * medianoche UTC, y `toLocaleDateString()` la vuelve a formatear en la zona
+ * del NAVEGADOR — en cualquier zona con offset negativo respecto a UTC eso
+ * corre la fecha mostrada un día hacia atrás. Como el valor ya es la fecha
+ * de pared correcta, basta con reordenar los componentes del string.
+ * @param {string} dateOnlyStr 'YYYY-MM-DD'
+ * @returns {string|null} 'DD-MM-YYYY'
+ */
+export function formatDateOnly(dateOnlyStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateOnlyStr || ""));
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  return `${d}-${mo}-${y}`;
+}
+
 export const T5_MINUTES = T5_MINUTES_DEFAULT;
