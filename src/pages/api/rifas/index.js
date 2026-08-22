@@ -113,14 +113,18 @@ export default async function handler(req, res) {
       if (creator_email) row.creator_email = creator_email;
       if (creator_id) row.creator_id = creator_id;
 
-      // DRAW-1: fecha/hora de sorteo — opcional. El creador solo entrega
-      // fecha/hora "de pared"; la zona horaria SIEMPRE se resuelve server-side
-      // desde el país real del creador (users_profile.country_code), nunca
-      // desde un valor que mande el cliente — mismo criterio que el Country
-      // Gate. Si no se entrega, la rifa queda exactamente en modelo V1
-      // (draw_at/sales_end_at/timezone en NULL, sin gate de tiempo).
+      // DRAW-UX-FINAL: fecha/hora de sorteo — OBLIGATORIA para toda rifa
+      // nueva (ninguna rifa nueva puede quedar con draw_at=NULL). Las rifas
+      // legacy ya existentes no se tocan — este requisito solo aplica al
+      // camino de creación. El creador solo entrega fecha/hora "de pared";
+      // la zona horaria SIEMPRE se resuelve server-side desde el país real
+      // del creador (users_profile.country_code), nunca desde un valor que
+      // mande el cliente — mismo criterio que el Country Gate.
       const { draw_date, draw_time } = body || {};
-      if (draw_date && draw_time) {
+      if (!draw_date || !draw_time) {
+        return res.status(400).json({ ok: false, error: 'missing_draw_datetime', message: 'La fecha y hora del sorteo son obligatorias.' });
+      }
+      {
         const { data: profile } = await supabase
           .from('users_profile')
           .select('country_code')
@@ -141,6 +145,11 @@ export default async function handler(req, res) {
         row.draw_at = drawAtIso;
         row.sales_end_at = computeSalesEndAt(drawAtIso);
         row.timezone = timeZone;
+        // DRAW-UX-FINAL: end_date se deriva SIEMPRE de draw_date (fecha "de
+        // pared" ya en términos del creador, sin conversión adicional) para
+        // que la compatibilidad V1 (listados, panel, perfil público) no
+        // dependa de que el cliente la mande por su cuenta.
+        row.end_date = draw_date;
       }
 
       // DRAW-1B: crear rifa + declaraciones legales en una sola transacción

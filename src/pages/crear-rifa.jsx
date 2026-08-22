@@ -64,20 +64,27 @@ export default function CrearRifaPage() {
   // Temática
   const [theme, setTheme] = useState("mixto");
 
-  // Premio
+  // Premio — el único método de pago del premio es transferencia directa
+  // del creador (DRAW-UX-FINAL: se retiró "Depósito por Rifex").
   const [prizeType, setPrizeType] = useState("money"); // money | physical
   const [prizeAmount, setPrizeAmount] = useState("");  // CLP
-  const [payoutMethod, setPayoutMethod] = useState("creator_direct"); // rifex_transfer | creator_direct
+  const PAYOUT_METHOD = "creator_direct";
   const [deliveryMethod, setDeliveryMethod] = useState("a_convenir");
   const [prizePhotos, setPrizePhotos] = useState([]); // File[]
 
-  // Fechas/estado
+  // Fechas/estado — "Término" ya no se pide por separado: DRAW-UX-FINAL
+  // unificó esa decisión en "Fecha y hora del sorteo" (abajo), que ahora es
+  // obligatoria. end_date se deriva automáticamente de la fecha del sorteo
+  // al enviar, para que las rifas legacy que sí leen end_date (listados,
+  // panel, perfil público) sigan funcionando exactamente igual.
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState("active"); // draft | active | closed
 
-  // DRAW-1: sorteo (opcional) — fecha/hora "de pared"; la zona horaria la
-  // resuelve el backend desde el país real del creador, nunca desde el cliente.
+  // DRAW-UX-FINAL: fecha/hora del sorteo — obligatoria para toda rifa
+  // nueva (ninguna rifa nueva puede quedar con draw_at=NULL; las rifas
+  // legacy ya existentes no se tocan). El creador solo entrega hora "de
+  // pared"; la zona horaria la resuelve el backend desde su país real,
+  // nunca desde el cliente.
   const [drawDate, setDrawDate] = useState("");
   const [drawTime, setDrawTime] = useState("");
   const [extensionLimit, setExtensionLimit] = useState("0"); // "0".."3"
@@ -111,11 +118,11 @@ export default function CrearRifaPage() {
       alert("Indica el monto del premio en CLP.");
       return;
     }
-    if ((drawDate && !drawTime) || (!drawDate && drawTime)) {
-      alert("Completa fecha y hora del sorteo, o deja ambas vacías.");
+    if (!drawDate || !drawTime) {
+      alert("Indica la fecha y hora del sorteo.");
       return;
     }
-    if (drawDate && drawTime) {
+    {
       // Chequeo blando en el navegador (referencia, no autoritativo — el
       // backend valida la anticipación mínima real en la timezone del país).
       const approx = new Date(`${drawDate}T${drawTime}`);
@@ -149,12 +156,13 @@ export default function CrearRifaPage() {
         theme,
         prize_type: prizeType,
         prize_amount_cents: prizeType === "money" ? Math.round(Number(prizeAmount || 0) * 100) : null,
-        payout_method: prizeType === "money" ? payoutMethod : null,
+        payout_method: prizeType === "money" ? PAYOUT_METHOD : null,
         delivery_method: prizeType === "physical" ? deliveryMethod : null,
         prize_photos: prizeType === "physical" ? photos : null,
 
         start_date: startDate || null,
-        end_date: endDate || null,
+        // end_date se deriva de la fecha del sorteo (compat V1 — ver arriba).
+        end_date: drawDate || null,
         status,
 
         draw_date: drawDate || null,
@@ -249,19 +257,10 @@ export default function CrearRifaPage() {
                 </div>
 
                 {prizeType==="money" && (
-                  <>
-                    <div className={styles.field} style={{ marginBottom: 12 }}>
-                      <span className={styles.fieldLabel}>Monto del premio (CLP)</span>
-                      <input className="rf-pill" type="number" min="0" step="1000" placeholder="Ej: 1000000" value={prizeAmount} onChange={e=>setPrizeAmount(e.target.value)} />
-                    </div>
-                    <div className={styles.field}>
-                      <span className={styles.fieldLabel}>Método de pago del premio</span>
-                      <select className="rf-pill" value={payoutMethod} onChange={e=>setPayoutMethod(e.target.value)}>
-                        <option value="creator_direct">Transferencia directa del creador</option>
-                        <option value="rifex_transfer">Depósito por Rifex</option>
-                      </select>
-                    </div>
-                  </>
+                  <div className={styles.field} style={{ marginBottom: 12 }}>
+                    <span className={styles.fieldLabel}>Monto del premio (CLP)</span>
+                    <input className="rf-pill" type="number" min="0" step="1000" placeholder="Ej: 1000000" value={prizeAmount} onChange={e=>setPrizeAmount(e.target.value)} />
+                  </div>
                 )}
 
                 {prizeType==="physical" && (
@@ -283,44 +282,39 @@ export default function CrearRifaPage() {
                 )}
               </div>
 
-              {/* Fechas + estado */}
+              {/* Fecha de inicio + estado */}
               <div className={styles.section}>
-                <div className={styles.sectionTitle}>Fechas y estado</div>
+                <div className={styles.sectionTitle}>Fecha y estado</div>
                 <div className={styles.fieldGrid} style={{ marginBottom: 12 }}>
                   <div className={styles.field}>
                     <span className={styles.fieldLabel}>Inicio</span>
                     <input className="rf-pill" type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} />
                   </div>
                   <div className={styles.field}>
-                    <span className={styles.fieldLabel}>Término</span>
-                    <input className="rf-pill" type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} />
+                    <span className={styles.fieldLabel}>Estado</span>
+                    <select className="rf-pill" value={status} onChange={e=>setStatus(e.target.value)}>
+                      <option value="draft">Borrador</option>
+                      <option value="active">Activa</option>
+                      <option value="closed">Cerrada</option>
+                    </select>
                   </div>
-                </div>
-                <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Estado</span>
-                  <select className="rf-pill" value={status} onChange={e=>setStatus(e.target.value)}>
-                    <option value="draft">Borrador</option>
-                    <option value="active">Activa</option>
-                    <option value="closed">Cerrada</option>
-                  </select>
                 </div>
               </div>
 
-              {/* Sorteo (DRAW-1) */}
+              {/* Sorteo */}
               <div className={styles.section}>
-                <div className={styles.sectionTitle}>Sorteo (opcional)</div>
+                <div className={styles.sectionTitle}>Sorteo</div>
                 <p className={styles.fieldLabel} style={{ fontWeight: 400, color: "var(--gris)", marginBottom: 10 }}>
-                  Define cuándo se sortea el ganador. Es distinto de la fecha de término de arriba: las ventas
-                  se cierran automáticamente 5 minutos antes del sorteo.
+                  Define cuándo se sortea el ganador. Las ventas se cierran automáticamente 5 minutos antes del sorteo.
                 </p>
                 <div className={styles.fieldGrid} style={{ marginBottom: 12 }}>
                   <div className={styles.field}>
-                    <span className={styles.fieldLabel}>Fecha del sorteo</span>
-                    <input className="rf-pill" type="date" value={drawDate} onChange={e=>setDrawDate(e.target.value)} />
+                    <span className={styles.fieldLabel}>Fecha del sorteo *</span>
+                    <input className="rf-pill" type="date" value={drawDate} onChange={e=>setDrawDate(e.target.value)} required />
                   </div>
                   <div className={styles.field}>
-                    <span className={styles.fieldLabel}>Hora del sorteo</span>
-                    <input className="rf-pill" type="time" value={drawTime} onChange={e=>setDrawTime(e.target.value)} />
+                    <span className={styles.fieldLabel}>Hora del sorteo *</span>
+                    <input className="rf-pill" type="time" value={drawTime} onChange={e=>setDrawTime(e.target.value)} required />
                   </div>
                 </div>
                 <p style={{ fontSize: 12, color: "var(--gris)", margin: "-6px 0 12px" }}>

@@ -71,7 +71,6 @@ export default function Home() {
               <p className={styles.productText}>Crea una rifa, comparte tus números y administra todo desde Rifex.</p>
               <div className={styles.productCtas}>
                 <a href="/crear-rifa" className={`btn btn-primary ${styles.productCtaPrimary}`}>Crear rifa</a>
-                <a href="/rifas" className={styles.productCtaGhost}>Ver rifas públicas</a>
               </div>
             </article>
 
