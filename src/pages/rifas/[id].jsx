@@ -9,7 +9,7 @@ import Layout from "../../components/Layout";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
-import { formatDrawAt } from "../../lib/raffleTime";
+import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 
 const TERMS_VERSION = "v1.0";
 const TZ_LABELS = {
@@ -482,7 +482,7 @@ export default function RifaDetalle() {
           </div>
           <div className={styles.infoItem}>
             <div className={styles.infoLabel}>Termina</div>
-            <div className={styles.infoValue}>{raffle.end_date ? new Date(raffle.end_date).toLocaleDateString("es-CL") : "—"}</div>
+            <div className={styles.infoValue}>{raffle.end_date ? (formatDateOnly(raffle.end_date) ?? "—") : "—"}</div>
             <div className={styles.infoSub}>{" "}</div>
           </div>
         </div>
