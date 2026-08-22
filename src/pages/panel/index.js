@@ -5,7 +5,21 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
-import { formatDrawAt } from '@/lib/raffleTime';
+import { formatDrawAt, toZonedInputParts } from '@/lib/raffleTime';
+
+// EXT-1: espejo informativo del MAX_EXTENSION_DAYS real, que vive en la RPC
+// extend_raffle_draw (migración 2026-08-22_draw1c_extension_max_days.sql).
+// Este valor es solo para copy/límites de UI — nunca la autoridad.
+const MAX_EXTENSION_DAYS = 15;
+
+const EXTEND_ERROR_MESSAGES = {
+  extension_too_long: `La nueva fecha supera el máximo permitido de ${MAX_EXTENSION_DAYS} días desde el sorteo actual.`,
+  extension_limit_reached: 'Ya usaste todas las extensiones disponibles para esta rifa.',
+  new_draw_at_too_soon: 'La nueva fecha debe tener al menos 10 minutos de anticipación.',
+  new_draw_at_must_be_later: 'La nueva fecha debe ser posterior a la fecha actual del sorteo.',
+  winner_already_exists: 'Esta rifa ya tiene un ganador — no se puede extender.',
+  draw_at_already_passed: 'El sorteo ya pasó — no se puede extender.',
+};
 
 const TZ_LABELS_PANEL = {
   'America/Santiago': 'Chile',
@@ -222,6 +236,18 @@ function ExtendDialog({ open, onClose, raffle, onExtended }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   if (!open) return null;
+
+  const hasDrawInfo = !!(raffle?.draw_at && raffle?.timezone);
+  const currentInfo = hasDrawInfo ? formatDrawAt(raffle.draw_at, raffle.timezone) : null;
+  const maxAllowedIso = hasDrawInfo
+    ? new Date(new Date(raffle.draw_at).getTime() + MAX_EXTENSION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+  const maxAllowedInfo = maxAllowedIso && hasDrawInfo ? formatDrawAt(maxAllowedIso, raffle.timezone) : null;
+  // Guía visual únicamente — el rango exacto (incluyendo la hora) lo sigue
+  // validando la RPC extend_raffle_draw, nunca el input HTML.
+  const minInputParts = hasDrawInfo ? toZonedInputParts(raffle.draw_at, raffle.timezone) : null;
+  const maxInputParts = maxAllowedIso && hasDrawInfo ? toZonedInputParts(maxAllowedIso, raffle.timezone) : null;
+
   async function doExtend(e) {
     e.preventDefault();
     setBusy(true);
@@ -237,7 +263,7 @@ function ExtendDialog({ open, onClose, raffle, onExtended }) {
       onExtended?.(j.data);
       onClose();
     } catch (err) {
-      alert(err.message || 'extend_failed');
+      alert(EXTEND_ERROR_MESSAGES[err.message] || err.message || 'extend_failed');
     } finally {
       setBusy(false);
     }
@@ -248,13 +274,27 @@ function ExtendDialog({ open, onClose, raffle, onExtended }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
       <form onSubmit={doExtend} style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
         <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Extender fecha de sorteo</h3>
-        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
-          {usedSoFar} de {limit} extensiones utilizadas. La nueva fecha debe ser posterior a la actual.
+        <p style={{ margin: '0 0 8px', color: '#6B7280' }}>
+          {usedSoFar} de {limit} extensiones utilizadas. Cada extensión puede aplazar el sorteo como máximo {MAX_EXTENSION_DAYS} días.
         </p>
+        {currentInfo && (
+          <p style={{ margin: '0 0 4px', fontSize: 14 }}>
+            Sorteo actual: <b>{currentInfo.date} · {currentInfo.time}</b>
+          </p>
+        )}
+        {maxAllowedInfo && (
+          <p style={{ margin: '0 0 12px', fontSize: 14 }}>
+            Puedes aplazarlo como máximo hasta: <b>{maxAllowedInfo.date} · {maxAllowedInfo.time}</b>
+          </p>
+        )}
         <div style={{ display: 'grid', gap: 12 }}>
           <label style={{ display: 'grid', gap: 6 }}>
             <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Nueva fecha</span>
-            <input type="date" required value={newDate} onChange={(e) => setNewDate(e.target.value)} style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }} />
+            <input
+              type="date" required value={newDate} onChange={(e) => setNewDate(e.target.value)}
+              min={minInputParts?.date} max={maxInputParts?.date}
+              style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }}
+            />
           </label>
           <label style={{ display: 'grid', gap: 6 }}>
             <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Nueva hora</span>
@@ -594,7 +634,8 @@ export default function Panel() {
                 {row.status === 'closed' && !row.has_winner && (
                   <ActionButton tone="danger" onClick={() => setDrawRaffle(row)}>Sortear ganador ahora</ActionButton>
                 )}
-                {(row.extension_limit ?? 0) > 0 && (row.extensions_used ?? 0) < row.extension_limit && !row.has_winner && (
+                {(row.extension_limit ?? 0) > 0 && (row.extensions_used ?? 0) < row.extension_limit && !row.has_winner
+                  && row.draw_at && new Date(row.draw_at).getTime() > Date.now() && (
                   <ActionButton tone="ghost" onClick={() => setExtendRaffle(row)}>Extender fecha</ActionButton>
                 )}
                 <ActionButton tone="danger" onClick={() => setDeleteRaffle(row)}>Eliminar</ActionButton>

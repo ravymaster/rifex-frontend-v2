@@ -503,7 +503,7 @@ export default function RifaDetalle() {
             {(raffle?.extension_limit ?? 0) > 0 && (
               <div style={{ color: "#64748b" }}>
                 {(raffle?.extensions_used ?? 0) > 0
-                  ? `Fecha actualizada · ${raffle.extensions_used} de ${raffle.extension_limit} extensiones utilizadas.`
+                  ? `Fecha de sorteo modificada · ${raffle.extensions_used} de ${raffle.extension_limit} extensiones utilizadas.`
                   : `Esta rifa puede extender su fecha de sorteo hasta ${raffle.extension_limit} ${raffle.extension_limit === 1 ? "vez" : "veces"}. Cualquier cambio será informado a los participantes.`}
               </div>
             )}

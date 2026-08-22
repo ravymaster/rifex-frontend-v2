@@ -75,6 +75,33 @@ export function formatDrawAt(utcISOString, timeZone, locale = "es-CL") {
 }
 
 /**
+ * Descompone un instante UTC en la fecha/hora "de pared" de una zona IANA,
+ * en el mismo formato que esperan los inputs `type="date"`/`type="time"`
+ * (`YYYY-MM-DD` / `HH:mm`). Solo para prellenar/limitar inputs — la
+ * autoridad real de validación sigue viviendo en la RPC.
+ * @param {string} utcISOString
+ * @param {string} timeZone IANA
+ * @returns {{date: string, time: string}|null}
+ */
+export function toZonedInputParts(utcISOString, timeZone) {
+  if (!utcISOString || !timeZone) return null;
+  const d = new Date(utcISOString);
+  if (Number.isNaN(d.getTime())) return null;
+  try {
+    const dtf = new Intl.DateTimeFormat("en-US", {
+      timeZone, hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit",
+    });
+    const p = Object.fromEntries(dtf.formatToParts(d).map((x) => [x.type, x.value]));
+    const hour = p.hour === "24" ? "00" : p.hour;
+    return { date: `${p.year}-${p.month}-${p.day}`, time: `${hour}:${p.minute}` };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Presenta una fecha-solo ('YYYY-MM-DD', columna `date`, ej. `end_date`) sin
  * pasar por `new Date(...)`: ese constructor interpreta 'YYYY-MM-DD' como
  * medianoche UTC, y `toLocaleDateString()` la vuelve a formatear en la zona
