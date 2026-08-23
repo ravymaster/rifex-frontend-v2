@@ -143,17 +143,31 @@ export default async function handler(req, res) {
     // ==== Validación de firma ====
     // Manifiesto real de MP: "id:{data.id};request-id:{x-request-id};ts:{ts};"
     // (la versión anterior omitía "request-id:" y usaba x-request-id como id,
-    // así que nunca validaba nada real, ni en producción). Solo rechazamos
-    // cuando la firma VINO y no calza — si falta directamente (p.ej. el
-    // simulador del dashboard de MP no siempre la manda), seguimos: el pago
-    // igual se vuelve a consultar contra la API real de MP más abajo, nunca
-    // se confía en el body del webhook por sí solo.
-    try {
-      const secret = process.env.MP_WEBHOOK_SECRET;
+    // así que nunca validaba nada real, ni en producción).
+    //
+    // PRE-LAUNCH-FIX-2 (P2-B): antes, si el secreto SÍ estaba configurado
+    // pero la firma o el request-id venían AUSENTES, el chequeo entero se
+    // saltaba en silencio (el `if` de arriba exigía los tres presentes a la
+    // vez) — un atacante podía simplemente omitir el header de firma para
+    // evitar la validación, aun con MP_WEBHOOK_SECRET configurado. Ahora:
+    // si el secreto está configurado, fail-closed — firma/request-id
+    // ausentes o que no calzan se rechazan igual (401). Si el secreto NO
+    // está configurado (como hoy en DEV, donde tampoco hay MP_ACCESS_TOKEN
+    // así que este endpoint no puede hacer nada útil de todas formas), no
+    // hay nada contra qué validar — se documenta explícitamente, nunca se
+    // afirma una protección que no existe. Confirmado por lectura (sin
+    // revelar el valor) que PROD sí tiene MP_WEBHOOK_SECRET configurado,
+    // así que este fail-closed no rompe tráfico real de MP el día que este
+    // código se promueva.
+    const secret = process.env.MP_WEBHOOK_SECRET;
+    if (secret) {
       const signature = req.headers["x-signature"];
       const reqId = req.headers["x-request-id"];
-
-      if (secret && signature && reqId) {
+      if (!signature || !reqId) {
+        console.error("[mp webhook] secret configurado pero falta x-signature/x-request-id — rechazado", { eventId });
+        return res.status(401).json({ ok: false, error: "missing_signature" });
+      }
+      try {
         const parts = Object.fromEntries(
           String(signature)
             .split(",")
@@ -171,10 +185,22 @@ export default async function handler(req, res) {
           });
           return res.status(401).json({ ok: false, error: "invalid_signature" });
         }
+      } catch (e) {
+        console.error("[mp webhook] error parseando firma — rechazado", { eventId, err: e?.message || e });
+        return res.status(401).json({ ok: false, error: "invalid_signature" });
       }
-    } catch (e) {
-      console.warn("[mp webhook] error validando firma (continuo):", e?.message || e);
     }
+    // Nota (P2-B, decisión documentada): NO se agrega rate limiting a este
+    // endpoint. Los emisores son la infraestructura de Mercado Pago
+    // (reintentos de webhook), no navegadores de usuarios finales — su IP
+    // no identifica a un cliente individual y puede ser compartida entre
+    // muchos comercios distintos. Un límite por IP acá arriesgaría
+    // descartar reintentos legítimos de MP para ESTE u OTROS comercios que
+    // comparten esa infraestructura. El daño real que este endpoint puede
+    // causar ya está acotado de por sí: el estado/monto del pago SIEMPRE
+    // se re-verifica contra la API real de MP (nunca se confía en el body
+    // del webhook), así que una ráfaga solo puede generar trabajo
+    // idempotente redundante, no corrupción ni costo financiero.
 
     // Hint de mp_user_id/collector para probar token del vendedor
     const hintMpUserId =

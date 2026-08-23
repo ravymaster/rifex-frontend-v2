@@ -19,11 +19,84 @@
 // converge_purchase_tickets_sold(purchase_id) — nunca por raffle_id+number
 // sueltos — por lo que un pago de una purchase jamas puede tocar el
 // ticket de otra.
+//
+// PRE-LAUNCH-FIX-2 (P1-NEW-1): un pago puede llegar approved DESPUES de que
+// su hold ya expiro y release-expired ya reasigno el ticket a otra purchase
+// (payment tardio tras reventa). El fix anterior confiaba en "el RPC no
+// tiro error" como prueba de exito — pero converge_purchase_tickets_sold
+// simplemente no actualiza ninguna fila si el ticket ya es de otra purchase
+// (0 filas afectadas, sin error), y la purchase original quedaba 'approved'
+// sin ningun ticket real detras. Ahora convergePurchaseAndResolve() verifica
+// el estado REAL despues de converger (cuantos numeros de esta purchase
+// estan hoy genuinamente sold y siguen siendo suyos) antes de decidir el
+// estado final: 'approved' solo si TODO convergio; 'approved_unfulfilled'
+// si el pago es real (paid_at nunca se pone en duda) pero el cumplimiento
+// quedo incompleto — nunca le quita el ticket a quien ya lo tiene
+// legitimamente, nunca lo deja como un 'approved' silencioso y falso.
 import { drawWinner, notifyWinnerDrawn } from "@/lib/drawWinner";
 import { sendBuyerApprovedEmail, sendCreatorSaleEmail } from "@/lib/mailer";
 
 const isValidEmail = (s) =>
   typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
+
+/**
+ * Converge los tickets de una purchase ya aprobada y resuelve su estado
+ * FINAL segun lo que realmente paso, nunca segun si el RPC devolvio error.
+ * Idempotente y auto-reparable: una purchase ya 'approved' (terminal) nunca
+ * se vuelve a tocar; una 'approved_unfulfilled' puede pasar a 'approved' en
+ * un reintento posterior si para entonces si logra converger completo.
+ * @returns {Promise<{ok:boolean, status?:string, fullyConverged?:boolean, reason?:string}>}
+ */
+export async function convergePurchaseAndResolve(supabase, purchaseId) {
+  const { data: purchase, error: pErr } = await supabase
+    .from("purchases")
+    .select("id, numbers, status")
+    .eq("id", purchaseId)
+    .maybeSingle();
+  if (pErr) throw pErr;
+  if (!purchase) return { ok: false, reason: "purchase_not_found" };
+  if (purchase.status === "approved") return { ok: true, status: "approved", fullyConverged: true };
+
+  // El RPC exige status='approved' para actuar — se fija primero (verdad de
+  // pago: el dinero llego, eso nunca se pone en duda) y se evalua el
+  // resultado REAL despues, antes de decidir el estado final.
+  await supabase
+    .from("purchases")
+    .update({ status: "approved", paid_at: new Date().toISOString() })
+    .eq("id", purchaseId)
+    .neq("status", "approved");
+
+  try {
+    const { error: convErr } = await supabase.rpc("converge_purchase_tickets_sold", { p_purchase_id: purchaseId });
+    if (convErr && convErr.message !== "purchase_not_approved") throw convErr;
+  } catch (e) {
+    console.error("[paymentReconcile] convergePurchaseAndResolve RPC error", { purchaseId, err: e?.message || e });
+  }
+
+  // Nunca confiar en cuantas filas movio ESTA llamada al RPC (un retry
+  // legitimo puede mover 0 porque ya estaba todo sold de antes, lo cual es
+  // exito, no fallo) — se verifica el estado REAL actual: cuantos numeros
+  // de esta purchase estan HOY sold y siguen siendo suyos.
+  const expected = Array.isArray(purchase.numbers) ? purchase.numbers.length : 0;
+  const { count: actualSoldCount } = await supabase
+    .from("tickets")
+    .select("id", { count: "exact", head: true })
+    .eq("purchase_id", purchaseId)
+    .eq("status", "sold");
+
+  const fullyConverged = expected > 0 && actualSoldCount === expected;
+  const finalStatus = fullyConverged ? "approved" : "approved_unfulfilled";
+
+  if (!fullyConverged) {
+    console.error("[paymentReconcile] purchase approved pero NO pudo converger completo — requiere revision manual", {
+      purchaseId, expected, actualSoldCount,
+    });
+  }
+
+  await supabase.from("purchases").update({ status: finalStatus }).eq("id", purchaseId);
+
+  return { ok: true, status: finalStatus, fullyConverged, expected, actualSoldCount };
+}
 
 /**
  * Aplica un pago de Mercado Pago ya obtenido (vía API real, nunca solo el
@@ -36,7 +109,11 @@ const isValidEmail = (s) =>
  * @param {import('@supabase/supabase-js').SupabaseClient} params.supabase cliente service-role
  * @param {object} params.mp payload crudo de GET /v1/payments/{id} de MP
  * @param {string} params.fetchedVia 'platform' | 'seller'
- * @returns {Promise<{ok:boolean, status:string, purchaseId:string|null, skipped?:boolean, ticketsConverged?:boolean}>}
+ * @returns {Promise<{ok:boolean, status:string, purchaseId:string|null, skipped?:boolean, reason?:string, ticketsConverged?:boolean, purchaseStatus?:string}>}
+ *   purchaseStatus: 'approved' (pago + ticket(s) confirmados) o
+ *   'approved_unfulfilled' (pago real, pero el/los ticket(s) ya no estaban
+ *   disponibles para esta purchase al converger — requiere revisión manual,
+ *   ver convergePurchaseAndResolve()).
  */
 export async function applyMpPayment({ supabase, mp, fetchedVia }) {
   const status = String(mp?.status || "").toLowerCase();
@@ -61,6 +138,7 @@ export async function applyMpPayment({ supabase, mp, fetchedVia }) {
   // para saber qué rifa/números son — la metadata solo rellena huecos si
   // la purchase no aporta el dato.
   let purchaseRow = null;
+  let orphanPurchaseId = false;
   if (purchaseId) {
     const { data } = await supabase
       .from("purchases")
@@ -75,6 +153,20 @@ export async function applyMpPayment({ supabase, mp, fetchedVia }) {
         buyer_email = purchaseRow.buyer_email.trim().toLowerCase();
       }
       if (!buyer_name && purchaseRow.buyer_name) buyer_name = String(purchaseRow.buyer_name).trim();
+    } else {
+      // PRE-LAUNCH-FIX-2 (P2-A): metadata trae un purchase_id que no existe
+      // en la DB (purchase borrada, metadata corrupta, evento viejo). Antes
+      // esto llegaba tal cual hasta el upsert de `payments`, que tiene FK a
+      // `purchases`, y la excepción de violación de FK se tragaba entera —
+      // el pago quedaba perdido, sin fila, sin registro, sin reintento de
+      // MP (el caller responde 200 igual). Ahora se anula acá, ANTES del
+      // upsert: el pago se registra igual (con purchase_id=null, para no
+      // perder trazabilidad) y el flujo cae naturalmente al camino
+      // "no_purchase_id" ya existente — nunca explota una FK, nunca se
+      // finge convergencia exitosa.
+      console.error("[paymentReconcile] metadata.purchase_id no resuelve a ninguna purchase real — se registra el pago sin purchase_id", { purchaseId });
+      orphanPurchaseId = true;
+      purchaseId = null;
     }
   }
 
@@ -120,30 +212,19 @@ export async function applyMpPayment({ supabase, mp, fetchedVia }) {
     // Pago approved sin purchase_id resoluble — no hay a qué ticket
     // converger. Se deja registrado en `payments` para investigación
     // manual; no es un caso que este fix pueda resolver automáticamente.
-    return { ok: true, status, purchaseId: null, skipped: true, reason: "no_purchase_id" };
+    // "purchase_not_found" (metadata traía un id que no existe) se
+    // distingue de "no_purchase_id" (nunca hubo id en absoluto) — ninguno
+    // de los dos revienta una FK ni finge convergencia.
+    return { ok: true, status, purchaseId: null, skipped: true, reason: orphanPurchaseId ? "purchase_not_found" : "no_purchase_id" };
   }
-
-  // Purchase -> approved (idempotente: si ya estaba approved, sigue
-  // approved; nunca retrocede un estado ya autoritativo).
-  await supabase
-    .from("purchases")
-    .update({ status: "approved", paid_at: new Date().toISOString() })
-    .eq("id", purchaseId)
-    .neq("status", "approved");
 
   // Convergencia autoritativa: SIEMPRE por purchase_id, nunca por
   // raffle_id+number sueltos — así un pago de esta purchase jamás puede
-  // tocar el ticket de otra purchase distinta.
-  let ticketsConverged = false;
-  try {
-    const { error: convErr } = await supabase.rpc("converge_purchase_tickets_sold", {
-      p_purchase_id: purchaseId,
-    });
-    if (convErr && convErr.message !== "purchase_not_approved") throw convErr;
-    ticketsConverged = !convErr;
-  } catch (e) {
-    console.error("[paymentReconcile] converge_purchase_tickets_sold error", { purchaseId, err: e?.message || e });
-  }
+  // tocar el ticket de otra purchase distinta. El estado FINAL de la
+  // purchase (approved vs approved_unfulfilled) se decide adentro según lo
+  // que realmente convergió, no según si el RPC devolvió error.
+  const resolution = await convergePurchaseAndResolve(supabase, purchaseId);
+  const ticketsConverged = !!resolution.fullyConverged;
 
   // Datos de rifa para los emails.
   let raffleTitle = "Rifa";
@@ -167,7 +248,11 @@ export async function applyMpPayment({ supabase, mp, fetchedVia }) {
   const amountCLP = Math.round((amount_cents || 0) / 100);
   const raffleLink = raffleId ? `${BASE}/rifas/${raffleId}` : BASE || "";
 
-  if (isValidEmail(buyer_email) && !payRow?.emailed_buyer) {
+  // PRE-LAUNCH-FIX-2 (P1-NEW-1): nunca mandar "compra confirmada" si el
+  // ticket no convergió — sería una confirmación falsa para un comprador
+  // que en los hechos no tiene número. El caso approved_unfulfilled queda
+  // sin email de "confirmada" a propósito; su resolución es manual.
+  if (ticketsConverged && isValidEmail(buyer_email) && !payRow?.emailed_buyer) {
     try {
       await sendBuyerApprovedEmail({
         to: buyer_email, buyerName: buyer_name, raffleTitle, numbers,
@@ -206,5 +291,5 @@ export async function applyMpPayment({ supabase, mp, fetchedVia }) {
     }
   }
 
-  return { ok: true, status, purchaseId, ticketsConverged };
+  return { ok: true, status, purchaseId, ticketsConverged, purchaseStatus: resolution.status };
 }

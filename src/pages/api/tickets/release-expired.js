@@ -1,5 +1,6 @@
 // src/pages/api/tickets/release-expired.js
 import { createClient } from "@supabase/supabase-js";
+import { convergePurchaseAndResolve } from "@/lib/paymentReconcile";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -80,11 +81,19 @@ export default async function handler(req, res) {
       if (prErr) throw prErr;
       approvedPurchaseIds = new Set((purchaseRows || []).filter((p) => p.status === "approved").map((p) => p.id));
 
+      // PRE-LAUNCH-FIX-2 (P1-NEW-1): usa la MISMA resolución que
+      // paymentReconcile.js — nunca confía en "no tiró error" como prueba
+      // de éxito. Si por alguna razón esto no logra converger completo
+      // (estructuralmente ya no debería pasar bajo el nuevo diseño: una
+      // purchase solo llega a 'approved' si ya convergió entero, así que un
+      // ticket todavía 'pending' con purchase 'approved' es una ventana de
+      // carrera de milisegundos, no un estado estable), queda marcada
+      // 'approved_unfulfilled' — nunca se libera un ticket cuyo pago es
+      // real solo porque la reparación automática no alcanzó a completarse.
       for (const pid of approvedPurchaseIds) {
         try {
-          const { error: convErr } = await supabase.rpc("converge_purchase_tickets_sold", { p_purchase_id: pid });
-          if (convErr) throw convErr;
-          convergedPurchases += 1;
+          const resolution = await convergePurchaseAndResolve(supabase, pid);
+          if (resolution.fullyConverged) convergedPurchases += 1;
         } catch (e) {
           console.error("[release-expired] converge error", { purchaseId: pid, err: e?.message || e });
         }
