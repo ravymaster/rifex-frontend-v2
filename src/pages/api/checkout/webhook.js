@@ -1,11 +1,7 @@
 // src/pages/api/checkout/webhook.js
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import {
-  sendBuyerApprovedEmail,
-  sendCreatorSaleEmail,
-} from "../../../lib/mailer";
-import { drawWinner, notifyWinnerDrawn } from "../../../lib/drawWinner";
+import { applyMpPayment } from "@/lib/paymentReconcile";
 
 // ==== Runtime + raw body ====
 export const config = { api: { bodyParser: false }, runtime: "nodejs" };
@@ -18,12 +14,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
-
-const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
-
-// === Helpers ===
-const isValidEmail = (s) =>
-  typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -203,9 +193,6 @@ export default async function handler(req, res) {
     }
 
     const mp = fetched.json;
-    const status = String(mp?.status || "").toLowerCase();
-    const status_detail = mp?.status_detail || null;
-    const md = mp?.metadata || {};
 
     // ==== Log de auditoría (idempotente por event_id; no bloquea el flujo si falla) ====
     try {
@@ -224,180 +211,25 @@ export default async function handler(req, res) {
       console.error("[mp webhook] webhook_events insert error", { eventId, err: e?.message || e });
     }
 
-    // Referencias/metadata
-    let purchaseId = md.purchase_id || mp?.external_reference || null;
-    if (purchaseId && typeof purchaseId !== "string") purchaseId = String(purchaseId);
-    let raffleId = md.raffle_id || md.raffleId || md.rid || null;
-
-    // numbers desde metadata (si vinieran)
-    let numbers = [];
-    if (Array.isArray(md.numbers)) numbers = md.numbers;
-    else if (typeof md.numbers === "string") {
-      numbers = md.numbers
-        .split(",")
-        .map((s) => parseInt(String(s).trim(), 10))
-        .filter((n) => Number.isFinite(n));
+    // PRE-LAUNCH-FIX-1 (P0-2): toda la lógica de "qué significa un pago
+    // approved" vive ahora en applyMpPayment() (src/lib/paymentReconcile.js)
+    // — la misma función que usan admin/reconcile-payments.js y
+    // checkout/confirm.js, así que los tres caminos convergen exactamente
+    // al mismo resultado final, sin duplicar (y sin poder divergir en) la
+    // lógica de qué ticket marcar sold. Antes, este bloque tenía su propia
+    // copia que intentaba escribir `tickets.payment_ref` (columna
+    // inexistente en el modelo real — solo existe en la tabla legacy
+    // `rifa_tickets`) y filtraba por raffle_id+number en vez de
+    // purchase_id, lo que fallaba en silencio en cada pago aprobado real.
+    let applyResult;
+    try {
+      applyResult = await applyMpPayment({ supabase, mp, fetchedVia: fetched.via });
+    } catch (e) {
+      console.error("[mp webhook] applyMpPayment error", { eventId, err: e?.message || e });
+      return res.status(200).json({ ok: false, error: "apply_payment_error" });
     }
 
-    // fallback: completar datos desde purchases
-    let buyer_email = (md.buyer_email || mp?.payer?.email || "").trim().toLowerCase();
-    let buyer_name = (md.buyer_name || mp?.payer?.first_name || "").toString().trim();
-
-    if (!raffleId || !numbers.length || !isValidEmail(buyer_email)) {
-      if (purchaseId) {
-        const { data: pRow } = await supabase
-          .from("purchases")
-          .select("raffle_id, numbers, buyer_email, buyer_name")
-          .eq("id", purchaseId)
-          .maybeSingle();
-        if (pRow) {
-          if (!raffleId && pRow.raffle_id) raffleId = pRow.raffle_id;
-          if (!numbers.length && Array.isArray(pRow.numbers)) numbers = pRow.numbers;
-          if (!isValidEmail(buyer_email) && isValidEmail(pRow.buyer_email)) {
-            buyer_email = pRow.buyer_email.trim().toLowerCase();
-          }
-          if (!buyer_name && pRow.buyer_name) buyer_name = String(pRow.buyer_name).trim();
-        }
-      }
-    }
-
-    const amount_cents = Math.round(Number(mp?.transaction_amount || 0) * 100);
-    const mpIdStr = String(mp?.id || paymentId);
-
-    // Comisión Rifex real, tal como la registró MP en el pago (fee_details),
-    // no recalculada acá — así el log queda fiel a lo que MP efectivamente cobró.
-    const applicationFee = Array.isArray(mp?.fee_details)
-      ? mp.fee_details.find((f) => f?.type === "application_fee")
-      : null;
-    const marketplace_fee_cents = applicationFee
-      ? Math.round(Number(applicationFee.amount || 0) * 100)
-      : null;
-
-    // ==== Upsert en payments (idempotente) ====
-    const { data: payRow, error: payErr } = await supabase
-      .from("payments")
-      .upsert(
-        {
-          mp_payment_id: mpIdStr,
-          raffle_id: raffleId || null,
-          purchase_id: purchaseId || null,
-          buyer_email: isValidEmail(buyer_email) ? buyer_email : null,
-          buyer_name: buyer_name || null,
-          numbers,
-          status,
-          status_detail,
-          amount_cents,
-          marketplace_fee_cents,
-          via: fetched.via, // plataforma o seller
-        },
-        { onConflict: "mp_payment_id" }
-      )
-      .select()
-      .single();
-
-    if (payErr) {
-      console.error("[mp webhook] payments upsert error", { eventId, payErr });
-      return res.status(200).json({ ok: false, error: "payments_upsert_error" });
-    }
-
-    // ==== Transiciones de estado ====
-    if (status === "approved") {
-      // Tickets → sold
-      if (raffleId && numbers.length) {
-        await supabase
-          .from("tickets")
-          .update({ status: "sold", payment_ref: mpIdStr })
-          .eq("raffle_id", raffleId)
-          .in("number", numbers);
-      }
-
-      // Purchase → approved
-      if (purchaseId) {
-        await supabase
-          .from("purchases")
-          .update({ status: "approved", paid_at: new Date().toISOString() })
-          .eq("id", purchaseId);
-      }
-
-      // Datos de rifa (para emails)
-      let raffleTitle = "Rifa";
-      let creatorEmail = null;
-      if (raffleId) {
-        const { data: r } = await supabase
-          .from("raffles")
-          .select("id,title,creator_email")
-          .eq("id", raffleId)
-          .maybeSingle();
-        if (r) {
-          raffleTitle = r.title || raffleTitle;
-          creatorEmail = r.creator_email || null;
-        }
-      }
-      if (!creatorEmail && process.env.CREATOR_FALLBACK_EMAIL) {
-        creatorEmail = process.env.CREATOR_FALLBACK_EMAIL;
-      }
-
-      const amountCLP = Math.round((amount_cents || 0) / 100);
-      const raffleLink = raffleId ? `${BASE}/rifas/${raffleId}` : BASE || "";
-
-      // Email a comprador (idempotente)
-      if (isValidEmail(buyer_email) && !payRow?.emailed_buyer) {
-        try {
-          await sendBuyerApprovedEmail({
-            to: buyer_email,
-            buyerName: buyer_name,
-            raffleTitle,
-            numbers,
-            amountCLP,
-            paymentId: mpIdStr,
-            raffleLink,
-          });
-          await supabase
-            .from("payments")
-            .update({ emailed_buyer: true })
-            .eq("mp_payment_id", mpIdStr);
-        } catch (e) {
-          console.error("[mailer] buyer email error:", { eventId, err: e?.message || e });
-        }
-      }
-
-      // Email a creador (idempotente)
-      if (isValidEmail(creatorEmail) && !payRow?.emailed_creator) {
-        try {
-          await sendCreatorSaleEmail({
-            to: creatorEmail,
-            raffleTitle,
-            numbers,
-            amountCLP,
-            buyerEmail: isValidEmail(buyer_email) ? buyer_email : "-",
-            paymentId: mpIdStr,
-            raffleLink,
-          });
-          await supabase
-            .from("payments")
-            .update({ emailed_creator: true })
-            .eq("mp_payment_id", mpIdStr);
-        } catch (e) {
-          console.error("[mailer] creator email error:", { eventId, err: e?.message || e });
-        }
-      }
-
-      // Sorteo automático si esta venta dejó la rifa agotada (idempotente:
-      // solo se sortea una vez, sea cual sea el disparador que llegue primero).
-      if (raffleId) {
-        try {
-          const draw = await drawWinner(raffleId, { triggerSource: "sold_out_auto" });
-          if (draw.isNew) {
-            await supabase.from("raffles").update({ status: "closed" }).eq("id", raffleId);
-            await notifyWinnerDrawn(raffleId, draw.winner);
-          }
-        } catch (e) {
-          console.error("[mp webhook] draw winner error:", { eventId, err: e?.message || e });
-        }
-      }
-    }
-
-    return res.status(200).json({ ok: true, eventId });
+    return res.status(200).json({ ok: true, eventId, ...applyResult });
   } catch (e) {
     console.error("[mp webhook] fatal error", e);
     return res.status(200).json({ ok: false, error: String(e) });

@@ -12,6 +12,7 @@
 // genera desde esta ruta.
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
+import { enforceRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -34,6 +35,9 @@ export default async function handler(req, res) {
 
   const { data: ures, error: uerr } = await supabase.auth.getUser(token);
   if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+
+  // PRE-LAUNCH-FIX-1 (P1-3): por user_id, no por IP.
+  if (await enforceRateLimit(req, res, { key: `colectas-create:${ures.user.id}`, maxHits: 10, windowSeconds: 60 })) return;
 
   // Country Gate (G2): país operativo del creador, autoridad única =
   // users_profile.country_code server-side.

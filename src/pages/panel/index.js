@@ -324,9 +324,12 @@ function DeleteDialog({ open, onClose, raffle, onDeleted }) {
   async function doDelete() {
     setBusy(true);
     try {
+      // PRE-LAUNCH-FIX-1 (P0-1): /api/rifas/delete ahora exige ownership
+      // real, derivado del token de sesión — igual que Extender/Sortear.
+      const { data: sres } = await supabase.auth.getSession();
       const r = await fetch('/api/rifas/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
         body: JSON.stringify({ id: raffle.id, force: !mustArchive && !!hard })
       });
       const j = await r.json().catch(() => ({}));

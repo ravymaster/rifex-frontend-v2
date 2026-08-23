@@ -4,6 +4,7 @@ import { assertCountryGate } from '@/lib/countryGate';
 import { COUNTRY_POLICY } from '@/lib/countryPolicy';
 import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
 import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
+import { enforceRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -78,6 +79,11 @@ export default async function handler(req, res) {
 
       const creator_id = ures.user.id;
       const creator_email = (ures.user.email || '').toLowerCase() || null;
+
+      // PRE-LAUNCH-FIX-1 (P1-3): identidad ya resuelta acá — se limita por
+      // user_id, nunca por IP, para que un usuario no consuma cupo de otro
+      // detrás del mismo NAT/proxy.
+      if (await enforceRateLimit(req, res, { key: `rifas-create:${creator_id}`, maxHits: 10, windowSeconds: 60 })) return;
 
       // Country Gate (G2): país operativo del creador, autoridad única =
       // users_profile.country_code server-side.

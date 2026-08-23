@@ -11,6 +11,7 @@ import { resolveAdapterForSeller } from "@/lib/paymentEngine/engine";
 import { computePlatformFeeMinor } from "@/lib/paymentEngine/feePolicy";
 import { createPaymentIntent } from "@/lib/paymentEngine/contracts";
 import { resolveFallbackDecision } from "@/lib/paymentEngine/fallbackPolicy";
+import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -36,6 +37,11 @@ function resolveBaseUrl(req) {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
+
+  // PRE-LAUNCH-FIX-1 (P1-3): mismo criterio que checkout/mp.js — endpoint
+  // público que crea preferencias reales en Mercado Pago.
+  const ip = resolveClientIp(req);
+  if (await enforceRateLimit(req, res, { key: `checkout-colecta:${ip}`, maxHits: 20, windowSeconds: 60 })) return;
 
   try {
     // 1) Body — solo lo mínimo. Nunca se acepta creator_id, access_token,
