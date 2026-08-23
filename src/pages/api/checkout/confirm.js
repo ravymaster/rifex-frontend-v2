@@ -1,6 +1,7 @@
 // src/pages/api/checkout/confirm.js
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Payment } from "mercadopago";
+import { applyMpPayment } from "@/lib/paymentReconcile";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -48,10 +49,12 @@ export default async function handler(req, res) {
 
     let status = "unknown";
     let purchaseId = null;
+    let mpPaymentBody = {};
 
     try {
       const pay = await payments.get({ id: String(collectionId) });
       const body = pay?.body || pay || {};
+      mpPaymentBody = body;
       status = (body.status || "unknown").toLowerCase();
       purchaseId =
         body?.metadata?.purchase_id ||
@@ -70,21 +73,17 @@ export default async function handler(req, res) {
     }
 
     if (status === "approved") {
-      if (purchaseId) {
-        await supabase
-          .from("purchases")
-          .update({
-            status: "approved",
-            mp_payment_id: String(collectionId),
-            paid_at: new Date().toISOString(),
-          })
-          .eq("id", purchaseId);
-
-        await supabase
-          .from("tickets")
-          .update({ status: "sold" })
-          .eq("purchase_id", purchaseId)
-          .eq("status", "pending");
+      // PRE-LAUNCH-FIX-1 (P0-2): confirm.js es un acelerador de UX tras el
+      // redirect de MP, no la única ruta que deja consistente la
+      // transacción — usa la misma applyMpPayment() que webhook.js y
+      // reconcile-payments.js, así que si el webhook llega antes, al mismo
+      // tiempo, o después, el resultado final es idéntico (idempotente por
+      // purchase_id/mp_payment_id, nunca depende de cuál de los tres llega
+      // primero).
+      try {
+        await applyMpPayment({ supabase, mp: mpPaymentBody, fetchedVia: "platform" });
+      } catch (e) {
+        console.error("[confirm] applyMpPayment error", e?.message || e);
       }
       return res.status(200).json({ ok: true, status: "approved", purchase_id: purchaseId });
     }

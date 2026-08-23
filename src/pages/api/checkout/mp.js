@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { assertCountryGate } from "@/lib/countryGate";
+import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -31,6 +32,12 @@ function isProdEnv() {
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ ok: false, error: "method_not_allowed" });
+
+  // PRE-LAUNCH-FIX-1 (P1-3): endpoint público que crea preferencias reales
+  // en Mercado Pago (costo/abuso) — límite por IP, ver src/lib/rateLimit.js
+  // sobre por qué es por-IP (comprador sin sesión) y sus límites conocidos.
+  const ip = resolveClientIp(req);
+  if (await enforceRateLimit(req, res, { key: `checkout-mp:${ip}`, maxHits: 20, windowSeconds: 60 })) return;
 
   try {
     // 1) Body
@@ -117,15 +124,25 @@ export default async function handler(req, res) {
     if (perr) throw perr;
     const purchase = pIns;
 
-    const { error: uErr } = await supabase
-      .from("tickets")
-      .update({ status: "pending", purchase_id: purchase.id, hold_until: holdsUntilIso })
-      .eq("raffle_id", rid)
-      .in("number", numbers)
-      .in("status", ["available","free"]);
-    if (uErr) {
+    // PRE-LAUNCH-FIX-1 (P0-2): reserva atómica todo-o-nada vía RPC — el
+    // UPDATE condicional anterior no verificaba cuántas filas afectó
+    // realmente, así que el perdedor de una carrera concurrente por el
+    // mismo número continuaba como si hubiera reservado con éxito. La RPC
+    // reserve_tickets_for_purchase() revierte CUALQUIER reserva parcial y
+    // lanza 'tickets_unavailable' si no se pudieron reservar TODOS los
+    // números pedidos — nunca deja un pedido parcialmente reservado.
+    const { error: rErrReserve } = await supabase.rpc("reserve_tickets_for_purchase", {
+      p_raffle_id: rid,
+      p_numbers: numbers,
+      p_purchase_id: purchase.id,
+      p_hold_until: holdsUntilIso,
+    });
+    if (rErrReserve) {
       await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
-      throw uErr;
+      if (rErrReserve.message === "tickets_unavailable") {
+        return res.status(409).json({ ok: false, error: "some_numbers_unavailable" });
+      }
+      throw rErrReserve;
     }
 
     // 5) Token del vendedor (mp_accounts o merchant_gateways) + fallback plataforma
