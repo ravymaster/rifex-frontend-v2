@@ -7,6 +7,7 @@
 // patrón sibling-file ya usado dos veces en este repo.
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { ensureEventOrderFulfilled } from "@/lib/eventFulfillment";
 
 export const config = { api: { bodyParser: false }, runtime: "nodejs" };
 
@@ -279,6 +280,18 @@ export default async function handler(req, res) {
     console.log("[events webhook] transición aplicada", {
       eventId, orderId, previousStatus: order.status, newStatus: updatedOrder.status, paymentId,
     });
+
+    // EVENT-3 (Fase 7): emisión de tickets separada del estado de pago —
+    // un fallo acá se loguea pero NUNCA cambia la respuesta 200 de este
+    // webhook (el pago ya está resuelto), y se reintenta lazy cuando el
+    // comprador visite su orden (ver eventFulfillment.js).
+    if (updatedOrder.status === "paid") {
+      try {
+        await ensureEventOrderFulfilled(supabase, orderId);
+      } catch (e) {
+        console.error("[events webhook] ticket issuance error (retriable, payment unaffected)", { eventId, orderId, err: e?.message || e });
+      }
+    }
 
     return res.status(200).json({ ok: true, order_id: orderId, status: updatedOrder.status, eventId });
   } catch (e) {

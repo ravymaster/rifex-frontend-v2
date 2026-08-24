@@ -42,9 +42,23 @@ export default async function handler(req, res) {
 
     const { data: ticketTypes, error: ttErr } = await supabase
       .from('event_ticket_types')
-      .select('quantity_total, quantity_sold, quantity_reserved')
+      .select('id, name, quantity_total, quantity_sold, quantity_reserved')
       .eq('event_id', eventId);
     if (ttErr) throw ttErr;
+
+    // EVENT-3 (Fase 19): entradas emitidas por tipo — separado de
+    // quantity_sold (pago) a propósito, para que una discrepancia
+    // (vendidas pero aún no emitidas) sea visible, nunca oculta.
+    const { data: issuedTickets, error: tkErr } = await supabase
+      .from('event_tickets')
+      .select('ticket_type_id, status')
+      .eq('event_id', eventId);
+    if (tkErr) throw tkErr;
+    const issuedByType = new Map();
+    for (const t of issuedTickets || []) {
+      if (t.status === 'void') continue;
+      issuedByType.set(t.ticket_type_id, (issuedByType.get(t.ticket_type_id) || 0) + 1);
+    }
 
     const counts = { pending: 0, paid: 0, expired: 0, cancelled: 0, approved_unfulfilled: 0 };
     let grossCents = 0;
@@ -60,11 +74,15 @@ export default async function handler(req, res) {
     const ticketsReserved = (ticketTypes || []).reduce((s, t) => s + (t.quantity_reserved || 0), 0);
     const ticketsSold = (ticketTypes || []).reduce((s, t) => s + (t.quantity_sold || 0), 0);
     const ticketsTotal = (ticketTypes || []).reduce((s, t) => s + (t.quantity_total || 0), 0);
+    const ticketsIssued = (ticketTypes || []).reduce((s, t) => s + (issuedByType.get(t.id) || 0), 0);
 
     return res.status(200).json({
       ok: true,
       orders: { total: (orders || []).length, ...counts },
-      tickets: { total: ticketsTotal, sold: ticketsSold, reserved: ticketsReserved },
+      tickets: { total: ticketsTotal, sold: ticketsSold, reserved: ticketsReserved, issued: ticketsIssued },
+      ticket_types: (ticketTypes || []).map((t) => ({
+        id: t.id, name: t.name, sold: t.quantity_sold || 0, issued: issuedByType.get(t.id) || 0,
+      })),
       revenue: {
         gross_cents: grossCents,
         platform_fee_cents: feeCents,

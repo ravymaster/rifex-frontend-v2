@@ -6,6 +6,7 @@
 // coincidencia exacta contra la fila real, no es adivinable/enumerable.
 import { createClient } from "@supabase/supabase-js";
 import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
+import { ensureEventOrderFulfilled } from "@/lib/eventFulfillment";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -27,7 +28,7 @@ export default async function handler(req, res) {
   try {
     const { data: order, error } = await supabase
       .from("event_orders")
-      .select("id, event_id, status, currency, subtotal_cents, platform_fee_cents, total_cents, paid_at, reservation_expires_at, created_at")
+      .select("id, event_id, status, currency, subtotal_cents, platform_fee_cents, total_cents, paid_at, reservation_expires_at, created_at, tickets_issued_at")
       .eq("access_token", token)
       .maybeSingle();
     if (error) throw error;
@@ -45,7 +46,33 @@ export default async function handler(req, res) {
       .eq("id", order.event_id)
       .maybeSingle();
 
-    return res.status(200).json({ ok: true, order, items: items || [], event: event || null });
+    // EVENT-3 (Fase 7): auto-reparación lazy — si la orden ya está paid
+    // pero la emisión no se completó (falla transitoria del webhook), se
+    // reintenta acá, en el mismo camino ya certificado que
+    // expire-orders/release-expired.
+    let tickets = [];
+    if (order.status === "paid") {
+      try {
+        const result = await ensureEventOrderFulfilled(supabase, order.id);
+        tickets = result.tickets || [];
+      } catch (e) {
+        console.error("[api/events/orders/[token]] lazy fulfillment error", { orderId: order.id, err: e?.message || e });
+      }
+    }
+
+    return res.status(200).json({
+      ok: true,
+      order,
+      items: items || [],
+      event: event || null,
+      tickets: tickets.map((t) => ({
+        id: t.id,
+        ticket_number: t.ticket_number,
+        qr_token: t.qr_token,
+        ticket_type_name_snapshot: t.ticket_type_name_snapshot,
+        status: t.status,
+      })),
+    });
   } catch (e) {
     console.error("[api/events/orders/[token]] error", e);
     return res.status(500).json({ ok: false, error: e?.message || "error" });
