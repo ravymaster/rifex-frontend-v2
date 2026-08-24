@@ -16,13 +16,18 @@
 // `enabled`. Un solo objeto, sin duplicar la tabla por entorno.
 import { isDevStage } from "./environmentPolicy.js";
 
-export const CAPABILITIES = ["raffles", "fundraising", "mercadoPago"];
+// EVENT-1: agrega la capability "events" — Chile únicamente. Argentina
+// queda explícitamente en false pese a estar devOnly-activa para las otras
+// tres capabilities: EVENT-1 no debe habilitar Eventos para ningún país
+// fuera de Chile, y mucho menos arrastrar a Argentina sin que sea una
+// decisión propia (no promovida, ver AR1/AR2).
+export const CAPABILITIES = ["raffles", "fundraising", "mercadoPago", "events"];
 
 export const COUNTRY_POLICY = {
   CL: {
     enabled: true, label: "Chile", flag: "🇨🇱", currency: "CLP", locale: "es-CL",
     defaultTimezone: "America/Santiago",
-    capabilities: { raffles: true, fundraising: true, mercadoPago: true },
+    capabilities: { raffles: true, fundraising: true, mercadoPago: true, events: true },
   },
   AR: {
     // Solo activo cuando isDevStage() es true (ver isCountryActive). MP
@@ -31,32 +36,32 @@ export const COUNTRY_POLICY = {
     // Engine se detiene limpio antes de intentar cobrar.
     enabled: false, devOnly: true, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR",
     defaultTimezone: "America/Argentina/Buenos_Aires",
-    capabilities: { raffles: true, fundraising: true, mercadoPago: true },
+    capabilities: { raffles: true, fundraising: true, mercadoPago: true, events: false },
   },
   BR: {
     enabled: false, label: "Brasil", flag: "🇧🇷", currency: "BRL", locale: "pt-BR",
     defaultTimezone: "America/Sao_Paulo",
-    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false, events: false },
   },
   MX: {
     enabled: false, label: "México", flag: "🇲🇽", currency: "MXN", locale: "es-MX",
     defaultTimezone: "America/Mexico_City",
-    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false, events: false },
   },
   CO: {
     enabled: false, label: "Colombia", flag: "🇨🇴", currency: "COP", locale: "es-CO",
     defaultTimezone: "America/Bogota",
-    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false, events: false },
   },
   PE: {
     enabled: false, label: "Perú", flag: "🇵🇪", currency: "PEN", locale: "es-PE",
     defaultTimezone: "America/Lima",
-    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false, events: false },
   },
   UY: {
     enabled: false, label: "Uruguay", flag: "🇺🇾", currency: "UYU", locale: "es-UY",
     defaultTimezone: "America/Montevideo",
-    capabilities: { raffles: false, fundraising: false, mercadoPago: false },
+    capabilities: { raffles: false, fundraising: false, mercadoPago: false, events: false },
   },
 };
 

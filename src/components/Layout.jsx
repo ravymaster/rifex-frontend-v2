@@ -29,11 +29,15 @@ export default function Layout({
     { label: 'Blog',           href: '/blog' },
   ];
 
+  // EVENT-1 (Fase 12): "Panel" pasa a ser "Mis iniciativas" — el
+  // distribuidor superior de Rifas/Campañas/Eventos. /panel (Rifas) sigue
+  // existiendo intacto, solo deja de tener su propio link de primer nivel
+  // acá; se llega igual desde Mis iniciativas o por URL directa.
   const accountItems = [
-    { label: 'Panel',          href: '/panel' },
-    { label: 'Mis campañas',   href: '/crear-colecta' },
-    { label: 'Bancos & Pagos', href: '/panel/bancos' },
-    { label: 'Perfil',         href: '/perfil' },
+    { label: 'Mis iniciativas', href: '/mis-iniciativas' },
+    { label: 'Mis campañas',    href: '/crear-colecta' },
+    { label: 'Bancos & Pagos',  href: '/panel/bancos' },
+    { label: 'Perfil',          href: '/perfil' },
   ];
 
   const isActive = (href) => {
