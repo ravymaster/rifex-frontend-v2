@@ -1,28 +1,38 @@
 // src/components/EventoPagoResultado.jsx
-// EVENT-2 (Fase 17) — compartido por /eventos/pago/{exito,pendiente,error}.
-// NUNCA afirma "tu entrada está lista" — EVENT-2 no emite tickets todavía
-// (eso es EVENT-3). Solo muestra confirmación definitiva cuando la
-// reconciliación autoritativa (el webhook, verificado contra la API real
-// de MP) ya dejó la orden en un estado terminal — nunca confía en el
-// parámetro de vuelta de MP (?order=&token=) como prueba de pago.
+// EVENT-2/EVENT-3 (Fase 17/18) — compartido por
+// /eventos/pago/{exito,pendiente,error}. Nunca afirma "tu entrada está
+// lista" hasta que los tickets existen de verdad (tickets.length>0 en la
+// respuesta autoritativa de /api/events/orders/[token], nunca solo por
+// order.status==='paid' — el pago y la emisión son estados separados, ver
+// eventFulfillment.js). Nunca confía en el parámetro de vuelta de MP
+// (?order=&token=) como prueba de pago.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import Layout from '@/components/Layout';
 
-const STATUS_COPY = {
-  pending: { title: 'Confirmando tu compra…', body: 'Pago recibido. Estamos confirmando tu compra — esto puede tardar unos segundos.' },
-  paid: { title: '¡Compra confirmada!', body: 'Tu pago fue aprobado. Pronto recibirás más información sobre tus entradas.' },
-  approved_unfulfilled: { title: 'Pago recibido — revisión pendiente', body: 'Tu pago fue aprobado, pero necesitamos revisar tu compra manualmente antes de confirmarla. Te contactaremos a tu email.' },
-  expired: { title: 'La reserva expiró', body: 'El tiempo para completar el pago se agotó y las entradas fueron liberadas. Si alcanzaste a pagar, contáctanos con tu comprobante.' },
-  cancelled: { title: 'Compra cancelada', body: 'Esta orden fue cancelada.' },
-  not_found: { title: 'No encontramos tu compra', body: 'Verifica el enlace o contacta al organizador con tu comprobante de pago.' },
-};
+function copyFor(status, hasTickets) {
+  if (status === 'paid' && hasTickets) {
+    return { title: '¡Listo!', body: 'Tu pago fue aprobado y tus entradas ya están disponibles.', cta: true };
+  }
+  if (status === 'paid') {
+    return { title: 'Pago confirmado', body: 'Estamos preparando tus entradas — esto puede tardar unos segundos.' };
+  }
+  const STATIC = {
+    pending: { title: 'Confirmando tu pago…', body: 'Estamos confirmando tu pago con Mercado Pago.' },
+    approved_unfulfilled: { title: 'Pago recibido — revisión pendiente', body: 'Pago recibido, pero necesitamos revisar tu compra manualmente antes de confirmarla. Te contactaremos a tu email.' },
+    expired: { title: 'La reserva expiró', body: 'El tiempo para completar el pago se agotó y las entradas fueron liberadas. Si alcanzaste a pagar, contáctanos con tu comprobante.' },
+    cancelled: { title: 'Compra cancelada', body: 'Esta orden fue cancelada.' },
+    not_found: { title: 'No encontramos tu compra', body: 'Verifica el enlace o contacta al organizador con tu comprobante de pago.' },
+  };
+  return STATIC[status] || STATIC.pending;
+}
 
 export default function EventoPagoResultado({ kind }) {
   const router = useRouter();
   const { order: orderId, token } = router.query;
   const [order, setOrder] = useState(null);
+  const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const pollRef = useRef(0);
 
@@ -37,12 +47,16 @@ export default function EventoPagoResultado({ kind }) {
         if (cancelled) return;
         if (res.ok && data.ok) {
           setOrder(data.order);
+          setTickets(data.tickets || []);
           setLoading(false);
-          // Deja de sondear una vez la orden llega a un estado terminal —
-          // 'pending' es el único que sigue sondeando (esperando al webhook).
-          if (data.order.status !== 'pending' && pollRef.current) {
-            clearInterval(pollRef.current);
-          }
+          // Deja de sondear solo cuando ya no hay nada más que esperar:
+          // un estado terminal sin emisión pendiente (expired/cancelled/
+          // approved_unfulfilled), o paid CON tickets ya emitidos. 'paid'
+          // sin tickets sigue sondeando — cada request reintenta la
+          // emisión lazy (ver eventFulfillment.js).
+          const doneWaiting = ['expired', 'cancelled', 'approved_unfulfilled'].includes(data.order.status)
+            || (data.order.status === 'paid' && (data.tickets || []).length > 0);
+          if (doneWaiting && pollRef.current) clearInterval(pollRef.current);
         } else {
           setOrder(null);
           setLoading(false);
@@ -59,7 +73,7 @@ export default function EventoPagoResultado({ kind }) {
   }, [token]);
 
   const status = order?.status || (kind === 'error' && !loading ? 'not_found' : 'pending');
-  const copy = STATUS_COPY[status] || STATUS_COPY.pending;
+  const copy = copyFor(status, tickets.length > 0);
 
   return (
     <Layout title={`${copy.title} — Rifex Eventos`}>
@@ -71,6 +85,13 @@ export default function EventoPagoResultado({ kind }) {
             <p style={{ margin: '0 0 6px' }}><strong>Orden:</strong> {orderId}</p>
             <p style={{ margin: 0 }}><strong>Total:</strong> {Math.round((order.total_cents || 0) / 100).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })}</p>
           </div>
+        )}
+        {copy.cta && token && (
+          <p style={{ marginTop: 20 }}>
+            <Link href={`/eventos/orden/${token}`} style={{ display: 'inline-block', padding: '10px 20px', borderRadius: 999, background: 'linear-gradient(135deg, #1e3a8a 0%, #18a957 100%)', color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none' }}>
+              Ver mis entradas
+            </Link>
+          </p>
         )}
         <p style={{ marginTop: 24 }}>
           <Link href="/eventos" style={{ color: '#1e3a8a', fontWeight: 600, fontSize: 13.5, textDecoration: 'none' }}>← Volver a Eventos</Link>

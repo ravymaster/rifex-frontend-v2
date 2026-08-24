@@ -150,12 +150,20 @@ export default function PanelEventoDetalle() {
         <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>Tipos de entrada</h2>
         <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
           {ticketTypes.length === 0 && <p style={{ color: '#94a3b8', fontSize: 13.5 }}>Sin tipos de entrada.</p>}
-          {ticketTypes.map((t) => (
-            <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 16px' }}>
-              <span style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</span>
-              <span style={{ fontSize: 13.5, color: '#64748b' }}>{t.quantity_sold}/{t.quantity_total} vendidas{t.quantity_reserved > 0 ? ` · ${t.quantity_reserved} reservadas` : ''}</span>
-            </div>
-          ))}
+          {ticketTypes.map((t) => {
+            const emitted = summary?.ticket_types?.find((x) => x.id === t.id)?.issued ?? null;
+            const discrepancy = emitted !== null && emitted !== t.quantity_sold;
+            return (
+              <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 16px' }}>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</span>
+                <span style={{ fontSize: 13.5, color: discrepancy ? '#b45309' : '#64748b' }}>
+                  {t.quantity_sold}/{t.quantity_total} vendidas{t.quantity_reserved > 0 ? ` · ${t.quantity_reserved} reservadas` : ''}
+                  {emitted !== null ? ` · ${emitted} emitidas` : ''}
+                  {discrepancy ? ' ⚠' : ''}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
