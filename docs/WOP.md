@@ -2,6 +2,147 @@
 
 WOP defines the working operating protocol for Rifex. Its purpose is to keep the repository as the source of truth and prevent future work from assuming a state that has not been evidenced.
 
+---
+
+## RIFEX CURRENT STATE (2026-08-24 — Santiago → Antofagasta notebook handoff)
+
+**Everything below this line, down to "END CURRENT STATE", supersedes the legacy Alignment/Architecture-Audit/Sprint-R4 narrative further down in this file for anything about current branch state, HEAD, or Events work.** That older material (HEAD `1aa97cd`, Sprint R4, DB Recovery incident) is preserved unedited below as historical record — it predates everything described here and is no longer the frontier of the project. Do not resume work from the old section without first reading this one.
+
+### Git baseline (confirmed via `git fetch` + `git log` + `git status`, this session)
+
+| Item | Value |
+|---|---|
+| `origin/develop` HEAD | `725c4f8` — `feat(events): add tickets and QR fulfillment` |
+| `origin/main` HEAD | `c944bb3` — `docs(release): certify Rifex 2.0 production baseline` |
+| Local branch | `develop`, matches `origin/develop` exactly |
+| Working tree | clean (one stray untracked `supabase/` ephemeral dir from migration tooling was removed; nothing else) |
+| Remote | `origin` → `https://github.com/ravymaster/rifex-frontend-v2.git` |
+
+### PROD (`rifex.pro`, Vercel project `rifex-frontend-v2`, Supabase `wrdkdfuiwlujfxxijpao`)
+
+`main` at `c944bb3` — **Rifex 2.0 certified baseline**: raffles + colectas + DRAW-1/1B/2 automatic draw scheduler + PRE-LAUNCH-FIX-1/2 security hardening (atomic ticket reservation, `approved_unfulfilled` late-payment handling, rate limiting, RLS on `rate_limit_hits`/`legal_declarations`). **Events/Eventos has NOT been promoted to PROD in any form** — no `events`/`event_ticket_types`/`event_orders`/`event_order_items`/`event_tickets` tables, no Events code, exist on `main` or in PROD Supabase. PROD Supabase migration history: 6 migrations, most recent `20260823100000` (PRE-LAUNCH-FIX-2 hardening). PROD was **not touched** by any EVENT-1/2/3 session — confirmed read-only after every phase.
+
+### DEV (Supabase project `rifex-dev` / `nwxrvwbzqbhznscyirbq`, Vercel project `rifex-frontend-main` → `rifex-frontend-main.vercel.app`)
+
+`develop` at `725c4f8` — everything PROD has, **plus** the full Events V1 stack through ticket issuance:
+
+| Stage | Status | Delivered |
+|---|---|---|
+| EVENT-0 | Architecture approved (discovery only, no code) | Domain model, lifecycle, QR design decision, staff model, 6-phase plan |
+| EVENT-1 | **DONE** | Foundation — create/publish event, ticket types, public pages, `/mis-iniciativas`, `/panel/eventos` |
+| EVENT-2 | **DONE** | Checkout + Orders + Mercado Pago — atomic reservation, TTL, webhook, reconciliation, `approved_unfulfilled`, guest access token, 7% commission via `platformFee.js` |
+| EVENT-3 | **DONE** | Tickets + QR — exactly-once issuance, per-ticket QR, guest "my tickets" page, `/t/[token]` resolver |
+| EVENT-4 | **NOT STARTED — NEXT** | Scanner + Staff + Check-in (not designed in code yet, only named in EVENT-3's forward-looking comments) |
+
+Supabase `rifex-dev` migration history ends at `20260825120000_event3_tickets_qr.sql` (7 migrations after the shared PRE-LAUNCH baseline). DEV Vercel deploy target: `rifex-frontend-main` project, `--prod` alias (its own top-level environment, unrelated to real PROD — see Reentry Notebook Warnings below).
+
+### EVENT-3 checkpoint (functional, not a documentation-only commit)
+
+```text
+develop:  725c4f8
+commit:   feat(events): add tickets and QR fulfillment
+Verdict:  GO EVENT-4
+```
+
+Evidence (live DEV, this session):
+- 20/20 functional+security tests PASS (A–T battery: quantities, non-paid states never issue, idempotent repeat-issuance, unique `qr_token`/`ticket_number`, QR 404 on invalid token, 20× GET does not consume, guest-token isolation, organizer-ownership isolation, void auditable).
+- **Exactly-once issuance under concurrency**: 20 simultaneous `issue_event_order_tickets` calls on one paid order (quantity=3) → exactly 3 tickets in the database, verified by direct count, not by RPC response alone.
+- Replay test: mark-paid + 3 concurrent issuance calls → exactly 2 tickets (not 6).
+- `approved_unfulfilled` orders verified to never issue tickets, even with a valid `mp_payment_id`.
+- QR scan ≠ check-in verified live in a real browser: `used_at` stayed `null` and `status` stayed `valid` after visiting `/t/[token]`.
+- `npm run build` PASS, clean.
+- QA fixtures: **0 residual** — see "Cleanup incident and correction" below.
+- PROD confirmed untouched before and after (`origin/main` unchanged, PROD Supabase migration count unchanged).
+
+**Cleanup incident and correction (self-detected during this session, not by the user):** EVENT-2's automated concurrency test (20 simultaneous buyers) never added its winning orders to that script's own cleanup list, which silently blocked (via a foreign-key constraint whose error return was never checked) the deletion of 6 test events, their ticket types, and 20 orders — one of those events was left `published` and publicly visible on `/eventos`. Found while doing EVENT-3's own regression smoke, corrected in this session (deleted in the correct FK order: tickets → order_items → orders → ticket_types → events), and reverified with a full sweep showing 0 events/orders/tickets/test-users/fake-gateways remaining on `rifex-dev`. Lesson captured in Risks/Pending below.
+
+### Architecture map — Events (EVENT-1/2/3), just enough to reorient without re-reading source
+
+**EVENT-1 — catalog**
+- `events` (draft/published/cancelled), `event_ticket_types` (active/hidden, `quantity_total`/`quantity_sold`).
+- RLS: public SELECT only if `published`/`active`; all writes via service-role API routes, never client-direct.
+- Key files: `src/pages/api/events/**`, `src/pages/eventos/**`, `src/pages/crear-evento.jsx`, `src/pages/panel/eventos/**`.
+
+**EVENT-2 — checkout/orders**
+- `event_orders` (`pending`/`paid`/`expired`/`cancelled`/`approved_unfulfilled`), `event_order_items` (price/name snapshot per line).
+- Inventory: `event_ticket_types.quantity_reserved` added; available = `total - sold - reserved`, enforced by a DB `CHECK`.
+- Atomic RPCs: `create_event_order` (reserve + snapshot + fee, all-or-nothing), `expire_event_order` (idempotent TTL release), `mark_event_order_paid` (reserved→sold, late-payment-safe).
+- Guest checkout: no login; `event_orders.access_token` (opaque) is the only recovery credential.
+- Commission: `src/lib/platformFee.js`, `PLATFORM_FEE_RATE = 0.07` — a **new, Events-only** source, deliberately not merged with the certified `RIFEX_FEE_RATE` in `checkout/mp.js`/`checkout/colecta.js` (touching those was judged higher-risk than the duplication).
+- Webhook: `src/pages/api/checkout/webhook-events.js` — sibling file, never touches `webhook.js`/`webhook-colecta.js`.
+- Key files: `src/pages/api/events/[id]/checkout.js`, `src/pages/api/checkout/webhook-events.js`, `src/pages/api/events/orders/[token].js`, `src/pages/eventos/pago/**`.
+
+**EVENT-3 — tickets/QR**
+- `event_tickets`: `ticket_number` (human, `RFX-EVT-XXXXXX`, never a credential), `qr_token` (opaque, the only real credential), `status` (`valid`/`void` only — no `used`, reserved for EVENT-4), snapshot of ticket-type name/price.
+- `event_orders.tickets_issued_at` / `tickets_email_sent_at` — fulfillment state, deliberately separate from payment state.
+- Atomic RPC: `issue_event_order_tickets(order_id)` — row-lock-serialized, exactly-once, `paid`-only. `void_event_ticket(ticket_id)` — backend-only invalidation primitive, no UI trigger yet, never deletes.
+- Guest pages: `/eventos/orden/[token]` (persistent "my tickets", reuses EVENT-2's access_token), `/t/[token]` (public QR resolver, GET-only, no PII).
+- QR image: `src/pages/api/events/tickets/[token]/qr.png.js`, reuses Colectas' satori+sharp+qrcode card-rendering *technique* only — no shared code, no shared domain.
+- Key files: `src/lib/eventFulfillment.js` (the single "ensure issued + email" entry point, called from the webhook and lazily from the order-lookup endpoint), `src/lib/eventTicketMailer.js`.
+
+### Invariants that must hold across any future Events work
+
+- **PAYMENT STATE ≠ FULFILLMENT STATE.** `event_orders.status` (payment truth) and `tickets_issued_at`/`tickets_email_sent_at` (fulfillment truth) are separate columns, separate concerns. A fulfillment failure must never revert a payment; a payment failure must never be papered over by fulfillment succeeding.
+- `paid` is the **only** order status that may issue tickets.
+- `approved_unfulfilled` **never** issues tickets, even with a valid `mp_payment_id` — this is the direct consequence of the late-payment-after-resale protection designed in EVENT-2 (never steal stock from a buyer who purchased after the original reservation expired).
+- Scanning/opening a ticket's QR is **not** check-in. `GET /t/[token]` never consumes, never mutates `status` or `used_at`. Only a future authenticated EVENT-4 operation may perform check-in.
+- A ticket is never `DELETE`d for being used or voided — `void` is a status, history is preserved.
+- EVENT-4 owns check-in authority entirely; nothing built through EVENT-3 assumes or performs it.
+
+### Risks / pending (documented, not being worked now)
+
+1. **EVENT-3**: ticket-ready email delivery was not verified end-to-end with a real send — `ENABLE_EMAILS`/`RESEND_API_KEY` activity in DEV was not confirmed this session. The idempotency design (`tickets_email_sent_at`) is fail-safe either way (a skipped/failed send leaves the flag unset and is retried lazily), but nobody has watched a real email land in an inbox.
+2. **EVENT-2**: no certified/implemented Mercado Pago refund flow. Cancelling an event with `paid` orders only sets `refund_required = true` on those orders (informational) — no automatic MP refund call exists or was invented.
+3. **EVENT-2**: some webhook adversarial cases (amount mismatch, currency mismatch, payment/order mismatch) were verified by code-equivalence to the already-certified Colecta webhook pattern and by direct RPC testing, not by a live Mercado Pago sandbox payment — no sandbox credentials were available in-session.
+4. **EVENT-4**: scanner, staff accounts, and check-in do not exist in any form — not designed in code, only named conceptually in EVENT-0's discovery report.
+5. **Test hygiene**: any future Supabase cleanup script must check `if (error) throw` (or equivalent) on every delete step, never assume success — see the Cleanup incident above, which happened specifically because an error return was silently ignored.
+6. **This worktree's `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` pointing at the PROD Supabase ref (`wrdkdfuiwlujfxxijpao`), not DEV.** This was flagged and deliberately avoided all session (DEV work used explicit `--project-ref nwxrvwbzqbhznscyirbq` on every Supabase CLI call, and the Vercel DEV project's own environment variables, never this local file). Do not `npm run dev` from this checkout without first fixing or overriding that value — see `SUPABASE_DEV_URL`/`SUPABASE_DEV_*` alternates already present in the same file.
+
+### NEXT (exact)
+
+```text
+NEXT: RIFEX EVENT-4 — STAFF + SCANNER + CHECK-IN
+```
+
+Conceptual objective (not designed yet): ticket QR → authorized scanner → authoritative validation → PASS/NO PASS → exactly-once check-in → prevent reuse → access audit trail. Nothing in this objective is implemented. Do not start it without a fresh governing prompt.
+
+### Reentry Notebook Procedure (Antofagasta)
+
+Steps for a new machine, in order — stop and report if any step contradicts what's documented above rather than pushing forward:
+
+1. Clone the repo if not already present: `https://github.com/ravymaster/rifex-frontend-v2.git`.
+2. `cd` into the repo.
+3. `git checkout develop`.
+4. `git fetch origin`.
+5. `git pull --ff-only origin develop`.
+6. Verify `git rev-parse HEAD` equals `725c4f8`. If it does not, stop and reconcile against this document before touching anything.
+7. `npm ci` (or `npm install`) if `node_modules` is missing/stale.
+8. Configure the DEV environment **without ever committing secrets to Git**. Variable **names** needed (values must be transferred out-of-band, e.g. password manager or secure note — never pasted into a doc or commit): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (or the `SUPABASE_DEV_*` equivalents already scaffolded in this repo's env pattern — prefer those explicitly for DEV to avoid the PROD-pointing footgun above), `NEXT_PUBLIC_BASE_URL`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_PUBLIC_KEY`, `MP_REDIRECT_URI`, `MP_WEBHOOK_SECRET`, `ENABLE_EMAILS`, `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_STAGE`, `HCAPTCHA_SECRET`, `NEXT_PUBLIC_HCAPTCHA_SITEKEY`, `ADMIN_API_TOKEN`, `DEV_TEST_EMAIL_TOKEN`, `CREATOR_FALLBACK_EMAIL`, `HOLD_MINUTES`.
+9. Start the app locally (`npm run dev`) or work directly against the deployed DEV preview at `rifex-frontend-main.vercel.app` — both are valid, the deployed one requires no local secrets at all for read-only exploration.
+10. Verify connectivity to DEV specifically (not PROD) — e.g. `supabase migration list --project-ref nwxrvwbzqbhznscyirbq` should show 7 migrations ending `20260825120000`.
+11. Read, in order: this WOP section, `docs/CURRENT_STATE.md`, `docs/handover/HANDOVER_RIFEX_CURRENT.md` (legacy but still has the pre-Events incident history), and this file's Architecture Map / Invariants / Risks sections above.
+12. Run a preflight: confirm `origin/develop` HEAD, confirm `origin/main` unchanged, confirm no stray working-tree diffs.
+13. Only then, with the user, scope EVENT-4.
+
+### Reentry Prompt (paste verbatim into a new Code/Claude session tomorrow)
+
+```text
+Estamos retomando Rifex desde un equipo nuevo (Antofagasta), sesión sin memoria conversacional previa.
+No uses memoria de conversación como autoridad — la autoridad es el repo (Git) y docs/WOP.md.
+Repo: https://github.com/ravymaster/rifex-frontend-v2.git, branch develop.
+Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "RIFEX CURRENT STATE").
+Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
+Verifica: git fetch, HEAD real de develop (debe ser 725c4f8 o su descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
+Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3 a partir del repo, no de esta instrucción.
+Confirma que NEXT = EVENT-4 (Staff + Scanner + Check-in) y que EVENT-4 no está implementado.
+No modifiques código todavía.
+Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3, riesgos pendientes, NEXT) y detente ahí.
+```
+
+### END CURRENT STATE
+
+---
+
 ## Current Documentary State
 
 | Gate | Status |
