@@ -21,6 +21,23 @@ async function getRequester(req) {
   return ures.user;
 }
 
+// EVENT-2 (Fase 8): el comprador nunca ve el checkout habilitado si el
+// organizador no tiene Mercado Pago conectado y vigente — mismo criterio
+// de "conectado" que /api/mp/status.js (no revocado, con token, no
+// expirado), pero consultado por organizer_id (endpoint público, sin
+// sesión del organizador).
+async function isOrganizerMpConnected(organizerId) {
+  const { data } = await supabase
+    .from('merchant_gateways')
+    .select('access_token, revoked_at, expires_at')
+    .eq('user_id', organizerId)
+    .eq('provider', 'mp')
+    .maybeSingle();
+  if (!data || data.revoked_at || !data.access_token) return false;
+  if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) return false;
+  return true;
+}
+
 export default async function handler(req, res) {
   const { id } = req.query || {};
   if (!id) return res.status(400).json({ ok: false, error: 'missing_id' });
@@ -36,14 +53,16 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (event.status === 'published') {
-        return res.status(200).json({ ok: true, event });
+        const mp_connected = await isOrganizerMpConnected(event.organizer_id);
+        return res.status(200).json({ ok: true, event: { ...event, mp_connected } });
       }
       // No publicado: solo el dueño puede verlo.
       const user = await getRequester(req);
       if (!user || user.id !== event.organizer_id) {
         return res.status(404).json({ ok: false, error: 'not_found' });
       }
-      return res.status(200).json({ ok: true, event });
+      const mp_connected = await isOrganizerMpConnected(event.organizer_id);
+      return res.status(200).json({ ok: true, event: { ...event, mp_connected } });
     }
 
     if (req.method === 'PATCH') {
@@ -96,8 +115,13 @@ export default async function handler(req, res) {
       }
 
       // EVENT-1 (decisión de producto cerrada #6): cancelación de evento
-      // publicado o draft, sin reembolsos (no existen orders todavía) —
-      // transición explícita y acotada, nunca un status arbitrario.
+      // publicado o draft — transición explícita y acotada, nunca un
+      // status arbitrario. EVENT-2 (Fase 14): sin flujo de refund
+      // certificado en el repo, cancelar NUNCA borra datos ni finge un
+      // reembolso — las órdenes 'paid' existentes quedan marcadas
+      // refund_required=true (bandera informativa, resolución manual),
+      // nunca se tocan las que ya están 'expired'/'cancelled' por sí solas.
+      let paidOrdersAffected = 0;
       if (body.status !== undefined) {
         if (body.status !== 'cancelled') {
           return res.status(400).json({ ok: false, error: 'invalid_status_transition' });
@@ -121,7 +145,18 @@ export default async function handler(req, res) {
         .single();
       if (updErr) throw updErr;
 
-      return res.status(200).json({ ok: true, event: updated });
+      if (patch.status === 'cancelled') {
+        const { data: paidOrders, error: poErr } = await supabase
+          .from('event_orders')
+          .update({ refund_required: true, updated_at: new Date().toISOString() })
+          .eq('event_id', id)
+          .eq('status', 'paid')
+          .select('id');
+        if (poErr) console.error('[api/events/[id]] refund_required flag error', poErr);
+        paidOrdersAffected = paidOrders?.length || 0;
+      }
+
+      return res.status(200).json({ ok: true, event: updated, paid_orders_affected: paidOrdersAffected });
     }
 
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });

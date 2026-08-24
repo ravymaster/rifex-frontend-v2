@@ -9,27 +9,35 @@ import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
 const STATUS_LABEL = { draft: 'Borrador', published: 'Publicado', cancelled: 'Cancelado' };
 
+function fmtCLP(cents) {
+  return Math.round((cents || 0) / 100).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+}
+
 export default function PanelEventoDetalle() {
   const router = useRouter();
   const { id } = router.query;
   const [token, setToken] = useState(null);
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
 
   async function load(tok) {
     try {
-      const [evRes, ttRes] = await Promise.all([
+      const [evRes, ttRes, sumRes] = await Promise.all([
         fetch(`/api/events/${id}`, { headers: { Authorization: `Bearer ${tok}` } }),
         fetch(`/api/events/${id}/ticket-types`, { headers: { Authorization: `Bearer ${tok}` } }),
+        fetch(`/api/events/${id}/orders-summary`, { headers: { Authorization: `Bearer ${tok}` } }),
       ]);
       const evData = await evRes.json();
       if (!evRes.ok || !evData.ok) throw new Error(evData.error || 'No se pudo cargar el evento');
       setEvent(evData.event);
       const ttData = await ttRes.json();
       if (ttRes.ok && ttData.ok) setTicketTypes(ttData.items || []);
+      const sumData = await sumRes.json();
+      if (sumRes.ok && sumData.ok) setSummary(sumData);
     } catch (e) {
       setError(e.message || 'No se pudo cargar el evento');
     }
@@ -114,13 +122,38 @@ export default function PanelEventoDetalle() {
           {event.address && <p style={{ margin: 0, fontSize: 14 }}><strong>Dirección:</strong> {event.address}</p>}
         </div>
 
+        {summary && (
+          <div style={{ border: '1px solid #e5e7eb', borderRadius: 14, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 14 }}>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Entradas vendidas</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{summary.tickets.sold}/{summary.tickets.total}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Reservadas ahora</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{summary.tickets.reserved}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Recaudación (bruto)</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{fmtCLP(summary.revenue.gross_cents)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Comisión Rifex</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{fmtCLP(summary.revenue.platform_fee_cents)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Neto estimado</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#15803d' }}>{fmtCLP(summary.revenue.net_cents)}</div>
+            </div>
+          </div>
+        )}
+
         <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '0 0 12px' }}>Tipos de entrada</h2>
         <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
           {ticketTypes.length === 0 && <p style={{ color: '#94a3b8', fontSize: 13.5 }}>Sin tipos de entrada.</p>}
           {ticketTypes.map((t) => (
             <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 16px' }}>
               <span style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</span>
-              <span style={{ fontSize: 13.5, color: '#64748b' }}>{t.quantity_sold}/{t.quantity_total} vendidas</span>
+              <span style={{ fontSize: 13.5, color: '#64748b' }}>{t.quantity_sold}/{t.quantity_total} vendidas{t.quantity_reserved > 0 ? ` · ${t.quantity_reserved} reservadas` : ''}</span>
             </div>
           ))}
         </div>

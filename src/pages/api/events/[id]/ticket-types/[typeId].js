@@ -1,8 +1,12 @@
 // src/pages/api/events/[id]/ticket-types/[typeId].js
 // EVENT-1 — PATCH: owner-only, editar/ocultar un tipo de entrada. DELETE:
-// owner-only, permitido en EVENT-1 porque todavía no existen orders (nada
-// puede referenciar un tipo vendido). EVENT-2 deberá bloquear DELETE/edits
-// peligrosos una vez existan órdenes reales contra un tipo.
+// owner-only.
+// EVENT-2 (Fase 3): un tipo con órdenes reales en su contra (paid,
+// reserved via pending) no puede borrarse — la FK de event_order_items
+// (sin ON DELETE CASCADE, a propósito) ya lo impide a nivel de DB; acá se
+// chequea antes para devolver un error claro en vez de un 23503 crudo.
+// Reducir quantity_total por debajo de sold+reserved también queda
+// bloqueado por el CHECK de la migración — se traduce a 409 legible.
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -38,7 +42,7 @@ export default async function handler(req, res) {
 
     const { data: ticketType, error: ttErr } = await supabase
       .from('event_ticket_types')
-      .select('id, event_id')
+      .select('id, event_id, quantity_sold, quantity_reserved')
       .eq('id', typeId)
       .maybeSingle();
     if (ttErr) throw ttErr;
@@ -47,8 +51,16 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
+      if ((ticketType.quantity_sold || 0) > 0 || (ticketType.quantity_reserved || 0) > 0) {
+        return res.status(409).json({ ok: false, error: 'ticket_type_has_orders' });
+      }
       const { error: delErr } = await supabase.from('event_ticket_types').delete().eq('id', typeId);
-      if (delErr) throw delErr;
+      if (delErr) {
+        if (delErr.code === '23503') {
+          return res.status(409).json({ ok: false, error: 'ticket_type_has_orders' });
+        }
+        throw delErr;
+      }
       return res.status(200).json({ ok: true });
     }
 
