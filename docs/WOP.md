@@ -32,7 +32,7 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | EVENT-1 | **DONE** | Foundation — create/publish event, ticket types, public pages, `/mis-iniciativas`, `/panel/eventos` |
 | EVENT-2 | **DONE** | Checkout + Orders + Mercado Pago — atomic reservation, TTL, webhook, reconciliation, `approved_unfulfilled`, guest access token, 7% commission via `platformFee.js` |
 | EVENT-3 | **DONE** | Tickets + QR — exactly-once issuance, per-ticket QR, guest "my tickets" page, `/t/[token]` resolver |
-| EVENT-4 | **DONE** | Staff (`door` role) + scanner + atomic check-in. Spec at `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`. See "EVENT-4 checkpoint" below |
+| EVENT-4 | **DONE — CERTIFIED (100/100 manual acceptance, real phone, Rodrigo)** | Staff (`door` role) + scanner + atomic check-in. Spec at `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`. See "EVENT-4 checkpoint" and "final manual acceptance" below |
 
 Supabase `rifex-dev` migration history: `db/migrations/2026-08-25b_event4_staff_scanner_checkin.sql` applied 2026-08-25 (manually, via the Supabase SQL Editor — see "EVENT-4 checkpoint" below for why). DEV Vercel deploy target: `rifex-frontend-main` project, `--prod` alias (its own top-level environment, unrelated to real PROD — see Reentry Notebook Warnings below).
 
@@ -82,7 +82,24 @@ Rodrigo confirmed on a real device: camera opened correctly, DEV clearly identif
 
 **Fix**: removed the auto-reset timer entirely. All detection-gating logic was extracted into `src/lib/scannerController.js` — a `locked` flag that a detection sets *synchronously*, before any `await`, and that only `reset()` (wired exclusively to the "Siguiente escaneo" button) can clear. The camera's `requestAnimationFrame` decode loop is now explicitly stopped (`cancelAnimationFrame`) the instant a detection is accepted, not just gated by a flag inside the loop, and only restarted on `reset()`. The manual `ticket_number` fallback and the "Siguiente escaneo" button itself route through the same lock, guarding against double-tap. `tests/scannerController.test.mjs` (`npm run test:scanner-controller`, Node's built-in `node --test`, no new dependency) reproduces the exact failure mode — 5 consecutive detections of the same QR fired synchronously before the first response resolves — and asserts exactly 1 underlying request fires; 4 tests total, all PASS. Re-ran the full 36-test HTTP suite plus the 20-concurrent check-in test after the fix: unaffected (6/6 spot-check + concurrency PASS again), since the fix is entirely client-side.
 
-A second, unconsumed ticket was issued on the same `EVENT-4 TEST` fixture event for Rodrigo to repeat the manual test against the fixed scanner. **Do not declare EVENT-4 finally accepted until Rodrigo confirms PASA stays visible** on screen until he taps "Siguiente escaneo" himself.
+A second, unconsumed ticket was issued on the same `EVENT-4 TEST` fixture event for Rodrigo to repeat the manual test against the fixed scanner.
+
+### EVENT-4 — final manual acceptance, confirmed (2026-08-25)
+
+Fix committed at `c32713e` (`fix(events): stop scanner from auto-resuming and double-submitting`), deployed to `rifex-frontend-main`, re-tested by Rodrigo on a real phone against a fresh, previously-unconsumed ticket on the same `EVENT-4 TEST` fixture event. Confirmed:
+
+- real browser camera opened and read a real QR off a screen;
+- first scan → `PASA`, and it **stayed visible** — no automatic disappearance;
+- the camera did **not** resume scanning on its own; resumption only happened when Rodrigo tapped "Siguiente escaneo";
+- second scan of the same (now-consumed) QR → `NO PASA — YA UTILIZADA`, with the real check-in hour shown;
+- mobile-first layout held up on a real device; manual fallback visible; DEV clearly identifiable as DEV.
+
+```text
+develop:  c32713e (fix), on top of a1093b6 (feat)
+Verdict:  EVENT-4 — ACEPTADO 100/100 (Rodrigo, real-phone manual test)
+```
+
+All EVENT-4 TEST fixture data (1 event, 3 orders/tickets/checkins, 1 ticket type, 1 dedicated test account) was deleted from `rifex-dev` after acceptance, identified and removed by exact ID (not by pattern/prefix) — confirmed `rifex-dev` had exactly this one event and one user in the entire database both before and after, so nothing else could have been or was affected. `origin/main`/PROD untouched throughout.
 
 ### Architecture map — Events (EVENT-1/2/3/4), just enough to reorient without re-reading source
 
@@ -138,7 +155,7 @@ A second, unconsumed ticket was issued on the same `EVENT-4 TEST` fixture event 
 7. ~~Live-schema introspection of `rifex-dev` is PENDING~~ — **RESOLVED 2026-08-25**, functionally (not via raw catalog dump — `db pull`/`db dump` remained blocked by the same CLI history-bookkeeping issue described in the EVENT-4 checkpoint above). Verified instead by exercising the real tables/RLS/RPCs directly: all EVENT-1/2/3 tables queryable, `event_staff`/`event_checkins` exist with RLS genuinely enforced, both new RPCs behave and are permission-scoped correctly. A byte-level `information_schema`/`pg_dump` comparison against the versioned SQL was still not done — low residual risk, since every constraint/RLS/grant the migration declares was independently exercised and confirmed behaviorally.
 8. **`rifex-dev`'s database password must still be rotated before any direct PostgreSQL connection (`psql`, `pg_dump`, or equivalent) is attempted.** A `supabase db dump --dry-run` run during a 2026-08-25 session printed the real DB password in plaintext into the agent's output. No dump was actually executed, no data was touched, and the password was not saved to any file — but it must be treated as compromised. The user explicitly deferred rotation to the next session ("se realizará mañana") rather than blocking EVENT-4 on it — **rotation is still outstanding as of this checkpoint**, tracked here so it isn't forgotten. **Do not reuse the exposed credential for anything, under any circumstance.**
 9. **Supabase CLI (`db push`/`db pull`) cannot be used for this project as-is** — the pre-EVENT-4 migration history was never recorded in the CLI's own bookkeeping table, and the only fix the CLI offers (`supabase migration repair`) has been withheld twice this session by explicit user instruction. Until someone deliberately authorizes a repair/backfill, every future Events migration will need the same manual SQL-Editor-paste path used for EVENT-4 — plan for it, don't assume `db push` will work.
-10. ~~Camera/visual scanner UI not verified live~~ — **RESOLVED 2026-08-25**, real phone test by Rodrigo — but it **found a real bug** (auto-reset timer racing the camera loop, overwriting `PASA` with `already_used`). Fixed (`src/lib/scannerController.js`), re-deployed, a fresh unconsumed ticket prepared — see "First manual acceptance test" above. **A second confirmation from Rodrigo that `PASA` now stays visible until he taps "Siguiente escaneo" is still outstanding** — do not treat EVENT-4 as finally accepted until that confirmation lands.
+10. ~~Camera/visual scanner UI not verified live~~ — **RESOLVED 2026-08-25**. First real-phone test by Rodrigo found a real bug (auto-reset timer racing the camera loop, overwriting `PASA` with `already_used`); fixed (`src/lib/scannerController.js`, commit `c32713e`); **second real-phone test confirmed the fix** — `PASA` stays visible, camera never resumes on its own, only "Siguiente escaneo" does. EVENT-4 manual acceptance: **100/100, CONFIRMED**, not outstanding anymore.
 11. **`.next` build cache corruption from running `npm run build` while `npm run dev` was live** — caused a real `Cannot find module './chunks/vendor-chunks/next.js'` 500 error mid-session. Fixed by stopping `dev`, `rm -rf .next`, restarting. Not a code defect; a reminder not to run `build` and `dev` concurrently against the same checkout.
 
 ### NEXT (exact)
