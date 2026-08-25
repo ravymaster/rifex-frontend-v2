@@ -5,6 +5,16 @@
 // vive en la RPC check_in_event_ticket, invocada vía POST al mismo
 // endpoint. La cámara solo decodifica texto — nunca navega a lo leído,
 // nunca ejecuta URLs; el parseo estricto vive en @/lib/parseEventQr.
+//
+// Hallazgo de la primera prueba manual real (2026-08-25): un auto-reset
+// por temporizador reactivaba el loop de cámara mientras el teléfono
+// seguía apuntando al mismo QR ya consumido, generando un segundo
+// check-in real que sobrescribía PASA con already_used antes de que el
+// portero pudiera reaccionar. Corregido de raíz: toda la lógica de
+// "¿puede aceptarse una detección nueva ahora mismo?" vive en
+// @/lib/scannerController (probado en tests/scannerController.test.mjs),
+// y la ÚNICA forma de volver a habilitar detecciones es que el portero
+// pulse "Siguiente escaneo" — nunca un temporizador, nunca automático.
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -12,8 +22,7 @@ import jsQR from 'jsqr';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { parseEventQrPayload } from '@/lib/parseEventQr';
-
-const RESULT_AUTO_RESET_MS = 2800;
+import { createScannerController } from '@/lib/scannerController';
 
 const REJECT_LABEL = {
   invalid_token: 'QR no válido.',
@@ -35,11 +44,28 @@ function fmtHour(iso) {
   catch { return ''; }
 }
 
+function resultFromResponse({ status, body }) {
+  if (body?.ok && body.result === 'pass') {
+    return {
+      kind: 'pass',
+      title: 'PASA',
+      detail: `Entrada válida · ${body.ticket?.ticket_type_name || ''} · ${body.ticket?.ticket_number || ''} · ${fmtHour(body.ticket?.used_at)}`,
+    };
+  }
+  if (body?.error === 'already_used') {
+    return {
+      kind: 'reject',
+      title: 'NO PASA — YA UTILIZADA',
+      detail: body.used_at ? `Ingresó a las ${fmtHour(body.used_at)}` : '',
+    };
+  }
+  return { kind: 'reject', title: 'NO PASA', detail: REJECT_LABEL[body?.error] || 'Entrada no válida.' };
+}
+
 export default function EventScanner() {
   const router = useRouter();
   const { id } = router.query;
 
-  const [token, setToken] = useState(null);
   const [phase, setPhase] = useState('loading'); // loading | unauthorized | ready | camera-error
   const [eventInfo, setEventInfo] = useState(null);
   const [scanning, setScanning] = useState(false);
@@ -49,12 +75,28 @@ export default function EventScanner() {
   const [manualValue, setManualValue] = useState('');
   const [manualError, setManualError] = useState(null);
 
+  const tokenRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const rafRef = useRef(null);
-  const resetTimerRef = useRef(null);
-  const processingRef = useRef(false);
+
+  // Una sola instancia por página — el submit real lee siempre el token
+  // vigente vía tokenRef (nunca queda "atrapada" con un token viejo).
+  const controllerRef = useRef(null);
+  if (!controllerRef.current) {
+    controllerRef.current = createScannerController({
+      submit: async (payload) => {
+        const res = await fetch(`/api/events/${id}/check-in`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenRef.current}` },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json().catch(() => null);
+        return { status: res.status, body };
+      },
+    });
+  }
 
   // Sesión + ping de autorización.
   useEffect(() => {
@@ -63,7 +105,7 @@ export default function EventScanner() {
       const { data } = await supabase.auth.getSession();
       const session = data?.session;
       if (!session) { router.push(`/login?next=/panel/eventos/${id}/scanner`); return; }
-      setToken(session.access_token);
+      tokenRef.current = session.access_token;
       try {
         const res = await fetch(`/api/events/${id}/check-in`, { headers: { Authorization: `Bearer ${session.access_token}` } });
         const body = await res.json();
@@ -77,75 +119,52 @@ export default function EventScanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, router]);
 
-  const stopCamera = useCallback(() => {
+  const stopDecodeLoop = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     rafRef.current = null;
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    stopDecodeLoop();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     setScanning(false);
-  }, []);
+  }, [stopDecodeLoop]);
 
   useEffect(() => stopCamera, [stopCamera]);
 
-  const submitCheckIn = useCallback(async (payload) => {
-    if (processingRef.current) return;
-    processingRef.current = true;
+  // Punto único de entrada para CUALQUIER detección real (cámara o
+  // fallback manual) que deba convertirse en una solicitud de check-in.
+  // El control de "¿se puede aceptar ahora?" vive enteramente en
+  // controllerRef — acá solo se refleja en la UI.
+  const runDetection = useCallback(async (payload) => {
+    if (controllerRef.current.isLocked()) return; // guarda redundante, ver scannerController
+    stopDecodeLoop(); // corta el loop ANTES de awaitear nada — ninguna detección más hasta "Siguiente escaneo"
     setBusy(true);
-    try {
-      const res = await fetch(`/api/events/${id}/check-in`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-      const body = await res.json().catch(() => null);
-      if (body?.ok && body.result === 'pass') {
-        setResult({
-          kind: 'pass',
-          title: 'PASA',
-          detail: `Entrada válida · ${body.ticket?.ticket_type_name || ''} · ${body.ticket?.ticket_number || ''} · ${fmtHour(body.ticket?.used_at)}`,
-        });
-      } else if (body?.error === 'already_used') {
-        setResult({
-          kind: 'reject',
-          title: 'NO PASA — YA UTILIZADA',
-          detail: body.used_at ? `Ingresó a las ${fmtHour(body.used_at)}` : '',
-        });
-      } else {
-        setResult({
-          kind: 'reject',
-          title: 'NO PASA',
-          detail: REJECT_LABEL[body?.error] || 'Entrada no válida.',
-        });
-      }
-    } catch {
+    const outcome = await controllerRef.current.handleDetection(payload);
+    setBusy(false);
+    if (!outcome.accepted) return; // otra detección ganó la carrera — no hacer nada
+    if (outcome.error) {
       setResult({ kind: 'reject', title: 'NO PASA', detail: REJECT_LABEL.network });
-    } finally {
-      setBusy(false);
-      resetTimerRef.current = setTimeout(() => {
-        setResult(null);
-        processingRef.current = false;
-      }, RESULT_AUTO_RESET_MS);
+      return;
     }
-  }, [id, token]);
+    setResult(resultFromResponse(outcome.result));
+  }, [stopDecodeLoop]);
 
   const handleDecoded = useCallback((text) => {
-    if (processingRef.current) return;
+    if (controllerRef.current.isLocked()) return;
     const origin = typeof window !== 'undefined' ? window.location.origin : null;
     const qrToken = parseEventQrPayload(text, origin);
     if (!qrToken) {
-      processingRef.current = true;
+      if (!controllerRef.current.lockForLocalReject()) return;
+      stopDecodeLoop();
       setResult({ kind: 'reject', title: 'NO PASA', detail: REJECT_LABEL.qr_malformed });
-      setBusy(false);
-      resetTimerRef.current = setTimeout(() => {
-        setResult(null);
-        processingRef.current = false;
-      }, RESULT_AUTO_RESET_MS);
       return;
     }
-    submitCheckIn({ qr_token: qrToken });
-  }, [submitCheckIn]);
+    runDetection({ qr_token: qrToken });
+  }, [runDetection, stopDecodeLoop]);
 
   const scanLoop = useCallback(() => {
     const video = videoRef.current;
@@ -162,8 +181,9 @@ export default function EventScanner() {
     ctx.drawImage(video, 0, 0, w, h);
     const imageData = ctx.getImageData(0, 0, w, h);
     const code = jsQR(imageData.data, w, h, { inversionAttempts: 'dontInvert' });
-    if (code && code.data && !processingRef.current) {
+    if (code && code.data && !controllerRef.current.isLocked()) {
       handleDecoded(code.data);
+      return; // handleDecoded (vía runDetection) ya decidió si corta el loop
     }
     rafRef.current = requestAnimationFrame(scanLoop);
   }, [handleDecoded]);
@@ -190,20 +210,28 @@ export default function EventScanner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  // ÚNICA forma de volver a habilitar detecciones. Guarda contra doble
+  // toque: si ya no hay nada bloqueado (p.ej. el usuario tocó dos veces
+  // muy rápido), la segunda pulsación no hace nada.
   function nextScan() {
-    if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
+    if (!controllerRef.current.isLocked()) return;
+    controllerRef.current.reset();
     setResult(null);
-    processingRef.current = false;
+    setManualValue('');
+    setManualError(null);
+    if (scanning && !rafRef.current) rafRef.current = requestAnimationFrame(scanLoop);
   }
 
   function submitManual(e) {
     e.preventDefault();
+    if (controllerRef.current.isLocked()) return; // resultado visible pendiente de "Siguiente escaneo"
     setManualError(null);
     const v = manualValue.trim();
     if (!v) { setManualError('Ingresa un número de entrada.'); return; }
-    setManualValue('');
-    submitCheckIn({ ticket_number: v });
+    runDetection({ ticket_number: v });
   }
+
+  const locked = controllerRef.current?.isLocked() || false;
 
   if (phase === 'loading') {
     return (
@@ -265,20 +293,21 @@ export default function EventScanner() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 14 }}>
-          <button onClick={() => setManualOpen((v) => !v)} style={{ background: 'none', border: 'none', color: '#1e3a8a', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', padding: 8 }}>
+          <button onClick={() => setManualOpen((v) => !v)} disabled={locked} style={{ background: 'none', border: 'none', color: locked ? '#cbd5e1' : '#1e3a8a', fontWeight: 700, fontSize: 13.5, cursor: locked ? 'default' : 'pointer', padding: 8 }}>
             {manualOpen ? 'Ocultar ingreso manual' : 'Ingresar código manualmente'}
           </button>
         </div>
 
-        {manualOpen && (
+        {manualOpen && !locked && (
           <form onSubmit={submitManual} style={{ display: 'flex', gap: 8, marginTop: 6, marginBottom: 24 }}>
             <input
               value={manualValue}
               onChange={(e) => setManualValue(e.target.value)}
               placeholder="RFX-EVT-XXXXXX"
+              disabled={locked}
               style={{ flex: 1, padding: '12px 14px', borderRadius: 12, border: '1px solid #d1d5db', fontSize: 15 }}
             />
-            <button type="submit" disabled={busy} style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: '#1e3a8a', color: '#fff', fontWeight: 700, fontSize: 14 }}>
+            <button type="submit" disabled={locked} style={{ padding: '12px 18px', borderRadius: 12, border: 'none', background: '#1e3a8a', color: '#fff', fontWeight: 700, fontSize: 14 }}>
               Validar
             </button>
           </form>
