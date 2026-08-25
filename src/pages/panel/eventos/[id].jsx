@@ -8,6 +8,7 @@ import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
 const STATUS_LABEL = { draft: 'Borrador', published: 'Publicado', cancelled: 'Cancelado' };
+const STAFF_STATUS_LABEL = { active: 'Activo', revoked: 'Revocado' };
 
 function fmtCLP(cents) {
   return Math.round((cents || 0) / 100).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
@@ -20,9 +21,21 @@ export default function PanelEventoDetalle() {
   const [event, setEvent] = useState(null);
   const [ticketTypes, setTicketTypes] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [staff, setStaff] = useState([]);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffError, setStaffError] = useState(null);
+  const [staffBusy, setStaffBusy] = useState(false);
+
+  async function loadStaff(tok) {
+    try {
+      const res = await fetch(`/api/events/${id}/staff`, { headers: { Authorization: `Bearer ${tok}` } });
+      const data = await res.json();
+      if (res.ok && data.ok) setStaff(data.items || []);
+    } catch { /* silencioso — sección secundaria del panel */ }
+  }
 
   async function load(tok) {
     try {
@@ -38,8 +51,58 @@ export default function PanelEventoDetalle() {
       if (ttRes.ok && ttData.ok) setTicketTypes(ttData.items || []);
       const sumData = await sumRes.json();
       if (sumRes.ok && sumData.ok) setSummary(sumData);
+      await loadStaff(tok);
     } catch (e) {
       setError(e.message || 'No se pudo cargar el evento');
+    }
+  }
+
+  async function addStaff(e) {
+    e.preventDefault();
+    setStaffError(null);
+    const email = staffEmail.trim();
+    if (!email) { setStaffError('Ingresa un email.'); return; }
+    setStaffBusy(true);
+    try {
+      const res = await fetch(`/api/events/${id}/staff`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        const map = {
+          user_not_found: 'No existe una cuenta Rifex con ese email.',
+          already_staff: 'Ese colaborador ya está activo en este evento.',
+          already_organizer: 'Esa cuenta ya es la organizadora del evento.',
+          invalid_email: 'Email inválido.',
+        };
+        throw new Error(map[data.error] || data.error || 'No se pudo agregar');
+      }
+      setStaffEmail('');
+      await loadStaff(token);
+    } catch (e) {
+      setStaffError(e.message || 'No se pudo agregar');
+    } finally {
+      setStaffBusy(false);
+    }
+  }
+
+  async function setStaffStatus(staffId, status) {
+    setStaffBusy(true);
+    try {
+      const res = await fetch(`/api/events/${id}/staff/${staffId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo actualizar');
+      await loadStaff(token);
+    } catch (e) {
+      setStaffError(e.message || 'No se pudo actualizar');
+    } finally {
+      setStaffBusy(false);
     }
   }
 
@@ -144,6 +207,10 @@ export default function PanelEventoDetalle() {
               <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Neto estimado</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: '#15803d' }}>{fmtCLP(summary.revenue.net_cents)}</div>
             </div>
+            <div>
+              <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Ingresaron</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{summary.tickets.checked_in ?? 0}/{summary.tickets.issued}</div>
+            </div>
           </div>
         )}
 
@@ -173,12 +240,55 @@ export default function PanelEventoDetalle() {
               Publicar
             </button>
           )}
+          <Link href={`/panel/eventos/${event.id}/scanner`} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: '#0f172a', color: '#fff', fontWeight: 700, fontSize: 13.5, textDecoration: 'none' }}>
+            Abrir scanner
+          </Link>
           {event.status !== 'cancelled' && (
             <button onClick={cancelEvent} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, border: '1px solid #fecaca', background: '#fff', color: '#b91c1c', fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>
               Cancelar evento
             </button>
           )}
         </div>
+
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '24px 0 12px' }}>Personal de acceso</h2>
+        {staffError && <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 13.5, marginBottom: 12 }}>{staffError}</div>}
+        <div style={{ display: 'grid', gap: 10, marginBottom: 14 }}>
+          {staff.length === 0 && <p style={{ color: '#94a3b8', fontSize: 13.5 }}>Sin personal adicional. Tú (organizador) siempre puedes operar el scanner.</p>}
+          {staff.map((s) => (
+            <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e5e7eb', borderRadius: 12, padding: '10px 16px', gap: 10, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: 13.5 }}>{s.user_email_snapshot || s.user_id}</div>
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>Rol: puerta</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 999, background: s.status === 'active' ? '#dcfce7' : '#f1f5f9', color: s.status === 'active' ? '#15803d' : '#64748b' }}>
+                  {STAFF_STATUS_LABEL[s.status] || s.status}
+                </span>
+                {s.status === 'active' ? (
+                  <button onClick={() => setStaffStatus(s.id, 'revoked')} disabled={staffBusy} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid #fecaca', background: '#fff', color: '#b91c1c', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>
+                    Revocar
+                  </button>
+                ) : (
+                  <button onClick={() => setStaffStatus(s.id, 'active')} disabled={staffBusy} style={{ padding: '6px 12px', borderRadius: 999, border: '1px solid #bbf7d0', background: '#fff', color: '#15803d', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>
+                    Reactivar
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        <form onSubmit={addStaff} style={{ display: 'flex', gap: 8, marginBottom: 30, flexWrap: 'wrap' }}>
+          <input
+            type="email"
+            value={staffEmail}
+            onChange={(e) => setStaffEmail(e.target.value)}
+            placeholder="email@ejemplo.com"
+            style={{ flex: 1, minWidth: 200, padding: '10px 14px', borderRadius: 12, border: '1px solid #d1d5db', fontSize: 13.5 }}
+          />
+          <button type="submit" disabled={staffBusy} style={{ padding: '10px 18px', borderRadius: 12, border: 'none', background: '#1e3a8a', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>
+            + Agregar como puerta
+          </button>
+        </form>
       </div>
     </Layout>
   );

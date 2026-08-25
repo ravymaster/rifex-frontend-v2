@@ -76,10 +76,20 @@ export default async function handler(req, res) {
     const ticketsTotal = (ticketTypes || []).reduce((s, t) => s + (t.quantity_total || 0), 0);
     const ticketsIssued = (ticketTypes || []).reduce((s, t) => s + (issuedByType.get(t.id) || 0), 0);
 
+    // EVENT-4: "Ingresaron" — conteo de used_at no nulo, la misma
+    // autoridad de consumo que check_in_event_ticket escribe. Solo
+    // lectura acá, nunca se toca used_at desde este endpoint.
+    const { count: ticketsCheckedIn, error: ciErr } = await supabase
+      .from('event_tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .not('used_at', 'is', null);
+    if (ciErr) throw ciErr;
+
     return res.status(200).json({
       ok: true,
       orders: { total: (orders || []).length, ...counts },
-      tickets: { total: ticketsTotal, sold: ticketsSold, reserved: ticketsReserved, issued: ticketsIssued },
+      tickets: { total: ticketsTotal, sold: ticketsSold, reserved: ticketsReserved, issued: ticketsIssued, checked_in: ticketsCheckedIn || 0 },
       ticket_types: (ticketTypes || []).map((t) => ({
         id: t.id, name: t.name, sold: t.quantity_sold || 0, issued: issuedByType.get(t.id) || 0,
       })),

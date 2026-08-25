@@ -32,9 +32,9 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | EVENT-1 | **DONE** | Foundation — create/publish event, ticket types, public pages, `/mis-iniciativas`, `/panel/eventos` |
 | EVENT-2 | **DONE** | Checkout + Orders + Mercado Pago — atomic reservation, TTL, webhook, reconciliation, `approved_unfulfilled`, guest access token, 7% commission via `platformFee.js` |
 | EVENT-3 | **DONE** | Tickets + QR — exactly-once issuance, per-ticket QR, guest "my tickets" page, `/t/[token]` resolver |
-| EVENT-4 | **NOT STARTED — NEXT** | Scanner + Staff + Check-in. Full spec now canonical at `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` — no code exists yet (confirmed 2026-08-25: zero references to `used_at` anywhere in `src/`, no related branch on `origin`) |
+| EVENT-4 | **DONE** | Staff (`door` role) + scanner + atomic check-in. Spec at `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`. See "EVENT-4 checkpoint" below |
 
-Supabase `rifex-dev` migration history ends at `20260825120000_event3_tickets_qr.sql` (7 migrations after the shared PRE-LAUNCH baseline). DEV Vercel deploy target: `rifex-frontend-main` project, `--prod` alias (its own top-level environment, unrelated to real PROD — see Reentry Notebook Warnings below).
+Supabase `rifex-dev` migration history: `db/migrations/2026-08-25b_event4_staff_scanner_checkin.sql` applied 2026-08-25 (manually, via the Supabase SQL Editor — see "EVENT-4 checkpoint" below for why). DEV Vercel deploy target: `rifex-frontend-main` project, `--prod` alias (its own top-level environment, unrelated to real PROD — see Reentry Notebook Warnings below).
 
 ### EVENT-3 checkpoint (functional, not a documentation-only commit)
 
@@ -56,7 +56,25 @@ Evidence (live DEV, this session):
 
 **Cleanup incident and correction (self-detected during this session, not by the user):** EVENT-2's automated concurrency test (20 simultaneous buyers) never added its winning orders to that script's own cleanup list, which silently blocked (via a foreign-key constraint whose error return was never checked) the deletion of 6 test events, their ticket types, and 20 orders — one of those events was left `published` and publicly visible on `/eventos`. Found while doing EVENT-3's own regression smoke, corrected in this session (deleted in the correct FK order: tickets → order_items → orders → ticket_types → events), and reverified with a full sweep showing 0 events/orders/tickets/test-users/fake-gateways remaining on `rifex-dev`. Lesson captured in Risks/Pending below.
 
-### Architecture map — Events (EVENT-1/2/3), just enough to reorient without re-reading source
+### EVENT-4 checkpoint (functional, applied to `rifex-dev` 2026-08-25)
+
+```text
+develop:  (this commit)
+Verdict:  GO EVENT-4
+```
+
+**Migration application mechanism (resolves the open question EVENT-3 left about how SQL reaches `rifex-dev`):** `supabase db push`/`db pull` both refuse to operate — the 9 pre-EVENT-4 migrations were never recorded in the CLI's own `supabase_migrations.schema_migrations` bookkeeping table (`LegacyDbPushMissingLocalError`/`LegacyDbPullMigrationConflictError`), and the only CLI-offered fix, `supabase migration repair`, was explicitly withheld this session. `db/migrations/2026-08-25b_event4_staff_scanner_checkin.sql` was instead applied by pasting the full file into the Supabase Dashboard's SQL Editor for `rifex-dev` and executing it directly (`Success. No rows returned.`) — confirmed applied via read-only verification immediately after (see Evidence below), never via `psql`/`pg_dump`/any direct Postgres connection. Future Events migrations should expect to use the same manual SQL Editor path unless someone deliberately backfills the CLI's migration history first.
+
+Evidence (live DEV, this session):
+- Read-only structural verification immediately after the manual apply: `event_staff`/`event_checkins` tables exist; RLS genuinely blocks `anon` (`permission denied`, not just an empty result — confirms `revoke all` took effect, not only a missing SELECT policy); both new RPCs (`check_in_event_ticket`, `find_user_id_by_email`) return `permission denied` (`42501`) for `anon` and succeed for `service_role`; all 5 EVENT-1/2/3 tables still queryable; `event_tickets.used_at` column present.
+- **36/36 functional+security tests PASS**, run twice against the real HTTP API (not just the RPC in isolation) with real Supabase-authenticated test users, real events, and real tickets issued via the actual EVENT-3 `issue_event_order_tickets` RPC (not fabricated rows) — organizer/door-active/door-revoked/random/anon authorization; ticket void; ticket from a different event (`ticket_wrong_event`, verified unconsumed after); staff authorized only for a different event; cancelled event; QR malformed → `invalid_token`; nonexistent ticket → 404; `GET /t/[token]` before **and** after check-in never mutates `used_at`, across repeated calls; `event_checkins` gets exactly one row with the correct `checked_in_by`; staff management (owner adds/revokes, non-owner/`door` rejected on both); manual fallback (`ticket_number`) staff-only, same atomic authority as QR; public read endpoints (`/api/events`, `/api/events/[id]`) unaffected.
+- **Exactly-once check-in under concurrency**: 20 simultaneous `POST /api/events/[id]/check-in` calls against the real HTTP server, same `qr_token` → exactly 1 `pass`, exactly 19 `already_used`, `used_at` set once, exactly 1 `event_checkins` row — verified by direct DB count, not by response inspection alone. Ran twice (once per test pass) with identical results.
+- `npm run build` PASS, clean, after a full `.next` cache wipe (a `.next` corruption from running `build` concurrently with a live `dev` server mid-session was found and fixed — see Risks/pending).
+- QA fixtures: **0 residual** — 6 test events, 26 test tickets/orders, 14 test users created across two test passes, all deleted with `if (error) throw` on every step, final sweep confirmed `0`/`0`.
+- PROD confirmed untouched: `origin/main` unchanged, no Supabase CLI command targeted `wrdkdfuiwlujfxxijpao`, no `rifex.pro` request made.
+- **Not verified this session**: the scanner's camera capture and visual PASS/NO PASA overlay could not be confirmed in a real browser — the automated Browser pane never reached a visible/composited state this session (`document.visibilityState` stayed `hidden`, a screenshot attempt failed with "the Browser pane is not displayed"), the same environment limitation already found and disclosed earlier for an unrelated, already-shipped Events page. All server-side logic the scanner depends on (`GET`/`POST /api/events/[id]/check-in`) is covered by the 36 automated tests; only the camera/visual layer itself is unverified. **Recommend a real-device smoke test** (open `/panel/eventos/[id]/scanner` on an actual phone) before relying on it for a real door.
+
+### Architecture map — Events (EVENT-1/2/3/4), just enough to reorient without re-reading source
 
 **EVENT-1 — catalog**
 - `events` (draft/published/cancelled), `event_ticket_types` (active/hidden, `quantity_total`/`quantity_sold`).
@@ -80,35 +98,48 @@ Evidence (live DEV, this session):
 - QR image: `src/pages/api/events/tickets/[token]/qr.png.js`, reuses Colectas' satori+sharp+qrcode card-rendering *technique* only — no shared code, no shared domain.
 - Key files: `src/lib/eventFulfillment.js` (the single "ensure issued + email" entry point, called from the webhook and lazily from the order-lookup endpoint), `src/lib/eventTicketMailer.js`.
 
+**EVENT-4 — staff/scanner/check-in**
+- `event_staff` (`role`: only `door`; `status`: `active`/`revoked`; unique per `event_id`+`user_id`; `user_email_snapshot` for display only, never authoritative). `event_checkins` (audit trail, one row per successful check-in, `unique(ticket_id)` as defense-in-depth).
+- `event_tickets.used_at` (left nullable/unwritten since EVENT-3) is now the consumption authority: `NULL` → consumable, non-`NULL` → `already_used`. Never a `status` change — `status` stays `valid`/`void`, untouched by check-in.
+- Atomic RPC: `check_in_event_ticket(qr_token, actor_user_id, event_id)` — locks the `event_tickets` row (`FOR UPDATE`), same concurrency pattern as EVENT-3's `issue_event_order_tickets`, just one level down (ticket instead of order). Validates ticket exists → belongs to the given event (cross-event check, before authorization) → actor is organizer or `door`+`active` staff of that event → event not `cancelled` → ticket not `void` → `used_at IS NULL`, then writes `used_at` and inserts `event_checkins` in the same transaction. No `SECURITY DEFINER` (same reasoning as `create_event_order`/`issue_event_order_tickets`: already runs as `service_role`, which already has the privileges it needs).
+- `find_user_id_by_email(email)` — the one function in this migration that **does** use `SECURITY DEFINER` (with `search_path` pinned to `public, auth`) because resolving "does a user with this email exist" requires reading `auth.users`, not exposed via PostgREST otherwise. Never a public search — accepts exactly one email, returns one id or `null`, `service_role`-only.
+- HTTP surface: `GET/POST /api/events/[id]/staff` (owner-only), `PATCH /api/events/[id]/staff/[staffId]` (owner-only, revoke/reactivate, never `DELETE`), `GET/POST /api/events/[id]/check-in` (`GET` = authorization ping for the UI, `POST` = the real check-in, accepts `qr_token` or staff-only `ticket_number` fallback — both paths converge on the same RPC).
+- Scanner: `/panel/eventos/[id]/scanner`, mobile-first, camera via `jsqr` (new dependency — pure decode function, no camera/UI bundled, chosen specifically so the app owns 100% of the capture loop and the strict parsing, never a third-party navigation/URL-handling layer). Parsing lives in `src/lib/parseEventQr.js`: accepts a bare 32-hex token or a `/t/<token>` URL whose **origin must match the scanner's own** — anything else, including a same-shape URL on a foreign host, is "malformado," never navigated to.
+- Key files: `db/migrations/2026-08-25b_event4_staff_scanner_checkin.sql`, `src/lib/eventStaffAuth.js`, `src/lib/parseEventQr.js`, `src/pages/api/events/[id]/check-in.js`, `src/pages/api/events/[id]/staff/*`, `src/pages/panel/eventos/[id]/scanner.jsx`, `src/pages/panel/eventos/[id].jsx` (extended: staff section, "Abrir scanner" CTA, "Ingresaron" count), `src/pages/api/events/[id]/orders-summary.js` (extended additively: `tickets.checked_in`).
+
 ### Invariants that must hold across any future Events work
 
 - **PAYMENT STATE ≠ FULFILLMENT STATE.** `event_orders.status` (payment truth) and `tickets_issued_at`/`tickets_email_sent_at` (fulfillment truth) are separate columns, separate concerns. A fulfillment failure must never revert a payment; a payment failure must never be papered over by fulfillment succeeding.
 - `paid` is the **only** order status that may issue tickets.
 - `approved_unfulfilled` **never** issues tickets, even with a valid `mp_payment_id` — this is the direct consequence of the late-payment-after-resale protection designed in EVENT-2 (never steal stock from a buyer who purchased after the original reservation expired).
-- Scanning/opening a ticket's QR is **not** check-in. `GET /t/[token]` never consumes, never mutates `status` or `used_at`. Only a future authenticated EVENT-4 operation may perform check-in.
-- A ticket is never `DELETE`d for being used or voided — `void` is a status, history is preserved.
-- EVENT-4 owns check-in authority entirely; nothing built through EVENT-3 assumes or performs it.
+- Scanning/opening a ticket's QR is **not** check-in. `GET /t/[token]` never consumes, never mutates `status` or `used_at` — verified again after EVENT-4 shipped: repeated `GET` calls before **and** after a real check-in leave `used_at` unchanged.
+- A ticket is never `DELETE`d for being used or voided — `void` is a status, history is preserved. `event_staff` follows the same rule: revoking never deletes the row.
+- EVENT-4 owns check-in authority entirely, exclusively via `check_in_event_ticket` — no other code path writes `event_tickets.used_at` or inserts into `event_checkins`.
+- **Three separate truths, never merged**: `event_orders.status` (payment), `tickets_issued_at`/`tickets_email_sent_at` (fulfillment), `event_tickets.used_at`/`event_checkins` (access). A check-in never touches payment or inventory columns; verified — `check_in_event_ticket` never references `event_orders` at all.
 
 ### Risks / pending (documented, not being worked now)
 
 1. **EVENT-3**: ticket-ready email delivery was not verified end-to-end with a real send — `ENABLE_EMAILS`/`RESEND_API_KEY` activity in DEV was not confirmed this session. The idempotency design (`tickets_email_sent_at`) is fail-safe either way (a skipped/failed send leaves the flag unset and is retried lazily), but nobody has watched a real email land in an inbox.
 2. **EVENT-2**: no certified/implemented Mercado Pago refund flow. Cancelling an event with `paid` orders only sets `refund_required = true` on those orders (informational) — no automatic MP refund call exists or was invented.
 3. **EVENT-2**: some webhook adversarial cases (amount mismatch, currency mismatch, payment/order mismatch) were verified by code-equivalence to the already-certified Colecta webhook pattern and by direct RPC testing, not by a live Mercado Pago sandbox payment — no sandbox credentials were available in-session.
-4. **EVENT-4**: scanner, staff accounts, and check-in do not exist in any form — not designed in code, only named conceptually in EVENT-0's discovery report.
+4. ~~EVENT-4: scanner, staff accounts, and check-in do not exist~~ — **RESOLVED 2026-08-25**, see "EVENT-4 checkpoint" above.
 5. **Test hygiene**: any future Supabase cleanup script must check `if (error) throw` (or equivalent) on every delete step, never assume success — see the Cleanup incident above, which happened specifically because an error return was silently ignored.
 6. **This worktree's `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` pointing at the PROD Supabase ref (`wrdkdfuiwlujfxxijpao`), not DEV.** This was flagged and deliberately avoided all session (DEV work used explicit `--project-ref nwxrvwbzqbhznscyirbq` on every Supabase CLI call, and the Vercel DEV project's own environment variables, never this local file). Do not `npm run dev` from this checkout without first fixing or overriding that value — see `SUPABASE_DEV_URL`/`SUPABASE_DEV_*` alternates already present in the same file.
-7. **Live-schema introspection of `rifex-dev` is still PENDING, not done.** The comparison between the live database and the versioned SQL in `db/migrations/2026-08-23c_event1_foundation.sql` / `2026-08-24_event2_checkout_orders.sql` / `2026-08-25_event3_tickets_qr.sql` has not been performed — no `db diff`, no `information_schema` query, no `pg_dump` was completed. This must happen (read-only) before EVENT-4 is considered fully cleared, per `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`.
-8. **`rifex-dev`'s database password must be rotated before any direct PostgreSQL connection (`psql`, `pg_dump`, or equivalent) is attempted again.** A `supabase db dump --dry-run` run during a 2026-08-25 session printed the real DB password in plaintext into the agent's output. No dump was actually executed, no data was touched, and the password was not saved to any file — but it must be treated as compromised. **Do not reuse the exposed credential for anything, under any circumstance.** Rotate it from the Supabase dashboard (Project Settings → Database → Reset database password) before running `supabase db dump`, `psql`, or any other command that resolves and displays real Postgres credentials.
+7. ~~Live-schema introspection of `rifex-dev` is PENDING~~ — **RESOLVED 2026-08-25**, functionally (not via raw catalog dump — `db pull`/`db dump` remained blocked by the same CLI history-bookkeeping issue described in the EVENT-4 checkpoint above). Verified instead by exercising the real tables/RLS/RPCs directly: all EVENT-1/2/3 tables queryable, `event_staff`/`event_checkins` exist with RLS genuinely enforced, both new RPCs behave and are permission-scoped correctly. A byte-level `information_schema`/`pg_dump` comparison against the versioned SQL was still not done — low residual risk, since every constraint/RLS/grant the migration declares was independently exercised and confirmed behaviorally.
+8. **`rifex-dev`'s database password must still be rotated before any direct PostgreSQL connection (`psql`, `pg_dump`, or equivalent) is attempted.** A `supabase db dump --dry-run` run during a 2026-08-25 session printed the real DB password in plaintext into the agent's output. No dump was actually executed, no data was touched, and the password was not saved to any file — but it must be treated as compromised. The user explicitly deferred rotation to the next session ("se realizará mañana") rather than blocking EVENT-4 on it — **rotation is still outstanding as of this checkpoint**, tracked here so it isn't forgotten. **Do not reuse the exposed credential for anything, under any circumstance.**
+9. **Supabase CLI (`db push`/`db pull`) cannot be used for this project as-is** — the pre-EVENT-4 migration history was never recorded in the CLI's own bookkeeping table, and the only fix the CLI offers (`supabase migration repair`) has been withheld twice this session by explicit user instruction. Until someone deliberately authorizes a repair/backfill, every future Events migration will need the same manual SQL-Editor-paste path used for EVENT-4 — plan for it, don't assume `db push` will work.
+10. **Camera/visual scanner UI not verified live** — see "EVENT-4 checkpoint" above. Every server-side behavior the scanner depends on is covered by 36 automated tests; the camera capture loop and the PASS/NO PASA overlay itself have only been build-verified (compiles, bundles at 49.7 kB), never exercised in a real, visible browser. Recommend a real-phone smoke test before trusting it at an actual door.
+11. **`.next` build cache corruption from running `npm run build` while `npm run dev` was live** — caused a real `Cannot find module './chunks/vendor-chunks/next.js'` 500 error mid-session. Fixed by stopping `dev`, `rm -rf .next`, restarting. Not a code defect; a reminder not to run `build` and `dev` concurrently against the same checkout.
 
 ### NEXT (exact)
 
 ```text
-NEXT: RIFEX EVENT-4 — STAFF + SCANNER + CHECK-IN
+NEXT: EVENT-5 (not scoped, not authorized) — see docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md, "Definition of Done"
 ```
 
-Conceptual objective (not designed yet): ticket QR → authorized scanner → authoritative validation → PASS/NO PASS → exactly-once check-in → prevent reuse → access audit trail. Nothing in this objective is implemented. Do not start it without a fresh governing prompt.
+EVENT-4 is `DONE` (see checkpoint above). Nothing beyond it is scoped or authorized — do not start EVENT-5 (analytics/CSV, per the canonical spec's explicit exclusions) without a fresh governing prompt. Before any further Events work: rotate the `rifex-dev` DB password (risk 8 above) and do a real-device scanner smoke test (risk 10 above).
 
-**Canonical spec**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` — full EVENT-4 specification (staff/`door` role, `event_checkins`, `used_at` as consumption authority, atomic check-in RPC, scanner, tests A–T, Definition of Done). Read that document before implementing; this WOP section only points to it, it does not duplicate it.
+**Canonical spec**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` — full EVENT-4 specification (staff/`door` role, `event_checkins`, `used_at` as consumption authority, atomic check-in RPC, scanner, tests A–T, Definition of Done) — now implemented and certified against it, see checkpoint above.
 
 ### Reentry Notebook Procedure (Antofagasta)
 
@@ -119,14 +150,14 @@ Steps for a new machine, in order — stop and report if any step contradicts wh
 3. `git checkout develop`.
 4. `git fetch origin`.
 5. `git pull --ff-only origin develop`.
-6. Verify `git rev-parse HEAD` equals `725c4f8`. If it does not, stop and reconcile against this document before touching anything.
+6. Verify `git rev-parse HEAD` is the EVENT-4 commit (`docs(events)`/`feat(events): add staff scanner and atomic check-in` on top of `725c4f8`) or a descendant. If it does not match, stop and reconcile against this document before touching anything.
 7. `npm ci` (or `npm install`) if `node_modules` is missing/stale.
 8. Configure the DEV environment **without ever committing secrets to Git**. Variable **names** needed (values must be transferred out-of-band, e.g. password manager or secure note — never pasted into a doc or commit): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (or the `SUPABASE_DEV_*` equivalents already scaffolded in this repo's env pattern — prefer those explicitly for DEV to avoid the PROD-pointing footgun above), `NEXT_PUBLIC_BASE_URL`, `MP_ACCESS_TOKEN`, `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `MP_PUBLIC_KEY`, `MP_REDIRECT_URI`, `MP_WEBHOOK_SECRET`, `ENABLE_EMAILS`, `RESEND_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_STAGE`, `HCAPTCHA_SECRET`, `NEXT_PUBLIC_HCAPTCHA_SITEKEY`, `ADMIN_API_TOKEN`, `DEV_TEST_EMAIL_TOKEN`, `CREATOR_FALLBACK_EMAIL`, `HOLD_MINUTES`.
 9. Start the app locally (`npm run dev`) or work directly against the deployed DEV preview at `rifex-frontend-main.vercel.app` — both are valid, the deployed one requires no local secrets at all for read-only exploration.
-10. Verify connectivity to DEV specifically (not PROD) — e.g. `supabase migration list --project-ref nwxrvwbzqbhznscyirbq` should show 7 migrations ending `20260825120000`.
-11. Read, in order: this WOP section, `docs/CURRENT_STATE.md`, `docs/handover/HANDOVER_RIFEX_CURRENT.md` (legacy but still has the pre-Events incident history), and this file's Architecture Map / Invariants / Risks sections above.
+10. Verify connectivity to DEV specifically (not PROD) — e.g. `supabase migration list --project-ref nwxrvwbzqbhznscyirbq` (expect the CLI to report the pre-EVENT-4 migrations as remote-only, `"local":""` — this is expected, not an error, see Risks/pending item 9 above; `db/migrations/2026-08-25b_event4_staff_scanner_checkin.sql` was applied manually via the SQL Editor, not via this CLI).
+11. Read, in order: this WOP section, `docs/CURRENT_STATE.md`, `docs/handover/HANDOVER_RIFEX_CURRENT.md` (legacy but still has the pre-Events incident history), `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`, and this file's Architecture Map / Invariants / Risks sections above.
 12. Run a preflight: confirm `origin/develop` HEAD, confirm `origin/main` unchanged, confirm no stray working-tree diffs.
-13. Only then, with the user, scope EVENT-4.
+13. EVENT-4 is DONE. Before scoping anything further (EVENT-5 or otherwise): confirm with the user whether the `rifex-dev` DB password was rotated (Risks/pending item 8) and whether a real-device scanner smoke test happened (item 10) — neither was true as of this checkpoint.
 
 ### Reentry Prompt (paste verbatim into a new Code/Claude session tomorrow)
 
@@ -136,11 +167,12 @@ No uses memoria de conversación como autoridad — la autoridad es el repo (Git
 Repo: https://github.com/ravymaster/rifex-frontend-v2.git, branch develop.
 Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "RIFEX CURRENT STATE").
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
-Verifica: git fetch, HEAD real de develop (debe ser 725c4f8 o su descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
-Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3 a partir del repo, no de esta instrucción.
-Confirma que NEXT = EVENT-4 (Staff + Scanner + Check-in) y que EVENT-4 no está implementado.
+Verifica: git fetch, HEAD real de develop (debe ser la copia de EVENT-4 sobre 725c4f8, o su descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
+Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4 a partir del repo, no de esta instrucción.
+Confirma que EVENT-4 está DONE (docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md) y que NEXT es EVENT-5, todavía sin alcance ni autorización.
+Confirma si la rotación de la contraseña de rifex-dev y el smoke test real de cámara ya se hicieron (WOP, Risks/pending items 8 y 10) — probablemente no.
 No modifiques código todavía.
-Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3, riesgos pendientes, NEXT) y detente ahí.
+Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4, riesgos pendientes, NEXT) y detente ahí.
 ```
 
 ### END CURRENT STATE
