@@ -1,6 +1,8 @@
 # Rifex Current State
 
 > **2026-08-24 notice:** the snapshot below (HEAD `1aa97cd`, branch `main`, R4-era) is historical and stale — it predates Rifex 2.0 (PROD certification), the DRAW automatic-draw scheduler, and the entire Events initiative (EVENT-1/2/3, done; EVENT-4, next). For the current state, read **`docs/WOP.md`, section "RIFEX CURRENT STATE (2026-08-24 — Santiago → Antofagasta notebook handoff)"** first — it is now the canonical status document. This file is preserved unedited below for historical continuity of the R4/DB-recovery narrative.
+>
+> **2026-08-25 addendum:** EVENT-4 (Staff + Scanner + Check-in) is still **NOT STARTED — NEXT**. Its full specification now lives at `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (canonical, do not duplicate). Live-schema introspection of `rifex-dev` against the EVENT-1/2/3 SQL is **still pending** (read-only, not yet performed). The `rifex-dev` database password must be **rotated** before any direct PostgreSQL connection is attempted — a `--dry-run` dump on 2026-08-25 printed it in plaintext; treat it as compromised and never reuse it. See `docs/WOP.md`, Risks/pending items 7–8, for the full detail.
 
 This document is the current documentation snapshot of observable repository state after Architecture Design AD4 documentation materialization.
 

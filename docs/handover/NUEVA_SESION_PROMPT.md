@@ -6,6 +6,15 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > PROD, congelado respecto de Eventos). El texto verbatim de abajo es el mismo
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
+>
+> 2026-08-25: EVENT-4 sigue **NEXT / no iniciado**. Su especificación completa
+> vive en `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (canónico, leer antes
+> de programar). Pendiente: introspección read-only del esquema vivo de
+> `rifex-dev` contra el SQL de EVENT-1/2/3 (todavía no realizada). La
+> contraseña de base de datos de `rifex-dev` debe **rotarse** antes de
+> cualquier conexión PostgreSQL directa (`psql`/`pg_dump`/`db dump`) — quedó
+> expuesta en texto plano por un `--dry-run` el 2026-08-25; nunca reutilizarla.
+> Ningún secreto se incluye en este documento ni en el WOP.
 
 ```text
 Estamos retomando Rifex desde un equipo nuevo (Antofagasta), sesión sin memoria conversacional previa.

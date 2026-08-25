@@ -32,7 +32,7 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | EVENT-1 | **DONE** | Foundation — create/publish event, ticket types, public pages, `/mis-iniciativas`, `/panel/eventos` |
 | EVENT-2 | **DONE** | Checkout + Orders + Mercado Pago — atomic reservation, TTL, webhook, reconciliation, `approved_unfulfilled`, guest access token, 7% commission via `platformFee.js` |
 | EVENT-3 | **DONE** | Tickets + QR — exactly-once issuance, per-ticket QR, guest "my tickets" page, `/t/[token]` resolver |
-| EVENT-4 | **NOT STARTED — NEXT** | Scanner + Staff + Check-in (not designed in code yet, only named in EVENT-3's forward-looking comments) |
+| EVENT-4 | **NOT STARTED — NEXT** | Scanner + Staff + Check-in. Full spec now canonical at `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` — no code exists yet (confirmed 2026-08-25: zero references to `used_at` anywhere in `src/`, no related branch on `origin`) |
 
 Supabase `rifex-dev` migration history ends at `20260825120000_event3_tickets_qr.sql` (7 migrations after the shared PRE-LAUNCH baseline). DEV Vercel deploy target: `rifex-frontend-main` project, `--prod` alias (its own top-level environment, unrelated to real PROD — see Reentry Notebook Warnings below).
 
@@ -97,6 +97,8 @@ Evidence (live DEV, this session):
 4. **EVENT-4**: scanner, staff accounts, and check-in do not exist in any form — not designed in code, only named conceptually in EVENT-0's discovery report.
 5. **Test hygiene**: any future Supabase cleanup script must check `if (error) throw` (or equivalent) on every delete step, never assume success — see the Cleanup incident above, which happened specifically because an error return was silently ignored.
 6. **This worktree's `.env.local` has `NEXT_PUBLIC_SUPABASE_URL` pointing at the PROD Supabase ref (`wrdkdfuiwlujfxxijpao`), not DEV.** This was flagged and deliberately avoided all session (DEV work used explicit `--project-ref nwxrvwbzqbhznscyirbq` on every Supabase CLI call, and the Vercel DEV project's own environment variables, never this local file). Do not `npm run dev` from this checkout without first fixing or overriding that value — see `SUPABASE_DEV_URL`/`SUPABASE_DEV_*` alternates already present in the same file.
+7. **Live-schema introspection of `rifex-dev` is still PENDING, not done.** The comparison between the live database and the versioned SQL in `db/migrations/2026-08-23c_event1_foundation.sql` / `2026-08-24_event2_checkout_orders.sql` / `2026-08-25_event3_tickets_qr.sql` has not been performed — no `db diff`, no `information_schema` query, no `pg_dump` was completed. This must happen (read-only) before EVENT-4 is considered fully cleared, per `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`.
+8. **`rifex-dev`'s database password must be rotated before any direct PostgreSQL connection (`psql`, `pg_dump`, or equivalent) is attempted again.** A `supabase db dump --dry-run` run during a 2026-08-25 session printed the real DB password in plaintext into the agent's output. No dump was actually executed, no data was touched, and the password was not saved to any file — but it must be treated as compromised. **Do not reuse the exposed credential for anything, under any circumstance.** Rotate it from the Supabase dashboard (Project Settings → Database → Reset database password) before running `supabase db dump`, `psql`, or any other command that resolves and displays real Postgres credentials.
 
 ### NEXT (exact)
 
@@ -105,6 +107,8 @@ NEXT: RIFEX EVENT-4 — STAFF + SCANNER + CHECK-IN
 ```
 
 Conceptual objective (not designed yet): ticket QR → authorized scanner → authoritative validation → PASS/NO PASS → exactly-once check-in → prevent reuse → access audit trail. Nothing in this objective is implemented. Do not start it without a fresh governing prompt.
+
+**Canonical spec**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` — full EVENT-4 specification (staff/`door` role, `event_checkins`, `used_at` as consumption authority, atomic check-in RPC, scanner, tests A–T, Definition of Done). Read that document before implementing; this WOP section only points to it, it does not duplicate it.
 
 ### Reentry Notebook Procedure (Antofagasta)
 
