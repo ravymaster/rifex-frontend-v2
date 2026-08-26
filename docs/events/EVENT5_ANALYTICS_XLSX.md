@@ -142,18 +142,38 @@ Se generaron datos sintéticos en los cuatro máximos simultáneos (20.000 órde
 
 `npm run test:scanner-controller` (regresión EVENT-4): 4/4 PASS, sin cambios de comportamiento — este sprint no modificó ningún archivo de EVENT-1/2/3/4.
 
-## Estado de verificación — limitación real de esta sesión
+## Estado de verificación — certificación real en DEV (sesión posterior, mismo día)
 
-A diferencia de EVENT-4 (certificado con prueba manual real en teléfono), **EVENT-5 no fue verificado en un navegador real contra `rifex-dev`** en este sprint. Causa: el panel de vista previa (Browser pane) de este entorno estaba anclado a la raíz de un proyecto distinto y no lanzó el servidor de desarrollo de `rifex-frontend-v2` — corregido a mitad de sesión (`change_directory`), pero el efecto solo aplica a partir del siguiente turno, después de que este documento y el commit ya se hayan entregado.
+En una sesión posterior a la implementación inicial, se ejecutó el flujo completo contra el deployment real de Vercel DEV (`rifex-frontend-main`, alias `rifex-frontend-main.vercel.app`, confirmado por logs de build reales como el commit exacto en cada paso) y `rifex-dev` (Supabase, `nwxrvwbzqbhznscyirbq`) — no el preview local, siguiendo la instrucción explícita de no usar el panel de vista previa (que en este entorno estaba anclado a un proyecto ajeno).
 
-Lo que **sí** está verificado, real, sin mocks donde es posible:
-- Fórmulas financieras/operacionales, contra datos sintéticos que replican exactamente los casos límite reales encontrados en el código (`approved_unfulfilled`, void-con-used_at).
-- Autorización, con lógica real (no solo aserciones triviales).
-- El workbook XLSX real, generado con ExcelJS real, releído desde su propio buffer binario para confirmar contenido — no solo inspeccionado en memoria antes de serializar.
-- Rendimiento real, medido con reloj real, en el escenario de carga máxima real.
-- Compilación completa de Next.js (`npm run build`), sin mocks.
+**Deployment**: confirmado `Ready`, target `Production`, región `iad1`. Commit `dae5344` primero, luego `31e5ac1` (con el fix de autofiltro/fila congelada, ver abajo) — ambos confirmados por `Cloning github.com/ravymaster/rifex-frontend-v2 (Branch: develop, Commit: ...)` en los logs reales de build, no supuestos.
 
-Lo que queda pendiente, explícito, no oculto: clic real en `/panel/eventos/[id]`, descarga real del archivo desde un navegador real, apertura del `.xlsx` resultante en Excel/Sheets real para confirmar que abre sin advertencias de reparación. Recomendado como el último paso antes de considerar EVENT-5 certificado al mismo nivel que EVENT-4.
+**Fixture real** (`rifex-dev`, controlado, sin PII real, `@example.com`, sin pagos ni correos reales): 4 usuarios desechables (organizador, `door` activo, `door` revocado, usuario random), un evento "EVENT-5 TEST", 3 tipos de entrada, creados vía HTTP real contra el deployment. Órdenes/tickets vía las RPCs reales (`create_event_order`, `mark_event_order_paid`, `issue_event_order_tickets`, `expire_event_order`, `void_event_ticket`) — incluyendo un `approved_unfulfilled` real producido por el mismo camino de "pago tardío" ya certificado en EVENT-2 (invariante 15: reservar el último cupo, expirar, dejar que otra orden se lo quede, y recién ahí reconciliar el pago tardío). Check-ins vía el endpoint real `/check-in`. Staff vía los endpoints reales `/staff`. Cancelación del evento vía el endpoint real `PATCH /api/events/[id]`, que puso `refund_required=true` en las 3 órdenes `paid` reales. **Único paso con escritura directa `service_role`, documentado**: `users_profile.country_code='CL'` para los organizadores de prueba — no existe un endpoint aislado para el onboarding de país fuera del flujo completo de UI (`/onboarding/pais`); todo lo demás usó RPCs o endpoints HTTP reales.
+
+**Fase 3 — 17/17 pruebas reales PASS** contra el deployment: organizador → `200`; `door` activo → `403`; `door` revocado → `403`; usuario random → `403`; anónimo → `401`; organizador real de OTRO evento (cross-event genuino, no simulado) → `403`, con verificación adicional de que ese mismo usuario SÍ puede ver el analytics de su propio evento; `approved_unfulfilled` separado y con alerta; `refund_required` visible (3, coincide exacto con lo que devolvió la cancelación real); evento cancelado sigue devolviendo el resumen completo; y las 9 cifras operacionales (`emitted_total=4`, `voided=2`, `voided_used_before_void=1`, `checked_in=1`, `valid=2`, `pending_check_in=1`, etc.) coinciden exactamente con lo esperado del fixture real, incluyendo el caso demostrado en vivo de un ticket anulado que conserva `used_at`.
+
+**Fase 4 — descarga y relectura real del `.xlsx`** (no solo inspección en memoria antes de serializar): workbook válido, exactamente 5 hojas en el orden correcto, sin ningún valor de celda igual a `qr_token`/`access_token`, fechas pre-formateadas en texto (`DD-MM-YYYY HH:mm:ss`, zona del evento, nunca ISO/`Z`), y el total de "Emitidas totales" del Resumen coincide exacto con el JSON del dashboard.
+
+**Hallazgo real corregido en esta misma sesión de certificación**: la primera descarga real reveló que ninguna hoja tenía fila congelada ni autofiltro — requisito explícito que se había omitido al implementar. Corregido en `src/lib/eventAnalyticsWorkbook.js` (fila 1 congelada en las 5 hojas; autofiltro en las 4 tabulares), cubierto por un test nuevo, commiteado (`31e5ac1`), redesplegado, y **reverificado descargando el archivo real de nuevo** — confirmado presente en el `.xlsx` real.
+
+**Fase 5 — rendimiento real medido, sin subir 20.000 filas reales a Supabase** (dataset pequeño real + estrés local sintético):
+- Analytics JSON, dataset real pequeño (4 órdenes/tickets, 2 check-ins, 2 staff), contra el deployment real: **~1.4-1.7s** round-trip completo (incluye red + cold/warm de la función serverless).
+- Export XLSX, mismo dataset real: **~1.0-1.5s** round-trip completo.
+- Carga máxima (20.000/20.000/20.000/500), medida localmente con datos sintéticos (nunca subidos a `rifex-dev`, por instrucción explícita): **~15s** de cómputo puro, ver sección de estrés arriba.
+- `maxDuration` real aplicable: **300s** en cualquier plan (Fluid Compute, default de la plataforma desde 2025, confirmado contra la documentación vigente de Vercel — no hay override en el repo). Ambas cifras (1-2s real pequeño, ~15s estrés máximo sintético) caben con amplio margen.
+
+**Lo único que sigue pendiente, explícito, no oculto**: la confirmación visual de Rodrigo — clic real en el botón "Descargar reporte Excel" desde el panel, y apertura del archivo en Excel/Sheets real de su parte. Todo lo demás de las Fases 1-5 fue verificado de punta a punta contra el deployment y la base de datos reales.
+
+### Prueba manual para Rodrigo
+
+1. Entra a `https://rifex-frontend-main.vercel.app/login` con la cuenta de prueba desechable (credenciales entregadas por chat, no en este documento — no son permanentes, es una cuenta creada solo para esta prueba).
+2. Ve a `https://rifex-frontend-main.vercel.app/panel/eventos/<event_id>` (el ID exacto se entrega junto con las credenciales).
+3. Revisa la sección "Analytics": deberías ver la alerta roja de "Aprobada sin emitir" y de "refund_required", más los 18 KPIs.
+4. Pulsa "Descargar reporte Excel".
+5. Abre el archivo descargado en Excel o Google Sheets. Debe abrir sin ninguna advertencia de reparación. Verifica que tenga 5 pestañas (Resumen, Órdenes-Ventas, Entradas, Check-ins, Personal de acceso), que la fila 1 de cada pestaña quede fija al hacer scroll, y que las pestañas de datos tengan flechitas de filtro en el encabezado.
+6. El evento de prueba ya está cancelado a propósito (para poder demostrar `refund_required` y "evento cancelado sigue siendo consultable") — es esperado, no un error.
+
+El fixture **no se ha eliminado** — queda disponible para que Rodrigo lo revise antes de cualquier limpieza.
 
 ## Fuera de alcance (no tocado en este sprint)
 

@@ -207,30 +207,32 @@ All EVENT-4 TEST fixture data (1 event, 3 orders/tickets/checkins, 1 ticket type
 
 **No corrective action was applied by the agent** — confirmed there was nothing safe/unambiguous to change inside Vercel (the Vercel-side configuration was already correct), and registrar access was never available to this session. This matches the mission's own stop condition ("necesitas acceso al proveedor DNS externo").
 
-### EVENT-5 checkpoint (implemented this session, no DEV/PROD writes required — read-only design, no new migration)
+### EVENT-5 checkpoint (implemented + live-verified against real Vercel DEV/rifex-dev, pending only Rodrigo's visual confirmation)
 
 ```text
-develop:  (this commit)
-Verdict:  GO EVENT-5 (implementation) — pending final live-browser confirmation
+develop:  31e5ac1
+Verdict:  GO EVENT-5 (implementation + live verification) — pending Rodrigo's manual visual confirmation
 ```
 
 EVENT-5 (analytics dashboard + XLSX export) implemented per `docs/events/EVENT5_ANALYTICS_XLSX.md` — organizer-only (`canViewEventAnalytics`, never `door`/staff), corrected financial model (`approved_unfulfilled` included in "aprobada total"/comisión, excluded only from "cumplida"), corrected operational model (`Anuladas usadas antes de anularse` as its own category — real finding: `void_event_ticket` never guards or clears `used_at`), 5-sheet XLSX (ExcelJS 4.4.0, the only dependency installed), deterministic limits (20.000 orders/tickets/checkins, 500 staff), formula-injection neutralization, timezone-safe formatting (`events.timezone`, cached `Intl.DateTimeFormat`). No new table/migration — purely additive read-side code over the existing EVENT-1/2/3/4 schema.
 
-Evidence (local, this session — **not** live DEV, see below): 25/25 real automated tests PASS (`npm run test:event-analytics` — financial model, operational model incl. the void+used_at edge case, timezone grouping, formula injection re-read from a real generated XLSX buffer, authorization incl. cross-event/door/anon rejection, deterministic limits incl. exact-boundary, a real stress test at all four maximums simultaneously). `npm run build` PASS, both new routes registered, zero errors/warnings. `npm run test:scanner-controller` (EVENT-4 regression) 4/4 PASS unchanged — no EVENT-1/2/3/4 file was modified.
+Local evidence: 26/26 real automated tests PASS (`npm run test:event-analytics`), `npm run build` PASS, `npm run test:scanner-controller` (EVENT-4 regression) 4/4 PASS unchanged — no EVENT-1/2/3/4 file was modified.
 
-**Real performance finding, found and fixed in this session**: the stress test first measured ~29-30s to build+serialize the workbook at the 20.000-row maximum — traced to `Intl.DateTimeFormat` being reconstructed on every date-format call (~60.000 times). Fixed by caching formatter instances per timezone; re-measured at ~15s combined. **Correction (EVENT-5 certification session)**: the original "~15s fits Pro's 60s but exceeds Hobby's 10s" claim was based on outdated figures, not current Vercel documentation. Verified against Vercel's real, current docs (`vercel.com/docs/functions/configuring-functions/duration`, updated 2026-07-01): with Fluid Compute (platform default since 2025), the default `maxDuration` is **300s on Hobby, Pro, and Enterprise alike** — no vercel.json or code override exists in this repo, so that default applies. ~15s fits comfortably on any plan.
+**Live evidence, real Vercel DEV + real `rifex-dev`** (separate certification session, same day): deployment confirmed `Ready`/Production/`iad1`, commit verified via real build logs (`dae5344` then `31e5ac1`). A real controlled fixture (4 disposable `@example.com` test users, one event, 3 ticket types, orders/tickets/check-ins/void via the real RPCs and real HTTP endpoints, a genuine `approved_unfulfilled` via the real late-payment invariant-15 path, a real event cancellation setting real `refund_required`) was created directly against `rifex-dev`. **17/17 real HTTP authorization+correctness tests PASS** against the live deployment (organizer 200, door/revoked/random/cross-event 403, anon 401, all 9 operational/financial figures matching the real fixture exactly). **7/7 real XLSX checks PASS** on a file actually downloaded from the live deployment and re-read with ExcelJS — including a real bug found and fixed live: no sheet had a frozen header row or autofilter (fixed in `31e5ac1`, reconfirmed present after redeploy). Real round-trip timing against the live function: ~1.4-1.7s (analytics JSON) and ~1.0-1.5s (XLSX export) on the small real fixture.
 
-**Not done this session**: no live-browser click-through against `rifex-dev` (unlike EVENT-4's real-phone acceptance). The Browser preview tool was, for most of this session, anchored to an unrelated project directory cached in this environment and launched the wrong dev server twice; corrected via `change_directory` mid-session, but the fix only takes effect on a subsequent turn. No `.xlsx` file has been opened in real Excel/Sheets to confirm it opens without a repair warning. Recommended before treating EVENT-5 as certified at the same level as EVENT-4: real click on "Descargar reporte Excel" in a browser against `rifex-dev`, and opening the resulting file in real spreadsheet software.
+**Real performance finding, found and fixed earlier the same day**: the stress test first measured ~29-30s to build+serialize the workbook at the 20.000-row maximum — traced to `Intl.DateTimeFormat` being reconstructed on every date-format call (~60.000 times). Fixed by caching formatter instances per timezone; re-measured at ~15s combined. `maxDuration` confirmed against Vercel's current documentation (`vercel.com/docs/functions/configuring-functions/duration`, updated 2026-07-01): with Fluid Compute (platform default since 2025), **300s on every plan** — no `vercel.json`/code override exists in this repo. ~15s (synthetic max load, never uploaded to `rifex-dev`) and ~1-2s (real small load) both fit comfortably.
+
+**Not deleted**: the real fixture event/orders/tickets/staff remain in `rifex-dev` for Rodrigo to inspect before any cleanup — see "Prueba manual para Rodrigo" in the canonical spec for the exact URL and steps (disposable credentials delivered by chat, never committed to this document).
 
 ### NEXT (exact)
 
 ```text
-NEXT: real-browser confirmation of EVENT-5 (dashboard render + XLSX download/open) against rifex-dev — see docs/events/EVENT5_ANALYTICS_XLSX.md, "Estado de verificación"
+NEXT: Rodrigo's manual visual confirmation of EVENT-5 (real click on the dashboard + real XLSX download/open) — see docs/events/EVENT5_ANALYTICS_XLSX.md, "Prueba manual para Rodrigo". Do not declare EVENT-5 certified, do not start EVENT-6, and do not delete the rifex-dev fixture until he confirms.
 ```
 
-EVENT-5 is implemented and automated-tested but not yet browser-confirmed (see checkpoint above). Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), and confirm the Vercel plan/function-timeout for `rifex-frontend-main`/`rifex-frontend-v2` given the ~15s XLSX generation time at maximum load.
+Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below).
 
-**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified) and `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, implemented — see "Estado de verificación" for what remains).
+**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified) and `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, implemented and live-verified — pending only Rodrigo's own click-through).
 
 ### Reentry Notebook Procedure (Antofagasta)
 

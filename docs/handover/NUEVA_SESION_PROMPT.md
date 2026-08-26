@@ -36,6 +36,20 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > PROD ahora reporta cero hallazgos nivel ERROR. Ver WOP, sección
 > "PRE-LAUNCH-FIX-3".
 >
+> 2026-08-26 (actualización, sesión de certificación) — EVENT-5 fue
+> además **verificado en vivo contra el deployment real de Vercel DEV
+> (`rifex-frontend-main`) y `rifex-dev`**: fixture real creado vía RPCs y
+> endpoints HTTP reales (incluyendo un `approved_unfulfilled` real por el
+> camino de pago tardío ya certificado en EVENT-2), 24/24 pruebas HTTP
+> reales PASS (autorización, cifras, XLSX real descargado y releído). Un
+> bug real (sin autofiltro/fila congelada) se encontró y corrigió en vivo
+> (commit `31e5ac1`), redesplegado y reconfirmado. `maxDuration` real
+> confirmado en 300s (Fluid Compute, default de Vercel en todo plan,
+> verificado contra documentación vigente, no supuesto). El fixture de
+> `rifex-dev` **no se eliminó** — queda pendiente solo la confirmación
+> visual de Rodrigo (ver `docs/events/EVENT5_ANALYTICS_XLSX.md`, "Prueba
+> manual para Rodrigo"). NEXT sigue siendo esa confirmación, no EVENT-6.
+>
 > 2026-08-26 — EVENT-5 (analytics + reporte Excel) **IMPLEMENTADO** —
 > dashboard organizer-only + export XLSX de 5 hojas (`exceljs` 4.4.0, única
 > dependencia instalada), corrigiendo dos errores del diseño inicial antes
