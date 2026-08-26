@@ -33,6 +33,7 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 | EVENT-2 | **DONE** | Checkout + Orders + Mercado Pago — atomic reservation, TTL, webhook, reconciliation, `approved_unfulfilled`, guest access token, 7% commission via `platformFee.js` |
 | EVENT-3 | **DONE** | Tickets + QR — exactly-once issuance, per-ticket QR, guest "my tickets" page, `/t/[token]` resolver |
 | EVENT-4 | **DONE — CERTIFIED (100/100 manual acceptance, real phone, Rodrigo)** | Staff (`door` role) + scanner + atomic check-in. Spec at `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`. See "EVENT-4 checkpoint" and "final manual acceptance" below |
+| EVENT-5 | **IMPLEMENTED — automated tests + build PASS, no live-browser verification yet** | Analytics dashboard + XLSX export (5 sheets), organizer-only. Spec at `docs/events/EVENT5_ANALYTICS_XLSX.md`. See "EVENT-5 checkpoint" below |
 
 Supabase `rifex-dev` migration history: `db/migrations/2026-08-25b_event4_staff_scanner_checkin.sql` applied 2026-08-25 (manually, via the Supabase SQL Editor — see "EVENT-4 checkpoint" below for why). DEV Vercel deploy target: `rifex-frontend-main` project, `--prod` alias (its own top-level environment, unrelated to real PROD — see Reentry Notebook Warnings below).
 
@@ -206,15 +207,30 @@ All EVENT-4 TEST fixture data (1 event, 3 orders/tickets/checkins, 1 ticket type
 
 **No corrective action was applied by the agent** — confirmed there was nothing safe/unambiguous to change inside Vercel (the Vercel-side configuration was already correct), and registrar access was never available to this session. This matches the mission's own stop condition ("necesitas acceso al proveedor DNS externo").
 
+### EVENT-5 checkpoint (implemented this session, no DEV/PROD writes required — read-only design, no new migration)
+
+```text
+develop:  (this commit)
+Verdict:  GO EVENT-5 (implementation) — pending final live-browser confirmation
+```
+
+EVENT-5 (analytics dashboard + XLSX export) implemented per `docs/events/EVENT5_ANALYTICS_XLSX.md` — organizer-only (`canViewEventAnalytics`, never `door`/staff), corrected financial model (`approved_unfulfilled` included in "aprobada total"/comisión, excluded only from "cumplida"), corrected operational model (`Anuladas usadas antes de anularse` as its own category — real finding: `void_event_ticket` never guards or clears `used_at`), 5-sheet XLSX (ExcelJS 4.4.0, the only dependency installed), deterministic limits (20.000 orders/tickets/checkins, 500 staff), formula-injection neutralization, timezone-safe formatting (`events.timezone`, cached `Intl.DateTimeFormat`). No new table/migration — purely additive read-side code over the existing EVENT-1/2/3/4 schema.
+
+Evidence (local, this session — **not** live DEV, see below): 25/25 real automated tests PASS (`npm run test:event-analytics` — financial model, operational model incl. the void+used_at edge case, timezone grouping, formula injection re-read from a real generated XLSX buffer, authorization incl. cross-event/door/anon rejection, deterministic limits incl. exact-boundary, a real stress test at all four maximums simultaneously). `npm run build` PASS, both new routes registered, zero errors/warnings. `npm run test:scanner-controller` (EVENT-4 regression) 4/4 PASS unchanged — no EVENT-1/2/3/4 file was modified.
+
+**Real performance finding, found and fixed in this session**: the stress test first measured ~29-30s to build+serialize the workbook at the 20.000-row maximum — traced to `Intl.DateTimeFormat` being reconstructed on every date-format call (~60.000 times). Fixed by caching formatter instances per timezone; re-measured at ~15s combined. Documented residual risk: ~15s of pure compute fits Vercel Pro's default 60s timeout but would exceed Vercel Hobby's 10s — the actual Vercel plan for `rifex-frontend-main`/`rifex-frontend-v2` was not confirmed this session.
+
+**Not done this session**: no live-browser click-through against `rifex-dev` (unlike EVENT-4's real-phone acceptance). The Browser preview tool was, for most of this session, anchored to an unrelated project directory cached in this environment and launched the wrong dev server twice; corrected via `change_directory` mid-session, but the fix only takes effect on a subsequent turn. No `.xlsx` file has been opened in real Excel/Sheets to confirm it opens without a repair warning. Recommended before treating EVENT-5 as certified at the same level as EVENT-4: real click on "Descargar reporte Excel" in a browser against `rifex-dev`, and opening the resulting file in real spreadsheet software.
+
 ### NEXT (exact)
 
 ```text
-NEXT: EVENT-5 (not scoped, not authorized) — see docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md, "Definition of Done"
+NEXT: real-browser confirmation of EVENT-5 (dashboard render + XLSX download/open) against rifex-dev — see docs/events/EVENT5_ANALYTICS_XLSX.md, "Estado de verificación"
 ```
 
-EVENT-4 is `DONE` (see checkpoint above). Nothing beyond it is scoped or authorized — do not start EVENT-5 (analytics/CSV, per the canonical spec's explicit exclusions) without a fresh governing prompt. Before any further Events work: rotate the `rifex-dev` DB password (risk 8 above) and do a real-device scanner smoke test (risk 10 above).
+EVENT-5 is implemented and automated-tested but not yet browser-confirmed (see checkpoint above). Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), and confirm the Vercel plan/function-timeout for `rifex-frontend-main`/`rifex-frontend-v2` given the ~15s XLSX generation time at maximum load.
 
-**Canonical spec**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` — full EVENT-4 specification (staff/`door` role, `event_checkins`, `used_at` as consumption authority, atomic check-in RPC, scanner, tests A–T, Definition of Done) — now implemented and certified against it, see checkpoint above.
+**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified) and `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, implemented — see "Estado de verificación" for what remains).
 
 ### Reentry Notebook Procedure (Antofagasta)
 
@@ -242,12 +258,12 @@ No uses memoria de conversación como autoridad — la autoridad es el repo (Git
 Repo: https://github.com/ravymaster/rifex-frontend-v2.git, branch develop.
 Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "RIFEX CURRENT STATE").
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
-Verifica: git fetch, HEAD real de develop (debe ser la copia de EVENT-4 sobre 725c4f8, o su descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
-Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 está DONE (docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md) y que NEXT es EVENT-5, todavía sin alcance ni autorización.
-Confirma si la rotación de la contraseña de rifex-dev y el smoke test real de cámara ya se hicieron (WOP, Risks/pending items 8 y 10) — probablemente no.
+Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/725c4f8, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
+Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
+Confirma que EVENT-4 está DONE-CERTIFICADO y EVENT-5 está IMPLEMENTADO (tests+build PASS) pero SIN confirmación real en navegador (docs/events/EVENT5_ANALYTICS_XLSX.md, "Estado de verificación") — NEXT es esa confirmación, no un EVENT-6.
+Confirma si la rotación de la contraseña de rifex-dev, el smoke test real de cámara, y la confirmación en navegador de EVENT-5 ya se hicieron (WOP, Risks/pending y "NEXT (exact)") — probablemente no.
 No modifiques código todavía.
-Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4, riesgos pendientes, NEXT) y detente ahí.
+Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.
 ```
 
 ### END CURRENT STATE

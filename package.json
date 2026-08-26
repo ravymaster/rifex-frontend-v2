@@ -6,13 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:scanner-controller": "node --test tests/scannerController.test.mjs"
+    "test:scanner-controller": "node --test tests/scannerController.test.mjs",
+    "test:event-analytics": "node --test tests/eventAnalytics.test.mjs tests/eventAnalyticsAuth.test.mjs tests/eventAnalyticsWorkbook.test.mjs"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.2",
     "cookie": "^1.0.2",
+    "exceljs": "4.4.0",
     "jsqr": "^1.4.0",
     "mercadopago": "^2.8.0",
     "next": "^14.2.32",

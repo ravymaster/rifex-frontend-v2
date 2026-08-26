@@ -36,6 +36,27 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > PROD ahora reporta cero hallazgos nivel ERROR. Ver WOP, sección
 > "PRE-LAUNCH-FIX-3".
 >
+> 2026-08-26 — EVENT-5 (analytics + reporte Excel) **IMPLEMENTADO** —
+> dashboard organizer-only + export XLSX de 5 hojas (`exceljs` 4.4.0, única
+> dependencia instalada), corrigiendo dos errores del diseño inicial antes
+> de programar: `approved_unfulfilled` es dinero real ya cobrado por
+> Mercado Pago (incluido en "aprobada total"/comisión, excluido solo de
+> "cumplida"), y un ticket `void` puede tener `used_at` no nulo
+> (`void_event_ticket` nunca lo protege ni lo limpia — categoría propia
+> "Anuladas usadas antes de anularse", nunca oculta). 25/25 tests reales
+> PASS (`npm run test:event-analytics`), `npm run build` PASS, regresión
+> EVENT-4 (`test:scanner-controller`) 4/4 PASS sin cambios. Hallazgo de
+> rendimiento real encontrado y corregido en la propia sesión: la prueba
+> de estrés a los 4 límites máximos (20.000/20.000/20.000/500) tardaba
+> ~29-30s por reconstruir `Intl.DateTimeFormat` en cada celda; cacheado
+> por timezone, baja a ~15s reales. Sin migración nueva — puramente
+> aditivo sobre el esquema EVENT-1/2/3/4 ya existente. **Pendiente
+> explícito**: sin confirmación en navegador real contra `rifex-dev` (el
+> panel de vista previa de este entorno apuntaba a un proyecto ajeno
+> durante la mayor parte de la sesión; corregido, efecto pendiente para el
+> siguiente turno) — ver `docs/events/EVENT5_ANALYTICS_XLSX.md`, "Estado
+> de verificación". NEXT = esa confirmación real, no EVENT-6.
+>
 > 2026-08-26 — P0 SIN RESOLVER, fuera del alcance de este repo/agente:
 > `rifex.pro` caído con `ERR_SSL_PROTOCOL_ERROR`. Causa raíz confirmada:
 > **el registro del dominio venció en el registrador (Hostinger)** — los
@@ -56,10 +77,10 @@ No uses memoria de conversación como autoridad — la autoridad es el repo (Git
 Repo: https://github.com/ravymaster/rifex-frontend-v2.git, branch develop.
 Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "RIFEX CURRENT STATE").
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
-Verifica: git fetch, HEAD real de develop (debe incluir el commit c32713e, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
-Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 está DONE y CERTIFICADO (aceptación manual 100/100) y que NEXT es EVENT-5, todavía sin alcance ni autorización.
-Confirma si la rotación de la contraseña de rifex-dev ya se hizo (WOP, Risks/pending ítem 8).
+Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/c32713e, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
+Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
+Confirma que EVENT-4 está DONE y CERTIFICADO (aceptación manual 100/100) y que EVENT-5 está IMPLEMENTADO (tests+build PASS) pero SIN confirmación real en navegador — NEXT es esa confirmación (docs/events/EVENT5_ANALYTICS_XLSX.md, "Estado de verificación"), no EVENT-6.
+Confirma si la rotación de la contraseña de rifex-dev y la confirmación en navegador de EVENT-5 ya se hicieron (WOP, Risks/pending y "NEXT (exact)").
 No modifiques código todavía.
-Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4, riesgos pendientes, NEXT) y detente ahí.
+Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.
 ```

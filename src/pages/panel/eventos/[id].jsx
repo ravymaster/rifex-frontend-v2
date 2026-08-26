@@ -1,6 +1,7 @@
 // src/pages/panel/eventos/[id].jsx
 // EVENT-1 (Fase 13) — gestión mínima: datos, tipos de entrada, publicar,
-// cancelar. Sin ventas/check-ins/export — eso es EVENT-5.
+// cancelar. EVENT-5 (analytics + export XLSX) agregado como sección nueva,
+// sin reemplazar el resumen EVENT-2/EVENT-4 ya existente arriba.
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -8,6 +9,11 @@ import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
 const STATUS_LABEL = { draft: 'Borrador', published: 'Publicado', cancelled: 'Cancelado' };
+
+function fmtPct(rate) {
+  if (rate === null || rate === undefined) return '—';
+  return `${Math.round(rate * 1000) / 10}%`;
+}
 const STAFF_STATUS_LABEL = { active: 'Activo', revoked: 'Revocado' };
 
 function fmtCLP(cents) {
@@ -28,6 +34,45 @@ export default function PanelEventoDetalle() {
   const [staffEmail, setStaffEmail] = useState('');
   const [staffError, setStaffError] = useState(null);
   const [staffBusy, setStaffBusy] = useState(false);
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsError, setAnalyticsError] = useState(null);
+  const [exportBusy, setExportBusy] = useState(false);
+  const [exportError, setExportError] = useState(null);
+
+  async function loadAnalytics(tok) {
+    try {
+      const res = await fetch(`/api/events/${id}/analytics`, { headers: { Authorization: `Bearer ${tok}` } });
+      const data = await res.json();
+      if (res.ok && data.ok) { setAnalytics(data); setAnalyticsError(null); }
+      else setAnalyticsError(data.error || 'No se pudo cargar analytics');
+    } catch {
+      setAnalyticsError('No se pudo cargar analytics');
+    }
+  }
+
+  async function downloadExcelReport() {
+    setExportBusy(true); setExportError(null);
+    try {
+      const res = await fetch(`/api/events/${id}/analytics/export`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || data.error || 'No se pudo generar el reporte');
+      }
+      const blob = await res.blob();
+      const disposition = res.headers.get('Content-Disposition') || '';
+      const match = /filename="([^"]+)"/.exec(disposition);
+      const filename = match ? match[1] : 'rifex-analytics.xlsx';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(e.message || 'No se pudo generar el reporte');
+    } finally {
+      setExportBusy(false);
+    }
+  }
 
   async function loadStaff(tok) {
     try {
@@ -52,6 +97,7 @@ export default function PanelEventoDetalle() {
       const sumData = await sumRes.json();
       if (sumRes.ok && sumData.ok) setSummary(sumData);
       await loadStaff(tok);
+      await loadAnalytics(tok);
     } catch (e) {
       setError(e.message || 'No se pudo cargar el evento');
     }
@@ -289,6 +335,118 @@ export default function PanelEventoDetalle() {
             + Agregar como puerta
           </button>
         </form>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '30px 0 12px', flexWrap: 'wrap', gap: 10 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: 0 }}>Analytics</h2>
+          <button onClick={downloadExcelReport} disabled={exportBusy} style={{ padding: '10px 18px', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, #1e3a8a 0%, #18a957 100%)', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>
+            {exportBusy ? 'Generando…' : 'Descargar reporte Excel'}
+          </button>
+        </div>
+        {exportError && <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 13.5, marginBottom: 14 }}>{exportError}</div>}
+        {analyticsError && <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 13.5, marginBottom: 14 }}>{analyticsError}</div>}
+
+        {analytics && (
+          <>
+            {(analytics.analytics.approved_unfulfilled_alert || analytics.analytics.refund_required_alert) && (
+              <div style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', fontSize: 13.5, marginBottom: 16, fontWeight: 600 }}>
+                {analytics.analytics.approved_unfulfilled_alert && <div>⚠ Hay órdenes aprobadas (comisión ya cobrada) que nunca emitieron entradas — revisa "Aprobada sin emitir" abajo.</div>}
+                {analytics.analytics.refund_required_alert && <div>⚠ Hay órdenes marcadas con reembolso pendiente (refund_required).</div>}
+              </div>
+            )}
+
+            <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#64748b', margin: '0 0 8px' }}>Operacional</h3>
+            <div style={{ border: '1px solid #e5e7eb', borderRadius: 14, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 14 }}>
+              {[
+                ['Capacidad', analytics.operational.capacity],
+                ['Vendidas', analytics.operational.sold],
+                ['Emitidas totales', analytics.operational.emitted_total],
+                ['Válidas', analytics.operational.valid],
+                ['Anuladas', analytics.operational.voided],
+                ['Anuladas usadas antes de anularse', analytics.operational.voided_used_before_void],
+                ['Ingresadas', analytics.operational.checked_in],
+                ['Pendientes de ingreso', analytics.operational.pending_check_in],
+                ['% asistencia', fmtPct(analytics.operational.attendance_rate)],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: label === 'Anuladas usadas antes de anularse' && value > 0 ? '#b91c1c' : '#0f172a' }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#64748b', margin: '0 0 8px' }}>Financiero</h3>
+            <div style={{ border: '1px solid #e5e7eb', borderRadius: 14, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+              {[
+                ['Recaudación aprobada total', fmtCLP(analytics.financial.gross_approved_total_cents)],
+                ['Recaudación cumplida', fmtCLP(analytics.financial.gross_fulfilled_cents)],
+                ['Aprobada sin emitir', fmtCLP(analytics.financial.gross_unfulfilled_cents)],
+                ['Comisión Rifex total', fmtCLP(analytics.financial.commission_total_cents)],
+                ['Comisión sin fulfillment', fmtCLP(analytics.financial.commission_unfulfilled_cents)],
+                ['Neto estimado (no conciliado con MP)', fmtCLP(analytics.financial.net_estimated_cents)],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>{label}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: (label === 'Aprobada sin emitir' || label === 'Comisión sin fulfillment') && analytics.financial.gross_unfulfilled_cents > 0 ? '#b91c1c' : '#0f172a' }}>{value}</div>
+                </div>
+              ))}
+              {analytics.financial.refund_required_count > 0 && (
+                <div>
+                  <div style={{ fontSize: 12, color: '#94a3b8', fontWeight: 600 }}>Refund requerido</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#b91c1c' }}>{analytics.financial.refund_required_count} orden(es) · {fmtCLP(analytics.financial.refund_required_cents)}</div>
+                </div>
+              )}
+            </div>
+
+            <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#64748b', margin: '0 0 8px' }}>Desglose por tipo de entrada</h3>
+            <div style={{ display: 'grid', gap: 8, marginBottom: 18 }}>
+              {analytics.analytics.by_ticket_type.length === 0 && <p style={{ color: '#94a3b8', fontSize: 13.5 }}>Sin tipos de entrada.</p>}
+              {analytics.analytics.by_ticket_type.map((t) => (
+                <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', border: '1px solid #e5e7eb', borderRadius: 12, padding: '10px 16px', fontSize: 13.5 }}>
+                  <span style={{ fontWeight: 600 }}>{t.name}</span>
+                  <span style={{ color: '#64748b' }}>{t.sold}/{t.capacity} vendidas · {t.emitted_total} emitidas · {t.checked_in} ingresadas</span>
+                </div>
+              ))}
+            </div>
+
+            {analytics.analytics.sales_by_date.length > 0 && (
+              <>
+                <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#64748b', margin: '0 0 8px' }}>Ventas por fecha ({analytics.event.timezone})</h3>
+                <div style={{ display: 'grid', gap: 6, marginBottom: 18 }}>
+                  {analytics.analytics.sales_by_date.map((d) => (
+                    <div key={d.date} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 12px', borderBottom: '1px solid #f1f5f9' }}>
+                      <span>{d.date}</span>
+                      <span style={{ color: '#64748b' }}>{d.orders} orden(es) · {fmtCLP(d.gross_cents)}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {analytics.analytics.checkins_by_hour.length > 0 && (
+              <>
+                <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#64748b', margin: '0 0 8px' }}>Check-ins por hora ({analytics.event.timezone})</h3>
+                <div style={{ display: 'grid', gap: 6, marginBottom: 18 }}>
+                  {analytics.analytics.checkins_by_hour.map((h) => (
+                    <div key={h.hour} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 12px', borderBottom: '1px solid #f1f5f9' }}>
+                      <span>{h.hour}</span>
+                      <span style={{ color: '#64748b' }}>{h.count} check-in(s)</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#64748b', margin: '0 0 8px' }}>Actividad de organizador y personal</h3>
+            <div style={{ display: 'grid', gap: 6, marginBottom: 10 }}>
+              {analytics.analytics.staff_activity.map((a) => (
+                <div key={a.user_id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 12px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span>{a.is_organizer ? 'Organizador' : (a.email_snapshot || 'Personal de acceso')}</span>
+                  <span style={{ color: '#64748b' }}>{a.checkins_count} check-in(s) registrados</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </Layout>
   );
