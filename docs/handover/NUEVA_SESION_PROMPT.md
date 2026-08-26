@@ -7,7 +7,23 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> 2026-08-26 (actualización más reciente) — EVENT-6 Fase 2 (auditoría de
+> 2026-08-26 (actualización más reciente) — Diseño completo de **Rifex
+> Trust** entregado (12 documentos en `docs/trust/`, cero código, cero
+> implementación) + handoff completo notebook→escritorio
+> (`docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md`). Hallazgo
+> legal más relevante: las rifas/colectas de personas naturales chilenas
+> existen en una zona gris real bajo la Ley 10.262 (juegos de azar,
+> normalmente solo autorizables a personas jurídicas sin fines de lucro)
+> — requiere abogado, es prioridad 1 en
+> `docs/trust/TRUST_DECISIONS_FOR_RODRIGO.md`. La vulnerabilidad crítica
+> de `create_tickets_for_raffle` (EVENT-6 Fase 2) sigue **pendiente de
+> verificar/corregir en PROD, exclusivamente desde el PC de escritorio en
+> Santiago** — ver el handoff, sección 5, con el procedimiento seguro
+> exacto. Ningún código, SQL, Supabase ni Vercel fue tocado en esta
+> sesión — solo documentación. EVENT-7 y la implementación de Trust
+> (TRUST-1 en adelante) siguen NO AUTORIZADOS.
+>
+> 2026-08-26 (actualización anterior) — EVENT-6 Fase 2 (auditoría de
 > los 16 WARN heredados de Rifas/Auth) **COMPLETADA — hallazgo CRÍTICO
 > real corregido**: `create_tickets_for_raffle`, función legacy sin
 > migración versionada, `SECURITY DEFINER`, sin ningún chequeo de
@@ -143,7 +159,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/c32713e, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente pendiente de Rodrigo, independiente de Eventos) — NEXT es EVENT-7, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente, solo desde el PC de escritorio en Santiago, ver docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md). Confirma también que el diseño de Rifex Trust (docs/trust/) está completo pero sin implementar — NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev ya se hizo (WOP, Risks/pending y "NEXT (exact)").
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.

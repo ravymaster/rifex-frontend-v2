@@ -256,15 +256,25 @@ Security Advisor: 22 WARN → 16 (after Fase 1) → **1** (after Fase 2, purely 
 
 A full promotion package (exact commits, pending PROD migrations in order, required env var names, pre-checks, rollback plan, post-promotion tests, Rodrigo's manual actions, accepted risks) is prepared in `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md` — **not executed**. Of the 34 commits between `origin/main` and current `develop`, only ~14 are Events-specific; 17 more (DRAW/Payment Engine/Argentina/UX/dev-policy work) were never audited by this session and need their own review before any promotion decision bundles them in.
 
+### Rifex Trust — canonical design (this session, documentation only)
+
+A full transversal Trust system (onboarding, identity, age verification, creator/organization verification, per-initiative review, fraud prevention, administration, reports, suspension, appeal, reputation from real operations, post-transaction evidence, data protection, future country expansion) was **designed, not implemented**, across 12 documents in `docs/trust/` plus this session's handoff. Start at `docs/trust/RIFEX_TRUST_CANONICAL_DESIGN.md`. Grounded in real, dated legal research (Ley 19.628 vigente; Ley 21.719, published 13-dec-2024, full force 1-dec-2026) and in the real current code (`src/pages/auth/callback.js`, `src/pages/onboarding/pais.jsx`, `legal_declarations`) — confirmed the actual gap: today, onboarding is only a country selector plus an unverified age/prize-ownership checkbox at raffle-creation time, nothing else.
+
+**Most material finding of the whole design effort**: Chilean law treats raffles and public collections as games of chance/restricted activities, in principle authorized only to non-profit legal entities via Ministerio del Interior (Ley 10.262/1952) — Rifex's actual model (individual creators) sits in a real, currently-tensioned legal gray zone (documented by an April 2026 press article on "rifas de influencers"). No amount of identity verification resolves this by itself — flagged as **Prioridad 1** in `docs/trust/TRUST_DECISIONS_FOR_RODRIGO.md`, requires a Chilean lawyer, independent of any technical roadmap.
+
+Explicit design stances worth knowing without reading every document: 18+ is verified, never just declared; a birth certificate is never the standard verification path (only a documented manual exception); no in-house facial recognition without a dedicated legal/security review; documents are preferably never retained past producing a verification result; no numeric risk score is ever shown, only explainable checks with mandatory human review; roles never allow self-approval; four false-document-adjacent methods were compared with real trade-offs, not just recommended blindly.
+
+Roadmap: TRUST-0 (this session, done) through TRUST-9 (adversarial audit before production, same rigor as `EVENT6_SECURITY_AUDIT*`). Nothing beyond TRUST-0 is authorized.
+
 ### NEXT (exact)
 
 ```text
-NEXT: EVENT-7 — not scoped, not authorized. Urgent, independent of Events: verify/fix create_tickets_for_raffle grants in PROD. PROD promotion of Events — a business decision (pricing, launch, support), not a technical audit conclusion — reserved for Rodrigo.
+NEXT: EVENT-7 — not scoped, not authorized. Urgent, independent of Events, PC-de-escritorio-only: verify/fix create_tickets_for_raffle grants in PROD (see docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md, section 5). Rifex Trust implementation (TRUST-1 onward) not authorized until Rodrigo reviews docs/trust/TRUST_DECISIONS_FOR_RODRIGO.md. PROD promotion of Events — a business decision, not a technical audit conclusion — reserved for Rodrigo.
 ```
 
-Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), confirm the real Vercel plan/Fluid Compute setting for `rifex-frontend-main`/`rifex-frontend-v2` (still unconfirmed, no non-interactive dashboard access this session either), and — urgently — check whether PROD's `create_tickets_for_raffle` has the same dangerous grant.
+Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), confirm the real Vercel plan/Fluid Compute setting for `rifex-frontend-main`/`rifex-frontend-v2` (still unconfirmed, no non-interactive dashboard access this session either), and — urgently, desktop-PC-only — check whether PROD's `create_tickets_for_raffle` has the same dangerous grant.
 
-**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified), `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED**), `docs/events/EVENT6_SECURITY_AUDIT.md` (EVENT-6 Fase 1) and `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md` (EVENT-6 Fase 2 — inherited WARN audit + promotion package).
+**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified), `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED**), `docs/events/EVENT6_SECURITY_AUDIT.md` (EVENT-6 Fase 1), `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md` (EVENT-6 Fase 2 — inherited WARN audit + promotion package), and `docs/trust/RIFEX_TRUST_CANONICAL_DESIGN.md` (Rifex Trust, design only).
 
 ### Reentry Notebook Procedure (Antofagasta)
 
@@ -294,7 +304,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 certificado sobre EVENT-4/725c4f8, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE-CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente pendiente de Rodrigo, independiente de Eventos) — NEXT es EVENT-7, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE-CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente, solo desde el PC de escritorio en Santiago, ver docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md). Confirma también que el diseño de Rifex Trust (docs/trust/) está completo pero sin implementar — no autorizado sin que Rodrigo revise docs/trust/TRUST_DECISIONS_FOR_RODRIGO.md — NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev y el smoke test real de cámara ya se hicieron (WOP, Risks/pending y "NEXT (exact)") — probablemente no.
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.
