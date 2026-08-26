@@ -7,6 +7,26 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
+> 2026-08-26 (actualización más reciente) — EVENT-6 Fase 1 (auditoría
+> autónoma de seguridad/regresión de EVENT-1..5) **COMPLETADA**: matriz
+> auth/IDOR, RLS/grants/Security Advisor, invariantes, concurrencia real
+> (10 emisiones simultáneas → exactamente 3 tickets; 15 check-ins
+> simultáneos al mismo QR → exactamente 1 pass), entradas adversariales y
+> regresión, todo contra el deployment real de Vercel DEV y `rifex-dev`
+> reales. 30/31 pruebas PASS (la única "falla" fue una expectativa de
+> test incorrecta, no un defecto). Dos hallazgos reales de bajo riesgo
+> del Security Advisor corregidos como defensa en profundidad —
+> verificado en vivo que ninguno era explotable antes del fix
+> (`search_path` mutable en 6 RPCs no-DEFINER; falta de `revoke`
+> explícito en `events`/`event_ticket_types`, probado con un intento de
+> escritura anónima real contra un evento real que ya afectaba 0 filas
+> antes de corregir). Cero código de aplicación modificado — solo una
+> migración aditiva. Ver `docs/events/EVENT6_SECURITY_AUDIT.md`. Fixture
+> creado y eliminado por completo (0 filas residuales verificadas); el
+> fixture real de EVENT-5 quedó intacto. **Veredicto: GO para EVENT-1..5
+> en DEV — la promoción a PROD sigue siendo decisión de Rodrigo.
+> EVENT-7 NO AUTORIZADO.**
+>
 > 2026-08-25 (final): EVENT-4 está **DONE y CERTIFICADO — 100/100 aceptación
 > manual de Rodrigo en un teléfono real**: cámara real, QR real leído desde
 > pantalla, PASA persistente (sin desaparecer solo), reanudación únicamente
@@ -97,7 +117,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/c32713e, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS (aceptación manual real de Rodrigo en ambos) — NEXT es EVENT-6, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fase 1 (auditoría autónoma) está COMPLETADA con veredicto GO — NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev ya se hizo (WOP, Risks/pending y "NEXT (exact)").
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.

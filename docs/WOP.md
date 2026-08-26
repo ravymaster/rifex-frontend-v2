@@ -228,13 +228,26 @@ Local evidence: **31/31 real automated tests PASS** (`npm run test:event-analyti
 
 **Not deleted**: the real fixture event/orders/tickets/staff remain in `rifex-dev` — no cleanup was requested or performed this session.
 
+### EVENT-6 Fase 1 checkpoint (autonomous security/regression audit of EVENT-1..5, DEV only)
+
+```text
+develop:  (this commit)
+Verdict:  GO for EVENT-1..5 as they stand in rifex-dev — PROD promotion decision reserved for Rodrigo
+```
+
+Autonomous adversarial audit against real Vercel DEV (`rifex-frontend-main`) and real `rifex-dev` — auth/IDOR matrix, RLS/grants/Security Advisor, invariants (SCAN≠CHECK-IN, exactly-once, void never revives, PAYMENT≠FULFILLMENT), real concurrency (10 simultaneous ticket issuances, 15 simultaneous check-ins on the same QR), adversarial inputs (SQLi-shaped tokens, oversized tokens, hostile paths), and regression (Rifas/Colectas/Auth/Perfil/Mis-iniciativas/build). Full matrix and evidence: `docs/events/EVENT6_SECURITY_AUDIT.md`.
+
+**30/31 real tests PASS** — the one "failure" was a wrong test expectation (a nonexistent event returns `403`, not `404`, from the analytics endpoint — actually more secure, since it never distinguishes "doesn't exist" from "not yours"). **Two real, low-risk findings from the Security Advisor, both fixed as defense-in-depth, neither exploitable when found** (verified live before fixing, not assumed): (1) 6 EVENT-2/3/4 RPCs had a mutable `search_path` (WARN) — none is `SECURITY DEFINER`, so no privilege-escalation path existed; fixed via `ALTER FUNCTION ... SET search_path = public` (metadata-only, zero logic risk); (2) `events`/`event_ticket_types` (EVENT-1) never received the explicit `revoke insert/update/delete` that every later Events table has — a live PostgREST test against a real published event's real ID confirmed 0 rows were ever affected by an anonymous write attempt before the fix; the revoke was added anyway as a second lock, deliberately leaving `SELECT` untouched (the public catalog read is legitimate). Both in `db/migrations/2026-08-26_event6_hardening_search_path_and_revoke.sql`. Zero application code was changed — no reproducible app-level defect was found.
+
+Real concurrency evidence: 10 simultaneous `issue_event_order_tickets` calls on one order (qty=3) → exactly 3 tickets; 15 simultaneous HTTP check-ins on the same QR → exactly 1 `pass`, 14 `already_used`, exactly 1 `event_checkins` row. Fixture (2 published events, 5 disposable users, orders/tickets/staff) created via real RPCs/endpoints and fully deleted afterward, scoped by exact `event_id`/`user_id` — verified 0 residual rows. Also found and cleaned, as housekeeping, 3 empty leftover draft events from a previous EVENT-5 session's repeated test runs — the real EVENT-5 fixture itself (still holding order/ticket history, the one Rodrigo reviewed) was left untouched.
+
 ### NEXT (exact)
 
 ```text
-NEXT: EVENT-6 — not scoped, not authorized. No further Events work has been requested.
+NEXT: EVENT-7 — not scoped, not authorized. PROD promotion of Events — a business decision (pricing, launch, support), not a technical audit conclusion — reserved for Rodrigo.
 ```
 
-Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below).
+Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), confirm the real Vercel plan/Fluid Compute setting for `rifex-frontend-main`/`rifex-frontend-v2` (still unconfirmed, no non-interactive dashboard access this session either).
 
 **Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified) and `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED** — real manual acceptance by Rodrigo + live-verified visual fixes).
 
@@ -266,7 +279,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 certificado sobre EVENT-4/725c4f8, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE-CERTIFICADOS (aceptación manual real de Rodrigo en ambos) — NEXT es EVENT-6, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE-CERTIFICADOS, y que EVENT-6 Fase 1 (auditoría autónoma) está COMPLETADA con veredicto GO — NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev y el smoke test real de cámara ya se hicieron (WOP, Risks/pending y "NEXT (exact)") — probablemente no.
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.
