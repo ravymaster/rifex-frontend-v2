@@ -7,7 +7,33 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> 2026-08-26 (actualización más reciente) — EVENT-6 Fase 1 (auditoría
+> 2026-08-26 (actualización más reciente) — EVENT-6 Fase 2 (auditoría de
+> los 16 WARN heredados de Rifas/Auth) **COMPLETADA — hallazgo CRÍTICO
+> real corregido**: `create_tickets_for_raffle`, función legacy sin
+> migración versionada, `SECURITY DEFINER`, sin ningún chequeo de
+> ownership, con `EXECUTE` otorgado a `PUBLIC`, permitía a CUALQUIER
+> visitante anónimo mintear tickets reales en cualquier rifa ajena —
+> demostrado en vivo (5 tickets insertados en una rifa de prueba ajena
+> con solo la clave `anon` pública) y corregido en `rifex-dev`
+> (verificado: el mismo ataque post-fix devuelve `401`, 0 tickets).
+> **Esta función es anterior al fork DEV/PROD — es muy probable que la
+> misma vulnerabilidad exista en PROD ahora mismo** — marcado como
+> urgente para Rodrigo, independiente de la decisión de promoción de
+> Eventos (esta sesión no tiene acceso a PROD). De los otros 15 WARN
+> heredados: 8 son falsos positivos genuinos (4 funciones trigger,
+> probadas en vivo — PostgREST nunca expone funciones `RETURNS trigger`
+> como RPC, `404` en las 4), 6 corregidos como defensa en profundidad (5
+> con `search_path` mutable de bajo riesgo, 2 con un grant innecesario
+> donde un intento real de IDOR fue bloqueado por RLS misma, no
+> explotable), 1 dejado como pendiente administrativo de Auth. Security
+> Advisor: 22 → 16 → **1** (puramente administrativo). Cero archivos de
+> `src/` modificados. Paquete completo de promoción a PROD preparado
+> (commits, migraciones pendientes, variables, plan de rollback,
+> acciones de Rodrigo) pero **no ejecutado** — ver
+> `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md`. **EVENT-7 sigue NO
+> AUTORIZADO.**
+>
+> 2026-08-26 (actualización anterior) — EVENT-6 Fase 1 (auditoría
 > autónoma de seguridad/regresión de EVENT-1..5) **COMPLETADA**: matriz
 > auth/IDOR, RLS/grants/Security Advisor, invariantes, concurrencia real
 > (10 emisiones simultáneas → exactamente 3 tickets; 15 check-ins
@@ -117,7 +143,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/c32713e, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fase 1 (auditoría autónoma) está COMPLETADA con veredicto GO — NEXT es EVENT-7, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente pendiente de Rodrigo, independiente de Eventos) — NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev ya se hizo (WOP, Risks/pending y "NEXT (exact)").
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.

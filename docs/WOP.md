@@ -241,15 +241,30 @@ Autonomous adversarial audit against real Vercel DEV (`rifex-frontend-main`) and
 
 Real concurrency evidence: 10 simultaneous `issue_event_order_tickets` calls on one order (qty=3) → exactly 3 tickets; 15 simultaneous HTTP check-ins on the same QR → exactly 1 `pass`, 14 `already_used`, exactly 1 `event_checkins` row. Fixture (2 published events, 5 disposable users, orders/tickets/staff) created via real RPCs/endpoints and fully deleted afterward, scoped by exact `event_id`/`user_id` — verified 0 residual rows. Also found and cleaned, as housekeeping, 3 empty leftover draft events from a previous EVENT-5 session's repeated test runs — the real EVENT-5 fixture itself (still holding order/ticket history, the one Rodrigo reviewed) was left untouched.
 
+### EVENT-6 Fase 2 checkpoint (audit of the 16 inherited Rifas/Auth WARN findings + promotion package, DEV only)
+
+```text
+develop:  (this commit)
+Verdict:  GO for EVENT-1..6 as they stand in rifex-dev — PROD promotion package prepared, not executed, decision reserved for Rodrigo
+```
+
+> ⚠️ **Most important finding of this phase, read first**: `public.create_tickets_for_raffle(uuid, integer)` — a legacy, unversioned `SECURITY DEFINER` function with **zero ownership check** and `EXECUTE` granted to `PUBLIC` — let a **completely anonymous** request (no session, just the public `anon` key) mint real tickets in **any raffle it doesn't own**, demonstrated live against a disposable fixture (5 tickets inserted in a stranger's raffle via a bare `POST /rest/v1/rpc/create_tickets_for_raffle`). Fixed in `rifex-dev` this session (`revoke execute ... from public, anon, authenticated`, `service_role` unaffected, verified live: post-fix the same attack returns `401`, 0 tickets created). **This function predates the DEV/PROD fork (no versioned migration — lives in the base schema dump) and is highly likely to be equally exploitable in PROD right now** — this session has no CLI link to PROD and is forbidden from writing there, so this is flagged as an **urgent, independent-of-Events-promotion action for Rodrigo**. Full detail: `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md`.
+
+Individually audited all 16 WARN findings inherited from Rifas/Auth (never grouped under a generic explanation, per instructions). Classification: 1 critical exploitable vulnerability (above, fixed), 8 genuine false positives (4 trigger functions — `rifex_set_creator_defaults`, `set_bank_account_owner`, `set_creator_fields`, `set_raffle_creator_from_jwt` — each flagged twice for anon+authenticated; live-tested, all return `404 PGRST202`, PostgREST never exposes `RETURNS trigger` functions as RPC endpoints, and Postgres itself refuses to invoke a trigger function outside real trigger context regardless of grants), 6 low-risk findings fixed as defense-in-depth (5× `search_path` mutable on `SECURITY INVOKER` functions — same low-risk profile as the EVENT-2/3/4 RPCs fixed in Fase 1; 2× unnecessary `anon`/`authenticated`/`PUBLIC` grant on `create_raffle_with_declarations`/`extend_raffle_draw` — live-tested as an IDOR hypothesis first: an authenticated real attacker calling both directly by RPC with a real victim's `uuid` as `p_user_id` was rejected by RLS itself, `raffle_not_found`/`42501`, because both are `SECURITY INVOKER` and RLS evaluates the caller's real `auth.uid()`, never the forged parameter — **not exploitable**, revoked anyway for consistency since the app only ever calls them via `service_role`), 1 administrative Auth setting (`auth_leaked_password_protection`) left untouched per explicit instruction, documented as pending for Rodrigo.
+
+Security Advisor: 22 WARN → 16 (after Fase 1) → **1** (after Fase 2, purely administrative). Zero ERROR at any point. Zero `src/` files changed — all fixes are database-level (grants/search_path) via 3 new migrations: `2026-08-26b_event6_fase2_critical_revoke_create_tickets_for_raffle.sql`, `2026-08-26c_event6_fase2_hardening_rifas_search_path_and_revoke.sql`, `2026-08-26d_event6_fase2_revoke_trigger_functions_execute.sql`. Regression: real raffle creation + real draw-date extension via the legitimate `service_role` path (same as the real API routes) both still succeed post-fix; `npm run test:event-analytics` 31/31, `npm run test:scanner-controller` 4/4, `npm run build` clean; live smoke against the deployment (`/rifas`, `/crear-rifa`, `/mis-iniciativas`, `/login`, `/register`, `/perfil`, `/eventos`, `/panel`, `/panel/bancos`, `/api/rifas`, `/api/events`, `/onboarding/pais`) all `200`.
+
+A full promotion package (exact commits, pending PROD migrations in order, required env var names, pre-checks, rollback plan, post-promotion tests, Rodrigo's manual actions, accepted risks) is prepared in `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md` — **not executed**. Of the 34 commits between `origin/main` and current `develop`, only ~14 are Events-specific; 17 more (DRAW/Payment Engine/Argentina/UX/dev-policy work) were never audited by this session and need their own review before any promotion decision bundles them in.
+
 ### NEXT (exact)
 
 ```text
-NEXT: EVENT-7 — not scoped, not authorized. PROD promotion of Events — a business decision (pricing, launch, support), not a technical audit conclusion — reserved for Rodrigo.
+NEXT: EVENT-7 — not scoped, not authorized. Urgent, independent of Events: verify/fix create_tickets_for_raffle grants in PROD. PROD promotion of Events — a business decision (pricing, launch, support), not a technical audit conclusion — reserved for Rodrigo.
 ```
 
-Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), confirm the real Vercel plan/Fluid Compute setting for `rifex-frontend-main`/`rifex-frontend-v2` (still unconfirmed, no non-interactive dashboard access this session either).
+Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), confirm the real Vercel plan/Fluid Compute setting for `rifex-frontend-main`/`rifex-frontend-v2` (still unconfirmed, no non-interactive dashboard access this session either), and — urgently — check whether PROD's `create_tickets_for_raffle` has the same dangerous grant.
 
-**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified) and `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED** — real manual acceptance by Rodrigo + live-verified visual fixes).
+**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified), `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED**), `docs/events/EVENT6_SECURITY_AUDIT.md` (EVENT-6 Fase 1) and `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md` (EVENT-6 Fase 2 — inherited WARN audit + promotion package).
 
 ### Reentry Notebook Procedure (Antofagasta)
 
@@ -279,7 +294,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 certificado sobre EVENT-4/725c4f8, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE-CERTIFICADOS, y que EVENT-6 Fase 1 (auditoría autónoma) está COMPLETADA con veredicto GO — NEXT es EVENT-7, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE-CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente pendiente de Rodrigo, independiente de Eventos) — NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev y el smoke test real de cámara ya se hicieron (WOP, Risks/pending y "NEXT (exact)") — probablemente no.
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.

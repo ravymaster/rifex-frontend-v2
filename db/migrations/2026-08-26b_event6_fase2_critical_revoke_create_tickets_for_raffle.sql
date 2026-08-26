@@ -1,0 +1,24 @@
+-- EVENT-6 Fase 2 — CRÍTICO. public.create_tickets_for_raffle(uuid, integer)
+-- es SECURITY DEFINER, sin ningún chequeo de ownership sobre p_raffle_id,
+-- y tenía EXECUTE otorgado a PUBLIC (heredado automáticamente por anon y
+-- authenticated) además de a anon/authenticated explícitamente.
+--
+-- Demostrado en vivo antes de este fix, contra una rifa de prueba
+-- desechable (sin PII, sin dueño relacionado con el atacante):
+--   - Una request COMPLETAMENTE ANÓNIMA (solo la clave pública `anon`,
+--     sin sesión) llamó POST /rest/v1/rpc/create_tickets_for_raffle con
+--     el id de una rifa ajena -> 204, insertó 5 tickets reales en la
+--     rifa ajena.
+--   - Un usuario AUTENTICADO real y distinto del dueño repitió la
+--     llamada -> 409 por choque de unique(raffle_id, number), prueba de
+--     que el primer ataque anónimo ya había escrito filas reales.
+-- Fixture y evidencia completa: docs/events/EVENT6_SECURITY_AUDIT_FASE2.md.
+--
+-- Ningún archivo de src/ llama esta función (grep exhaustivo, cero
+-- resultados) — no es parte del flujo real de creación de rifas hoy
+-- (ver reserve_tickets_for_purchase, ya certificada en PRE-LAUNCH-FIX-1),
+-- así que revocar EXECUTE no cambia ningún comportamiento legítimo.
+-- service_role conserva EXECUTE por si algún proceso interno la
+-- necesitara en el futuro — la corrección mínima es el `revoke`, nunca
+-- un `drop function`.
+revoke execute on function public.create_tickets_for_raffle(uuid, integer) from public, anon, authenticated;
