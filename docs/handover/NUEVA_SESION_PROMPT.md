@@ -35,6 +35,20 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > mismo patrón ya certificado de `legal_declarations`. Security Advisor de
 > PROD ahora reporta cero hallazgos nivel ERROR. Ver WOP, sección
 > "PRE-LAUNCH-FIX-3".
+>
+> 2026-08-26 — P0 SIN RESOLVER, fuera del alcance de este repo/agente:
+> `rifex.pro` caído con `ERR_SSL_PROTOCOL_ERROR`. Causa raíz confirmada:
+> **el registro del dominio venció en el registrador (Hostinger)** — los
+> nameservers reales son `ns1/ns2.dns-expired.com` (no los de Vercel),
+> confirmado vía dos resolvers DNS públicos independientes, y la IP
+> resuelta sirve la página propia de Hostinger "Your domain is expired."
+> La asignación del dominio en Vercel (`rifex-frontend-v2` ↔ `rifex.pro`)
+> siempre estuvo correcta, sin necesidad de cambios. **No hay corrección
+> posible desde código, deploy, base de datos ni Vercel** — requiere que
+> Rodrigo (o quien tenga la cuenta de Hostinger) renueve el dominio
+> directamente ahí. El deployment real de Vercel, `rifex-dev` y la
+> corrección PRE-LAUNCH-FIX-3 quedan confirmados sin afectar. Ver WOP,
+> sección "P0 — rifex.pro domain expired".
 
 ```text
 Estamos retomando Rifex desde un equipo nuevo (Antofagasta), sesión sin memoria conversacional previa.
