@@ -39,6 +39,22 @@ function nz(v) {
   return neutralizeFormulaInjection(v);
 }
 
+// Hallazgo real (sesión de certificación EVENT-5, prueba en vivo contra el
+// archivo descargado real): ninguna hoja tenía fila congelada ni
+// autofiltro — un requisito explícito verificado releyendo el .xlsx real
+// generado en rifex-dev, no solo inspeccionado en memoria. Fila 1
+// congelada en las 5 hojas (mejora la lectura incluso en Resumen, que
+// mezcla varias mini-tablas); autofiltro solo en las 4 hojas realmente
+// tabulares (Resumen no es una tabla de filas homogéneas, autofiltrarla no
+// tiene sentido estructural).
+function freezeHeaderRow(ws) {
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+}
+
+function applyAutoFilter(ws, lastColumnLetter) {
+  ws.autoFilter = `A1:${lastColumnLetter}1`;
+}
+
 /**
  * Construye el workbook completo. Lanza si algún límite ya fue excedido —
  * el caller (endpoint) debe llamar checkAnalyticsLimits ANTES de esta
@@ -55,6 +71,7 @@ export function buildEventAnalyticsWorkbook(data, summary) {
   // ---- Hoja 1: Resumen ----
   const wsSummary = wb.addWorksheet('Resumen');
   wsSummary.columns = [{ width: 42 }, { width: 24 }];
+  freezeHeaderRow(wsSummary);
   wsSummary.addRow(['Evento', nz(event.title)]);
   wsSummary.addRow(['Estado', event.status === 'cancelled' ? 'Cancelado (sigue siendo consultable)' : event.status]);
   wsSummary.addRow(['Zona horaria', tz]);
@@ -120,6 +137,8 @@ export function buildEventAnalyticsWorkbook(data, summary) {
     { width: 12 }, { width: 20 }, { width: 20 }, { width: 26 }, { width: 28 },
     { width: 10 }, { width: 14 }, { width: 14 }, { width: 16 }, { width: 16 },
   ];
+  freezeHeaderRow(wsOrders);
+  applyAutoFilter(wsOrders, 'J');
   for (const o of orders) {
     const fulfillment = o.status === 'paid' ? 'Completo' : o.status === 'approved_unfulfilled' ? 'Sin emitir' : '—';
     const row = wsOrders.addRow([
@@ -144,6 +163,8 @@ export function buildEventAnalyticsWorkbook(data, summary) {
   wsTickets.columns = [
     { width: 20 }, { width: 24 }, { width: 16 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 12 },
   ];
+  freezeHeaderRow(wsTickets);
+  applyAutoFilter(wsTickets, 'G');
   for (const t of tickets) {
     const usedBeforeVoid = t.status === 'void' && !!t.used_at;
     const row = wsTickets.addRow([
@@ -165,6 +186,8 @@ export function buildEventAnalyticsWorkbook(data, summary) {
   const checkinsHeader = wsCheckins.addRow(['Hora', 'ticket_number', 'Tipo', 'Registrado por']);
   styleHeaderRow(checkinsHeader);
   wsCheckins.columns = [{ width: 20 }, { width: 20 }, { width: 24 }, { width: 28 }];
+  freezeHeaderRow(wsCheckins);
+  applyAutoFilter(wsCheckins, 'D');
   const sortedCheckins = [...checkins].sort((a, b) => new Date(a.checked_in_at) - new Date(b.checked_in_at));
   for (const c of sortedCheckins) {
     const ticket = ticketsById.get(c.ticket_id);
@@ -186,6 +209,8 @@ export function buildEventAnalyticsWorkbook(data, summary) {
   const staffHeader = wsStaff.addRow(['Email', 'Rol', 'Estado', 'Alta', 'Check-ins registrados']);
   styleHeaderRow(staffHeader);
   wsStaff.columns = [{ width: 28 }, { width: 14 }, { width: 14 }, { width: 20 }, { width: 20 }];
+  freezeHeaderRow(wsStaff);
+  applyAutoFilter(wsStaff, 'E');
   for (const s of summary.analytics.staff_activity) {
     const row = wsStaff.addRow([
       s.is_organizer ? '(Organizador — sin snapshot de email)' : nz(s.email_snapshot || ''),

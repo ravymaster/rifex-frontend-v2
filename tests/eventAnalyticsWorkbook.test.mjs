@@ -39,6 +39,30 @@ test('el workbook tiene exactamente las 5 hojas obligatorias, en el orden especi
   assert.deepEqual(names, ['Resumen', 'Órdenes-Ventas', 'Entradas', 'Check-ins', 'Personal de acceso']);
 });
 
+test('las 5 hojas tienen fila 1 congelada; las 4 hojas tabulares además tienen autofiltro (hallazgo real de la sesión de certificación)', async () => {
+  const data = {
+    event: baseEvent(),
+    ticketTypes: [{ id: 'tt1', name: 'General', quantity_total: 10, quantity_sold: 1, quantity_reserved: 0 }],
+    orders: [{ id: 'o1', status: 'paid', currency: 'CLP', total_cents: 1000, platform_fee_cents: 70, refund_required: false, buyer_name: 'Ana', buyer_email: 'ana@example.com', paid_at: '2026-08-20T12:00:00.000Z', created_at: '2026-08-20T11:00:00.000Z' }],
+    orderItems: [{ order_id: 'o1', quantity: 1, ticket_type_name_snapshot: 'General' }],
+    tickets: [{ id: 't1', order_id: 'o1', ticket_type_id: 'tt1', ticket_type_name_snapshot: 'General', ticket_number: 'RFX-1', status: 'valid', issued_at: '2026-08-20T12:00:00.000Z', used_at: null }],
+    checkins: [], staff: [],
+  };
+  const summary = computeEventAnalyticsSummary(data);
+  const wb = buildEventAnalyticsWorkbook(data, summary);
+  const buffer = await wb.xlsx.writeBuffer();
+  const reloaded = await readWorkbookFromBuffer(buffer);
+
+  for (const name of ['Resumen', 'Órdenes-Ventas', 'Entradas', 'Check-ins', 'Personal de acceso']) {
+    const ws = reloaded.getWorksheet(name);
+    assert.ok(ws.views?.some((v) => v.state === 'frozen' && v.ySplit === 1), `${name} debe tener la fila 1 congelada`);
+  }
+  for (const name of ['Órdenes-Ventas', 'Entradas', 'Check-ins', 'Personal de acceso']) {
+    const ws = reloaded.getWorksheet(name);
+    assert.ok(ws.autoFilter, `${name} debe tener autofiltro`);
+  }
+});
+
 test('formula injection en buyer_name/título/tipo de entrada queda neutralizada como texto literal en las celdas reales', async () => {
   const data = {
     event: baseEvent({ title: '=cmd|/c calc' }),
