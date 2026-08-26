@@ -207,32 +207,36 @@ All EVENT-4 TEST fixture data (1 event, 3 orders/tickets/checkins, 1 ticket type
 
 **No corrective action was applied by the agent** — confirmed there was nothing safe/unambiguous to change inside Vercel (the Vercel-side configuration was already correct), and registrar access was never available to this session. This matches the mission's own stop condition ("necesitas acceso al proveedor DNS externo").
 
-### EVENT-5 checkpoint (implemented + live-verified against real Vercel DEV/rifex-dev, pending only Rodrigo's visual confirmation)
+### EVENT-5 checkpoint — CERTIFIED (real manual acceptance by Rodrigo + live verification against Vercel DEV/rifex-dev)
 
 ```text
-develop:  31e5ac1
-Verdict:  GO EVENT-5 (implementation + live verification) — pending Rodrigo's manual visual confirmation
+develop:  0f9ab01
+Verdict:  EVENT-5 — CERTIFIED
 ```
 
 EVENT-5 (analytics dashboard + XLSX export) implemented per `docs/events/EVENT5_ANALYTICS_XLSX.md` — organizer-only (`canViewEventAnalytics`, never `door`/staff), corrected financial model (`approved_unfulfilled` included in "aprobada total"/comisión, excluded only from "cumplida"), corrected operational model (`Anuladas usadas antes de anularse` as its own category — real finding: `void_event_ticket` never guards or clears `used_at`), 5-sheet XLSX (ExcelJS 4.4.0, the only dependency installed), deterministic limits (20.000 orders/tickets/checkins, 500 staff), formula-injection neutralization, timezone-safe formatting (`events.timezone`, cached `Intl.DateTimeFormat`). No new table/migration — purely additive read-side code over the existing EVENT-1/2/3/4 schema.
 
-Local evidence: 26/26 real automated tests PASS (`npm run test:event-analytics`), `npm run build` PASS, `npm run test:scanner-controller` (EVENT-4 regression) 4/4 PASS unchanged — no EVENT-1/2/3/4 file was modified.
+**Rodrigo's real manual acceptance**: dashboard verified visible and correct, XLSX downloaded from real Vercel DEV, file opened correctly, dashboard and XLSX figures confirmed matching — EVENT-5 accepted functionally by him directly.
 
-**Live evidence, real Vercel DEV + real `rifex-dev`** (separate certification session, same day): deployment confirmed `Ready`/Production/`iad1`, commit verified via real build logs (`dae5344` then `31e5ac1`). A real controlled fixture (4 disposable `@example.com` test users, one event, 3 ticket types, orders/tickets/check-ins/void via the real RPCs and real HTTP endpoints, a genuine `approved_unfulfilled` via the real late-payment invariant-15 path, a real event cancellation setting real `refund_required`) was created directly against `rifex-dev`. **17/17 real HTTP authorization+correctness tests PASS** against the live deployment (organizer 200, door/revoked/random/cross-event 403, anon 401, all 9 operational/financial figures matching the real fixture exactly). **7/7 real XLSX checks PASS** on a file actually downloaded from the live deployment and re-read with ExcelJS — including a real bug found and fixed live: no sheet had a frozen header row or autofilter (fixed in `31e5ac1`, reconfirmed present after redeploy). Real round-trip timing against the live function: ~1.4-1.7s (analytics JSON) and ~1.0-1.5s (XLSX export) on the small real fixture.
+**Independent visual audit of the downloaded XLSX, found and fixed after Rodrigo's functional acceptance**: buyer name/email columns in Órdenes-Ventas and email/role columns in Personal de acceso overlapped or clipped — traced to static column widths narrower than real content (e.g. "Organizador (propietario)" is 25 characters against a 14-wide column). Fixed in `src/lib/eventAnalyticsWorkbook.js` (commit `0f9ab01`): every column across all 5 sheets widened, `wrapText` added as a real overflow safety net for content with no short business-length cap; CLP amounts given `numFmt: '"$"#,##0'` (values stay numeric, e.g. `29000` renders `$29.000`, never converted to text); raw technical headers renamed to reader-facing labels (`ticket_number` → "Número de entrada", `Ingresó (used_at)` → "Fecha de ingreso", `Refund requerido`/`refund_required` → "Reembolso pendiente"); Resumen's "Ingresadas" renamed to "Ingresadas válidas" to disambiguate from the Check-ins sheet's raw historical row count. Freeze panes, autofilter, alert-row coloring, and every business formula are unchanged.
+
+Local evidence: **31/31 real automated tests PASS** (`npm run test:event-analytics` — 5 new tests added specifically for the visual fixes: currency numeric+format, header rename, wrapText-covers-overflow, no formula errors `#REF!`/`#VALUE!`/`#DIV/0!`/etc., no secrets in the generated file). `npm run build` PASS. `npm run test:scanner-controller` (EVENT-4 regression) 4/4 PASS unchanged — no EVENT-1/2/3/4 file was modified.
+
+**Live evidence, real Vercel DEV + real `rifex-dev`** (across two certification sessions, same day): deployment confirmed `Ready`/Production/`iad1` at every step, commit verified via real build logs each time (`dae5344` → `31e5ac1` → `0f9ab01`). The same real controlled fixture created earlier (4 disposable `@example.com` test users, one event, 3 ticket types, orders/tickets/check-ins/void via real RPCs and endpoints, a genuine `approved_unfulfilled`, a real cancellation setting real `refund_required`) was reused. **17/17 real HTTP authorization+correctness tests PASS**, **24/24 real checks PASS on the file actually downloaded from the live deployment** (5 sheets, frozen row 1 on all, autofilter on the 4 tabular ones, currency numeric with real `numFmt`, renamed headers present, raw names absent, no formula errors, no secrets). Real round-trip timing: ~1.4-1.7s (analytics JSON), ~1.0-1.5s (XLSX export) on the small real fixture.
 
 **Real performance finding, found and fixed earlier the same day**: the stress test first measured ~29-30s to build+serialize the workbook at the 20.000-row maximum — traced to `Intl.DateTimeFormat` being reconstructed on every date-format call (~60.000 times). Fixed by caching formatter instances per timezone; re-measured at ~15s combined. `maxDuration` confirmed against Vercel's current documentation (`vercel.com/docs/functions/configuring-functions/duration`, updated 2026-07-01): with Fluid Compute (platform default since 2025), **300s on every plan** — no `vercel.json`/code override exists in this repo. ~15s (synthetic max load, never uploaded to `rifex-dev`) and ~1-2s (real small load) both fit comfortably.
 
-**Not deleted**: the real fixture event/orders/tickets/staff remain in `rifex-dev` for Rodrigo to inspect before any cleanup — see "Prueba manual para Rodrigo" in the canonical spec for the exact URL and steps (disposable credentials delivered by chat, never committed to this document).
+**Not deleted**: the real fixture event/orders/tickets/staff remain in `rifex-dev` — no cleanup was requested or performed this session.
 
 ### NEXT (exact)
 
 ```text
-NEXT: Rodrigo's manual visual confirmation of EVENT-5 (real click on the dashboard + real XLSX download/open) — see docs/events/EVENT5_ANALYTICS_XLSX.md, "Prueba manual para Rodrigo". Do not declare EVENT-5 certified, do not start EVENT-6, and do not delete the rifex-dev fixture until he confirms.
+NEXT: EVENT-6 — not scoped, not authorized. No further Events work has been requested.
 ```
 
 Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below).
 
-**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified) and `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, implemented and live-verified — pending only Rodrigo's own click-through).
+**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified) and `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED** — real manual acceptance by Rodrigo + live-verified visual fixes).
 
 ### Reentry Notebook Procedure (Antofagasta)
 
@@ -260,10 +264,10 @@ No uses memoria de conversación como autoridad — la autoridad es el repo (Git
 Repo: https://github.com/ravymaster/rifex-frontend-v2.git, branch develop.
 Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "RIFEX CURRENT STATE").
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
-Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/725c4f8, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
+Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 certificado sobre EVENT-4/725c4f8, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 está DONE-CERTIFICADO y EVENT-5 está IMPLEMENTADO (tests+build PASS) pero SIN confirmación real en navegador (docs/events/EVENT5_ANALYTICS_XLSX.md, "Estado de verificación") — NEXT es esa confirmación, no un EVENT-6.
-Confirma si la rotación de la contraseña de rifex-dev, el smoke test real de cámara, y la confirmación en navegador de EVENT-5 ya se hicieron (WOP, Risks/pending y "NEXT (exact)") — probablemente no.
+Confirma que EVENT-4 y EVENT-5 están DONE-CERTIFICADOS (aceptación manual real de Rodrigo en ambos) — NEXT es EVENT-6, todavía sin alcance ni autorización.
+Confirma si la rotación de la contraseña de rifex-dev y el smoke test real de cámara ya se hicieron (WOP, Risks/pending y "NEXT (exact)") — probablemente no.
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.
 ```

@@ -2,7 +2,7 @@
 
 Documento canónico de especificación e implementación de EVENT-5. Sigue el mismo criterio de evidencia que `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md`: toda afirmación está respaldada por código real, tests reales o una medición real — nunca supuesta.
 
-Estado: **implementado, verificado por tests automatizados reales y `npm run build` real. Sin verificación en navegador real contra `rifex-dev`** (ver "Estado de verificación" al final — limitación de herramienta de este sprint, no una omisión deliberada).
+Estado: **CERTIFICADO.** Implementado, verificado por tests automatizados reales (31/31), `npm run build` real, y verificado en vivo contra el deployment real de Vercel DEV y `rifex-dev` — incluida la aceptación manual real de Rodrigo y la corrección de los defectos visuales que una auditoría posterior encontró en el archivo descargado. Ver "Certificación final" al cierre de este documento.
 
 ---
 
@@ -132,11 +132,11 @@ Se generaron datos sintéticos en los cuatro máximos simultáneos (20.000 órde
 
 `GET /api/events/[id]/analytics`: 30 hits/60s por usuario+evento (mismo criterio que otros endpoints de panel). `GET /api/events/[id]/analytics/export`: 6 hits/60s — deliberadamente más bajo, dado el costo real medido de generar el XLSX.
 
-## Tests reales (25/25 PASS, `npm run test:event-analytics`)
+## Tests reales (31/31 PASS, `npm run test:event-analytics`)
 
 - `tests/eventAnalytics.test.mjs` (15): modelo financiero (approved_unfulfilled incluido/excluido correctamente), modelo operacional (void con used_at), % asistencia sin división por cero, refund_required, evento cancelado, desglose por tipo, agrupación por timezone real (caso límite de cambio de día UTC→Santiago), `formatEventDateTime` determinista, formula injection, filename sanitization, límites (dentro/excede/exacto/staff independiente).
 - `tests/eventAnalyticsAuth.test.mjs` (7): organizador, door (rechazado), random, cross-event, anon, evento inexistente, error de infraestructura.
-- `tests/eventAnalyticsWorkbook.test.mjs` (3): estructura de 5 hojas, formula injection en celdas reales releídas del buffer, estrés en los 4 límites máximos.
+- `tests/eventAnalyticsWorkbook.test.mjs` (9): estructura de 5 hojas, fila 1 congelada + autofiltro en las 4 tabulares, formula injection en celdas reales releídas del buffer, estrés en los 4 límites máximos, montos CLP numéricos con formato, encabezados renombrados (sin nombres crudos visibles), wrapText cubre todo contenido que excede su columna, sin errores de fórmula (`#REF!`/`#VALUE!`/`#DIV/0!`/etc.), sin secretos (JWT/password/UUID completo) en el archivo generado.
 
 `npm run build`: PASS, sin errores ni warnings relacionados a EVENT-5, ambas rutas nuevas registradas (`/api/events/[id]/analytics`, `/api/events/[id]/analytics/export`).
 
@@ -162,18 +162,30 @@ En una sesión posterior a la implementación inicial, se ejecutó el flujo comp
 - Carga máxima (20.000/20.000/20.000/500), medida localmente con datos sintéticos (nunca subidos a `rifex-dev`, por instrucción explícita): **~15s** de cómputo puro, ver sección de estrés arriba.
 - `maxDuration` real aplicable: **300s** en cualquier plan (Fluid Compute, default de la plataforma desde 2025, confirmado contra la documentación vigente de Vercel — no hay override en el repo). Ambas cifras (1-2s real pequeño, ~15s estrés máximo sintético) caben con amplio margen.
 
-**Lo único que sigue pendiente, explícito, no oculto**: la confirmación visual de Rodrigo — clic real en el botón "Descargar reporte Excel" desde el panel, y apertura del archivo en Excel/Sheets real de su parte. Todo lo demás de las Fases 1-5 fue verificado de punta a punta contra el deployment y la base de datos reales.
+## Certificación final — aceptación manual real de Rodrigo + auditoría visual
 
-### Prueba manual para Rodrigo
+Rodrigo ejecutó la prueba manual real (login con la cuenta de prueba desechable, panel del evento, sección Analytics, botón "Descargar reporte Excel") y confirmó: dashboard visible y correcto, XLSX descargado desde Vercel DEV real, archivo abrió correctamente, cifras del dashboard y del XLSX coincidentes. **EVENT-5 quedó aceptado funcionalmente por él directamente.**
 
-1. Entra a `https://rifex-frontend-main.vercel.app/login` con la cuenta de prueba desechable (credenciales entregadas por chat, no en este documento — no son permanentes, es una cuenta creada solo para esta prueba).
-2. Ve a `https://rifex-frontend-main.vercel.app/panel/eventos/<event_id>` (el ID exacto se entrega junto con las credenciales).
-3. Revisa la sección "Analytics": deberías ver la alerta roja de "Aprobada sin emitir" y de "refund_required", más los 18 KPIs.
-4. Pulsa "Descargar reporte Excel".
-5. Abre el archivo descargado en Excel o Google Sheets. Debe abrir sin ninguna advertencia de reparación. Verifica que tenga 5 pestañas (Resumen, Órdenes-Ventas, Entradas, Check-ins, Personal de acceso), que la fila 1 de cada pestaña quede fija al hacer scroll, y que las pestañas de datos tengan flechitas de filtro en el encabezado.
-6. El evento de prueba ya está cancelado a propósito (para poder demostrar `refund_required` y "evento cancelado sigue siendo consultable") — es esperado, no un error.
+Una auditoría visual independiente del archivo ya descargado (posterior a esa aceptación funcional) encontró defectos reales de layout — no de cálculo:
 
-El fixture **no se ha eliminado** — queda disponible para que Rodrigo lo revise antes de cualquier limpieza.
+| # | Defecto reportado | Causa real (evidencia en código) | Corrección |
+|---|---|---|---|
+| 1 | Nombres de comprador se superponían con la columna de correo en "Órdenes-Ventas" | Columnas de 26/28 caracteres de ancho, sin `wrapText`, contra nombres/emails reales sin tope corto de negocio | Ensanchadas a 30/34 + `wrapText` en ambas columnas |
+| 2 | Correos/roles cortados o superpuestos en "Personal de acceso" | "Organizador (propietario)" mide 25 caracteres contra una columna Rol de 14 — desborde garantizado; el placeholder "(Organizador — sin snapshot de email)" mide 38 contra Email de 28 | Ensanchadas a 28/34 + `wrapText` |
+| 3 | Anchos de columna generales insuficientes en las 5 hojas | Mismo patrón: anchos fijos elegidos sin medir el contenido real máximo posible (títulos hasta 140 caracteres, nombres de tipo de entrada hasta 80, sin tope en nombres/emails de comprador) | Todas las columnas de las 5 hojas revisadas y ensanchadas; `wrapText` como red de seguridad real, no cosmética |
+| 4 | Montos CLP sin formato de moneda legible | Las celdas de dinero se escribían como números planos, sin `numFmt` | `numFmt: '"$"#,##0'` en toda celda de dinero (Resumen: 6 filas; Órdenes-Ventas: Total y Comisión) — el valor numérico subyacente no cambia, verificado por test |
+| 5 | Encabezados técnicos crudos visibles (`ticket_number`, `Ingresó (used_at)`, `Refund requerido`/`refund_required`) | Copiados directamente de nombres de columna/variable internos al construir el workbook | Renombrados a "Número de entrada", "Fecha de ingreso", "Reembolso pendiente" (Entradas, Check-ins, Órdenes-Ventas, Resumen) |
+| 6 | "Ingresadas" ambiguo frente a la hoja Check-ins (2 registros, un ticket usado y luego anulado) | La etiqueta no distinguía "ingresadas actualmente válidas" (fórmula real: `status != 'void' AND used_at IS NOT NULL`) de "todo evento de check-in alguna vez registrado" (hoja Check-ins, histórico, nunca se borra) | Renombrado a "Ingresadas válidas" en Resumen (KPI y desglose por tipo) — misma fórmula, sin cambios |
+
+Fila congelada, autofiltro, colores de alerta (`Aprobada sin emitir`, `Comisión asociada a pagos sin fulfillment`, `Órdenes con reembolso pendiente`, `Anuladas usadas antes de anularse`) y todas las fórmulas de negocio quedaron **sin cambios** — verificado explícitamente por test (`montos CLP: numéricos... valor subyacente sin alterar`).
+
+**Limitación honesta**: esta sesión no dispuso de un renderizador visual real (LibreOffice/Excel headless no están instalados en esta máquina) para tomar una captura de pantalla del archivo. La prueba de "no hay superposición" se demostró de forma estructural y programática, no visual: para cada celda de texto cuyo contenido excede el ancho de su columna, se verificó que `wrapText` esté activo — que es la garantía real que usan Excel y Google Sheets para nunca superponer contenido entre celdas adyacentes (el texto crece hacia abajo dentro de su propia celda, nunca invade la celda vecina). Se recomienda que Rodrigo confirme visualmente en su próxima apertura del archivo, aunque la evidencia estructural ya es sólida.
+
+Commit `0f9ab01`, redesplegado, y **reverificado en vivo**: se volvió a descargar el `.xlsx` real desde el deployment fijo (commit confirmado por logs de build) y se releyó con ExcelJS — 5 hojas, fila 1 congelada en las 5, autofiltro en las 4 tabulares, montos numéricos con `numFmt` real, encabezados renombrados presentes y los nombres crudos ausentes, "Ingresadas válidas" presente, sin errores de fórmula, sin secretos.
+
+### Veredicto final
+
+**EVENT-5 — CERTIFICADO.** Aceptación manual real de Rodrigo (dashboard + XLSX descargado y abierto correctamente) + corrección real de los defectos visuales encontrados después, con evidencia de causa, fix, test de regresión, y reverificación en el deployment real. EVENT-6 sigue **NO AUTORIZADO** — no se avanzó ni se sugirió alcance nuevo. El fixture de `rifex-dev` no se eliminó.
 
 ## Fuera de alcance (no tocado en este sprint)
 
