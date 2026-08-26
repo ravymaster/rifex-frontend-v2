@@ -25,6 +25,16 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > sigue sin poder usarse en este proyecto — ver WOP, Risks/pending ítem 9.
 > Ningún secreto se incluye en este documento ni en el WOP. NEXT = EVENT-5,
 > sin alcance ni autorización todavía.
+>
+> Addendum posterior, mismo día — PRE-LAUNCH-FIX-3, RESUELTO: alerta real
+> de Supabase Security Advisor (`rls_disabled_in_public`, CRITICAL) en
+> `public.raffle_date_extensions`, ajena a Eventos. Demostrada (INSERT
+> anónimo sin error) y corregida en `rifex-dev` **y en PROD**
+> (`wrdkdfuiwlujfxxijpao`) con una migración de una sola línea
+> (`db/migrations/2026-08-25c_prelaunch_fix3_raffle_date_extensions_rls.sql`),
+> mismo patrón ya certificado de `legal_declarations`. Security Advisor de
+> PROD ahora reporta cero hallazgos nivel ERROR. Ver WOP, sección
+> "PRE-LAUNCH-FIX-3".
 
 ```text
 Estamos retomando Rifex desde un equipo nuevo (Antofagasta), sesión sin memoria conversacional previa.
