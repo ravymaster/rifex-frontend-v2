@@ -7,7 +7,37 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> 2026-08-26 (actualización más reciente) — TRUST-1 (onboarding
+> 2026-08-27 (actualización más reciente) — TRUST-2 (identidad básica
+> declarada: RUT chileno + edad 18+) **COMPLETO en DEV**, misión
+> autónoma pre-autorizada de punta a punta (sin checkpoint intermedio,
+> a diferencia de TRUST-1 — Rodrigo llegó agotado tras 500 km y pidió
+> explícitamente no ser consultado ese día; pruebas humanas de interfaz
+> quedan agendadas para el fin de semana). Agrega `rut_normalized`/
+> `rut_declared_at` a la MISMA fila `trust_onboarding` de TRUST-1
+> (nunca una tabla nueva), validación de RUT con dígito verificador
+> módulo 11 y enmascarado en `src/lib/trustIdentityPolicy.js`, gate
+> superset `assertCreatorEligible` (`src/lib/trustIdentityGate.js`) que
+> reemplazó `assertOnboardingComplete` en los mismos 12 endpoints
+> sensibles ya protegidos por TRUST-1 — ahora también exige 18+
+> declarado y, solo para Chile, un RUT declarado con formato válido.
+> `age_verified`/`identity_verified`/`phone_verified` no existen como
+> columnas — siempre `false` desde la API, nada en TRUST-2 puede
+> escribirlas. Un bug real (`.update()` en vez de `.upsert()`, fallaba
+> en silencio si el usuario no tenía fila previa) se encontró
+> adversarialmente en DEV y se corrigió en la misma sesión. Probado en
+> vivo con dos rondas de fixtures desechables `@example.com` (borradas
+> después, cero residuos): `403 identity_incomplete`/
+> `age_requirement_not_met` reales, y un `409 rut_conflict` real contra
+> el índice único de Postgres entre dos cuentas distintas. Security
+> Advisor sin hallazgos nuevos. 36 pruebas nuevas + regresión completa +
+> build limpios. Commit `5fa5bd4` empujado a `origin/develop`;
+> `rifex-frontend-main` re-desplegado automáticamente. Se registró un
+> nuevo ítem de backlog de Eventos (`docs/events/EVENTS_BACKLOG.md` — QR
+> promocional descargable por evento) solo como documentación, sin
+> iniciar EVENT-7. PROD y `main` intactos. **TRUST-3 en adelante sigue
+> sin autorizar.**
+>
+> 2026-08-26 (actualización anterior) — TRUST-1 (onboarding
 > universal) **COMPLETO en DEV, autorizado y ejecutado de punta a
 > punta por Rodrigo**: tabla nueva `trust_onboarding` (RLS default-deny
 > total, sin acceso de cliente en absoluto), `src/lib/
@@ -180,7 +210,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/c32713e, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente, solo desde el PC de escritorio en Santiago, ver docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md). Confirma también que el diseño de Rifex Trust (docs/trust/) está completo pero sin implementar — NEXT es EVENT-7, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente, solo desde el PC de escritorio en Santiago, ver docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md). Confirma también que Rifex Trust TRUST-1 (onboarding universal) y TRUST-2 (identidad básica declarada: RUT chileno + edad 18+) están COMPLETOS en rifex-dev (código, migraciones aplicadas, pruebas en vivo, deploy) — TRUST-3 en adelante (documentos, OCR, biometría) sigue siendo diseño puro, sin implementar. Confirma si ya se hicieron las pruebas humanas de interfaz de TRUST-1/TRUST-2 que quedaron agendadas para el fin de semana del 2026-08-27 en adelante. NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev ya se hizo (WOP, Risks/pending y "NEXT (exact)").
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.
