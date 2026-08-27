@@ -7,7 +7,28 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> 2026-08-27/28 (actualización más reciente) — corrección canónica
+> 2026-08-29 (actualización más reciente) — **auditoría adversarial
+> autónoma (solo lectura, sin correcciones aplicadas)** de TRUST-1/2/3A
+> y del onboarding Mercado Pago. Encontró un **fail-open CRÍTICO real y
+> demostrado**: `assertCreatorEligible` trata `mp_identity_match=NULL`
+> (un estado alcanzable en la práctica: `oauth/callback.js` fija
+> `status='connected'` antes de que una llamada separada, que traga sus
+> propios errores, resuelva el match) exactamente igual que `'matched'`
+> — mientras `getIdentityStatus` sí reporta correctamente no-elegible
+> para el mismo dato. Reproducido con una prueba local aislada, ahora
+> permanente en `tests/trustIdentityGate.test.mjs`. También encontrado:
+> la política de `unavailable` no dirige a revisión como pide esta
+> auditoría (decisión de producto pendiente, no un bug); el callback de
+> Mercado Pago loguea un secreto PKCE + email en un caso de borde; un
+> `mismatch` posterior a publicar no pausa el checkout; los 3 endpoints
+> de subida de fotos no exigen elegibilidad. Detalle completo en
+> `docs/trust/TRUST_MP_ADVERSARIAL_AUDIT_2026-08.md`. Veredicto:
+> **GO CON CONDICIONES** — el hallazgo crítico debería corregirse antes
+> de pruebas humanas con cuentas reales. 175/175 pruebas pasan. Cero
+> código de producción, migraciones o datos de DEV modificados —
+> misión de auditoría pura.
+>
+> 2026-08-27/28 (actualización anterior) — corrección canónica
 > hacia adelante: **Mercado Pago como control principal, onboarding
 > simplificado. COMPLETO en DEV**, misión nocturna autónoma (Rodrigo
 > durmiendo, solo permisos del sistema, sin pruebas manuales pedidas).

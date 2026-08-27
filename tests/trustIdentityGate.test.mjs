@@ -144,6 +144,30 @@ test('assertCreatorEligible: Mercado Pago conectado pero mp_identity_match="unav
   assert.deepEqual(result, { ok: true });
 });
 
+// ---- Hallazgo de la auditoría adversarial 2026-08-29 (ver
+// docs/trust/TRUST_MP_ADVERSARIAL_AUDIT_2026-08.md, sección "Riesgos
+// críticos"): assertCreatorEligible usa una lista de bloqueo (rechaza
+// explícitamente 'mismatch'/'needs_review'/'checking'/'not_connected'),
+// no una lista de permiso — así que CUALQUIER valor de
+// mp_identity_match que no esté en esa lista de bloqueo pasa como si
+// fuera 'matched'. Esto incluye NULL, un caso real y alcanzable: el
+// upsert de oauth/callback.js deja status='connected' ANTES de llamar a
+// resolveMpIdentityMatch por separado (envuelto en try/catch, "nunca
+// bloquea el flujo si falla") — un error transitorio ahí deja
+// mp_identity_match en NULL indefinidamente, sin reintento ni alerta.
+// getIdentityStatus SÍ usa una lista de permiso explícita
+// ('matched'/'unavailable') para calcular creator_eligible — por eso
+// este es un fail-open real y no solo una preocupación teórica: dos
+// funciones que deberían estar de acuerdo, no lo están, y la que manda
+// (el gate real que protege los 12 endpoints) es la insegura.
+test('ADVERSARIAL (auditoría 2026-08-29): mp_identity_match=NULL con status=connected -> assertCreatorEligible deja pasar (fail-open), pero getIdentityStatus.creator_eligible reporta false — inconsistencia real entre el gate y la UI', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: { status: 'connected', revoked_at: null, mp_identity_match: null } });
+  const gateResult = await assertCreatorEligible('user-1');
+  const statusResult = await getIdentityStatus('user-1');
+  assert.equal(gateResult.ok, true, 'assertCreatorEligible NO debería dejar pasar un match nunca resuelto — este assert documenta el comportamiento REAL encontrado, no el deseado');
+  assert.equal(statusResult.creator_eligible, false, 'getIdentityStatus SÍ trata NULL como no elegible — confirma la inconsistencia');
+});
+
 test('assertCreatorEligible: Mercado Pago fue desconectado (revoked_at set) -> mp_not_connected, aunque status siga "connected"', async () => {
   currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: { status: 'connected', revoked_at: '2026-08-27T00:00:00Z', mp_identity_match: 'matched' } });
   const result = await assertCreatorEligible('user-1');
