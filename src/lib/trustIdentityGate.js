@@ -2,7 +2,7 @@
 // TRUST-2 — autoridad server-side real de "¿este usuario puede crear,
 // publicar, recaudar o administrar una iniciativa como creador?".
 // Superset estricto de assertOnboardingComplete (TRUST-1): además exige
-// que la fecha de nacimiento declarada implique 18+, y —solo para
+// que la declaración de mayoría de edad esté vigente, y —solo para
 // Chile— un RUT con formato/dígito verificador válido ya declarado.
 // Mismo patrón que countryGate.js/trustOnboardingGate.js: la decisión
 // pura vive en trustIdentityPolicy.js/trustOnboardingPolicy.js, acá solo
@@ -17,12 +17,17 @@
 // archivo solo las LEE, nunca las escribe. phone_verified sigue sin
 // existir (TRUST-3A no implementa verificación de teléfono).
 //
+// Corrección canónica (2026-08-27) — Mercado Pago como control
+// principal: el cierre real del onboarding ahora exige ADEMÁS una
+// cuenta de Mercado Pago conectada cuyo titular coincida con el RUT
+// declarado en Rifex (mp_identity_match === 'matched'). Ver
+// src/lib/mpIdentityMatchGate.js para la resolución real de ese estado
+// — este archivo solo LEE el resultado ya persistido, nunca vuelve a
+// consultar Mercado Pago por su cuenta.
+//
 // isIdentityVerificationRequiredForCreators() (trustIdentityVerification
-// Policy.js) sigue en `false` — assertCreatorEligible exige exactamente
-// lo mismo que en TRUST-2 (onboarding + 18+ declarado + RUT para Chile)
-// mientras esa política no se active explícitamente. Activarla es una
-// decisión de negocio, nunca un efecto secundario de haber construido
-// TRUST-3A.
+// Policy.js) sigue en `false` — TRUST-3A permanece como respaldo
+// excepcional, nunca el flujo normal.
 import { createClient } from '@supabase/supabase-js';
 import { isOnboardingComplete } from './trustOnboardingPolicy.js';
 import {
@@ -33,6 +38,7 @@ import {
   ageRequirementMetFromDeclaredData,
 } from './trustIdentityPolicy.js';
 import { isIdentityVerificationRequiredForCreators } from './trustIdentityVerificationPolicy.js';
+import { isMercadoPagoMatchRequiredForCountry } from './mpIdentityMatchPolicy.js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -43,13 +49,15 @@ const supabase = createClient(
 const USER_MESSAGE = {
   onboarding_incomplete: 'Antes de continuar, completa tu registro en Rifex.',
   onboarding_check_failed: 'Antes de continuar, completa tu registro en Rifex.',
-  age_requirement_not_met: 'Debes ser mayor de 18 años para crear o publicar iniciativas en Rifex.',
   identity_incomplete: 'Antes de continuar, completa tu RUT en tu registro de Rifex.',
   identity_check_failed: 'Antes de continuar, completa tu registro en Rifex.',
+  mp_not_connected: 'Antes de continuar, conecta tu cuenta de Mercado Pago en Rifex.',
+  mp_identity_mismatch: 'No pudimos validar tu cuenta de Mercado Pago. Revisa tus datos o conecta una cuenta que te pertenezca.',
+  mp_check_pending: 'Estamos validando tu cuenta de Mercado Pago. Intenta de nuevo en unos segundos.',
 };
 
 const ONBOARDING_COLUMNS =
-  'legal_name, birth_date, phone, account_type, terms_version, terms_accepted_at, privacy_version, privacy_accepted_at, onboarding_completed_at, rut_normalized, rut_declared_at, identity_verified, age_verified';
+  'person_name, organization_name, account_type, phone, adult_declared, adult_declaration_version, terms_version, terms_accepted_at, privacy_version, privacy_accepted_at, onboarding_completed_at, rut_normalized, rut_declared_at, identity_verified, age_verified';
 
 function fetchOnboardingRecord(userId) {
   return supabase.from('trust_onboarding').select(ONBOARDING_COLUMNS).eq('user_id', userId).maybeSingle();
@@ -58,6 +66,16 @@ function fetchOnboardingRecord(userId) {
 async function fetchCountryCode(userId) {
   const { data } = await supabase.from('users_profile').select('country_code').eq('user_id', userId).maybeSingle();
   return data?.country_code ?? null;
+}
+
+async function fetchMpMatchState(userId) {
+  const { data } = await supabase
+    .from('merchant_gateways')
+    .select('status, revoked_at, mp_identity_match')
+    .eq('user_id', userId)
+    .eq('provider', 'mp')
+    .maybeSingle();
+  return data;
 }
 
 /**
@@ -80,12 +98,14 @@ export async function assertCreatorEligible(userId) {
     return { ok: false, reason: 'onboarding_check_failed', message: USER_MESSAGE.onboarding_check_failed };
   }
 
+  // isOnboardingComplete ya exige adult_declared === true (con la
+  // versión vigente) como parte de "completo" — a diferencia del
+  // antiguo modelo con birth_date, ya no existe un estado real de
+  // "onboarding completo pero declarado menor de edad": completar el
+  // registro implica haber declarado ser mayor de 18. No hay, por lo
+  // tanto, un chequeo de edad separado acá — sería inalcanzable.
   if (!record || !isOnboardingComplete(record)) {
     return { ok: false, reason: 'onboarding_incomplete', message: USER_MESSAGE.onboarding_incomplete };
-  }
-
-  if (!ageRequirementMetFromDeclaredData(record.birth_date)) {
-    return { ok: false, reason: 'age_requirement_not_met', message: USER_MESSAGE.age_requirement_not_met };
   }
 
   const countryCode = await fetchCountryCode(userId);
@@ -93,6 +113,25 @@ export async function assertCreatorEligible(userId) {
     if (!record.rut_normalized || !isValidRut(record.rut_normalized)) {
       return { ok: false, reason: 'identity_incomplete', message: USER_MESSAGE.identity_incomplete };
     }
+  }
+
+  // Mercado Pago como control principal (decisión canónica 2026-08-27):
+  // mientras esté disponible para el país, cierra el onboarding.
+  if (isMercadoPagoMatchRequiredForCountry(countryCode)) {
+    const mp = await fetchMpMatchState(userId);
+    if (!mp || mp.revoked_at || mp.status !== 'connected') {
+      return { ok: false, reason: 'mp_not_connected', message: USER_MESSAGE.mp_not_connected };
+    }
+    if (mp.mp_identity_match === 'mismatch' || mp.mp_identity_match === 'needs_review') {
+      return { ok: false, reason: 'mp_identity_mismatch', message: USER_MESSAGE.mp_identity_mismatch };
+    }
+    if (mp.mp_identity_match === 'checking' || mp.mp_identity_match === 'not_connected') {
+      return { ok: false, reason: 'mp_check_pending', message: USER_MESSAGE.mp_check_pending };
+    }
+    // 'matched' -> ok. 'unavailable' -> MP no entregó el dato para
+    // confirmar/descartar (ver mpIdentityMatchGate.js) — no bloquea,
+    // per mandato explícito de esta misión ("no bloquear todo el
+    // trabajo restante" cuando el dato no está disponible).
   }
 
   // TRUST-3A: apagado por defecto (ver cabecera). Cuando se active
@@ -118,6 +157,10 @@ export async function assertCreatorEligible(userId) {
  * TRUST-2) rechaza que dos cuentas distintas declaren el mismo RUT. El
  * conflicto se traduce a 'rut_conflict' sin revelar a quién pertenece
  * el RUT ya declarado — nunca un nombre, email ni id de otra cuenta.
+ *
+ * Corrección canónica: cambiar el RUT invalida cualquier coincidencia
+ * de Mercado Pago ya calculada (Fase 5, punto 8) — se revalida en la
+ * siguiente consulta de estado, nunca se asume que sigue vigente.
  */
 export async function upsertIdentityRut(userId, rawRut) {
   if (!userId) throw new Error('missing_user_id');
@@ -133,7 +176,7 @@ export async function upsertIdentityRut(userId, rawRut) {
   // no existiría ninguna fila en trust_onboarding para ese user_id,
   // dejando creer al cliente que el RUT quedó guardado cuando en
   // realidad no se escribió nada. Detectado adversarialmente en DEV
-  // durante esta misma fase (ver checkpoint de cierre TRUST-2).
+  // durante TRUST-2.
   const { error } = await supabase
     .from('trust_onboarding')
     .upsert(
@@ -152,6 +195,17 @@ export async function upsertIdentityRut(userId, rawRut) {
     }
     throw error;
   }
+
+  // El RUT cambió: cualquier match de Mercado Pago previo queda
+  // invalidado — nunca se asume que sigue siendo correcto contra un RUT
+  // distinto. Best-effort: si esta fila no existe todavía (MP nunca se
+  // conectó), no hay nada que invalidar.
+  await supabase
+    .from('merchant_gateways')
+    .update({ mp_identity_match: 'not_connected', mp_identity_matched_at: null, mp_identity_match_reason: null })
+    .eq('user_id', userId)
+    .eq('provider', 'mp')
+    .not('mp_identity_match', 'is', null);
 
   return { ok: true, rut_masked: maskRut(normalized) };
 }
@@ -185,8 +239,15 @@ export async function getIdentityStatus(userId) {
 
   const rutRequired = isRutRequiredForCountry(countryCode);
   const rutDeclared = Boolean(record?.rut_normalized);
-  const ageMet = ageRequirementMetFromDeclaredData(record?.birth_date);
+  const ageMet = ageRequirementMetFromDeclaredData(record);
   const onboardingComplete = Boolean(record && isOnboardingComplete(record));
+
+  const mpRequired = isMercadoPagoMatchRequiredForCountry(countryCode);
+  let mpOk = !mpRequired;
+  if (mpRequired) {
+    const mp = await fetchMpMatchState(userId);
+    mpOk = Boolean(mp && !mp.revoked_at && mp.status === 'connected' && (mp.mp_identity_match === 'matched' || mp.mp_identity_match === 'unavailable'));
+  }
 
   return {
     rut_required: rutRequired,
@@ -208,6 +269,7 @@ export async function getIdentityStatus(userId) {
       onboardingComplete &&
       ageMet &&
       (!rutRequired || rutDeclared) &&
+      mpOk &&
       (!isIdentityVerificationRequiredForCreators() || Boolean(record?.identity_verified)),
   };
 }

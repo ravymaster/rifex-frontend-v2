@@ -10,10 +10,10 @@ import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
 const CORRECTION_REASON_CODES = [
   'image_unreadable', 'document_expired', 'name_mismatch',
-  'birth_date_mismatch', 'missing_side', 'document_type_not_supported', 'other',
+  'document_shows_minor', 'missing_side', 'document_type_not_supported', 'other',
 ];
 const REJECTION_REASON_CODES = [
-  'document_appears_altered', 'identity_mismatch', 'document_type_not_supported', 'unable_to_verify', 'other',
+  'document_appears_altered', 'identity_mismatch', 'document_shows_minor', 'document_type_not_supported', 'unable_to_verify', 'other',
 ];
 
 export default function AdminTrustCaseDetail() {
@@ -106,8 +106,7 @@ export default function AdminTrustCaseDetail() {
 
         <h2 style={{ fontSize: 15, fontWeight: 800, marginTop: 20 }}>Datos declarados</h2>
         <ul>
-          <li>Nombre legal: {detail.declared?.legal_name || '—'}</li>
-          <li>Fecha de nacimiento: {detail.declared?.birth_date || '—'}</li>
+          <li>Nombre declarado: {detail.declared?.declared_name || '—'}</li>
           <li>RUT declarado: {detail.declared?.rut_normalized || '—'}</li>
         </ul>
 

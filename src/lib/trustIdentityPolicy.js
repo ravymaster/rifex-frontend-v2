@@ -10,9 +10,12 @@
 // titularidad verificada, mayoría de edad verificada, autorización para
 // recaudar, ni aprobación de iniciativa. Ver
 // docs/trust/TRUST_AGE_IDENTITY_VERIFICATION.md.
-import { isDeclaredAdult } from './trustOnboardingPolicy.js';
-
-export const MIN_CREATOR_AGE = 18;
+//
+// Corrección canónica (2026-08-27): ya no existe fecha de nacimiento en
+// ningún lado de Trust — la mayoría de edad es una declaración
+// booleana versionada (trustOnboardingPolicy.js,
+// CURRENT_ADULT_DECLARATION_VERSION), nunca calculada.
+import { CURRENT_ADULT_DECLARATION_VERSION } from './trustOnboardingPolicy.js';
 
 // Deja solo dígitos y K/k (acepta con o sin puntos/guion/espacios),
 // mismo criterio de limpieza que el validador cliente-only ya existente
@@ -77,10 +80,13 @@ export function isRutRequiredForCountry(countryCode) {
   return countryCode === 'CL';
 }
 
-// "age_requirement_met_from_declared_data" — un dato derivado de la
-// fecha de nacimiento AUTODECLARADA, nunca "age_verified". Reexporta
-// isDeclaredAdult con el nombre exacto que usa el contrato de TRUST-2
-// para dejar explícita la distinción en cada punto donde se lee.
-export function ageRequirementMetFromDeclaredData(birthDateStr) {
-  return isDeclaredAdult(birthDateStr);
+// "age_requirement_met_from_declared_data" — nunca "age_verified".
+// Desde la corrección canónica de 2026-08-27 ya no hay una fecha desde
+// la cual calcular esto: es directamente la declaración booleana
+// versionada del propio registro (adult_declared + su versión
+// vigente). Se mantiene esta función (en vez de leer el booleano
+// directo en cada callsite) para conservar un único nombre estable en
+// todo el contrato de TRUST-2/TRUST-3A.
+export function ageRequirementMetFromDeclaredData(record) {
+  return Boolean(record && record.adult_declared === true && record.adult_declaration_version === CURRENT_ADULT_DECLARATION_VERSION);
 }

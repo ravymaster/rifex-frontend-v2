@@ -40,7 +40,10 @@ export default async function handler(req, res) {
         linked_email,
         live_mode,
         updated_at,
-        expires_at
+        expires_at,
+        mp_identity_match,
+        mp_identity_matched_at,
+        mp_identity_match_reason
       `)
       .eq("user_id", uid)
       .eq("provider", "mp")
@@ -77,6 +80,11 @@ export default async function handler(req, res) {
       live_mode: !!data?.live_mode,
       updated_at: data?.updated_at || null,
       expires_at: data?.expires_at || null,
+      // Corrección canónica (2026-08-27): coincidencia de identidad
+      // RUT Rifex <-> titular Mercado Pago — nunca expone el RUT en sí,
+      // solo el resultado. Ver src/lib/mpIdentityMatchGate.js.
+      identity_match: data?.mp_identity_match || null,
+      identity_match_checked_at: data?.mp_identity_matched_at || null,
     });
   } catch (e) {
     console.error("[api/mp/status] error:", e);

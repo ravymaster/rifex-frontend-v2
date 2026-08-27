@@ -320,7 +320,7 @@ export async function openCaseForReview(userId, adminId) {
 
   const { data: onboarding } = await supabase
     .from('trust_onboarding')
-    .select('legal_name, birth_date, rut_normalized, account_type')
+    .select('person_name, organization_name, rut_normalized, account_type')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -347,8 +347,13 @@ export async function openCaseForReview(userId, adminId) {
     case: caseRow,
     declared: onboarding
       ? {
-          legal_name: onboarding.legal_name,
-          birth_date: onboarding.birth_date,
+          // Un solo nombre real (persona u organización) — el revisor
+          // ya no ve una fecha de nacimiento (eliminada por completo,
+          // corrección canónica 2026-08-27): la confirmación de 18+ que
+          // exige recordDecision (confirmedAgeAdult) se basa en lo que
+          // el revisor VE en el documento mismo, nunca en un dato
+          // declarado que ya no existe.
+          declared_name: onboarding.person_name || onboarding.organization_name || null,
           rut_normalized: onboarding.rut_normalized,
           account_type: onboarding.account_type,
         }

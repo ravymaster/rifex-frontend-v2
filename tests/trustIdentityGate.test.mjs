@@ -2,6 +2,12 @@
 // TRUST-2 — assertCreatorEligible/upsertIdentityRut/getIdentityStatus con
 // un cliente Supabase mockeado (mismo patrón que
 // tests/trustOnboardingGate.test.mjs). Nunca toca rifex-dev de verdad.
+//
+// Corrección canónica (2026-08-27): person_name/organization_name
+// reemplazan legal_name+account_type, adult_declared reemplaza
+// birth_date, y assertCreatorEligible ahora también exige Mercado Pago
+// conectado + mp_identity_match cuando el país lo requiere (mismo
+// alcance que el RUT: hoy, solo Chile) — ver mpIdentityMatchPolicy.js.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -29,44 +35,53 @@ function mockSelectMaybeSingle(data, error = null) {
   return () => ({
     select: () => ({
       eq: () => ({
+        eq: () => ({ maybeSingle: () => Promise.resolve({ data, error }) }), // soporta .eq().eq().maybeSingle() (merchant_gateways: user_id + provider)
         maybeSingle: () => Promise.resolve({ data, error }),
       }),
     }),
   });
 }
 
+const CURRENT_ADULT_DECLARATION_VERSION = 'adult-declaration-v1.0';
+
 const ADULT_CL_RUT_OK = {
-  legal_name: 'Juan Pérez',
-  birth_date: '1990-05-15',
-  phone: '+56912345678',
+  person_name: 'Juan Pérez',
+  organization_name: null,
   account_type: 'person',
-  terms_version: 'terms-v1.0',
-  terms_accepted_at: '2026-08-26T00:00:00.000Z',
-  privacy_version: 'privacy-v1.0',
-  privacy_accepted_at: '2026-08-26T00:00:00.000Z',
-  onboarding_completed_at: '2026-08-26T00:00:00.000Z',
+  phone: '+56959904311',
+  adult_declared: true,
+  adult_declaration_version: CURRENT_ADULT_DECLARATION_VERSION,
+  terms_version: 'terms-v1.1',
+  terms_accepted_at: '2026-08-27T00:00:00.000Z',
+  privacy_version: 'privacy-v1.1',
+  privacy_accepted_at: '2026-08-27T00:00:00.000Z',
+  onboarding_completed_at: '2026-08-27T00:00:00.000Z',
   rut_normalized: '141823094', // 14.182.309-4, real, verificado por dígito verificador
   rut_declared_at: '2026-08-27T00:00:00.000Z',
 };
 
-function mockTables({ onboarding, countryCode, onboardingError = null }) {
+const MP_MATCHED = { status: 'connected', revoked_at: null, mp_identity_match: 'matched' };
+const MP_NOT_CONNECTED = null;
+
+function mockTables({ onboarding, countryCode, onboardingError = null, mp = MP_NOT_CONNECTED }) {
   return {
     trust_onboarding: mockSelectMaybeSingle(onboarding, onboardingError),
     users_profile: mockSelectMaybeSingle(countryCode !== undefined ? { country_code: countryCode } : null),
+    merchant_gateways: mockSelectMaybeSingle(mp),
   };
 }
 
 // ---- assertCreatorEligible ----
 
-test('assertCreatorEligible: onboarding completo + 18+ + RUT válido (CL) -> ok', async () => {
-  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL' });
+test('assertCreatorEligible: onboarding completo + 18+ + RUT válido (CL) + Mercado Pago coincidente -> ok', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: MP_MATCHED });
   const result = await assertCreatorEligible('user-1');
   assert.deepEqual(result, { ok: true });
 });
 
-test('assertCreatorEligible: onboarding TRUST-1 incompleto -> rechazado, nunca llega a evaluar edad/RUT', async () => {
+test('assertCreatorEligible: onboarding TRUST-1 incompleto -> rechazado, nunca llega a evaluar edad/RUT/MP', async () => {
   const incomplete = { ...ADULT_CL_RUT_OK, phone: null, onboarding_completed_at: null };
-  currentMock = mockTables({ onboarding: incomplete, countryCode: 'CL' });
+  currentMock = mockTables({ onboarding: incomplete, countryCode: 'CL', mp: MP_MATCHED });
   const result = await assertCreatorEligible('user-1');
   assert.equal(result.ok, false);
   assert.equal(result.reason, 'onboarding_incomplete');
@@ -79,13 +94,19 @@ test('assertCreatorEligible: sin fila (usuario nuevo o antiguo, nunca empezó) -
   assert.equal(result.reason, 'onboarding_incomplete');
 });
 
-test('assertCreatorEligible: onboarding completo pero menor de edad declarado -> age_requirement_not_met', async () => {
-  const now = new Date();
-  const minor = { ...ADULT_CL_RUT_OK, birth_date: `${now.getUTCFullYear() - 10}-06-15` };
-  currentMock = mockTables({ onboarding: minor, countryCode: 'CL' });
+// No existe un caso real de "onboarding completo pero adult_declared=
+// false": isOnboardingComplete ya exige adult_declared===true como
+// parte de la definición de "completo" (a diferencia del antiguo
+// modelo con birth_date, donde una fecha válida podía implicar un
+// menor de edad sin dejar de ser un registro "completo"). Por eso
+// assertCreatorEligible ya no tiene un chequeo de edad separado —
+// probarlo sería probar un estado inalcanzable.
+test('assertCreatorEligible: adult_declared=false -> el registro nunca cuenta como completo en primer lugar', async () => {
+  const minor = { ...ADULT_CL_RUT_OK, adult_declared: false };
+  currentMock = mockTables({ onboarding: minor, countryCode: 'CL', mp: MP_MATCHED });
   const result = await assertCreatorEligible('user-menor');
   assert.equal(result.ok, false);
-  assert.equal(result.reason, 'age_requirement_not_met');
+  assert.equal(result.reason, 'onboarding_incomplete');
 });
 
 test('assertCreatorEligible: adulto, país Chile, sin RUT declarado -> identity_incomplete', async () => {
@@ -96,14 +117,48 @@ test('assertCreatorEligible: adulto, país Chile, sin RUT declarado -> identity_
   assert.equal(result.reason, 'identity_incomplete');
 });
 
-test('assertCreatorEligible: país distinto de Chile -> el RUT nunca se exige', async () => {
+test('assertCreatorEligible: todo correcto pero Mercado Pago nunca conectado -> mp_not_connected', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: MP_NOT_CONNECTED });
+  const result = await assertCreatorEligible('user-1');
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'mp_not_connected');
+});
+
+test('assertCreatorEligible: Mercado Pago conectado pero mismatch -> mp_identity_mismatch', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: { status: 'connected', revoked_at: null, mp_identity_match: 'mismatch' } });
+  const result = await assertCreatorEligible('user-1');
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'mp_identity_mismatch');
+});
+
+test('assertCreatorEligible: Mercado Pago conectado pero needs_review -> mp_identity_mismatch', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: { status: 'connected', revoked_at: null, mp_identity_match: 'needs_review' } });
+  const result = await assertCreatorEligible('user-1');
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'mp_identity_mismatch');
+});
+
+test('assertCreatorEligible: Mercado Pago conectado pero mp_identity_match="unavailable" (MP no entregó el dato) -> NO bloquea', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: { status: 'connected', revoked_at: null, mp_identity_match: 'unavailable' } });
+  const result = await assertCreatorEligible('user-1');
+  assert.deepEqual(result, { ok: true });
+});
+
+test('assertCreatorEligible: Mercado Pago fue desconectado (revoked_at set) -> mp_not_connected, aunque status siga "connected"', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: { status: 'connected', revoked_at: '2026-08-27T00:00:00Z', mp_identity_match: 'matched' } });
+  const result = await assertCreatorEligible('user-1');
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'mp_not_connected');
+});
+
+test('assertCreatorEligible: país distinto de Chile -> ni RUT ni Mercado Pago se exigen', async () => {
   const noRutArgentina = { ...ADULT_CL_RUT_OK, rut_normalized: null, rut_declared_at: null };
   currentMock = mockTables({ onboarding: noRutArgentina, countryCode: 'AR' });
   const result = await assertCreatorEligible('user-ar');
   assert.deepEqual(result, { ok: true });
 });
 
-test('assertCreatorEligible: sin país guardado todavía -> el RUT tampoco se exige (lo bloquea el Country Gate, no este)', async () => {
+test('assertCreatorEligible: sin país guardado todavía -> RUT y Mercado Pago tampoco se exigen (lo bloquea el Country Gate, no este)', async () => {
   const noCountry = { ...ADULT_CL_RUT_OK, rut_normalized: null, rut_declared_at: null };
   currentMock = mockTables({ onboarding: noCountry, countryCode: null });
   const result = await assertCreatorEligible('user-sin-pais');
@@ -115,6 +170,7 @@ test('assertCreatorEligible: userId ausente -> rechazado sin consultar la base',
   currentMock = {
     trust_onboarding: () => { queried = true; return mockSelectMaybeSingle(ADULT_CL_RUT_OK)(); },
     users_profile: mockSelectMaybeSingle({ country_code: 'CL' }),
+    merchant_gateways: mockSelectMaybeSingle(MP_MATCHED),
   };
   const result = await assertCreatorEligible(null);
   assert.equal(result.ok, false);
@@ -129,9 +185,6 @@ test('assertCreatorEligible: error de infraestructura al leer onboarding -> fall
 });
 
 test('ADVERSARIAL: assertCreatorEligible nunca confía en un rut_normalized con formato corrupto que haya quedado en la fila', async () => {
-  // Defensa en profundidad: aunque el CHECK de la migración debería
-  // impedir esto a nivel de base, el gate igual revalida isValidRut acá
-  // — nunca confía ciegamente en que "existe una fila" sea suficiente.
   const corrupted = { ...ADULT_CL_RUT_OK, rut_normalized: '141823095' }; // el real es ...4, no ...5
   currentMock = mockTables({ onboarding: corrupted, countryCode: 'CL' });
   const result = await assertCreatorEligible('user-1');
@@ -141,13 +194,20 @@ test('ADVERSARIAL: assertCreatorEligible nunca confía en un rut_normalized con 
 
 // ---- upsertIdentityRut ----
 
-test('upsertIdentityRut: RUT válido -> guarda normalizado, devuelve enmascarado', async () => {
+test('upsertIdentityRut: RUT válido -> guarda normalizado, devuelve enmascarado, invalida cualquier match previo de MP', async () => {
   let capturedPayload = null;
+  let mpInvalidatePayload = null;
   currentMock = {
     trust_onboarding: () => ({
       upsert: (payload) => {
         capturedPayload = payload;
         return Promise.resolve({ error: null });
+      },
+    }),
+    merchant_gateways: () => ({
+      update: (payload) => {
+        mpInvalidatePayload = payload;
+        return { eq: function () { return this; }, not: function () { return Promise.resolve({ error: null }); } };
       },
     }),
   };
@@ -156,14 +216,10 @@ test('upsertIdentityRut: RUT válido -> guarda normalizado, devuelve enmascarado
   assert.equal(result.rut_masked, '*****3094');
   assert.equal(capturedPayload.rut_normalized, '141823094');
   assert.ok(capturedPayload.rut_declared_at);
+  assert.equal(mpInvalidatePayload.mp_identity_match, 'not_connected');
 });
 
 test('upsertIdentityRut: usa upsert (no update) — funciona aunque el usuario todavía no tenga fila en trust_onboarding', async () => {
-  // Regresión de un bug real encontrado adversarialmente en DEV: con
-  // `.update()`, un usuario sin fila previa (nunca llamó
-  // /api/onboarding/trust/complete) recibía 200 OK sin que se guardara
-  // nada — 0 filas afectadas, sin error. `.upsert()` crea la fila si no
-  // existe, igual que upsertOnboardingFields ya hace para TRUST-1.
   let upsertCalled = false;
   let capturedOptions = null;
   currentMock = {
@@ -174,6 +230,7 @@ test('upsertIdentityRut: usa upsert (no update) — funciona aunque el usuario t
         return Promise.resolve({ error: null });
       },
     }),
+    merchant_gateways: () => ({ update: () => ({ eq: function () { return this; }, not: function () { return Promise.resolve({ error: null }); } }) }),
   };
   const result = await upsertIdentityRut('user-sin-fila-previa', '14.182.309-4');
   assert.equal(result.ok, true);
@@ -217,6 +274,7 @@ test('ADVERSARIAL: upsertIdentityRut ignora cualquier intento de mandar user_id/
     trust_onboarding: () => ({
       upsert: (payload) => { capturedPayload = payload; return Promise.resolve({ error: null }); },
     }),
+    merchant_gateways: () => ({ update: () => ({ eq: function () { return this; }, not: function () { return Promise.resolve({ error: null }); } }) }),
   };
   // La firma de la función solo acepta (userId, rawRut) — no hay forma de
   // colar un objeto con campos extra, pero igual se prueba que el
@@ -230,8 +288,8 @@ test('ADVERSARIAL: upsertIdentityRut ignora cualquier intento de mandar user_id/
 
 // ---- getIdentityStatus ----
 
-test('getIdentityStatus: usuario elegible completo -> creator_eligible true, age_verified/identity_verified/phone_verified siempre false', async () => {
-  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL' });
+test('getIdentityStatus: usuario elegible completo -> creator_eligible true, age_verified/identity_verified/phone_verified reflejan la fila real', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: MP_MATCHED });
   const status = await getIdentityStatus('user-1');
   assert.equal(status.creator_eligible, true);
   assert.equal(status.rut_required, true);
@@ -245,10 +303,16 @@ test('getIdentityStatus: usuario elegible completo -> creator_eligible true, age
 
 test('getIdentityStatus: sin RUT declarado en Chile -> creator_eligible false, rut_masked null', async () => {
   const noRut = { ...ADULT_CL_RUT_OK, rut_normalized: null, rut_declared_at: null };
-  currentMock = mockTables({ onboarding: noRut, countryCode: 'CL' });
+  currentMock = mockTables({ onboarding: noRut, countryCode: 'CL', mp: MP_MATCHED });
   const status = await getIdentityStatus('user-1');
   assert.equal(status.creator_eligible, false);
   assert.equal(status.rut_masked, null);
+});
+
+test('getIdentityStatus: RUT ok pero Mercado Pago no conectado -> creator_eligible false', async () => {
+  currentMock = mockTables({ onboarding: ADULT_CL_RUT_OK, countryCode: 'CL', mp: MP_NOT_CONNECTED });
+  const status = await getIdentityStatus('user-1');
+  assert.equal(status.creator_eligible, false);
 });
 
 test('getIdentityStatus: userId ausente -> estado vacío seguro, sin consultar la base', async () => {

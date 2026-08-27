@@ -231,6 +231,7 @@ export default function Layout({
               <span className="rf-foot__colTitle">Legal</span>
               <Link href="/terminos">Términos</Link>
               <Link href="/terminos#privacidad">Privacidad</Link>
+              <Link href="/seguridad">Seguridad</Link>
             </div>
           </div>
         </div>

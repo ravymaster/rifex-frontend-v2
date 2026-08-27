@@ -31,7 +31,12 @@ export async function resolveTrustOnboardingRedirect(next) {
     if (!res.ok) return null; // fail-open en el helper de navegación — la autoridad real es el server-side gate en cada API sensible, esto solo mejora la UX
     const data = await res.json();
     if (!data?.ok) return null;
-    if (data.complete) return null;
+    // Corrección canónica (2026-08-27): el cierre real ahora incluye
+    // Mercado Pago — `data.complete` solo describe TRUST-1, ya no basta
+    // para decidir si mandar (o no) al usuario de vuelta a
+    // /registro/continuar (que ahora también muestra el paso de
+    // conectar Mercado Pago cuando falta).
+    if (data.onboarding_complete_for_creators) return null;
   } catch {
     return null;
   }

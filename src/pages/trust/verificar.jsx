@@ -16,7 +16,7 @@ const CORRECTION_MESSAGES = {
   image_unreadable: 'La imagen no se ve con claridad. Vuelve a fotografiarla con buena luz, sin reflejos.',
   document_expired: 'Tu cédula parece estar vencida.',
   name_mismatch: 'El nombre del documento no coincide con el que declaraste.',
-  birth_date_mismatch: 'La fecha de nacimiento del documento no coincide con la que declaraste.',
+  document_shows_minor: 'El documento indica que eres menor de 18 años.',
   missing_side: 'Falta uno de los lados de tu cédula.',
   document_type_not_supported: 'Este documento no es una cédula chilena vigente.',
   other: 'Necesitamos que revises y vuelvas a enviar tu documento.',
@@ -25,6 +25,7 @@ const CORRECTION_MESSAGES = {
 const REJECTION_MESSAGES = {
   document_appears_altered: 'No pudimos validar tu documento.',
   identity_mismatch: 'No pudimos validar tu documento.',
+  document_shows_minor: 'El documento indica que eres menor de 18 años.',
   document_type_not_supported: 'Este documento no es una cédula chilena vigente.',
   unable_to_verify: 'No pudimos validar tu documento.',
   other: 'No pudimos validar tu documento.',

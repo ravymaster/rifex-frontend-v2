@@ -6,28 +6,47 @@
 // src/lib/trustOnboardingGate.js (que persiste el resultado) — nunca en
 // el cliente.
 //
-// Edad DECLARADA, nunca "verificada" — ver docs/trust/
-// TRUST_AGE_IDENTITY_VERIFICATION.md. Este módulo solo valida que la
-// fecha declarada sea plausible (rango razonable, no futura) y calcula
-// si esa fecha implica 18+ — un dato derivado, nunca "identity_verified"
-// ni "age_verified".
+// Corrección canónica (2026-08-27, misión "onboarding MP como control
+// principal"): Rodrigo decidió eliminar por completo la captura,
+// almacenamiento, cálculo y presentación de fecha de nacimiento. Ya no
+// existe `birth_date`, `declaredAge` ni `isDeclaredAdult` en este
+// archivo — la mayoría de edad se declara como un checkbox versionado
+// ("Declaro que soy mayor de 18 años"), nunca como una fecha ni una
+// edad calculada. Esto NUNCA es `age_verified` — sigue siendo
+// exclusivamente una declaración, igual que antes lo era la fecha.
+// `age_verified` sigue existiendo solo como estado reservado del flujo
+// excepcional TRUST-3A (revisión documental manual), fuera de este
+// onboarding normal.
+//
+// También reemplaza el selector `account_type` por dos campos —
+// `person_name`/`organization_name` — de los cuales exactamente uno
+// debe estar completo. El `account_type` que el resto del código sigue
+// usando (TRUST-2/TRUST-3A) ahora se DERIVA server-side de cuál de los
+// dos campos tiene contenido, nunca de un valor que mande el cliente.
 
-// Versión actual de los documentos que el usuario debe aceptar. Cambiar
-// esta constante invalida las aceptaciones previas (el usuario deberá
-// re-aceptar la próxima vez que se le pida completar/editar su
-// onboarding) — es intencional: una aceptación versionada solo cuenta
-// para la versión que efectivamente aceptó.
-export const CURRENT_TERMS_VERSION = 'terms-v1.0';
-export const CURRENT_PRIVACY_VERSION = 'privacy-v1.0';
+// Versión actual de los documentos que el usuario debe aceptar. Subida
+// en esta misión (terms-v1.0 -> v1.1, privacy-v1.0 -> v1.1) porque el
+// alcance real de datos recolectados cambió (se deja de pedir fecha de
+// nacimiento, se agrega verificación de titularidad vía Mercado Pago) —
+// cualquier aceptación previa queda invalidada y se re-pide la próxima
+// vez que el usuario complete/edite su onboarding.
+export const CURRENT_TERMS_VERSION = 'terms-v1.1';
+export const CURRENT_PRIVACY_VERSION = 'privacy-v1.1';
+export const CURRENT_ADULT_DECLARATION_VERSION = 'adult-declaration-v1.0';
 
 export const ACCOUNT_TYPES = ['person', 'organization'];
 
-const PHONE_PATTERN = /^\+?[0-9][0-9\s-]{6,19}$/;
-const MIN_LEGAL_NAME_LENGTH = 3;
-const MAX_LEGAL_NAME_LENGTH = 140;
+const PHONE_PATTERN_GENERIC = /^\+?[0-9][0-9\s-]{6,19}$/;
+const PHONE_CL_LOCAL_DIGITS = /^9[0-9]{8}$/; // 9 dígitos, siempre empieza en 9 (celular chileno)
+const MIN_NAME_LENGTH = 3;
+const MAX_NAME_LENGTH = 140;
 
 function isPlainString(v) {
   return typeof v === 'string';
+}
+
+function isNonEmptyTrimmed(v) {
+  return isPlainString(v) && v.trim().length > 0;
 }
 
 /**
@@ -35,29 +54,75 @@ function isPlainString(v) {
  * error estable (nunca un mensaje libre) si no lo es — el mensaje
  * legible para el usuario se resuelve en la capa de UI/API, no acá.
  */
-export function validateLegalName(value) {
-  if (!isPlainString(value)) return 'invalid_legal_name';
+export function validatePersonName(value) {
+  if (!isPlainString(value)) return 'invalid_person_name';
   const trimmed = value.trim();
-  if (trimmed.length < MIN_LEGAL_NAME_LENGTH || trimmed.length > MAX_LEGAL_NAME_LENGTH) return 'invalid_legal_name';
+  if (trimmed.length < MIN_NAME_LENGTH || trimmed.length > MAX_NAME_LENGTH) return 'invalid_person_name';
   return null;
 }
 
-export function validateBirthDate(value) {
-  if (!isPlainString(value)) return 'invalid_birth_date';
-  const d = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return 'invalid_birth_date';
-  const now = new Date();
-  const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  if (d.getTime() > todayUtc.getTime()) return 'birth_date_in_future';
-  const minDate = new Date(Date.UTC(todayUtc.getUTCFullYear() - 120, todayUtc.getUTCMonth(), todayUtc.getUTCDate()));
-  if (d.getTime() < minDate.getTime()) return 'birth_date_implausible';
+export function validateOrganizationName(value) {
+  if (!isPlainString(value)) return 'invalid_organization_name';
+  const trimmed = value.trim();
+  if (trimmed.length < MIN_NAME_LENGTH || trimmed.length > MAX_NAME_LENGTH) return 'invalid_organization_name';
   return null;
 }
 
-export function validatePhone(value) {
+/**
+ * Regla autoritativa de Fase 2: exactamente uno de los dos nombres debe
+ * estar presente. Nunca confía en un `account_type` que mande el
+ * cliente — la clasificación se deriva de esto mismo (ver
+ * deriveAccountType). Se evalúa contra el estado COMPLETO del registro
+ * (no contra un PATCH parcial de un solo campo), así que un guardado
+ * parcial que todavía deja el otro campo vacío no es un error todavía
+ * — el error real solo se marca cuando ambos llegan simultáneamente no
+ * vacíos en la MISMA petición (intento de colar los dos a la vez) o
+ * cuando, al momento de completar el onboarding, ninguno quedó lleno.
+ */
+export function validateBothNamesNotProvidedTogether(fields) {
+  const person = isNonEmptyTrimmed(fields.person_name);
+  const org = isNonEmptyTrimmed(fields.organization_name);
+  if (person && org) return 'both_names_provided';
+  return null;
+}
+
+export function deriveAccountType({ person_name, organization_name } = {}) {
+  const person = isNonEmptyTrimmed(person_name);
+  const org = isNonEmptyTrimmed(organization_name);
+  if (person && !org) return 'person';
+  if (org && !person) return 'organization';
+  return null; // ninguno, o ambos (estado inválido) -> sin clasificación
+}
+
+// Chile: el usuario solo escribe los 9 dígitos locales (siempre
+// empiezan en 9) — el "+56" es fijo en la UI, nunca lo escribe. Otros
+// países (hoy solo AR devOnly) usan el patrón genérico existente.
+export function validatePhone(value, countryCode) {
   if (!isPlainString(value)) return 'invalid_phone';
-  if (!PHONE_PATTERN.test(value.trim())) return 'invalid_phone';
+  const trimmed = value.trim();
+  if (countryCode === 'CL') {
+    const digitsOnly = trimmed.replace(/[^0-9]/g, '');
+    // Acepta tanto los 9 dígitos locales (959904311) como el E.164 ya
+    // normalizado (+56959904311), para no romper valores ya guardados.
+    const local = digitsOnly.startsWith('56') && digitsOnly.length === 11 ? digitsOnly.slice(2) : digitsOnly;
+    if (!PHONE_CL_LOCAL_DIGITS.test(local)) return 'invalid_phone';
+    return null;
+  }
+  if (!PHONE_PATTERN_GENERIC.test(trimmed)) return 'invalid_phone';
   return null;
+}
+
+// Forma canónica de almacenamiento: E.164. Para Chile, siempre
+// "+56" + 9 dígitos — nunca se guarda el valor "tal cual" el usuario
+// lo escribió.
+export function normalizePhone(value, countryCode) {
+  const trimmed = String(value || '').trim();
+  if (countryCode === 'CL') {
+    const digitsOnly = trimmed.replace(/[^0-9]/g, '');
+    const local = digitsOnly.startsWith('56') && digitsOnly.length === 11 ? digitsOnly.slice(2) : digitsOnly;
+    return `+56${local}`;
+  }
+  return trimmed;
 }
 
 export function validateAccountType(value) {
@@ -76,25 +141,13 @@ export function validatePrivacyAcceptance(version) {
 }
 
 /**
- * Calcula la edad declarada (en años completos) a partir de una fecha
- * 'YYYY-MM-DD' ya validada por validateBirthDate. Uso interno, nunca se
- * expone como "edad verificada".
+ * Declaración de mayoría de edad — un checkbox versionado, nunca una
+ * fecha ni un cálculo. "adult_declared=true" significa únicamente
+ * "esta persona afirmó ser mayor de 18 años", jamás "age_verified".
  */
-export function declaredAge(birthDateStr) {
-  const d = new Date(`${birthDateStr}T00:00:00.000Z`);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  let age = now.getUTCFullYear() - d.getUTCFullYear();
-  const hasHadBirthdayThisYear =
-    now.getUTCMonth() > d.getUTCMonth() ||
-    (now.getUTCMonth() === d.getUTCMonth() && now.getUTCDate() >= d.getUTCDate());
-  if (!hasHadBirthdayThisYear) age -= 1;
-  return age;
-}
-
-export function isDeclaredAdult(birthDateStr) {
-  const age = declaredAge(birthDateStr);
-  return age !== null && age >= 18;
+export function validateAdultDeclaration(value) {
+  if (value !== true) return 'adult_declaration_required';
+  return null;
 }
 
 /**
@@ -107,21 +160,29 @@ export function isDeclaredAdult(birthDateStr) {
  */
 export function validateOnboardingFields(fields) {
   const errors = {};
-  if (fields.legal_name !== undefined && fields.legal_name !== null) {
-    const err = validateLegalName(fields.legal_name);
-    if (err) errors.legal_name = err;
+
+  const bothProvided = validateBothNamesNotProvidedTogether(fields);
+  if (bothProvided) {
+    errors.person_name = bothProvided;
+    errors.organization_name = bothProvided;
+  } else {
+    if (fields.person_name !== undefined && fields.person_name !== null && fields.person_name !== '') {
+      const err = validatePersonName(fields.person_name);
+      if (err) errors.person_name = err;
+    }
+    if (fields.organization_name !== undefined && fields.organization_name !== null && fields.organization_name !== '') {
+      const err = validateOrganizationName(fields.organization_name);
+      if (err) errors.organization_name = err;
+    }
   }
-  if (fields.birth_date !== undefined && fields.birth_date !== null) {
-    const err = validateBirthDate(fields.birth_date);
-    if (err) errors.birth_date = err;
-  }
+
   if (fields.phone !== undefined && fields.phone !== null) {
-    const err = validatePhone(fields.phone);
+    const err = validatePhone(fields.phone, fields.country_code);
     if (err) errors.phone = err;
   }
-  if (fields.account_type !== undefined && fields.account_type !== null) {
-    const err = validateAccountType(fields.account_type);
-    if (err) errors.account_type = err;
+  if (fields.adult_declared !== undefined) {
+    const err = validateAdultDeclaration(fields.adult_declared);
+    if (err) errors.adult_declared = err;
   }
   // terms_accepted/privacy_accepted que llegan del cliente son booleanos
   // de un checkbox — la versión real siempre la fija el servidor con la
@@ -150,11 +211,14 @@ export function validateOnboardingFields(fields) {
  */
 export function isOnboardingComplete(record) {
   if (!record) return false;
+  const accountType = deriveAccountType(record);
   return Boolean(
-    record.legal_name && record.legal_name.trim().length >= MIN_LEGAL_NAME_LENGTH &&
-    record.birth_date && !validateBirthDate(record.birth_date) &&
-    record.phone && !validatePhone(record.phone) &&
-    ACCOUNT_TYPES.includes(record.account_type) &&
+    accountType &&
+    (accountType === 'person'
+      ? !validatePersonName(record.person_name)
+      : !validateOrganizationName(record.organization_name)) &&
+    record.phone && !validatePhone(record.phone, record.country_code) &&
+    record.adult_declared === true && record.adult_declaration_version === CURRENT_ADULT_DECLARATION_VERSION &&
     record.terms_version === CURRENT_TERMS_VERSION && record.terms_accepted_at &&
     record.privacy_version === CURRENT_PRIVACY_VERSION && record.privacy_accepted_at
   );
@@ -166,10 +230,16 @@ export function isOnboardingComplete(record) {
  */
 export function missingOnboardingFields(record) {
   const missing = [];
-  if (!record?.legal_name || validateLegalName(record.legal_name)) missing.push('legal_name');
-  if (!record?.birth_date || validateBirthDate(record.birth_date)) missing.push('birth_date');
-  if (!record?.phone || validatePhone(record.phone)) missing.push('phone');
-  if (!record?.account_type || !ACCOUNT_TYPES.includes(record.account_type)) missing.push('account_type');
+  const accountType = deriveAccountType(record || {});
+  if (!accountType) {
+    missing.push('identity_name');
+  } else if (accountType === 'person' && validatePersonName(record.person_name)) {
+    missing.push('identity_name');
+  } else if (accountType === 'organization' && validateOrganizationName(record.organization_name)) {
+    missing.push('identity_name');
+  }
+  if (!record?.phone || validatePhone(record.phone, record?.country_code)) missing.push('phone');
+  if (record?.adult_declared !== true || record?.adult_declaration_version !== CURRENT_ADULT_DECLARATION_VERSION) missing.push('adult_declared');
   if (record?.terms_version !== CURRENT_TERMS_VERSION || !record?.terms_accepted_at) missing.push('terms_accepted');
   if (record?.privacy_version !== CURRENT_PRIVACY_VERSION || !record?.privacy_accepted_at) missing.push('privacy_accepted');
   return missing;

@@ -11,8 +11,8 @@ import {
   maskRut,
   isRutRequiredForCountry,
   ageRequirementMetFromDeclaredData,
-  MIN_CREATOR_AGE,
 } from '../src/lib/trustIdentityPolicy.js';
+import { CURRENT_ADULT_DECLARATION_VERSION } from '../src/lib/trustOnboardingPolicy.js';
 
 // ---- RUT: formatos válidos reales (verificados por cálculo del dígito
 // verificador módulo 11, no solo copiados de un ejemplo) ----
@@ -86,41 +86,34 @@ test('isRutRequiredForCountry: solo Chile, en esta fase', () => {
 });
 
 // ---- Requisito de edad para crear (18+), declarado, nunca verificado ----
+// Corrección canónica (2026-08-27): ya no hay fecha de nacimiento —
+// ageRequirementMetFromDeclaredData ahora lee directo un registro con
+// adult_declared (booleano) + adult_declaration_version (debe ser la
+// vigente), nunca calcula nada desde una fecha.
 
-test('ageRequirementMetFromDeclaredData: cumple 18 exactamente hoy -> true', () => {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(now.getUTCDate()).padStart(2, '0');
-  const turns18Today = `${y - MIN_CREATOR_AGE}-${mm}-${dd}`;
-  assert.equal(ageRequirementMetFromDeclaredData(turns18Today), true);
+test('ageRequirementMetFromDeclaredData: adult_declared=true con versión vigente -> true', () => {
+  assert.equal(
+    ageRequirementMetFromDeclaredData({ adult_declared: true, adult_declaration_version: CURRENT_ADULT_DECLARATION_VERSION }),
+    true
+  );
 });
 
-test('ageRequirementMetFromDeclaredData: cumplirá 18 recién mañana -> todavía false', () => {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  const tomorrow = new Date(Date.UTC(y - MIN_CREATOR_AGE, now.getUTCMonth(), now.getUTCDate() + 1));
-  const turns18Tomorrow = `${tomorrow.getUTCFullYear()}-${String(tomorrow.getUTCMonth() + 1).padStart(2, '0')}-${String(tomorrow.getUTCDate()).padStart(2, '0')}`;
-  assert.equal(ageRequirementMetFromDeclaredData(turns18Tomorrow), false);
+test('ageRequirementMetFromDeclaredData: adult_declared=false -> false, sin importar la versión', () => {
+  assert.equal(
+    ageRequirementMetFromDeclaredData({ adult_declared: false, adult_declaration_version: CURRENT_ADULT_DECLARATION_VERSION }),
+    false
+  );
 });
 
-test('ageRequirementMetFromDeclaredData: menor de edad declarado -> false', () => {
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  assert.equal(ageRequirementMetFromDeclaredData(`${y - 10}-06-15`), false);
+test('ageRequirementMetFromDeclaredData: adult_declared=true pero con una versión vieja de la declaración -> false', () => {
+  assert.equal(
+    ageRequirementMetFromDeclaredData({ adult_declared: true, adult_declaration_version: 'adult-declaration-v0.1' }),
+    false
+  );
 });
 
-test('ageRequirementMetFromDeclaredData: adulto declarado, nacido en año bisiesto (29 feb) -> true tras haber cumplido', () => {
-  // 2000 fue bisiesto — nacer un 29 de febrero es un caso real que debe
-  // calcular sin lanzar y sin desfasarse un día.
-  const now = new Date();
-  const y = now.getUTCFullYear();
-  // Ya deben haber pasado más de 18 años desde el 2000-02-29 en 2026+.
-  assert.equal(ageRequirementMetFromDeclaredData('2000-02-29'), y - 2000 >= MIN_CREATOR_AGE);
-});
-
-test('ageRequirementMetFromDeclaredData: fecha inválida -> false, nunca lanza', () => {
-  assert.equal(ageRequirementMetFromDeclaredData('no-es-una-fecha'), false);
+test('ageRequirementMetFromDeclaredData: registro vacío o ausente -> false, nunca lanza', () => {
+  assert.equal(ageRequirementMetFromDeclaredData({}), false);
   assert.equal(ageRequirementMetFromDeclaredData(undefined), false);
   assert.equal(ageRequirementMetFromDeclaredData(null), false);
 });

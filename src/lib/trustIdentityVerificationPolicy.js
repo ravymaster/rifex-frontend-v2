@@ -72,7 +72,7 @@ export const CORRECTION_REASON_CODES = Object.freeze([
   'image_unreadable',
   'document_expired',
   'name_mismatch',
-  'birth_date_mismatch',
+  'document_shows_minor',
   'missing_side',
   'document_type_not_supported',
   'other',
@@ -81,6 +81,7 @@ export const CORRECTION_REASON_CODES = Object.freeze([
 export const REJECTION_REASON_CODES = Object.freeze([
   'document_appears_altered',
   'identity_mismatch',
+  'document_shows_minor',
   'document_type_not_supported',
   'unable_to_verify',
   'other',
