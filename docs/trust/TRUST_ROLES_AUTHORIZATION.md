@@ -1,5 +1,26 @@
 # Trust — Roles, Panel de Administración y Matriz de Autorización
 
+> **Actualización — TRUST-3A implementado en `rifex-dev` (2026-08-27),
+> simplificación deliberada respecto de la tabla de roles de abajo.** El
+> sistema real de Rifex hoy solo tiene UN rol elevado —
+> `app_metadata.role === 'admin'` en Supabase Auth (`resolveAdmin`,
+> `src/lib/adminAuth.js`), ya usado por `/api/admin/*` — no existen
+> `trust_reviewer`/`trust_supervisor`/`support_readonly`/
+> `security_auditor` como roles separados. Siguiendo el mandato
+> explícito de esta misión ("no inventes un sistema de roles
+> incompatible con el existente... deja la interfaz administrativa
+> bloqueada detrás de la autorización más fuerte disponible"), la cola
+> de revisión de TRUST-3A (`GET/POST /api/admin/trust/*`) queda detrás
+> de ese mismo `resolveAdmin` — cualquier `admin` puede revisar,
+> aprobar, corregir o rechazar. La granularidad de esta tabla
+> (revisor vs. supervisor vs. auditor de solo lectura) sigue siendo
+> diseño, no implementada — sería un cambio de infraestructura de roles
+> más amplio que el alcance de TRUST-3A. Los invariantes de abajo SÍ se
+> cumplen con lo real: nadie puede aprobar su propia cuenta
+> (`cannot_review_own_case`, verificado en vivo), y el historial es
+> append-only de verdad (trigger de base de datos, no solo convención de
+> aplicación — ver `TRUST_IMPLEMENTATION_ROADMAP.md`, sección TRUST-3A).
+
 ## Roles propuestos
 
 | Rol | Puede | No puede |

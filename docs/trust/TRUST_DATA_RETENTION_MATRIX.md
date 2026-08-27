@@ -1,5 +1,27 @@
 # Trust — Matriz de Retención de Datos
 
+> **Actualización — TRUST-3A implementado en `rifex-dev` (2026-08-27),
+> desviación honesta respecto del "ideal" de la fila de abajo.** La
+> imagen del documento de identidad SÍ se conserva hoy en el bucket
+> privado `trust-documents` — no solo el resultado — porque un revisor
+> humano necesita poder volver a abrir un caso `under_review` para
+> decidir, y una eliminación inmediata post-procesamiento le impediría
+> revisar. No existe todavía ningún job de expiración/purga automática:
+> `trust_identity_verifications.expires_at` se fija a 2 años tras la
+> aprobación (valor provisional, sin política de retención real
+> detrás), y nada borra las imágenes de Storage cuando ese plazo se
+> cumple, ni cuando un caso queda `rejected`/`revoked`. Esto es un gap
+> real, explícito, pendiente para TRUST-3B o una fase de retención
+> dedicada — no una decisión de que "está bien conservarlas para
+> siempre". El resultado de verificación (`identity_verified`/
+> `age_verified`/método/revisor/fecha) SÍ vive donde esta matriz ya
+> preveía, en `trust_onboarding`. El historial append-only
+> (`trust_identity_audit_log`) sobrevive intencionalmente incluso a la
+> eliminación de la cuenta (decisión tomada al corregir un bug real de
+> FK durante esta misión — ver `TRUST_IMPLEMENTATION_ROADMAP.md`,
+> sección TRUST-3A) — nunca contiene RUT/nombre/nacimiento/contenido del
+> documento, solo acción/estado/motivo/fecha.
+
 Principio rector (Ley 19.628/21.719, ver `TRUST_LEGAL_PRIVACY_MATRIX_CHILE.md`, sección 1.3): ningún dato se conserva indefinidamente sin una razón declarada. Cada categoría de dato tiene una retención propia, nunca "todo para siempre por si acaso".
 
 | Categoría de dato | Dónde vive (propuesto) | Retención mientras la cuenta está activa | Tras eliminación de cuenta / solicitud de derecho de cancelación | Justificación de la retención |

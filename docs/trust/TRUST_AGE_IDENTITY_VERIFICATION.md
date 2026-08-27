@@ -1,19 +1,33 @@
 # Trust — Verificación de Edad e Identidad
 
-> **Actualización — TRUST-2 implementado en `rifex-dev` (2026-08-27).** El
-> estado final descrito en este documento (edad e identidad
-> **verificadas** contra un documento real) sigue siendo diseño puro —
-> nada de eso existe todavía. Lo que TRUST-2 sí implementa es un peldaño
-> intermedio, explícitamente distinto: exige que la fecha de nacimiento
-> **declarada** implique 18+ (`age_requirement_met_from_declared_data`,
-> nunca `age_verified`) y un RUT chileno **declarado con formato/dígito
+> **Actualización — TRUST-2 y TRUST-3A implementados en `rifex-dev`
+> (2026-08-27).** TRUST-2 exige que la fecha de nacimiento **declarada**
+> implique 18+ (`age_requirement_met_from_declared_data`, nunca
+> `age_verified`) y un RUT chileno **declarado con formato/dígito
 > verificador válidos** (`rut_declared_and_format_valid`, nunca
-> `identity_verified`) antes de poder crear, publicar o recaudar. Ningún
-> código de TRUST-1/TRUST-2 escribe ni puede escribir `age_verified` o
-> `identity_verified` — esas columnas ni siquiera existen todavía; se
-> agregarán en TRUST-3+ cuando haya una verificación documental real que
-> las respalde. Ver `docs/trust/TRUST_IMPLEMENTATION_ROADMAP.md`, sección
-> TRUST-2, para el detalle completo.
+> `identity_verified`). TRUST-3A es el primer peldaño con una
+> verificación real detrás: `identity_verified`/`age_verified` ahora SÍ
+> son columnas reales en `trust_onboarding`, pero el ÚNICO código que
+> puede escribirlas es una aprobación administrativa manual —
+> `recordDecision` en `src/lib/trustIdentityVerificationGate.js`, acción
+> `approve`, exige dos confirmaciones humanas explícitas
+> (`confirmedDataMatches`/`confirmedAgeAdult`) porque no hay OCR: la
+> comparación entre el documento y los datos declarados la hace un
+> revisor humano mirando la imagen, no un algoritmo. El método queda
+> registrado como `manual_document_review`, junto al revisor y la fecha
+> — nunca un booleano anónimo. Alcance TRUST-3A: **solo personas
+> naturales, solo cédula chilena vigente, frente y reverso — sin OCR,
+> sin biometría, sin liveness, sin face match, sin certificado de
+> nacimiento ni de antecedentes**. Organizaciones quedan reservadas para
+> TRUST-4 (RUT tributario, representantes, acreditación) — bajo TRUST-3A
+> una cuenta `account_type=organization` recibe explícitamente
+> "Verificación de organizaciones próximamente", nunca el flujo de
+> cédula personal. La ACTIVACIÓN de "identidad verificada obligatoria
+> para crear/publicar" sigue apagada por defecto — ver
+> `isIdentityVerificationRequiredForCreators()` en
+> `src/lib/trustIdentityVerificationPolicy.js`. Ver
+> `docs/trust/TRUST_IMPLEMENTATION_ROADMAP.md`, secciones TRUST-2 y
+> TRUST-3A, para el detalle completo.
 
 ## Principio rector
 

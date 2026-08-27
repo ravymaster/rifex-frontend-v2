@@ -1,5 +1,20 @@
 # Trust — Threat Model
 
+> **Actualización — TRUST-3A implementado en `rifex-dev` (2026-08-27).**
+> Este documento sigue siendo mayormente diseño — la mayoría de las
+> amenazas de abajo (face match, motor de riesgo, apelaciones, KYC
+> externo) no tienen contraparte real todavía. Lo que sí cambió: la
+> amenaza #3 (documentos adulterados vía el archivo mismo) tiene ahora
+> una defensa real y probada en vivo — magic bytes reales, decodificación
+> con `sharp`, re-encode completo, EXIF descartado, orientación
+> normalizada (`src/lib/trustIdentityDocumentProcessing.js`), incluido un
+> caso adversarial de "polyglot" (payload pegado después del JPEG) que se
+> descarta por completo al re-codificar. La amenaza #1 (dígito
+> verificador de RUT inválido) también tiene una defensa real desde
+> TRUST-2. Ninguna amenaza de esta tabla se considera "resuelta" — solo
+> se anota qué defensa técnica concreta ya existe hoy, no una promesa de
+> que el riesgo desapareció.
+
 Escala de probabilidad e impacto: Baja / Media / Alta. Este documento es de **diseño**, no de implementación — ninguna de estas amenazas fue probada en vivo (a diferencia de las auditorías reales de EVENT-6 Fase 1/2, que sí lo hicieron sobre código ya existente). El propósito es que el diseño de Trust (`RIFEX_TRUST_CANONICAL_DESIGN.md`) responda a cada una desde el principio, no que se descubran después en producción.
 
 | # | Amenaza | Prob. | Impacto | Señales | Prevención | Detección | Respuesta | Evidencia | Responsable | Riesgo residual |
