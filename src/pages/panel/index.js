@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
+import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
 import { formatDrawAt, toZonedInputParts } from '@/lib/raffleTime';
 
 // EXT-1: espejo informativo del MAX_EXTENSION_DAYS real, que vive en la RPC
@@ -438,9 +439,21 @@ export default function Panel() {
       // Si falta país, onboarding antes de dejar ver el panel.
       try {
         const onboardingUrl = await resolveCountryOnboardingRedirect('/panel');
-        if (onboardingUrl) router.replace(onboardingUrl);
+        if (onboardingUrl) { router.replace(onboardingUrl); return; }
       } catch (e) {
         console.warn('country onboarding check:', e?.message);
+      }
+
+      // TRUST-1: misma red de seguridad para el onboarding universal —
+      // esto es solo UX (evita mostrar el panel un instante antes de
+      // redirigir); la autoridad real que bloquea crear/publicar/
+      // recaudar vive server-side en cada endpoint sensible
+      // (assertOnboardingComplete), nunca acá.
+      try {
+        const trustUrl = await resolveTrustOnboardingRedirect('/panel');
+        if (trustUrl) router.replace(trustUrl);
+      } catch (e) {
+        console.warn('trust onboarding check:', e?.message);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps

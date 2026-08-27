@@ -7,7 +7,24 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> 2026-08-26 (actualización más reciente) — Diseño completo de **Rifex
+> 2026-08-26 (actualización más reciente) — TRUST-1 (onboarding
+> universal) **completo en código, migración local sin aplicar**: tabla
+> nueva `trust_onboarding` (RLS default-deny total, sin acceso de
+> cliente en absoluto), `src/lib/trustOnboardingPolicy.js`/
+> `trustOnboardingGate.js`, endpoints `GET/POST /api/onboarding/trust/*`,
+> página `/registro/continuar`, y bloqueo server-side agregado a 13
+> endpoints sensibles reales de Rifas/Colectas/Eventos. 29 pruebas reales
+> pasan, incluida una prueba adversarial que confirma que el cliente
+> nunca puede colar `onboarding_completed_at` por la API. Regresión
+> completa limpia. Migración `db/migrations/2026-08-26e_trust1_
+> onboarding.sql` escrita y revisada, **no aplicada** — pendiente de
+> autorizaciones explícitas y separadas de Rodrigo (aplicar en
+> `rifex-dev`, fixtures si son indispensables, push, deploy DEV).
+> Desplegar el código sin la migración rompe la creación/publicación
+> para todos (falla cerrada por diseño) — deben ir juntos. **TRUST-2 en
+> adelante sigue sin autorizar.**
+>
+> 2026-08-26 (actualización anterior) — Diseño completo de **Rifex
 > Trust** entregado (12 documentos en `docs/trust/`, cero código, cero
 > implementación) + handoff completo notebook→escritorio
 > (`docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md`). Hallazgo

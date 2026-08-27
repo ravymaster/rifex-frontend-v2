@@ -4,6 +4,7 @@
 // Idempotente: publicar un evento ya publicado responde 200 sin duplicar
 // efectos (nunca un 500 ni un estado inconsistente por doble click).
 import { createClient } from '@supabase/supabase-js';
+import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,6 +34,10 @@ export default async function handler(req, res) {
     if (fetchErr) throw fetchErr;
     if (!event) return res.status(404).json({ ok: false, error: 'not_found' });
     if (event.organizer_id !== ures.user.id) return res.status(403).json({ ok: false, error: 'not_your_event' });
+
+    // TRUST-1: publicar exige onboarding universal completo.
+    const onboarding = await assertOnboardingComplete(ures.user.id);
+    if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
 
     if (event.status === 'published') {
       return res.status(200).json({ ok: true, event, already_published: true });

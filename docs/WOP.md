@@ -266,15 +266,26 @@ Explicit design stances worth knowing without reading every document: 18+ is ver
 
 Roadmap: TRUST-0 (this session, done) through TRUST-9 (adversarial audit before production, same rigor as `EVENT6_SECURITY_AUDIT*`). Nothing beyond TRUST-0 is authorized.
 
+### TRUST-1 checkpoint (onboarding universal — code, local migration and tests complete; DEV migration NOT applied, awaiting authorization)
+
+```text
+develop:  (uncommitted at checkpoint time — local commit only, no push, per this mission's explicit authorization boundaries)
+Verdict:  TRUST-1 code-complete in the notebook. BLOCKED on Rodrigo's explicit, separate authorizations for: applying the migration in rifex-dev, creating disposable test fixtures if needed, push to origin/develop, and DEV deploy.
+```
+
+Implemented: `trust_onboarding` table (new, independent of `users_profile`, RLS default-deny total — no client access at all, stricter than the existing `users_profile`/country pattern, precisely to keep `onboarding_completed_at` unreachable from the client); `src/lib/trustOnboardingPolicy.js` (pure validation) + `src/lib/trustOnboardingGate.js` (server authority, mirrors `countryGate.js`); `GET/POST /api/onboarding/trust/{status,complete}`; `/registro/continuar` UI; the server-side gate wired into 13 real sensitive endpoints across Rifas/Colectas/Eventos (create/edit/publish/staff/ticket-types — deliberately excluding pure deletion/revocation actions, which reduce risk rather than increase it, same reasoning applied consistently across both products). 29 real tests pass (`npm run test:trust-onboarding`), including a structural adversarial test proving the client can never smuggle `onboarding_completed_at`/`user_id` through the API. Full regression (`test:event-analytics` 31/31, `test:scanner-controller` 4/4, `npm run build`) clean. Migration: `db/migrations/2026-08-26e_trust1_onboarding.sql`, written and reviewed, **not applied**.
+
+**Real deployment risk, not theoretical**: this code depends on `trust_onboarding` existing. If deployed without the migration applied first, every creation/publish/admin action in DEV breaks for everyone (fails closed by design) — migration and code must ship together, never code alone.
+
 ### NEXT (exact)
 
 ```text
-NEXT: EVENT-7 — not scoped, not authorized. Urgent, independent of Events, PC-de-escritorio-only: verify/fix create_tickets_for_raffle grants in PROD (see docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md, section 5). Rifex Trust implementation (TRUST-1 onward) not authorized until Rodrigo reviews docs/trust/TRUST_DECISIONS_FOR_RODRIGO.md. PROD promotion of Events — a business decision, not a technical audit conclusion — reserved for Rodrigo.
+NEXT: EVENT-7 — not scoped, not authorized. Urgent, independent of Events, PC-de-escritorio-only: verify/fix create_tickets_for_raffle grants in PROD (see docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md, section 5). TRUST-1 is code-complete and awaiting Rodrigo's separate authorizations (DEV migration, fixtures, push, deploy) — see checkpoint above. TRUST-2 onward not authorized. PROD promotion of Events — a business decision, not a technical audit conclusion — reserved for Rodrigo.
 ```
 
 Before any further Events work: rotate the `rifex-dev` DB password (risk 8 below, still pending), do a real-device scanner smoke test if not already done (risk 10 below), confirm the real Vercel plan/Fluid Compute setting for `rifex-frontend-main`/`rifex-frontend-v2` (still unconfirmed, no non-interactive dashboard access this session either), and — urgently, desktop-PC-only — check whether PROD's `create_tickets_for_raffle` has the same dangerous grant.
 
-**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified), `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED**), `docs/events/EVENT6_SECURITY_AUDIT.md` (EVENT-6 Fase 1), `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md` (EVENT-6 Fase 2 — inherited WARN audit + promotion package), and `docs/trust/RIFEX_TRUST_CANONICAL_DESIGN.md` (Rifex Trust, design only).
+**Canonical specs**: `docs/events/EVENT4_STAFF_SCANNER_CHECKIN.md` (EVENT-4, certified), `docs/events/EVENT5_ANALYTICS_XLSX.md` (EVENT-5, **CERTIFIED**), `docs/events/EVENT6_SECURITY_AUDIT.md` (EVENT-6 Fase 1), `docs/events/EVENT6_SECURITY_AUDIT_FASE2.md` (EVENT-6 Fase 2 — inherited WARN audit + promotion package), and `docs/trust/RIFEX_TRUST_CANONICAL_DESIGN.md` (Rifex Trust — TRUST-1 implemented pending DEV authorization, TRUST-2+ still design only).
 
 ### Reentry Notebook Procedure (Antofagasta)
 

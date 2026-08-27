@@ -8,6 +8,7 @@
 // Reducir quantity_total por debajo de sold+reserved también queda
 // bloqueado por el CHECK de la migración — se traduce a 409 legible.
 import { createClient } from '@supabase/supabase-js';
+import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -39,6 +40,14 @@ export default async function handler(req, res) {
     if (evErr) throw evErr;
     if (!event) return res.status(404).json({ ok: false, error: 'not_found' });
     if (event.organizer_id !== ures.user.id) return res.status(403).json({ ok: false, error: 'not_your_event' });
+
+    // TRUST-1: editar (nunca eliminar — quitar un tipo de entrada reduce
+    // riesgo, mismo criterio que rifas/delete.js) exige onboarding
+    // universal completo.
+    if (req.method === 'PATCH') {
+      const onboarding = await assertOnboardingComplete(ures.user.id);
+      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+    }
 
     const { data: ticketType, error: ttErr } = await supabase
       .from('event_ticket_types')

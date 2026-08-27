@@ -10,6 +10,7 @@
 // de candidatos, solo éxito/error sobre UN email exacto.
 import { createClient } from '@supabase/supabase-js';
 import { enforceRateLimit, resolveClientIp } from '@/lib/rateLimit';
+import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -57,6 +58,13 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      // TRUST-1: agregar staff es una acción administrativa sobre una
+      // iniciativa propia — exige onboarding universal completo. La
+      // lectura (GET) de arriba queda sin gatear, mismo criterio que el
+      // resto de lecturas owner-only de este proyecto.
+      const onboarding = await assertOnboardingComplete(user.id);
+      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+
       const body = req.body || {};
       const email = String(body.email || '').trim().toLowerCase();
       if (!email || email.length > 200 || !email.includes('@')) {

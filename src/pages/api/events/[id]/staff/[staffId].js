@@ -5,6 +5,7 @@
 // cambio de status, preserva historial.
 import { createClient } from '@supabase/supabase-js';
 import { enforceRateLimit, resolveClientIp } from '@/lib/rateLimit';
+import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -47,6 +48,14 @@ export default async function handler(req, res) {
     const status = body.status;
     if (status !== 'active' && status !== 'revoked') {
       return res.status(400).json({ ok: false, error: 'invalid_status' });
+    }
+
+    // TRUST-1: reactivar staff otorga acceso — exige onboarding completo.
+    // Revocar reduce riesgo, mismo criterio que rifas/delete.js — nunca
+    // se bloquea.
+    if (status === 'active') {
+      const onboarding = await assertOnboardingComplete(user.id);
+      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
     }
 
     const { data: updated, error: updErr } = await supabase

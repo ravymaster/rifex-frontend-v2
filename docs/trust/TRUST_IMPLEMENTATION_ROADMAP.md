@@ -16,18 +16,17 @@ Ninguna etapa de este roadmap fue implementada en esta sesión — es diseño pu
 
 ## TRUST-1 — Onboarding universal y estados
 
-- **Alcance**: tabla de onboarding universal (datos públicos/privados mínimos), estados del flujo (`TRUST_UNIFIED_ONBOARDING.md`), chequeo server-side en cada endpoint sensible existente hoy (creación de rifa/colecta/evento).
-- **Exclusiones**: verificación documental real (eso es TRUST-2/3); motor de riesgo; panel de administración.
-- **Dependencias**: ninguna técnica — es la base de todo lo demás.
-- **Datos**: nueva tabla de onboarding universal, extensión de `users_profile` o tabla separada (a decidir en el diseño técnico detallado, no fijado aquí).
-- **APIs**: endpoint de registro universal (`/api/onboarding/*`, mismo patrón que `/api/onboarding/country` ya existente).
-- **UX**: `/registro/continuar`.
-- **Seguridad**: RLS default-deny desde el día uno, mismo patrón que Eventos.
-- **Pruebas**: unitarias de la lógica de estados + pruebas de que un endpoint sensible realmente rechaza a un usuario con onboarding incompleto (server-side, no solo frontend).
-- **Definition of Done**: ningún endpoint de creación de iniciativa es alcanzable sin onboarding universal completo, verificado con pruebas reales (mismo rigor que EVENT-6).
-- **Riesgos**: romper el flujo de creación de rifas/colectas/eventos existente si no se migra con cuidado a los usuarios ya registrados sin onboarding universal.
-- **Autorización necesaria**: explícita de Rodrigo, con plan de migración de usuarios existentes.
-- **Estimación relativa**: media.
+**Estado: código, migración local y pruebas COMPLETOS en el notebook — migración NO aplicada en `rifex-dev`, PENDIENTE de autorización expresa de Rodrigo.** Ver el checkpoint completo en `docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md` (o el informe de la sesión que implementó esto) para el detalle exacto de archivos, RLS y pruebas.
+
+- **Alcance real implementado**: tabla `trust_onboarding` (independiente de `users_profile`, RLS default-deny total — decisión final, no la alternativa "extender users_profile" que el roadmap original dejaba abierta, precisamente porque `users_profile` ya permite escritura directa del cliente vía RLS y eso habría dejado `onboarding_completed_at` editable por el cliente); `src/lib/trustOnboardingPolicy.js` (validación pura) + `src/lib/trustOnboardingGate.js` (autoridad server-side, mismo patrón que `countryGate.js`); `GET/POST /api/onboarding/trust/{status,complete}`; página `/registro/continuar`; gate server-side agregado a los 13 endpoints sensibles reales de creación/edición/publicación/administración de Rifas, Colectas y Eventos (lista exacta en el informe de cierre de esta sesión).
+- **Exclusiones cumplidas**: sin verificación documental, sin OCR, sin biometría, sin RUT verificado — solo campos declarados.
+- **Datos**: tabla nueva, no extiende `users_profile`.
+- **Seguridad**: RLS default-deny total (ni siquiera SELECT propio vía PostgREST — todo pasa por las rutas API con `service_role`, más estricto que el patrón de `users_profile`/país).
+- **Pruebas**: 29 pruebas reales (`npm test:trust-onboarding`), incluida una prueba adversarial estructural que confirma que ningún campo de estado reservado (`onboarding_completed_at`, `user_id`) puede colarse desde el body del cliente.
+- **Compatibilidad con usuarios antiguos**: sin excepción — la ausencia de fila en `trust_onboarding` se trata como incompleto para cualquier cuenta, nueva o antigua, exactamente como exigía el mandato de esta fase.
+- **Riesgo de despliegue real, no teórico**: el código de los 13 endpoints depende de que la tabla `trust_onboarding` exista — si se despliega el código sin aplicar antes la migración en `rifex-dev`, **todo el mundo queda bloqueado para crear/publicar/administrar** (falla cerrada por diseño). La migración y el código deben aplicarse/desplegarse juntos, nunca el código solo.
+- **Autorización necesaria**: aplicar la migración en `rifex-dev`, crear fixtures de prueba si son indispensables, push a `origin/develop`, y deploy DEV — cada una por separado, explícita, según el checkpoint de esta sesión.
+- **Estimación relativa**: media — completada en el notebook, pendiente solo de las operaciones externas autorizadas.
 
 ## TRUST-2 — Identidad básica, RUT, teléfono y edad
 

@@ -51,7 +51,11 @@ a1093b6 feat(events): add staff scanner and atomic check-in
 
 ## 4. Diseño Rifex Trust — resumen (detalle completo en `docs/trust/`)
 
-Sistema transversal de onboarding, identidad, verificación, prevención de fraude, administración, denuncias, reputación basada en operaciones reales, y expansión futura — diseñado, **no implementado**. Documentos, en orden recomendado de lectura:
+Sistema transversal de onboarding, identidad, verificación, prevención de fraude, administración, denuncias, reputación basada en operaciones reales, y expansión futura — diseñado en su mayoría, **no implementado**, salvo TRUST-1 (ver nota abajo).
+
+> **Actualización posterior a la fecha de este handoff**: TRUST-1 (onboarding universal) quedó **completo en código, migración local escrita y revisada, pruebas reales pasando — pero la migración NO se aplicó en `rifex-dev`**, pendiente de autorización explícita de Rodrigo (aplicar en DEV, fixtures si son indispensables, push, deploy). Ver `docs/trust/TRUST_IMPLEMENTATION_ROADMAP.md`, sección TRUST-1, y `docs/WOP.md`, "TRUST-1 checkpoint", para el detalle exacto. Si esto se retoma desde Santiago sin que esa autorización ya se haya dado, **no desplegar el código de TRUST-1 sin aplicar antes la migración `db/migrations/2026-08-26e_trust1_onboarding.sql`** — el código depende de que la tabla exista, y sin ella bloquea la creación/publicación para todos.
+
+Documentos, en orden recomendado de lectura:
 
 1. `docs/trust/RIFEX_TRUST_CANONICAL_DESIGN.md` — documento maestro (objetivo, documentos por producto, motor de riesgo, arquitectura, invariantes).
 2. `docs/trust/TRUST_UNIFIED_ONBOARDING.md` — gap real de Google OAuth confirmado contra el código, flujo de estados.

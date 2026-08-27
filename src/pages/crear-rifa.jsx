@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
+import { resolveTrustOnboardingRedirect } from "@/lib/trustOnboardingClient";
 import Layout from "@/components/Layout";
 import styles from "@/styles/crearRifa.module.css";
 
@@ -54,6 +55,25 @@ async function uploadPrizePhotos(files, token) {
 
 export default function CrearRifaPage() {
   const router = useRouter();
+
+  // TRUST-1: chequeo de sesión + onboarding universal al montar — esta
+  // página antes solo verificaba sesión recién al enviar el formulario
+  // (dejaba llenar todo primero). La autoridad real que bloquea la
+  // creación sigue siendo server-side (POST /api/rifas), esto es
+  // solo UX temprana.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) { router.push('/login?next=/crear-rifa'); return; }
+      try {
+        const trustUrl = await resolveTrustOnboardingRedirect('/crear-rifa');
+        if (trustUrl) router.replace(trustUrl);
+      } catch (e) {
+        console.warn('trust onboarding check:', e?.message);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Básicos
   const [title, setTitle] = useState("");

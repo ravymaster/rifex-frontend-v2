@@ -5,6 +5,7 @@
 // directamente desde el body (status solo cambia vía publish.js o acciones
 // explícitas futuras — EVENT-1 permite cancelar aquí, ver más abajo).
 import { createClient } from '@supabase/supabase-js';
+import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -69,6 +70,11 @@ export default async function handler(req, res) {
       const user = await getRequester(req);
       if (!user) return res.status(401).json({ ok: false, error: 'missing_auth' });
       if (user.id !== event.organizer_id) return res.status(403).json({ ok: false, error: 'not_your_event' });
+
+      // TRUST-1: editar datos sensibles (incluida la cancelación) exige
+      // onboarding universal completo.
+      const onboarding = await assertOnboardingComplete(user.id);
+      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
 
       const body = req.body || {};
       const patch = {};

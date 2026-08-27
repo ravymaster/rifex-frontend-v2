@@ -6,6 +6,7 @@
 // mismo criterio ya certificado en /api/rifas e /api/colectas.
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
+import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
@@ -44,6 +45,10 @@ export default async function handler(req, res) {
 
       const gate = await assertCountryGate(organizer_id, 'events');
       if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
+
+      // TRUST-1: onboarding universal obligatorio antes de crear.
+      const onboarding = await assertOnboardingComplete(organizer_id);
+      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
 
       const body = req.body || {};
       const title = String(body.title || '').trim();

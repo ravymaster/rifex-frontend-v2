@@ -1,6 +1,8 @@
 # Rifex Trust — Diseño Canónico
 
-Documento maestro del sistema Rifex Trust. Diseño puro — **nada de esto está implementado**. Referencia el resto de `docs/trust/` para el detalle de cada área; este documento consolida el objetivo, los documentos por producto, el motor de riesgo y la arquitectura propuesta.
+Documento maestro del sistema Rifex Trust. Referencia el resto de `docs/trust/` para el detalle de cada área; este documento consolida el objetivo, los documentos por producto, el motor de riesgo y la arquitectura propuesta.
+
+> **Actualización — TRUST-1 implementado (código + migración local + pruebas), pendiente de autorización para aplicar en `rifex-dev`.** El resto de este documento (TRUST-2 en adelante: identidad, RUT, documentos, organizaciones, motor de riesgo, panel de administración) sigue siendo diseño puro, no implementado. Ver `docs/trust/TRUST_IMPLEMENTATION_ROADMAP.md`, sección TRUST-1, para el detalle real de lo ya construido.
 
 ---
 
