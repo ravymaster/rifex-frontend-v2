@@ -9,11 +9,20 @@
 // se resuelve contra la fila real de trust_onboarding y
 // users_profile.country_code — nunca lo que el cliente afirme.
 //
-// age_verified/identity_verified/phone_verified NO existen como columnas
-// en esta fase — se devuelven como constantes `false` desde
-// getIdentityStatus, precisamente para que ningún código de TRUST-2
-// pueda escribirlas por error. TRUST-3+ las reemplazará por columnas
-// reales cuando exista una verificación de verdad (documento, SMS, etc.).
+// age_verified/identity_verified ahora SÍ son columnas reales en
+// trust_onboarding (agregadas por TRUST-3A, db/migrations/
+// 2026-08-27b_trust3a_identity_verification.sql) — pero el ÚNICO código
+// que puede escribirlas es la aprobación administrativa en
+// src/lib/trustIdentityVerificationGate.js (recordDecision). Este
+// archivo solo las LEE, nunca las escribe. phone_verified sigue sin
+// existir (TRUST-3A no implementa verificación de teléfono).
+//
+// isIdentityVerificationRequiredForCreators() (trustIdentityVerification
+// Policy.js) sigue en `false` — assertCreatorEligible exige exactamente
+// lo mismo que en TRUST-2 (onboarding + 18+ declarado + RUT para Chile)
+// mientras esa política no se active explícitamente. Activarla es una
+// decisión de negocio, nunca un efecto secundario de haber construido
+// TRUST-3A.
 import { createClient } from '@supabase/supabase-js';
 import { isOnboardingComplete } from './trustOnboardingPolicy.js';
 import {
@@ -23,6 +32,7 @@ import {
   isRutRequiredForCountry,
   ageRequirementMetFromDeclaredData,
 } from './trustIdentityPolicy.js';
+import { isIdentityVerificationRequiredForCreators } from './trustIdentityVerificationPolicy.js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -39,7 +49,7 @@ const USER_MESSAGE = {
 };
 
 const ONBOARDING_COLUMNS =
-  'legal_name, birth_date, phone, account_type, terms_version, terms_accepted_at, privacy_version, privacy_accepted_at, onboarding_completed_at, rut_normalized, rut_declared_at';
+  'legal_name, birth_date, phone, account_type, terms_version, terms_accepted_at, privacy_version, privacy_accepted_at, onboarding_completed_at, rut_normalized, rut_declared_at, identity_verified, age_verified';
 
 function fetchOnboardingRecord(userId) {
   return supabase.from('trust_onboarding').select(ONBOARDING_COLUMNS).eq('user_id', userId).maybeSingle();
@@ -83,6 +93,17 @@ export async function assertCreatorEligible(userId) {
     if (!record.rut_normalized || !isValidRut(record.rut_normalized)) {
       return { ok: false, reason: 'identity_incomplete', message: USER_MESSAGE.identity_incomplete };
     }
+  }
+
+  // TRUST-3A: apagado por defecto (ver cabecera). Cuando se active
+  // explícitamente, exige además una verificación documental aprobada
+  // real — nunca un booleano que el propio usuario pudo haber escrito.
+  if (isIdentityVerificationRequiredForCreators() && !record.identity_verified) {
+    return {
+      ok: false,
+      reason: 'identity_verification_required',
+      message: 'Antes de continuar, verifica tu identidad con un documento en Rifex.',
+    };
   }
 
   return { ok: true };
@@ -172,12 +193,22 @@ export async function getIdentityStatus(userId) {
     rut_declared: rutDeclared,
     rut_masked: rutDeclared ? maskRut(record.rut_normalized) : null,
     age_requirement_met_from_declared_data: ageMet,
-    // TRUST-2 nunca persiste ni calcula estos tres — siempre `false`
-    // hasta que una fase posterior implemente una verificación real.
-    age_verified: false,
-    identity_verified: false,
+    // age_verified/identity_verified: reales desde TRUST-3A, pero SOLO
+    // legibles acá — la única escritura posible es la aprobación
+    // administrativa en trustIdentityVerificationGate.js. phone_verified
+    // sigue sin existir (TRUST-3A no verifica teléfono).
+    age_verified: Boolean(record?.age_verified),
+    identity_verified: Boolean(record?.identity_verified),
     phone_verified: false,
-    creator_eligible: onboardingComplete && ageMet && (!rutRequired || rutDeclared),
+    // Mismo criterio exacto que assertCreatorEligible — si algún día
+    // isIdentityVerificationRequiredForCreators() pasa a `true`, este
+    // valor debe reflejarlo de inmediato, nunca quedar desincronizado
+    // del gate real.
+    creator_eligible:
+      onboardingComplete &&
+      ageMet &&
+      (!rutRequired || rutDeclared) &&
+      (!isIdentityVerificationRequiredForCreators() || Boolean(record?.identity_verified)),
   };
 }
 

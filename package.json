@@ -9,7 +9,8 @@
     "test:scanner-controller": "node --test tests/scannerController.test.mjs",
     "test:event-analytics": "node --test tests/eventAnalytics.test.mjs tests/eventAnalyticsAuth.test.mjs tests/eventAnalyticsWorkbook.test.mjs",
     "test:trust-onboarding": "node --test tests/trustOnboardingPolicy.test.mjs tests/trustOnboardingGate.test.mjs",
-    "test:trust-identity": "node --test tests/trustIdentityPolicy.test.mjs tests/trustIdentityGate.test.mjs"
+    "test:trust-identity": "node --test tests/trustIdentityPolicy.test.mjs tests/trustIdentityGate.test.mjs",
+    "test:trust-identity-verification": "node --test tests/trustIdentityVerificationPolicy.test.mjs tests/trustIdentityDocumentProcessing.test.mjs tests/trustIdentityVerificationGate.test.mjs"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
