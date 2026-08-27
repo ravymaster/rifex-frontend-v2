@@ -7,7 +7,47 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> 2026-08-27 (actualización más reciente) — TRUST-3A (verificación
+> 2026-08-27/28 (actualización más reciente) — corrección canónica
+> hacia adelante: **Mercado Pago como control principal, onboarding
+> simplificado. COMPLETO en DEV**, misión nocturna autónoma (Rodrigo
+> durmiendo, solo permisos del sistema, sin pruebas manuales pedidas).
+> No se revirtió ningún commit ni migración — solo aditivo/correctivo.
+> Fecha de nacimiento eliminada por completo (confirmado 0 filas reales
+> antes de borrar la columna) — reemplazada por `adult_declared`
+> (booleano versionado, nunca `age_verified`). El selector
+> `account_type` reemplazado por `person_name`/`organization_name`
+> (exactamente uno lleno, derivado server-side) — `legal_name`
+> eliminado (también 0 filas reales). Teléfono simplificado a un
+> widget chileno de 9 dígitos. Mercado Pago pasa a ser el control
+> principal que cierra el onboarding: `merchant_gateways` gana
+> `mp_identity_match` + un índice único real que impide que una misma
+> cuenta de Mercado Pago habilite dos cuentas Rifex activas;
+> `assertCreatorEligible` ahora también exige, para Chile, Mercado Pago
+> conectado con titular coincidente (o `unavailable`, que nunca
+> bloquea). Auditoría real de Mercado Pago
+> (`docs/trust/MP_IDENTITY_MATCH_AUDIT.md`): no se pudo confirmar en
+> vivo si `/users/me` entrega RUT para Chile — documentación oficial
+> bloqueada, sin credenciales de Mercado Pago en este entorno — el
+> código quedó defensivo, nunca inventa una coincidencia. TRUST-3A
+> sigue como respaldo excepcional, nunca el flujo normal. Probado en
+> vivo con dos fixtures desechables `@example.com` (borradas después,
+> cero residuos): `403 mp_not_connected` aislado, estados
+> `matched`/`mismatch`/`unavailable`/`disconnected` simulados vía
+> fixtures produjeron el comportamiento correcto, índice único real de
+> `mp_user_id` disparado correctamente. Security Advisor sin hallazgos
+> nuevos. 15 pruebas nuevas + regresión completa (174/174) + build
+> limpios. Commit `0cc59dc` empujado a `origin/develop`;
+> `rifex-frontend-main` re-desplegado automáticamente. También se
+> agregó `/seguridad` (página pública, enlazada desde el footer),
+> `docs/trust/META_ANTIFRAUD_STATEMENT.md`, "Términos del Creador"
+> ampliado sustancialmente (marcado pendiente de revisión por abogado
+> chileno antes de PROD), y se registró la decisión de 2FA (opcional
+> para creadores, pendiente como obligatorio para admins antes de
+> producción). PROD y `main` intactos. **Limitación real: el
+> comportamiento verdadero de `/users/me` de Mercado Pago para Chile
+> nunca se confirmó en vivo — falta hacerlo con credenciales reales.**
+>
+> 2026-08-27 (actualización anterior) — TRUST-3A (verificación
 > documental de identidad, revisión manual, solo personas naturales)
 > **COMPLETO en DEV**, misión autónoma pre-autorizada de punta a punta
 > (Rodrigo llegó agotado de un viaje y pidió explícitamente no ser
@@ -245,7 +285,7 @@ Ejecuta el procedimiento "Reentry Notebook Procedure" de docs/WOP.md (sección "
 Lee en orden: docs/WOP.md (sección RIFEX CURRENT STATE), docs/CURRENT_STATE.md, docs/handover/HANDOVER_RIFEX_CURRENT.md.
 Verifica: git fetch, HEAD real de develop (debe incluir EVENT-5 sobre EVENT-4/c32713e, o un descendiente), origin/main (c944bb3 o su descendiente — si cambió, alerta antes de seguir), git status.
 Reconstruye el estado real de EVENT-1/EVENT-2/EVENT-3/EVENT-4/EVENT-5 a partir del repo, no de esta instrucción.
-Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente, solo desde el PC de escritorio en Santiago, ver docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md). Confirma también que Rifex Trust TRUST-1 (onboarding universal), TRUST-2 (identidad básica declarada: RUT chileno + edad 18+) y TRUST-3A (verificación documental manual, solo personas naturales) están COMPLETOS en rifex-dev (código, migraciones aplicadas, bucket privado, pruebas en vivo, deploy) — TRUST-3B/TRUST-4 en adelante (OCR, biometría, organizaciones, apelaciones, retención) sigue siendo diseño puro, sin implementar. Confirma si ya se hicieron las pruebas humanas de interfaz de TRUST-1/TRUST-2/TRUST-3A que quedaron agendadas para el fin de semana del 2026-08-27 en adelante. NEXT es EVENT-7, todavía sin alcance ni autorización.
+Confirma que EVENT-4 y EVENT-5 están DONE y CERTIFICADOS, y que EVENT-6 Fases 1 y 2 (auditoría autónoma) están COMPLETADAS con veredicto GO — revisa si el hallazgo crítico de create_tickets_for_raffle ya fue verificado/corregido en PROD (acción urgente, solo desde el PC de escritorio en Santiago, ver docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md). Confirma también que Rifex Trust TRUST-1, TRUST-2, TRUST-3A, y la corrección canónica de Mercado Pago como control principal (onboarding sin fecha de nacimiento, con persona/organización derivado, y con coincidencia RUT↔Mercado Pago) están COMPLETOS en rifex-dev (código, migraciones aplicadas, bucket privado, pruebas en vivo, deploy) — TRUST-3B/TRUST-4 en adelante (OCR, biometría, organizaciones, apelaciones, retención) sigue siendo diseño puro, sin implementar. Verifica con credenciales reales de Mercado Pago si /users/me realmente entrega identificación para Chile (docs/trust/MP_IDENTITY_MATCH_AUDIT.md) — nunca se confirmó en vivo. Confirma si ya se hicieron las pruebas humanas de interfaz de todo lo anterior, agendadas para el fin de semana del 2026-08-27 en adelante. NEXT es EVENT-7, todavía sin alcance ni autorización.
 Confirma si la rotación de la contraseña de rifex-dev ya se hizo (WOP, Risks/pending y "NEXT (exact)").
 No modifiques código todavía.
 Entrégame un REENTRY REPORT (branch, HEAD, origin/develop, origin/main, git status, resumen EVENT-1/2/3/4/5, riesgos pendientes, NEXT) y detente ahí.

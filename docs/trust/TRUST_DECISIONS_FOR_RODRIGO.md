@@ -21,6 +21,21 @@ Consolidado de cada punto marcado como "requiere abogado", "decisión de product
 9. **Estructura de roles de revisión** (`trust_reviewer`, `trust_supervisor`, `support_readonly`, `security_auditor`) y la regla de apelación revisada por una persona distinta — con un equipo pequeño, esta última regla puede ser difícil de cumplir en la práctica; Rodrigo debe decidir cómo se resuelve esa tensión operativa real, no solo aceptar el diseño ideal.
 10. **Domicilio como dato condicional, nunca universal** — confirmar que esta postura de proporcionalidad es aceptable para el negocio (podría sentirse "menos estricto" de lo que algunos usuarios esperan, pero está alineada con la ley).
 
+## Prioridad 2b — agregado 2026-08-27, misión "onboarding MP como control principal"
+
+2b.1. **2FA obligatorio para revisores y administradores, todavía sin implementar.** Decisión registrada en esta
+sesión: 2FA queda **opcional para creadores** en esta fase, pero debería ser **obligatorio antes de producción**
+para cualquier cuenta con `app_metadata.role === 'admin'` (incluye la cola de revisión de TRUST-3A). No se
+implementó código — es una decisión de producto pendiente de ejecución.
+
+2b.2. **Coincidencia RUT Rifex ↔ titular Mercado Pago: no se pudo confirmar empíricamente si la API lo entrega
+para Chile.** Ver `docs/trust/MP_IDENTITY_MATCH_AUDIT.md` para el detalle completo — la documentación oficial de
+Mercado Pago bloqueó todos los intentos de acceso automatizado, y este entorno no tenía credenciales de una app de
+Mercado Pago para probar en vivo. El código quedó implementado de forma defensiva (nunca inventa una coincidencia,
+nunca bloquea si el dato no está disponible), pero **alguien con credenciales reales de Mercado Pago debe conectar
+una cuenta de prueba y confirmar el comportamiento real** antes de considerar este control "verificado en
+producción".
+
 ## Prioridad 4 — expansión futura, sin urgencia
 
 11. **Ningún país fuera de Chile queda habilitado por este diseño** — Argentina, Perú, Colombia, Uruguay y Brasil solo tienen una investigación comparativa inicial (`TRUST_COUNTRY_COMPLIANCE_PACKS.md`), no verificada al mismo nivel que Chile. Cualquier expansión real requiere su propia investigación dedicada y abogado local.
