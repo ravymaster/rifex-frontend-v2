@@ -31,16 +31,20 @@ Ninguna etapa de este roadmap fue implementada en esta sesión — es diseño pu
 
 ## TRUST-2 — Identidad básica, RUT, teléfono y edad
 
-- **Alcance**: campos privados (nombre legal, RUT, fecha de nacimiento, teléfono) + validación de formato de RUT (dígito verificador) — sin verificación documental real todavía, solo estructura y validación de forma.
-- **Exclusiones**: subida de documentos, revisión humana, OCR.
-- **Dependencias**: TRUST-1.
-- **Datos**: tabla privada de identidad.
-- **Seguridad**: acceso restringido, nunca expuesto en API pública.
-- **Pruebas**: validación de RUT con casos reales/inválidos, aislamiento de acceso (IDOR).
-- **Definition of Done**: un usuario puede completar estos campos, quedan validados en formato, pero el usuario sigue sin poder publicar hasta TRUST-3.
-- **Riesgos**: bajo.
-- **Autorización necesaria**: explícita.
-- **Estimación relativa**: baja-media.
+**Estado: COMPLETO en `rifex-dev`** (2026-08-27, misión "TRUST-2 EN DEV" — autónoma, autorizada de punta a punta por el mandato de esa misión, sin checkpoint intermedio). Migración aplicada, probada en vivo, código empujado a `origin/develop` y desplegado en `rifex-frontend-main`. `origin/main` y PROD intactos.
+
+- **Alcance real implementado**: RUT chileno (`rut_normalized`/`rut_declared_at`, columnas nuevas en la MISMA tabla `trust_onboarding` de TRUST-1 — nunca una tabla aparte, ver razón abajo) con validación de formato y dígito verificador módulo 11 server-side (`src/lib/trustIdentityPolicy.js`), normalización canónica, enmascarado en cualquier respuesta de API, e índice único parcial que impide que dos cuentas declaren el mismo RUT. Requisito de edad 18+ para crear/publicar/recaudar/administrar, calculado siempre server-side desde `birth_date` (ya capturado por TRUST-1 — no se duplicó). Gate superset `assertCreatorEligible` (`src/lib/trustIdentityGate.js`) reemplazó `assertOnboardingComplete` en los mismos 12 endpoints sensibles ya protegidos por TRUST-1 (Rifas/Colectas/Eventos: crear/editar/publicar/staff/tipos de entrada).
+- **Por qué se extendió `trust_onboarding` en vez de crear una tabla nueva**: el RUT es identidad básica de la MISMA persona, sobre la MISMA fila que ya tiene TRUST-1 — agregar columnas nuevas hereda automáticamente el RLS default-deny total ya certificado, sin política adicional que escribir ni auditar, y evita un JOIN extra en cada gate.
+- **`age_verified`/`identity_verified`/`phone_verified` no existen como columnas** — TRUST-2 los devuelve como constantes `false` desde `getIdentityStatus`, precisamente para que ningún código de esta fase pueda escribirlos por error. TRUST-3+ agregará las columnas reales cuando exista una verificación documental de verdad.
+- **Exclusiones cumplidas**: sin subida de documentos, sin OCR, sin biometría, sin `identity_verified` real — solo RUT y edad declarados.
+- **Bug real encontrado adversarialmente y corregido en la misma sesión**: `upsertIdentityRut` usaba `.update()`, que falla en silencio (0 filas afectadas, sin error) si el usuario todavía no tiene fila en `trust_onboarding` (por ejemplo, si llama la API de RUT antes que la de onboarding) — el cliente recibía `200 OK` sin que se guardara nada. Corregido a `.upsert()` con `onConflict: 'user_id'`, mismo patrón que `upsertOnboardingFields`. Regresión agregada a `tests/trustIdentityGate.test.mjs`.
+- **Pruebas**: 36 pruebas reales (`npm run test:trust-identity`), incluidas RUT con/sin puntos/guion/espacios, K mayúscula/minúscula, dígito verificador 0, año bisiesto (29-feb-2000), cumple 18 exactamente hoy, cumplirá 18 recién mañana, menor de edad, país distinto de Chile (RUT no exigido), intento adversarial de forzar `age_verified`/`identity_verified`/`user_id` vía el endpoint de RUT (sin efecto).
+- **Verificación en vivo en `rifex-dev`** con fixtures desechables `@example.com` (creadas y borradas con `service_role`, cero residuos confirmados): `403 identity_incomplete` real al crear una rifa con RUT pendiente (aislado del gate de país/onboarding); RUT inválido rechazado; RUT válido con distintos formatos de entrada normaliza al mismo valor; `creator_eligible` pasa a `true` solo tras declarar el RUT; declarar después una fecha de nacimiento de menor de edad revierte `creator_eligible` a `false` con el motivo `age_requirement_not_met`, sin afectar `complete` de TRUST-1 (separación de estados correcta); **conflicto real de unicidad de RUT entre dos cuentas distintas confirmado contra el índice único de Postgres** (`409 rut_conflict`, sin revelar de quién es el RUT ya declarado). Security Advisor sin hallazgos nuevos tras la migración.
+- **Seguridad**: RLS default-deny heredado sin cambios; RUT nunca expuesto completo en ninguna respuesta (solo enmascarado); `service_role` nunca en el cliente; sin grants nuevos a `PUBLIC`/`anon`/`authenticated`.
+- **Definition of Done**: un usuario puede declarar su RUT (validado en formato) y su fecha de nacimiento implica 18+, ambos evaluados server-side — pero sigue sin existir `identity_verified` documental real, que es exclusivamente TRUST-3.
+- **Riesgos**: bajos, ya mitigados — ver el bug de upsert arriba.
+- **Autorización**: cubierta íntegramente por el mandato de la misión "TRUST-2 EN DEV" (auditoría, código, migración, aplicar en DEV, fixtures, push, deploy DEV — todo pre-autorizado explícitamente, sin checkpoint intermedio).
+- **Estimación relativa**: completada.
 
 ## TRUST-3 — Documentos privados y revisión manual
 

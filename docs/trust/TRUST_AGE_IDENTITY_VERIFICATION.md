@@ -1,5 +1,20 @@
 # Trust — Verificación de Edad e Identidad
 
+> **Actualización — TRUST-2 implementado en `rifex-dev` (2026-08-27).** El
+> estado final descrito en este documento (edad e identidad
+> **verificadas** contra un documento real) sigue siendo diseño puro —
+> nada de eso existe todavía. Lo que TRUST-2 sí implementa es un peldaño
+> intermedio, explícitamente distinto: exige que la fecha de nacimiento
+> **declarada** implique 18+ (`age_requirement_met_from_declared_data`,
+> nunca `age_verified`) y un RUT chileno **declarado con formato/dígito
+> verificador válidos** (`rut_declared_and_format_valid`, nunca
+> `identity_verified`) antes de poder crear, publicar o recaudar. Ningún
+> código de TRUST-1/TRUST-2 escribe ni puede escribir `age_verified` o
+> `identity_verified` — esas columnas ni siquiera existen todavía; se
+> agregarán en TRUST-3+ cuando haya una verificación documental real que
+> las respalde. Ver `docs/trust/TRUST_IMPLEMENTATION_ROADMAP.md`, sección
+> TRUST-2, para el detalle completo.
+
 ## Principio rector
 
 - Cualquier persona puede **explorar** Rifex sin registro.

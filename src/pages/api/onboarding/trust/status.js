@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { enforceRateLimit, resolveClientIp } from '@/lib/rateLimit';
 import { getOnboardingRecord, isOnboardingComplete, missingOnboardingFields } from '@/lib/trustOnboardingGate';
+import { getIdentityStatus } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -31,6 +32,12 @@ export default async function handler(req, res) {
 
     const record = await getOnboardingRecord(uid);
     const complete = isOnboardingComplete(record);
+    // TRUST-2: identidad básica declarada (RUT para Chile) + requisito
+    // de edad. `complete` arriba sigue significando exclusivamente
+    // "TRUST-1 (onboarding universal) completo" — no cambia de
+    // significado — `identity.creator_eligible` es el nuevo criterio
+    // real que exigen los endpoints sensibles (ver trustIdentityGate.js).
+    const identity = await getIdentityStatus(uid);
 
     return res.status(200).json({
       ok: true,
@@ -48,6 +55,7 @@ export default async function handler(req, res) {
             privacy_version: record.privacy_version || null,
           }
         : null,
+      identity,
     });
   } catch (e) {
     console.error('[api/onboarding/trust/status] error', e);

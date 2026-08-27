@@ -5,7 +5,7 @@
 // EVENT-1, así que la edición/creación es simple — EVENT-2 en adelante
 // deberá impedir tocar snapshots de tipos ya usados por una orden.
 import { createClient } from '@supabase/supabase-js';
-import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -60,9 +60,10 @@ export default async function handler(req, res) {
       if (!user) return res.status(401).json({ ok: false, error: 'missing_auth' });
       if (user.id !== event.organizer_id) return res.status(403).json({ ok: false, error: 'not_your_event' });
 
-      // TRUST-1: crear un tipo de entrada exige onboarding universal completo.
-      const onboarding = await assertOnboardingComplete(user.id);
-      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+      // TRUST-1/TRUST-2: crear un tipo de entrada exige onboarding
+      // universal + identidad básica (18+, RUT para Chile).
+      const eligibility = await assertCreatorEligible(user.id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
       const body = req.body || {};
       const name = String(body.name || '').trim();

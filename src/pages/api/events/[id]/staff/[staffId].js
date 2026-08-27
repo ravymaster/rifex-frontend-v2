@@ -5,7 +5,7 @@
 // cambio de status, preserva historial.
 import { createClient } from '@supabase/supabase-js';
 import { enforceRateLimit, resolveClientIp } from '@/lib/rateLimit';
-import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -52,10 +52,12 @@ export default async function handler(req, res) {
 
     // TRUST-1: reactivar staff otorga acceso — exige onboarding completo.
     // Revocar reduce riesgo, mismo criterio que rifas/delete.js — nunca
-    // se bloquea.
+    // se bloquea. Reactivar sí exige onboarding universal + identidad
+    // básica (18+, RUT para Chile), igual que el resto de acciones
+    // administrativas sobre una iniciativa propia.
     if (status === 'active') {
-      const onboarding = await assertOnboardingComplete(user.id);
-      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+      const eligibility = await assertCreatorEligible(user.id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
     }
 
     const { data: updated, error: updErr } = await supabase

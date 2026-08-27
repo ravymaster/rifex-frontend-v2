@@ -1,7 +1,7 @@
 // src/pages/api/rifas/index.js
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
-import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { COUNTRY_POLICY } from '@/lib/countryPolicy';
 import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
 import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
@@ -91,11 +91,12 @@ export default async function handler(req, res) {
       const gate = await assertCountryGate(creator_id, 'raffles');
       if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
 
-      // TRUST-1: onboarding universal obligatorio antes de crear — igual
-      // criterio que el Country Gate, autoridad única server-side, nunca
+      // TRUST-1/TRUST-2: onboarding universal + identidad básica (18+,
+      // RUT para Chile) obligatorios antes de crear — igual criterio
+      // que el Country Gate, autoridad única server-side, nunca
       // confiado a que el cliente ya haya pasado por /registro/continuar.
-      const onboarding = await assertOnboardingComplete(creator_id);
-      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+      const eligibility = await assertCreatorEligible(creator_id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
       // DRAW-1: declaraciones obligatorias — 18+ y propiedad del premio.
       // Server-side siempre (nunca confiar solo en el checkbox del cliente).

@@ -12,7 +12,7 @@
 // genera desde esta ruta.
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
-import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
@@ -45,11 +45,12 @@ export default async function handler(req, res) {
   const gate = await assertCountryGate(ures.user.id, 'fundraising');
   if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
 
-  // TRUST-1: onboarding universal obligatorio antes de crear — la colecta
-  // queda 'active' de inmediato (ver comentario de cabecera), así que
-  // este es también el gate de "publicar/activar" para Colectas.
-  const onboarding = await assertOnboardingComplete(ures.user.id);
-  if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+  // TRUST-1/TRUST-2: onboarding universal + identidad básica (18+, RUT
+  // para Chile) obligatorios antes de crear — la colecta queda 'active'
+  // de inmediato (ver comentario de cabecera), así que este es también
+  // el gate de "publicar/activar" para Colectas.
+  const eligibility = await assertCreatorEligible(ures.user.id);
+  if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
   const title = String(req.body?.title || '').trim();
   const description = String(req.body?.description || '').trim();

@@ -1,6 +1,6 @@
 // src/pages/api/rifas/[id]/index.js
 import { createClient } from '@supabase/supabase-js';
-import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -43,11 +43,11 @@ export default async function handler(req, res) {
       const isOwner = raffle.creator_id === uid || (raffle.creator_email || '').toLowerCase() === email;
       if (!isOwner) return res.status(403).json({ ok: false, error: 'not_your_raffle' });
 
-      // TRUST-1: editar/publicar (incluye cambios de `status`) exige
-      // onboarding universal completo — mismo criterio server-side que
-      // la creación.
-      const onboarding = await assertOnboardingComplete(uid);
-      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+      // TRUST-1/TRUST-2: editar/publicar (incluye cambios de `status`)
+      // exige onboarding universal + identidad básica (18+, RUT para
+      // Chile) — mismo criterio server-side que la creación.
+      const eligibility = await assertCreatorEligible(uid);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
       const body = req.body || {};
       const updates = {};

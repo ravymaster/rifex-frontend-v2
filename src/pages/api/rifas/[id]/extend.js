@@ -7,7 +7,7 @@
 // rifa (no re-deriva del país actual del creador).
 import { createClient } from '@supabase/supabase-js';
 import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
-import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -44,11 +44,11 @@ export default async function handler(req, res) {
     if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
     const uid = ures.user.id;
 
-    // TRUST-1: acción administrativa sobre una iniciativa propia — el
-    // ownership real lo sigue validando la RPC (FOR UPDATE), esto es un
-    // gate independiente y anterior.
-    const onboarding = await assertOnboardingComplete(uid);
-    if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+    // TRUST-1/TRUST-2: acción administrativa sobre una iniciativa propia
+    // — el ownership real lo sigue validando la RPC (FOR UPDATE), esto
+    // es un gate independiente y anterior.
+    const eligibility = await assertCreatorEligible(uid);
+    if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
     // Solo para poder convertir fecha/hora "de pared" a UTC con la MISMA
     // zona de la rifa — no es una decisión de autoridad, esa vive en la RPC.

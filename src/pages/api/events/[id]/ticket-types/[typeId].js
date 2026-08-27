@@ -8,7 +8,7 @@
 // Reducir quantity_total por debajo de sold+reserved también queda
 // bloqueado por el CHECK de la migración — se traduce a 409 legible.
 import { createClient } from '@supabase/supabase-js';
-import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -41,12 +41,12 @@ export default async function handler(req, res) {
     if (!event) return res.status(404).json({ ok: false, error: 'not_found' });
     if (event.organizer_id !== ures.user.id) return res.status(403).json({ ok: false, error: 'not_your_event' });
 
-    // TRUST-1: editar (nunca eliminar — quitar un tipo de entrada reduce
-    // riesgo, mismo criterio que rifas/delete.js) exige onboarding
-    // universal completo.
+    // TRUST-1/TRUST-2: editar (nunca eliminar — quitar un tipo de entrada
+    // reduce riesgo, mismo criterio que rifas/delete.js) exige onboarding
+    // universal + identidad básica (18+, RUT para Chile).
     if (req.method === 'PATCH') {
-      const onboarding = await assertOnboardingComplete(ures.user.id);
-      if (!onboarding.ok) return res.status(403).json({ ok: false, error: onboarding.reason, message: onboarding.message });
+      const eligibility = await assertCreatorEligible(ures.user.id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
     }
 
     const { data: ticketType, error: ttErr } = await supabase
