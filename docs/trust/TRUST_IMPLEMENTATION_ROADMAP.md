@@ -16,7 +16,7 @@ Ninguna etapa de este roadmap fue implementada en esta sesión — es diseño pu
 
 ## TRUST-1 — Onboarding universal y estados
 
-**Estado: código, migración local y pruebas COMPLETOS en el notebook — migración NO aplicada en `rifex-dev`, PENDIENTE de autorización expresa de Rodrigo.** Ver el checkpoint completo en `docs/handover/HANDOVER_NOTEBOOK_TO_DESKTOP_2026-08.md` (o el informe de la sesión que implementó esto) para el detalle exacto de archivos, RLS y pruebas.
+**Estado: COMPLETO en `rifex-dev` — migración aplicada, probada en vivo, código empujado a `origin/develop` (commit `6333044`) y desplegado en `rifex-frontend-main`, todo autorizado expresamente por Rodrigo.** Ver el checkpoint completo en `docs/WOP.md`, sección "TRUST-1 checkpoint", para el detalle exacto de archivos, RLS, pruebas en vivo y verificación de despliegue.
 
 - **Alcance real implementado**: tabla `trust_onboarding` (independiente de `users_profile`, RLS default-deny total — decisión final, no la alternativa "extender users_profile" que el roadmap original dejaba abierta, precisamente porque `users_profile` ya permite escritura directa del cliente vía RLS y eso habría dejado `onboarding_completed_at` editable por el cliente); `src/lib/trustOnboardingPolicy.js` (validación pura) + `src/lib/trustOnboardingGate.js` (autoridad server-side, mismo patrón que `countryGate.js`); `GET/POST /api/onboarding/trust/{status,complete}`; página `/registro/continuar`; gate server-side agregado a los 13 endpoints sensibles reales de creación/edición/publicación/administración de Rifas, Colectas y Eventos (lista exacta en el informe de cierre de esta sesión).
 - **Exclusiones cumplidas**: sin verificación documental, sin OCR, sin biometría, sin RUT verificado — solo campos declarados.
@@ -24,9 +24,10 @@ Ninguna etapa de este roadmap fue implementada en esta sesión — es diseño pu
 - **Seguridad**: RLS default-deny total (ni siquiera SELECT propio vía PostgREST — todo pasa por las rutas API con `service_role`, más estricto que el patrón de `users_profile`/país).
 - **Pruebas**: 29 pruebas reales (`npm test:trust-onboarding`), incluida una prueba adversarial estructural que confirma que ningún campo de estado reservado (`onboarding_completed_at`, `user_id`) puede colarse desde el body del cliente.
 - **Compatibilidad con usuarios antiguos**: sin excepción — la ausencia de fila en `trust_onboarding` se trata como incompleto para cualquier cuenta, nueva o antigua, exactamente como exigía el mandato de esta fase.
-- **Riesgo de despliegue real, no teórico**: el código de los 13 endpoints depende de que la tabla `trust_onboarding` exista — si se despliega el código sin aplicar antes la migración en `rifex-dev`, **todo el mundo queda bloqueado para crear/publicar/administrar** (falla cerrada por diseño). La migración y el código deben aplicarse/desplegarse juntos, nunca el código solo.
-- **Autorización necesaria**: aplicar la migración en `rifex-dev`, crear fixtures de prueba si son indispensables, push a `origin/develop`, y deploy DEV — cada una por separado, explícita, según el checkpoint de esta sesión.
-- **Estimación relativa**: media — completada en el notebook, pendiente solo de las operaciones externas autorizadas.
+- **Riesgo de despliegue, ya gestionado**: el código de los 13 endpoints depende de que la tabla `trust_onboarding` exista — la migración se aplicó en `rifex-dev` en la misma secuencia autorizada antes de empujar el código, así que en ningún momento quedó el código en vivo sin la tabla.
+- **Verificación en vivo**: dos fixtures desechables `@example.com` (creadas y borradas con `service_role`, cero residuos confirmados) probaron el flujo real contra `rifex-frontend-main` — `403 onboarding_incomplete` real al crear rifas/eventos/colectas con onboarding incompleto, paso libre una vez completo, resumibilidad, idempotencia, y el intento adversarial de inyectar `onboarding_completed_at`/`user_id` confirmado sin efecto. Security Advisor sin hallazgos nuevos tras la migración.
+- **Autorización**: Rodrigo autorizó las cuatro acciones (migración en DEV, fixtures, push, deploy DEV) con la palabra "autorizado" tras el checkpoint de Fase 9; todas se ejecutaron y verificaron.
+- **Estimación relativa**: completada.
 
 ## TRUST-2 — Identidad básica, RUT, teléfono y edad
 

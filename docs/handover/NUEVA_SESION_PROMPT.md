@@ -8,21 +8,25 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > mantenerlos idénticos si se edita alguno.
 >
 > 2026-08-26 (actualización más reciente) — TRUST-1 (onboarding
-> universal) **completo en código, migración local sin aplicar**: tabla
-> nueva `trust_onboarding` (RLS default-deny total, sin acceso de
-> cliente en absoluto), `src/lib/trustOnboardingPolicy.js`/
-> `trustOnboardingGate.js`, endpoints `GET/POST /api/onboarding/trust/*`,
-> página `/registro/continuar`, y bloqueo server-side agregado a 13
-> endpoints sensibles reales de Rifas/Colectas/Eventos. 29 pruebas reales
-> pasan, incluida una prueba adversarial que confirma que el cliente
-> nunca puede colar `onboarding_completed_at` por la API. Regresión
-> completa limpia. Migración `db/migrations/2026-08-26e_trust1_
-> onboarding.sql` escrita y revisada, **no aplicada** — pendiente de
-> autorizaciones explícitas y separadas de Rodrigo (aplicar en
-> `rifex-dev`, fixtures si son indispensables, push, deploy DEV).
-> Desplegar el código sin la migración rompe la creación/publicación
-> para todos (falla cerrada por diseño) — deben ir juntos. **TRUST-2 en
-> adelante sigue sin autorizar.**
+> universal) **COMPLETO en DEV, autorizado y ejecutado de punta a
+> punta por Rodrigo**: tabla nueva `trust_onboarding` (RLS default-deny
+> total, sin acceso de cliente en absoluto), `src/lib/
+> trustOnboardingPolicy.js`/`trustOnboardingGate.js`, endpoints
+> `GET/POST /api/onboarding/trust/*`, página `/registro/continuar`, y
+> bloqueo server-side agregado a 13 endpoints sensibles reales de
+> Rifas/Colectas/Eventos. 29 pruebas reales pasan, incluida una prueba
+> adversarial que confirma que el cliente nunca puede colar
+> `onboarding_completed_at` por la API. Migración `db/migrations/
+> 2026-08-26e_trust1_onboarding.sql` **aplicada en `rifex-dev`** y
+> verificada (RLS activo, cero grants a anon/authenticated/PUBLIC).
+> Probada en vivo con dos fixtures desechables `@example.com` (borradas
+> después, cero residuos): `403 onboarding_incomplete` real confirmado
+> en rifas/eventos/colectas con onboarding incompleto, y paso libre del
+> gate una vez completo. Security Advisor sin hallazgos nuevos.
+> Regresión completa limpia. Commit `6333044` empujado a
+> `origin/develop`; `rifex-frontend-main` re-desplegado automáticamente
+> (`dpl_HNT2giXgFCAdwpSmqtLN2kgM4QSy`). PROD y `main` intactos.
+> **TRUST-2 en adelante sigue sin autorizar.**
 >
 > 2026-08-26 (actualización anterior) — Diseño completo de **Rifex
 > Trust** entregado (12 documentos en `docs/trust/`, cero código, cero
