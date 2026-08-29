@@ -46,6 +46,33 @@ test('extractMpRutFromUsersMe: identification.number con formato inválido (no e
   assert.equal(extractMpRutFromUsersMe({ identification: { number: 'not-a-rut' } }), null);
 });
 
+// ---- TRUST-3B certify (2026-08-30) — CASO 3: identification.type != RUT
+// nunca puede terminar en matched, aunque el número acompañante pase por
+// azar el algoritmo de dígito verificador chileno (módulo 11, no
+// exclusivo de Chile). Confirmado en vivo (TRUST REENTRY) que Mercado
+// Pago Chile SÍ entrega identification.type="RUT" — este test certifica
+// que un type distinto nunca se trata como si fuera RUT.
+
+test('ADVERSARIAL (TRUST-3B): identification.type="CPF" con number que por azar es un RUT chileno válido -> null, nunca se extrae', () => {
+  assert.equal(extractMpRutFromUsersMe({ identification: { type: 'CPF', number: '14.182.309-4' } }), null);
+});
+
+test('ADVERSARIAL (TRUST-3B): identification.type="DNI" -> null', () => {
+  assert.equal(extractMpRutFromUsersMe({ identification: { type: 'DNI', number: '14.182.309-4' } }), null);
+});
+
+test('extractMpRutFromUsersMe: identification.type="RUT" (forma real confirmada en vivo para Chile) -> lo extrae', () => {
+  assert.equal(extractMpRutFromUsersMe({ identification: { type: 'RUT', number: '14.182.309-4' } }), '141823094');
+});
+
+test('extractMpRutFromUsersMe: identification.type ausente (forma legada/desconocida) -> conserva el comportamiento defensivo original, sí lo extrae', () => {
+  assert.equal(extractMpRutFromUsersMe({ identification: { number: '14.182.309-4' } }), '141823094');
+});
+
+test('extractMpRutFromUsersMe: identification.type en minúsculas "rut" -> se normaliza, igual lo extrae', () => {
+  assert.equal(extractMpRutFromUsersMe({ identification: { type: 'rut', number: '14.182.309-4' } }), '141823094');
+});
+
 // ---- resolveMpIdentityMatch: I/O real, mockeado ----
 
 function mockOnboarding(rut) {
@@ -107,6 +134,41 @@ test('ADVERSARIAL: resolveMpIdentityMatch — el mismo mp_user_id ya activo en o
   assert.equal(result.status, 'needs_review');
   assert.equal(JSON.stringify(result).includes('otra-cuenta-secreta'), false, 'nunca debe filtrar el id de la otra cuenta');
   assert.equal(capturedUpdate.mp_identity_match, 'needs_review');
+});
+
+// ---- TRUST-3B certify (2026-08-30) — CASO 3: fallo/timeout/tipo
+// incorrecto de Mercado Pago nunca puede resultar en matched. El
+// callback real (src/pages/api/mp/oauth/callback.js) envuelve el fetch
+// a /users/me en try/catch y deja usersMeResponse=null si falla — este
+// test certifica que ese null (no solo "sin campo identification")
+// tampoco produce nunca un match.
+
+test('CASO 3 (TRUST-3B): usersMeResponse=null (fetch a /users/me falló o dio timeout) -> unavailable, nunca matched', async () => {
+  let capturedUpdate = null;
+  currentMock = {
+    trust_onboarding: mockOnboarding('141823094'),
+    merchant_gateways: () => ({
+      select: () => ({ eq: () => ({ eq: () => ({ is: () => ({ neq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) }),
+      update: (payload) => { capturedUpdate = payload; return { eq: function () { return this; } }; },
+    }),
+  };
+  const result = await resolveMpIdentityMatch({ userId: 'user-1', mpUserId: 'mp-999', usersMeResponse: null });
+  assert.equal(result.status, 'unavailable');
+  assert.equal(capturedUpdate.mp_identity_match, 'unavailable');
+});
+
+test('CASO 3 (TRUST-3B): identification.type != RUT con number que coincide con el RUT declarado -> unavailable, NUNCA matched', async () => {
+  let capturedUpdate = null;
+  currentMock = {
+    trust_onboarding: mockOnboarding('141823094'),
+    merchant_gateways: () => ({
+      select: () => ({ eq: () => ({ eq: () => ({ is: () => ({ neq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: null }) }) }) }) }) }),
+      update: (payload) => { capturedUpdate = payload; return { eq: function () { return this; } }; },
+    }),
+  };
+  const result = await resolveMpIdentityMatch({ userId: 'user-1', mpUserId: 'mp-999', usersMeResponse: { identification: { type: 'CPF', number: '14.182.309-4' } } });
+  assert.equal(result.status, 'unavailable', 'aunque el número coincida byte a byte con el RUT declarado, un tipo distinto de RUT nunca debe autorizar');
+  assert.equal(capturedUpdate.mp_identity_match, 'unavailable');
 });
 
 test('resolveMpIdentityMatch: sin RUT declarado en Rifex todavía -> needs_review', async () => {

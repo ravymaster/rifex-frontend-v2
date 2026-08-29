@@ -22,14 +22,23 @@ const supabase = createClient(
 /**
  * Extrae, de forma defensiva, un RUT normalizado desde la respuesta
  * cruda de GET https://api.mercadopago.com/users/me — NUNCA asume que
- * el campo existe (ver docs/trust/MP_IDENTITY_MATCH_AUDIT.md: no se
- * pudo confirmar en vivo si Chile lo entrega). Revisa las formas
- * conocidas del objeto `identification` en las distintas versiones de
- * la API de Mercado Pago/MercadoLibre; si ninguna aplica, retorna null
- * — nunca inventa un valor.
+ * el campo existe. Confirmado en vivo (TRUST REENTRY, 2026-08-29, cuenta
+ * real de Rodrigo en PROD, lectura read-only): Mercado Pago Chile
+ * entrega `identification: { type: "RUT", number: "..." }`.
+ *
+ * Corrección (TRUST-3B certify, 2026-08-30): si `identification.type`
+ * viene presente y NO es "RUT", nunca se extrae un número — el
+ * algoritmo de dígito verificador chileno (módulo 11) no es exclusivo
+ * de Chile, así que un `identification.number` de otro tipo de
+ * documento podría coincidir por azar y producir un match falso. Si
+ * `type` no viene presente (forma desconocida/legada), se conserva el
+ * comportamiento defensivo original — se intenta igual, nunca se
+ * inventa un rechazo que tampoco está confirmado.
  */
 export function extractMpRutFromUsersMe(me) {
   if (!me || typeof me !== 'object') return null;
+  const idType = me?.identification?.type;
+  if (idType != null && String(idType).trim().toUpperCase() !== 'RUT') return null;
   const candidates = [
     me?.identification?.number,
     me?.identification?.id,
