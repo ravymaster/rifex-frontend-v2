@@ -30,11 +30,15 @@ export const COUNTRY_POLICY = {
     capabilities: { raffles: true, fundraising: true, mercadoPago: true, events: true },
   },
   AR: {
-    // Solo activo cuando isDevStage() es true (ver isCountryActive). MP
-    // Argentina todavía no tiene adapter real — ver providerRegistry.js
-    // (ADAPTER_READY) — así que aunque el país esté activo, el Payment
-    // Engine se detiene limpio antes de intentar cobrar.
-    enabled: false, devOnly: true, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR",
+    // Fuera de operación (ajuste 2026-08-29): devOnly quedó en false a
+    // propósito — Argentina ya NO se activa ni siquiera en DEV. No es una
+    // reactivación del trabajo internacional; es lo opuesto, cerrar el
+    // país por completo hasta nueva decisión explícita. El campo devOnly
+    // se conserva (no se borra la infraestructura AR1) para poder
+    // reactivarlo con un solo valor cuando corresponda. MP Argentina
+    // tampoco tiene adapter real todavía — ver providerRegistry.js
+    // (ADAPTER_READY).
+    enabled: false, devOnly: false, label: "Argentina", flag: "🇦🇷", currency: "ARS", locale: "es-AR",
     defaultTimezone: "America/Argentina/Buenos_Aires",
     capabilities: { raffles: true, fundraising: true, mercadoPago: true, events: false },
   },
