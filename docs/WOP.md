@@ -4,6 +4,10 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX TRUST REENTRY (2026-08-29) — fail-open fix
+
+`origin/main` (PROD) is now at `3f3d6c4` — EVENTS V1 was promoted to PROD, cherry-picked from `develop` before Trust existed, so Trust remains **DEV ONLY / NOT CERTIFIED PROD** by construction. On `develop`, `assertCreatorEligible` (`src/lib/trustIdentityGate.js`) had a real fail-open: it used a blocklist that only rejected `mismatch`/`needs_review`/`checking`/`not_connected`, so `mp_identity_match = NULL` or `'unavailable'` fell through and authorized the caller. NULL is reachable live — `oauth/callback.js` sets `merchant_gateways.status='connected'` before `resolveMpIdentityMatch` resolves the match in a separate try/caught write. Fixed in commit `2d86d3c` (pushed to `origin/develop`): the gate now only authorizes `mp_identity_match === 'matched'`, everything else blocks. 45/45 tests pass, full build clean. A live, read-only investigation of what Mercado Pago Chile's `/users/me` actually returns for RUT (needed to know whether `'matched'` is realistically reachable at all) follows in the same session — see the report delivered to Rodrigo/Doris for the outcome, not duplicated here.
+
 ## RIFEX CURRENT STATE (2026-08-24 — Santiago → Antofagasta notebook handoff)
 
 **Everything below this line, down to "END CURRENT STATE", supersedes the legacy Alignment/Architecture-Audit/Sprint-R4 narrative further down in this file for anything about current branch state, HEAD, or Events work.** That older material (HEAD `1aa97cd`, Sprint R4, DB Recovery incident) is preserved unedited below as historical record — it predates everything described here and is no longer the frontier of the project. Do not resume work from the old section without first reading this one.
