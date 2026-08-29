@@ -2,6 +2,37 @@
 
 WOP defines the working operating protocol for Rifex. Its purpose is to keep the repository as the source of truth and prevent future work from assuming a state that has not been evidenced.
 
+## RIFEX CURRENT STATE (2026-08-29 — EVENTS V1 PROD RELEASE)
+
+This section supersedes everything below it for anything about current PROD state, Events status, or the branch/HEAD picture. Older content is preserved unedited as historical record.
+
+**Git baseline**: `origin/main` = `3e871f8`, deployed and aliased to `rifex.pro`. `origin/develop` remains ahead (includes TRUST-1/2/3A, not promoted). `release/events-v1` is the branch used to build this release (9 commits cherry-picked from `develop` onto `origin/main`, avoiding the TRUST-1 retrofit that landed on those same Events files after they were built).
+
+**PROD Events status:**
+
+| Piece | Status |
+|---|---|
+| EVENT-1 (events, event_ticket_types) | PROD |
+| EVENT-2 (checkout, orders) | PROD |
+| EVENT-3 (tickets, QR) | PROD |
+| EVENT-4 (staff, scanner, check-in) | PROD |
+| EVENT-5 (analytics, XLSX) | PROD |
+| EVENT-6 Fase 1 (Events-specific hardening: search_path + revoke on events/event_ticket_types) | PROD |
+| EVENT-6 Fase 2 (Rifas-domain hardening, unrelated to Events) | Partially applied — `create_tickets_for_raffle` fixed surgically in PROD; the other two Rifas migrations remain on `develop` only, out of scope for this release |
+| EVENT-7 | NOT AUTHORIZED |
+
+**Migrations applied to PROD** (in order): `2026-08-23c_event1_foundation`, `2026-08-24_event2_checkout_orders`, `2026-08-25_event3_tickets_qr`, `2026-08-25b_event4_staff_scanner_checkin`, `2026-08-26_event6_hardening_search_path_and_revoke`. Schema verified live: 7 tables + 6 core RPCs, RLS enabled on all 7, correct grants (service_role only on the RPCs, SELECT-only for anon/authenticated on events/event_ticket_types).
+
+**Deployment**: Vercel `rifex-frontend-v2`, deployment `dpl_4g6U5pESx7XFZH1bFqLjjMcNzAUr`, target `production`, aliased `rifex.pro`. No new env vars required — Events reuses existing Supabase/MP/Resend credentials already present in PROD.
+
+**Real PROD verification performed**: a throwaway QA account created → real event created via the live API → ticket type created → published → verified on the public listing, public detail page, and organizer panel — all via `rifex.pro`, not a DB backdoor. Checkout gate tested live: correctly returned `organizer_not_connected` (the QA account has no Mercado Pago connected), proving the pre-payment safety gate works. All QA fixtures (event, ticket type, profile, auth user) deleted after verification — confirmed zero residual data, zero orders/tickets/staff/checkins ever existed for them.
+
+**Financial certification status: PENDING — NON-BLOCKING.** No real Mercado Pago payment has been exercised against PROD Events yet (no organizer with MP connected was used for the smoke, deliberately — this session does not have and will not create real MP credentials). The checkout → Preference → webhook → ticket → QR → check-in → analytics → XLSX circuit is certified with real evidence from DEV (EVENT-2/3/4/5/6 test batteries, including live concurrency tests: 10 simultaneous issuances → exactly 3, 15 simultaneous check-ins → exactly 1 pass) but has not been re-run against PROD with real money. This is accepted as a follow-up item, not a blocker for the release.
+
+**Trust status: DEV ONLY / NOT CERTIFIED PROD.** TRUST-1/2/3A and the Mercado Pago identity-match onboarding correction exist only on `origin/develop`. Confirmed absent from PROD by construction (the cherry-pick set predates TRUST-1's retrofit of the Events files) and by live smoke (`/trust/verificar` and `/registro/continuar` both return 404 on `rifex.pro`).
+
+**Known limitations (not blockers)**: automatic Mercado Pago refunds are not implemented (same accepted V1 limitation as Rifas/Colectas); XLSX export performance at the extreme stress case (20k rows × 3 sheets + 500) exceeds a 20s test threshold in this environment, unconfirmed against the real Vercel PROD plan — not expected to matter at realistic event sizes; the two Rifas-domain EVENT-6 Fase 2 migrations remain unapplied to PROD, tracked separately.
+
 ## Current Documentary State
 
 | Gate | Status |

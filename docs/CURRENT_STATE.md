@@ -1,5 +1,7 @@
 # Rifex Current State
 
+> **Superseded (2026-08-29)**: current PROD state, Events status, and branch/HEAD are documented in `docs/WOP.md`, section "RIFEX CURRENT STATE (2026-08-29 — EVENTS V1 PROD RELEASE)". The rest of this file is the R4-era snapshot (HEAD `1aa97cd`, branch `main`), preserved unedited as historical record.
+
 This document is the current documentation snapshot of observable repository state after Architecture Design AD4 documentation materialization.
 
 ## Repository

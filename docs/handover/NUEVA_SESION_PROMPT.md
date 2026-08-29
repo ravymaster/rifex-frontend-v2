@@ -1,6 +1,10 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de rifas en producción).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git, branch main.
 
+Nota (2026-08-29): EVENTS V1 fue promovido a PROD (main = 3e871f8). Ver
+docs/WOP.md, sección "RIFEX CURRENT STATE (2026-08-29 — EVENTS V1 PROD RELEASE)"
+para el estado real antes de asumir nada.
+
 Antes de hacer nada, releé en este orden:
 1. README.md
 2. docs/WOP.md
