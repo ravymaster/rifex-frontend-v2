@@ -9,13 +9,24 @@
 //
 // Corrección canónica (2026-08-27) — Mercado Pago como control
 // principal: reemplaza el campo "Nombre completo" + selector de tipo de
-// cuenta por dos campos (persona/organización, exactamente uno lleno),
-// reemplaza fecha de nacimiento por una declaración booleana versionada
-// ("Declaro que soy mayor de 18 años" — nunca age_verified), simplifica
-// el teléfono a un componente chileno de 9 dígitos, y agrega el cierre
-// real del onboarding: conectar Mercado Pago y que su titular coincida
-// con el RUT declarado. El proceso es reanudable — al volver, el
-// usuario continúa exactamente donde quedó.
+// cuenta, reemplaza fecha de nacimiento por una declaración booleana
+// versionada ("Declaro que soy mayor de 18 años" — nunca age_verified),
+// simplifica el teléfono a un componente chileno de 9 dígitos, y agrega
+// el cierre real del onboarding: conectar Mercado Pago y que su titular
+// coincida con el RUT declarado. El proceso es reanudable — al volver,
+// el usuario continúa exactamente donde quedó.
+//
+// Simplificación UX (2026-08-29): el par de campos simultáneos
+// (persona/organización, "completa solo uno y deja el otro vacío") se
+// reemplaza por un selector "Tipo de cuenta" (radio Persona/Empresa,
+// obligatorio) + un único input dinámico. La persistencia real no
+// cambió — sigue siendo person_name/organization_name/account_type en
+// trust_onboarding, exactamente uno lleno, account_type siempre
+// derivado server-side (ver trustOnboardingPolicy.js/trustOnboarding
+// Gate.js) — este cambio es solo de interacción: el cliente ahora
+// manda explícitamente el campo inactivo como '' para limpiarlo,
+// porque upsertOnboardingFields solo toca las columnas presentes en el
+// body (omitir una clave la deja intacta).
 import Head from 'next/head';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useRouter } from 'next/router';
@@ -25,13 +36,14 @@ import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { sanitizeNextPath } from '@/lib/countryPolicy';
 
 const FIELD_ERROR_MESSAGES = {
-  invalid_person_name: 'Ingresa tu nombre completo tal como aparece en tu documento de identidad.',
-  invalid_organization_name: 'Ingresa el nombre de la empresa u organización.',
-  both_names_provided: 'Completa solamente una opción: persona natural u organización, no ambas.',
+  invalid_person_name: 'Ingresa tu nombre.',
+  invalid_organization_name: 'Ingresa el nombre de tu empresa.',
+  both_names_provided: 'Completa solamente una opción: persona u empresa, no ambas.',
   invalid_phone: 'Ingresa tu número, 9 dígitos, comenzando en 9 (ej: 959904311).',
   adult_declaration_required: 'Debes declarar que eres mayor de 18 años para continuar.',
   terms_not_accepted: 'Debes aceptar los Términos de Uso para continuar.',
   privacy_not_accepted: 'Debes aceptar la Política de Privacidad para continuar.',
+  account_type_required: 'Selecciona si operarás como persona o como empresa.',
 };
 
 const RUT_ERROR_MESSAGES = {
@@ -52,8 +64,21 @@ export default function RegistroContinuar() {
   const [globalError, setGlobalError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // accountType: 'person' | 'organization' | '' (nada elegido todavía).
+  // Reemplaza los dos campos simultáneos por un selector + un único
+  // input dinámico — nunca se muestran ambos nombres a la vez. Ambos
+  // valores (personName/organizationName) se conservan en memoria al
+  // cambiar de tipo (para no perder lo escrito si el usuario alterna
+  // antes de guardar), pero solo el del tipo activo se envía como valor
+  // real — el otro se envía explícitamente vacío para limpiarlo server-
+  // side (ver onSubmit/saveIdentityName).
+  const [accountType, setAccountType] = useState('');
   const [personName, setPersonName] = useState('');
   const [organizationName, setOrganizationName] = useState('');
+  // Ambos nombres llegaron con contenido desde el registro ya guardado
+  // (dato histórico, nunca debería pasar con este formulario) — se
+  // reporta, nunca se decide una normalización en silencio.
+  const [bothNamesAnomaly, setBothNamesAnomaly] = useState(false);
   const [phone, setPhone] = useState('');
   const [adultDeclared, setAdultDeclared] = useState(false);
   const [alreadyDeclaredAdult, setAlreadyDeclaredAdult] = useState(false);
@@ -88,8 +113,21 @@ export default function RegistroContinuar() {
 
     setMissing(data2.missing || []);
     if (data2.fields) {
-      if (data2.fields.person_name) setPersonName(data2.fields.person_name);
-      if (data2.fields.organization_name) setOrganizationName(data2.fields.organization_name);
+      const hasPerson = Boolean(data2.fields.person_name);
+      const hasOrg = Boolean(data2.fields.organization_name);
+      if (hasPerson) setPersonName(data2.fields.person_name);
+      if (hasOrg) setOrganizationName(data2.fields.organization_name);
+      // Reentrada: preseleccionar el tipo según cuál nombre ya existe.
+      // Si por algún dato histórico existieran ambos, no elegir por el
+      // usuario — solo reportarlo (bothNamesAnomaly) y dejar que su
+      // próxima selección explícita decida cuál se conserva.
+      if (hasPerson && hasOrg) {
+        setBothNamesAnomaly(true);
+      } else if (hasPerson) {
+        setAccountType('person');
+      } else if (hasOrg) {
+        setAccountType('organization');
+      }
       if (data2.fields.phone) setPhone(data2.fields.phone.replace(/^\+56/, ''));
       if (data2.fields.adult_declared) setAlreadyDeclaredAdult(true);
       if (data2.fields.terms_version) setAlreadyAcceptedTerms(true);
@@ -131,14 +169,20 @@ export default function RegistroContinuar() {
 
   const stepsDone = useMemo(() => {
     let done = 0;
-    if (personName.trim().length >= 3 || organizationName.trim().length >= 3) done += 1;
+    const nameOk =
+      accountType === 'person'
+        ? personName.trim().length >= 3
+        : accountType === 'organization'
+        ? organizationName.trim().length >= 3
+        : false;
+    if (nameOk) done += 1;
     if (phone.replace(/[^0-9]/g, '').length === 9) done += 1;
     if (adultDeclared || alreadyDeclaredAdult) done += 1;
     if (termsAccepted || alreadyAcceptedTerms) done += 1;
     if (privacyAccepted || alreadyAcceptedPrivacy) done += 1;
     if (rutRequired && (rutMasked || rut.trim().length >= 8)) done += 1;
     return done;
-  }, [personName, organizationName, phone, adultDeclared, alreadyDeclaredAdult, termsAccepted, alreadyAcceptedTerms, privacyAccepted, alreadyAcceptedPrivacy, rutRequired, rutMasked, rut]);
+  }, [accountType, personName, organizationName, phone, adultDeclared, alreadyDeclaredAdult, termsAccepted, alreadyAcceptedTerms, privacyAccepted, alreadyAcceptedPrivacy, rutRequired, rutMasked, rut]);
 
   async function saveProgress(partial) {
     if (!token) return;
@@ -150,6 +194,22 @@ export default function RegistroContinuar() {
       });
     } catch {
       // el guardado de avance es best-effort — el envío final valida todo de nuevo
+    }
+  }
+
+  // Guarda el nombre del tipo activo y limpia explícitamente el del otro
+  // tipo — nunca deja el campo inactivo con un valor viejo. upsertOnboarding
+  // Fields (backend) solo toca las columnas presentes en el body: omitir
+  // una clave la deja intacta, así que limpiar de verdad requiere mandar
+  // '' explícitamente (el backend ya convierte '' -> null).
+  function saveIdentityName(value) {
+    if (!accountType) return;
+    const trimmed = value.trim();
+    if (trimmed.length < 3) return; // mismo umbral que antes del guardado onBlur
+    if (accountType === 'person') {
+      saveProgress({ person_name: trimmed, organization_name: '' });
+    } else {
+      saveProgress({ organization_name: trimmed, person_name: '' });
     }
   }
 
@@ -186,11 +246,40 @@ export default function RegistroContinuar() {
     if (saving) return;
     setGlobalError('');
     setFieldErrors({});
+
+    // Tipo obligatorio — chequeo cliente antes de tocar la API. El
+    // servidor lo exige igual de forma indirecta (deriveAccountType
+    // devuelve null sin un nombre válido), pero acá damos el mensaje
+    // específico correcto en vez de un error genérico de nombre.
+    if (!accountType) {
+      setFieldErrors({ account_type: 'account_type_required' });
+      setGlobalError('Revisa los datos marcados abajo.');
+      return;
+    }
+
+    // Nombre obligatorio (trim, sin solo-espacios) — mismo umbral que
+    // validatePersonName/validateOrganizationName en el backend
+    // (MIN_NAME_LENGTH=3), verificado acá primero para dar el error
+    // específico bajo el campo en vez del flujo genérico de "missing".
+    const activeName = accountType === 'person' ? personName : organizationName;
+    if (activeName.trim().length < 3) {
+      setFieldErrors(
+        accountType === 'person'
+          ? { person_name: 'invalid_person_name' }
+          : { organization_name: 'invalid_organization_name' }
+      );
+      setGlobalError('Revisa los datos marcados abajo.');
+      return;
+    }
+
     setSaving(true);
     try {
+      // Nombre del tipo activo -> valor real; el del tipo inactivo -> ''
+      // explícito, para limpiarlo server-side aunque tuviera un valor
+      // viejo guardado de una selección anterior.
       const payload = {
-        person_name: personName.trim() || undefined,
-        organization_name: organizationName.trim() || undefined,
+        person_name: accountType === 'person' ? personName.trim() : '',
+        organization_name: accountType === 'organization' ? organizationName.trim() : '',
         phone: phone.trim() ? `9${phone.trim().replace(/[^0-9]/g, '').replace(/^9/, '')}` : undefined,
       };
       if (adultDeclared) payload.adult_declared = true;
@@ -346,39 +435,70 @@ export default function RegistroContinuar() {
             </p>
 
             <form onSubmit={onSubmit}>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="person_name">Nombre de persona natural</label>
-                <input
-                  id="person_name"
-                  className={fieldErrors.person_name ? styles.inputError : styles.input}
-                  type="text"
-                  value={personName}
-                  onChange={(e) => setPersonName(e.target.value)}
-                  onBlur={() => personName.trim().length >= 3 && saveProgress({ person_name: personName.trim() })}
-                  placeholder="Escribe tu nombre si eres persona natural o déjalo vacío."
-                  maxLength={140}
-                  autoComplete="name"
-                />
-              </div>
+              {bothNamesAnomaly && (
+                <p className={styles.err}>
+                  Detectamos un nombre de persona y de empresa guardados en tu cuenta. Elige abajo cuál corresponde —
+                  al guardar, conservamos solo esa opción.
+                </p>
+              )}
 
               <div className={styles.field}>
-                <label className={styles.label} htmlFor="organization_name">Empresa u organización</label>
-                <input
-                  id="organization_name"
-                  className={fieldErrors.organization_name ? styles.inputError : styles.input}
-                  type="text"
-                  value={organizationName}
-                  onChange={(e) => setOrganizationName(e.target.value)}
-                  onBlur={() => organizationName.trim().length >= 3 && saveProgress({ organization_name: organizationName.trim() })}
-                  placeholder="Escribe el nombre si representas una empresa u organización o déjalo vacío."
-                  maxLength={140}
-                />
-                {fieldErrors.person_name === 'both_names_provided' || fieldErrors.organization_name === 'both_names_provided' ? (
-                  <p className={styles.fieldError}>{FIELD_ERROR_MESSAGES.both_names_provided}</p>
-                ) : (
-                  <p className={styles.fieldHelp}>Completa solamente una opción según cómo utilizarás Rifex. Estos datos son privados.</p>
+                <label className={styles.label}>Tipo de cuenta</label>
+                <div className={styles.checkboxRow}>
+                  <input
+                    id="account_type_person"
+                    type="radio"
+                    name="account_type"
+                    checked={accountType === 'person'}
+                    onChange={() => setAccountType('person')}
+                  />
+                  <label className={styles.checkboxLabel} htmlFor="account_type_person">Persona</label>
+                </div>
+                <div className={styles.checkboxRow}>
+                  <input
+                    id="account_type_organization"
+                    type="radio"
+                    name="account_type"
+                    checked={accountType === 'organization'}
+                    onChange={() => setAccountType('organization')}
+                  />
+                  <label className={styles.checkboxLabel} htmlFor="account_type_organization">Empresa</label>
+                </div>
+                {fieldErrors.account_type && (
+                  <p className={styles.fieldError}>{FIELD_ERROR_MESSAGES[fieldErrors.account_type]}</p>
                 )}
               </div>
+
+              {accountType && (
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="identity_name">
+                    {accountType === 'person' ? 'Nombre' : 'Nombre de empresa'}
+                  </label>
+                  <input
+                    id="identity_name"
+                    className={
+                      fieldErrors.person_name || fieldErrors.organization_name ? styles.inputError : styles.input
+                    }
+                    type="text"
+                    value={accountType === 'person' ? personName : organizationName}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (accountType === 'person') setPersonName(value);
+                      else setOrganizationName(value);
+                    }}
+                    onBlur={(e) => saveIdentityName(e.target.value)}
+                    placeholder={accountType === 'person' ? 'Ingresa tu nombre' : 'Ingresa el nombre de tu empresa'}
+                    maxLength={140}
+                    autoComplete={accountType === 'person' ? 'name' : 'organization'}
+                  />
+                  {fieldErrors.person_name && (
+                    <p className={styles.fieldError}>{FIELD_ERROR_MESSAGES[fieldErrors.person_name]}</p>
+                  )}
+                  {fieldErrors.organization_name && (
+                    <p className={styles.fieldError}>{FIELD_ERROR_MESSAGES[fieldErrors.organization_name]}</p>
+                  )}
+                </div>
+              )}
 
               <div className={styles.field}>
                 <label className={styles.label} htmlFor="phone">Teléfono de contacto</label>
