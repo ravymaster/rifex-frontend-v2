@@ -115,8 +115,17 @@ export async function assertCreatorEligible(userId) {
     }
   }
 
-  // Mercado Pago como control principal (decisión canónica 2026-08-27):
-  // mientras esté disponible para el país, cierra el onboarding.
+  // Mercado Pago como control principal (decisión canónica 2026-08-27,
+  // corregida 2026-08-29 — RIFEX TRUST REENTRY): mientras esté
+  // disponible para el país, cierra el onboarding. Fail-closed
+  // explícito: el único valor que autoriza es 'matched'. Cualquier otro
+  // valor bloquea — incluye 'unavailable' (MP no entregó el dato) y
+  // NULL (fila recién creada por oauth/callback.js antes de que
+  // resolveMpIdentityMatch termine o si esa llamada falla — nunca se
+  // interpreta como matched). El bug anterior usaba una lista de
+  // rechazo (solo bloqueaba mismatch/needs_review/checking/not_connected),
+  // así que 'unavailable' y NULL caían al final de la función y
+  // pasaban como autorizados.
   if (isMercadoPagoMatchRequiredForCountry(countryCode)) {
     const mp = await fetchMpMatchState(userId);
     if (!mp || mp.revoked_at || mp.status !== 'connected') {
@@ -125,13 +134,9 @@ export async function assertCreatorEligible(userId) {
     if (mp.mp_identity_match === 'mismatch' || mp.mp_identity_match === 'needs_review') {
       return { ok: false, reason: 'mp_identity_mismatch', message: USER_MESSAGE.mp_identity_mismatch };
     }
-    if (mp.mp_identity_match === 'checking' || mp.mp_identity_match === 'not_connected') {
+    if (mp.mp_identity_match !== 'matched') {
       return { ok: false, reason: 'mp_check_pending', message: USER_MESSAGE.mp_check_pending };
     }
-    // 'matched' -> ok. 'unavailable' -> MP no entregó el dato para
-    // confirmar/descartar (ver mpIdentityMatchGate.js) — no bloquea,
-    // per mandato explícito de esta misión ("no bloquear todo el
-    // trabajo restante" cuando el dato no está disponible).
   }
 
   // TRUST-3A: apagado por defecto (ver cabecera). Cuando se active
@@ -246,7 +251,8 @@ export async function getIdentityStatus(userId) {
   let mpOk = !mpRequired;
   if (mpRequired) {
     const mp = await fetchMpMatchState(userId);
-    mpOk = Boolean(mp && !mp.revoked_at && mp.status === 'connected' && (mp.mp_identity_match === 'matched' || mp.mp_identity_match === 'unavailable'));
+    // Mismo criterio fail-closed que assertCreatorEligible — solo 'matched' cuenta.
+    mpOk = Boolean(mp && !mp.revoked_at && mp.status === 'connected' && mp.mp_identity_match === 'matched');
   }
 
   return {
