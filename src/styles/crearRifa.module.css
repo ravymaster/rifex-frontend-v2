@@ -205,49 +205,76 @@
 .field { display: flex; flex-direction: column; gap: 6px; }
 .fieldLabel { font-size: 13px; font-weight: 600; color: var(--oscuro); }
 
-/* Grilla de temáticas */
-.themeGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 10px;
-  margin-bottom: 10px;
+/* RIFEX CLOSURE PASS (2026-08-29) — segmented control moderno para
+   selecciones de una sola opción (entrega, transferencia, dueño de
+   gastos). Reemplaza los <select> planos en los puntos donde las
+   opciones deben ser visibles de inmediato, sin desplegar un menú. */
+.radioGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-@media (max-width: 560px) {
-  .themeGrid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-}
-.themeCard {
+.radioOption {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
   border: 1px solid var(--borde);
-  border-radius: 14px;
-  padding: 14px 8px;
-  text-align: center;
   background: #fff;
   cursor: pointer;
-  transition: border-color .15s ease, background .15s ease, opacity .15s ease;
-  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--oscuro);
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
 }
-.themeCard[data-active="true"] {
-  border: 2px solid var(--trebol);
-  background: #EAF3DE;
+.radioOption:hover { border-color: var(--ultramar); }
+.radioOption input {
+  accent-color: var(--ultramar);
+  margin: 0;
 }
-.themeCard[data-locked="true"] {
-  opacity: .5;
-  cursor: not-allowed;
+.radioOption[data-active="true"] {
+  border-color: var(--ultramar);
+  background: rgba(30,58,138,0.06);
+  box-shadow: 0 0 0 3px rgba(30,58,138,.10);
 }
-.themeIcon { font-size: 22px; line-height: 1; }
-.themeLabel { font-size: 11.5px; font-weight: 700; margin-top: 6px; color: var(--oscuro); }
-.themeLockBadge {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
+
+/* Texto de ayuda breve bajo un campo (ej. transferencia) */
+.fieldHelp {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--gris);
+}
+
+/* Cajas de alerta compactas — reusadas en el bloque público de
+   Información del premio (rifas/[id].jsx) y, si aplica, en Crear Rifa. */
+.alertAmber {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alertGreen {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #14532D;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alertNeutral {
+  background: #F8FAFC;
   border: 1px solid var(--borde);
-  display: grid;
-  place-items: center;
-  font-size: 9px;
+  color: var(--oscuro);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 /* Checkbox de términos */

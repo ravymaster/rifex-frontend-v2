@@ -232,6 +232,7 @@ export default function Layout({
               <Link href="/terminos">Términos</Link>
               <Link href="/terminos#privacidad">Privacidad</Link>
               <Link href="/seguridad">Seguridad</Link>
+              <Link href="/cumplimiento">Rifex Cumplimiento</Link>
             </div>
           </div>
         </div>

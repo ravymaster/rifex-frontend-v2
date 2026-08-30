@@ -19,6 +19,16 @@ const TZ_LABELS = {
 const BANNER_AUTO_HIDE_MS = 15000; // 15s
 const MODAL_AUTO_HIDE_MS  = 12000; // 12s
 
+// RIFEX CLOSURE PASS (2026-08-29) — etiquetas neutras de entrega, incluye
+// el valor legado 'a_convenir' (rifas históricas, ya no ofrecible para
+// rifas nuevas desde crear-rifa.jsx, pero deben seguir mostrándose bien).
+const DELIVERY_METHOD_LABELS = {
+  retira_en_tienda: "Retiro / entrega presencial",
+  envio_incluido: "Envío incluido por el creador",
+  envio_pagado: "Envío a cargo del ganador",
+  a_convenir: "A convenir con el creador",
+};
+
 export default function RifaDetalle() {
   const router = useRouter();
   const { id } = router.query;
@@ -275,6 +285,73 @@ export default function RifaDetalle() {
     return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
   }, [raffle?.prize_amount_cents]);
 
+  // RIFEX CLOSURE PASS (2026-08-29) — "Información del premio" pública:
+  // un único bloque, solo con lo que aplica. Nunca inventa información
+  // sobre rifas históricas — requires_transfer_procedures=false en una
+  // rifa vieja significa "no declaró trámites bajo este contrato", nunca
+  // "transferencia incluida" (ver migración de la columna).
+  const premioInfo = useMemo(() => {
+    if (!raffle || raffle.prize_type !== "physical") return null;
+    const rows = [];
+
+    if (raffle.delivery_method) {
+      const label = DELIVERY_METHOD_LABELS[raffle.delivery_method] || raffle.delivery_method;
+      if (raffle.delivery_method === "envio_pagado") {
+        rows.push({
+          tone: "amber",
+          title: "Importante sobre el premio",
+          lines: ["Este es un premio físico.", "El costo de envío será asumido por el ganador."],
+        });
+      } else if (raffle.delivery_method === "envio_incluido") {
+        rows.push({
+          tone: "green",
+          title: "Envío incluido",
+          lines: ["El costo de envío será asumido por el creador."],
+        });
+      } else {
+        rows.push({ tone: "neutral", title: "Entrega del premio", lines: [label] });
+      }
+    }
+
+    if (raffle.requires_transfer_procedures) {
+      if (raffle.transfer_expenses_owner === "winner") {
+        rows.push({
+          tone: "amber",
+          title: "Importante sobre el premio",
+          lines: [
+            "Este premio requiere transferencia o trámites.",
+            "Los gastos asociados serán asumidos por el ganador.",
+            "Revisa las condiciones antes de participar.",
+          ],
+          conditions: raffle.transfer_conditions,
+        });
+      } else if (raffle.transfer_expenses_owner === "creator") {
+        rows.push({
+          tone: "green",
+          title: "Transferencia incluida",
+          lines: ["Los gastos y trámites informados serán asumidos por el creador."],
+          conditions: raffle.transfer_conditions,
+        });
+      }
+    }
+
+    return rows.length ? rows : null;
+  }, [raffle]);
+
+  // RIFEX CLOSURE PASS (2026-08-29) — resumen MUY compacto para el punto
+  // natural inmediatamente anterior al pago (BuyerForm): solo lo que
+  // implica un costo adicional a cargo del ganador, nunca los casos
+  // positivos (esos ya se ven arriba en "Información del premio").
+  const extraCostNotices = useMemo(() => {
+    if (!raffle || raffle.prize_type !== "physical") return [];
+    const notices = [];
+    if (raffle.delivery_method === "envio_pagado") notices.push("Envío a cargo del ganador.");
+    if (raffle.requires_transfer_procedures && raffle.transfer_expenses_owner === "winner") {
+      notices.push("Transferencia/trámites a cargo del ganador.");
+    }
+    return notices;
+  }, [raffle]);
+
   const selectedTotalCLP = useMemo(() => {
     const n = (Number(raffle?.price_cents || 0) / 100) * selected.length;
     return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -510,6 +587,34 @@ export default function RifaDetalle() {
           </div>
         )}
 
+        {/* RIFEX CLOSURE PASS (2026-08-29): un único bloque público con las
+            condiciones económicas del premio físico — visible ANTES de
+            participar, nunca escondido en Términos. Ámbar = costo a cargo
+            del ganador, verde = incluido por el creador, neutro = sin
+            alerta económica (ej. retiro presencial). */}
+        {premioInfo && (
+          <div style={{ margin: "4px 0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: ".03em" }}>
+              Información del premio
+            </div>
+            {premioInfo.map((row, idx) => (
+              <div
+                key={idx}
+                className={row.tone === "amber" ? styles.alertAmber : row.tone === "green" ? styles.alertGreen : styles.alertNeutral}
+              >
+                {row.title && <div style={{ fontWeight: 700, marginBottom: 4 }}>{row.title}</div>}
+                {row.lines.map((line, i) => <div key={i}>{line}</div>)}
+                {row.conditions && (
+                  <>
+                    <div style={{ fontWeight: 700, marginTop: 8 }}>Condiciones de transferencia</div>
+                    <div>{row.conditions}</div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className={styles.linksRow}>
           {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
           <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
@@ -700,6 +805,10 @@ export default function RifaDetalle() {
         onSubmit={async (buyer) => { setShowBuyer(false); await comprar(buyer); }}
         // fuerza al modal/overlay a estar arriba
         modalZIndex={2100}
+        // RIFEX CLOSURE PASS (2026-08-29): disclosure MUY compacta de
+        // costos adicionales, en el resumen inmediatamente anterior al
+        // pago — nunca escondida en Términos.
+        extraCostNotices={extraCostNotices}
       />
 
       {/* Animaciones */}
