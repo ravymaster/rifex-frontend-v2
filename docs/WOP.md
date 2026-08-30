@@ -4,6 +4,64 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CUMPLIMIENTO-3 (2026-08-30) — comunicaciones Día 0 + acceso seguro del ganador (DEV only)
+
+Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía
+`bee778f` (CUMPLIMIENTO-1) y `ad0b792` (CUMPLIMIENTO-2). Nueva rama
+`cumplimiento-3` desde `origin/develop`.
+
+Auditado el flujo real de emails antes de codificar:
+`notifyWinnerDrawn` ya mandaba `sendWinnerEmail`/`sendCreatorWinnerEmail`
+sin información de premio/entrega/transferencia ni link de acceso. Se
+**enriquecieron esos mismos dos correos** (nunca se creó un tercero) —
+ahora incluyen la modalidad de entrega, gastos/condiciones de
+transferencia (del snapshot congelado del caso, nunca de la rifa
+actual), y, para el ganador, un link seguro a su caso.
+
+`notifyWinnerDrawn` ahora delega a `sendDay0Communications`
+(`src/lib/fulfillmentCommunications.js`) después de asegurar el caso
+(CUMPLIMIENTO-2, sin cambios) — con fallback a los correos planos sin
+enriquecer si el caso no se pudo asegurar, para que Cumplimiento nunca
+reduzca la confiabilidad de la notificación ya existente. `drawWinner()`
+no se tocó.
+
+Migración aditiva
+`db/migrations/2026-08-30_cumplimiento3_communications_and_winner_access.sql`:
+`raffle_fulfillment_communications` (ledger idempotente,
+`UNIQUE(case_id, communication_type, recipient_role)` como autoridad
+real de intención exactly-once — un reintento siempre actualiza la
+misma fila, nunca inserta una segunda) + `winner_access_token_hash`/
+`winner_access_token_created_at` en `raffle_fulfillment_cases`. RLS
+default-deny total en el ledger — verificado en vivo contra `rifex-dev`
+real (`401`/`42501`).
+
+Token del ganador: `crypto.randomBytes(32)` (256 bits), **nunca
+persistido en texto plano** — solo su SHA-256 se guarda. Se auditó el
+patrón existente de `event_orders.access_token` (texto plano) y se
+decidió deliberadamente no copiarlo, por instrucción explícita del
+mandato. El token nunca expira por tiempo y solo rota mientras el envío
+al ganador no esté confirmado (`status='sent'`) — una vez confirmado,
+queda estable para todo el ciclo de vida futuro del caso.
+
+Nueva ruta pública `GET /api/cumplimiento/caso/[token]` (rate-limited,
+mismo patrón que `/api/events/orders/[token]`) + página
+`/cumplimiento/caso/[token]` — solo lectura, sin acciones de respuesta
+todavía, expone estrictamente lo necesario (nunca PII de terceros, ni
+el propio token). El creador sigue usando su sesión Rifex autenticada
+— sin token guest nuevo para él.
+
+44 pruebas nuevas (evaluación de comunicaciones + token + exposición de
+datos) + QA en vivo contra `rifex-dev` reutilizando el caso residual ya
+documentado de CUMPLIMIENTO-2 (sin fixture nuevo, sin emails reales) +
+regresión completa: 255 tests totales, 254 pass, 1 flaky ya documentado
+(mismo timing XLSX de EVENT-3) — cero fallos funcionales nuevos.
+`npm run build` PASS. PROD, `main` y `/cumplimiento` (que sigue diciendo
+"Próximamente") sin tocar. Detalle completo en
+`docs/cumplimiento/CUMPLIMIENTO_3_COMMUNICATIONS.md`.
+**CUMPLIMIENTO-4 (respuestas creador/ganador) remains NOT AUTHORIZED.**
+
+---
+
 ## CUMPLIMIENTO-2 (2026-08-30) — integración DRAW → fulfillment case (DEV only)
 
 Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía

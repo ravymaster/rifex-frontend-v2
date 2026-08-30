@@ -42,6 +42,50 @@ function fmtCLP(n) {
     return `$${n}`;
   }
 }
+// CUMPLIMIENTO-3: etiquetas legibles para delivery_method — mismo mapa
+// que src/pages/rifas/[id].jsx (DELIVERY_METHOD_LABELS), duplicado acá
+// a propósito en vez de importado — mailer.js es una utilidad de bajo
+// nivel, no debería depender de constantes de una página específica.
+const DELIVERY_METHOD_LABELS = {
+  retira_en_tienda: "Retiro / entrega presencial",
+  envio_incluido: "Envío incluido por el creador",
+  envio_pagado: "Envío a cargo del ganador",
+  a_convenir: "A convenir con el creador",
+};
+const TRANSFER_OWNER_LABELS = { creator: "el creador de la rifa", winner: "el ganador" };
+
+// CUMPLIMIENTO-3: filas de premio/entrega/transferencia — usadas por
+// sendWinnerEmail y sendCreatorWinnerEmail para que ambos correos
+// muestren exactamente las mismas condiciones ya publicadas en la
+// rifa, sin inventar obligaciones nuevas. Nunca se llama si el caso no
+// declaró requires_transfer_procedures.
+function deliveryAndTransferHtmlRows({ prizeType, deliveryMethod, requiresTransferProcedures, transferExpensesOwner, transferConditions }) {
+  const rows = [];
+  if (prizeType === "physical" && deliveryMethod) {
+    const label = DELIVERY_METHOD_LABELS[deliveryMethod] || deliveryMethod;
+    rows.push(`<tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;width:40%"><b>Modalidad de entrega</b></td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(label)}</td></tr>`);
+  }
+  if (requiresTransferProcedures) {
+    const ownerLabel = TRANSFER_OWNER_LABELS[transferExpensesOwner] || transferExpensesOwner || "-";
+    rows.push(`<tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb"><b>Gastos de transferencia/trámites</b></td><td style="padding:8px;border:1px solid #e5e7eb">A cargo de ${escapeHtml(ownerLabel)}</td></tr>`);
+    if (transferConditions) {
+      rows.push(`<tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb"><b>Condiciones declaradas</b></td><td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(transferConditions)}</td></tr>`);
+    }
+  }
+  return rows.join("");
+}
+function deliveryAndTransferText({ prizeType, deliveryMethod, requiresTransferProcedures, transferExpensesOwner, transferConditions }) {
+  const parts = [];
+  if (prizeType === "physical" && deliveryMethod) {
+    parts.push(`Modalidad de entrega: ${DELIVERY_METHOD_LABELS[deliveryMethod] || deliveryMethod}.`);
+  }
+  if (requiresTransferProcedures) {
+    parts.push(`Gastos de transferencia/trámites a cargo de: ${TRANSFER_OWNER_LABELS[transferExpensesOwner] || transferExpensesOwner || "-"}.`);
+    if (transferConditions) parts.push(`Condiciones declaradas: ${transferConditions}.`);
+  }
+  return parts.join(" ");
+}
+
 function htmlToText(html = "") {
   try {
     return String(html)
@@ -291,9 +335,19 @@ export async function sendWinnerEmail({
   raffleTitle,
   number,
   raffleLink, // opcional
+  // CUMPLIMIENTO-3: mismo correo, enriquecido -- nunca un segundo email
+  // separado de "Día 0". accessLink solo se agrega cuando existe.
+  accessLink,
+  prizeType,
+  deliveryMethod,
+  requiresTransferProcedures,
+  transferExpensesOwner,
+  transferConditions,
 }) {
   const subject = `🏆 ¡Ganaste! — ${raffleTitle}`;
   const link = raffleLink ? raffleLink : BASE ? `${BASE}` : "#";
+  const extraRows = deliveryAndTransferHtmlRows({ prizeType, deliveryMethod, requiresTransferProcedures, transferExpensesOwner, transferConditions });
+  const extraText = deliveryAndTransferText({ prizeType, deliveryMethod, requiresTransferProcedures, transferExpensesOwner, transferConditions });
 
   const html = `
   <div style="font-family:Inter,Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px">
@@ -316,9 +370,15 @@ export async function sendWinnerEmail({
               <td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;width:40%"><b>Número ganador</b></td>
               <td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(String(number))}</td>
             </tr>
+            ${extraRows}
           </tbody>
         </table>
-        <p style="margin:0 0 14px">El organizador de la rifa se va a poner en contacto para coordinar la entrega del premio.</p>
+        <p style="margin:0 0 14px">El organizador de la rifa se va a poner en contacto para coordinar la entrega del premio${requiresTransferProcedures ? " y los trámites de transferencia" : ""}. Las condiciones de entrega son exactamente las que se publicaron en la rifa antes de participar.</p>
+        ${
+          accessLink
+            ? `<a href="${accessLink}" style="display:inline-block;padding:10px 14px;border-radius:10px;background:#18a957;color:#fff;text-decoration:none;font-weight:700;margin-right:8px">Ver mi caso</a>`
+            : ""
+        }
         <a href="${link}"
            style="display:inline-block;padding:10px 14px;border-radius:10px;background:#111827;color:#fff;text-decoration:none;font-weight:700">
            Ver rifa
@@ -334,7 +394,7 @@ export async function sendWinnerEmail({
     to,
     subject,
     html,
-    text: `¡Ganaste! Rifa: ${raffleTitle}. Número ganador: ${number}. El organizador se va a poner en contacto para coordinar la entrega.`,
+    text: `¡Ganaste! Rifa: ${raffleTitle}. Número ganador: ${number}. ${extraText} El organizador se va a poner en contacto para coordinar la entrega.${accessLink ? ` Ver tu caso: ${accessLink}` : ""}`,
   });
 }
 
@@ -345,9 +405,18 @@ export async function sendCreatorWinnerEmail({
   winnerName,
   winnerEmail,
   raffleLink, // opcional
+  // CUMPLIMIENTO-3: mismo correo, enriquecido -- recordatorio de las
+  // condiciones que el propio creador ya publicó, no obligaciones nuevas.
+  prizeType,
+  deliveryMethod,
+  requiresTransferProcedures,
+  transferExpensesOwner,
+  transferConditions,
 }) {
   const subject = `🎉 Ya hay ganador — ${raffleTitle}`;
   const link = raffleLink ? raffleLink : BASE ? `${BASE}` : "#";
+  const extraRows = deliveryAndTransferHtmlRows({ prizeType, deliveryMethod, requiresTransferProcedures, transferExpensesOwner, transferConditions });
+  const extraText = deliveryAndTransferText({ prizeType, deliveryMethod, requiresTransferProcedures, transferExpensesOwner, transferConditions });
 
   const html = `
   <div style="font-family:Inter,Arial,Helvetica,sans-serif;background:#f8fafc;padding:24px">
@@ -358,7 +427,7 @@ export async function sendCreatorWinnerEmail({
         )}</h2>
       </div>
       <div style="padding:18px 20px;color:#0f172a">
-        <p style="margin:0 0 12px">Se sorteó el ganador de tu rifa. Coordiná con esta persona la entrega del premio.</p>
+        <p style="margin:0 0 12px">Se sorteó el ganador de tu rifa. Comienza la etapa de coordinación de entrega — recordá las condiciones que vos mismo publicaste antes de que la rifa empezara a vender.</p>
         <table style="width:100%;border-collapse:collapse;margin:8px 0 14px">
           <tbody>
             <tr>
@@ -373,6 +442,7 @@ export async function sendCreatorWinnerEmail({
               <td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb"><b>Contacto</b></td>
               <td style="padding:8px;border:1px solid #e5e7eb">${escapeHtml(winnerEmail || "-")}</td>
             </tr>
+            ${extraRows}
           </tbody>
         </table>
         <a href="${link}"
@@ -392,7 +462,7 @@ export async function sendCreatorWinnerEmail({
     html,
     text:
       `Ya hay ganador en ${raffleTitle}. ` +
-      `Número: ${number}. Ganador: ${winnerName || "-"} (${winnerEmail || "-"}). ` +
+      `Número: ${number}. Ganador: ${winnerName || "-"} (${winnerEmail || "-"}). ${extraText} ` +
       `Coordiná la entrega del premio.`,
   });
 }

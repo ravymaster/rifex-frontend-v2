@@ -5,6 +5,7 @@
 import * as SB from "./supabaseAdmin.js";
 import { sendWinnerEmail, sendCreatorWinnerEmail } from "./mailer.js";
 import { ensureFulfillmentCaseForRaffle } from "./fulfillmentCaseService.js";
+import { sendDay0Communications } from "./fulfillmentCommunications.js";
 
 const supabaseAdmin = SB.default || SB.supabaseAdmin;
 const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
@@ -122,18 +123,28 @@ export async function drawWinner(raffleId, { force = false, triggerSource = null
  * asegura el caso de cumplimiento correspondiente. La creación del caso
  * NUNCA depende del éxito del envío de emails (va primero, en su propio
  * try/catch) y un fallo en Cumplimiento nunca revierte ni bloquea el
- * envío de los correos (la sección de emails, debajo, es exactamente la
- * misma de antes, sin cambios). raffle_results ya está persistido antes
- * de que esta función se invoque — un fallo acá nunca puede alterar al
- * ganador autoritativo ni producir un segundo sorteo.
+ * envío de los correos. raffle_results ya está persistido antes de que
+ * esta función se invoque — un fallo acá nunca puede alterar al ganador
+ * autoritativo ni producir un segundo sorteo.
+ *
+ * CUMPLIMIENTO-3: cuando el caso se pudo asegurar, el envío pasa por
+ * sendDay0Communications (ledger idempotente + enriquecimiento con
+ * premio/entrega/transferencia/link seguro) — el correo real sigue
+ * siendo sendWinnerEmail/sendCreatorWinnerEmail, nunca uno duplicado.
+ * Si el caso no se pudo asegurar (fallback), se mandan los mismos
+ * correos SIN el enriquecimiento ni el ledger, exactamente como antes
+ * de CUMPLIMIENTO-3 — el ganador y el creador nunca dejan de ser
+ * notificados solo porque Cumplimiento tuvo un problema.
  */
 export async function notifyWinnerDrawn(raffleId, winner) {
   const results = { winnerEmailed: false, creatorEmailed: false, fulfillmentCaseEnsured: false };
 
+  let fulfillmentCase = null;
   try {
-    const { isNew } = await ensureFulfillmentCaseForRaffle(raffleId);
+    const ensured = await ensureFulfillmentCaseForRaffle(raffleId);
     results.fulfillmentCaseEnsured = true;
-    results.fulfillmentCaseIsNew = isNew;
+    results.fulfillmentCaseIsNew = ensured.isNew;
+    fulfillmentCase = ensured.case;
   } catch (e) {
     console.error("[notifyWinnerDrawn] ensureFulfillmentCaseForRaffle error", e?.message || e);
   }
@@ -150,6 +161,28 @@ export async function notifyWinnerDrawn(raffleId, winner) {
 
   const raffleLink = raffleId ? `${BASE}/rifas/${raffleId}` : BASE || "";
 
+  if (fulfillmentCase) {
+    try {
+      const day0 = await sendDay0Communications(fulfillmentCase, {
+        raffleTitle,
+        creatorEmail: isValidEmail(creatorEmail) ? creatorEmail : null,
+        winnerEmail: isValidEmail(winner?.buyer_email) ? winner.buyer_email : null,
+        winnerName: winner?.buyer_name,
+        winnerNumber: winner?.number,
+        raffleLink,
+      });
+      results.winnerEmailed = day0.winnerSent;
+      results.creatorEmailed = day0.creatorSent;
+      return results;
+    } catch (e) {
+      console.error("[notifyWinnerDrawn] sendDay0Communications error", e?.message || e);
+      // cae al fallback de abajo -- nunca deja al ganador/creador sin
+      // intento de notificación solo porque el ledger falló.
+    }
+  }
+
+  // Fallback (caso no asegurado, o sendDay0Communications lanzó): los
+  // mismos dos correos de siempre, sin ledger ni enriquecimiento.
   if (isValidEmail(winner?.buyer_email)) {
     try {
       await sendWinnerEmail({
