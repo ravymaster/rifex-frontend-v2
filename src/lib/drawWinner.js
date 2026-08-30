@@ -2,8 +2,9 @@
 // Sorteo del ganador de una rifa, compartido entre el endpoint público
 // (gatillado desde el navegador del comprador), el webhook/reconciliación
 // de MP (venta que agota la rifa) y el cierre manual desde el panel.
-import * as SB from "./supabaseAdmin";
-import { sendWinnerEmail, sendCreatorWinnerEmail } from "./mailer";
+import * as SB from "./supabaseAdmin.js";
+import { sendWinnerEmail, sendCreatorWinnerEmail } from "./mailer.js";
+import { ensureFulfillmentCaseForRaffle } from "./fulfillmentCaseService.js";
 
 const supabaseAdmin = SB.default || SB.supabaseAdmin;
 const BASE = (process.env.NEXT_PUBLIC_BASE_URL || "").replace(/\/+$/, "");
@@ -115,10 +116,28 @@ export async function drawWinner(raffleId, { force = false, triggerSource = null
 }
 
 /**
- * Manda los correos de "ya hay ganador" al comprador ganador y al creador.
- * Se llama solo cuando drawWinner() devuelve isNew:true (evita duplicados).
+ * Se llama solo cuando drawWinner() devuelve isNew:true (evita
+ * duplicados) — mismo guard exactly-once que ya usan los emails.
+ * CUMPLIMIENTO-2: además de mandar los correos de "ya hay ganador",
+ * asegura el caso de cumplimiento correspondiente. La creación del caso
+ * NUNCA depende del éxito del envío de emails (va primero, en su propio
+ * try/catch) y un fallo en Cumplimiento nunca revierte ni bloquea el
+ * envío de los correos (la sección de emails, debajo, es exactamente la
+ * misma de antes, sin cambios). raffle_results ya está persistido antes
+ * de que esta función se invoque — un fallo acá nunca puede alterar al
+ * ganador autoritativo ni producir un segundo sorteo.
  */
 export async function notifyWinnerDrawn(raffleId, winner) {
+  const results = { winnerEmailed: false, creatorEmailed: false, fulfillmentCaseEnsured: false };
+
+  try {
+    const { isNew } = await ensureFulfillmentCaseForRaffle(raffleId);
+    results.fulfillmentCaseEnsured = true;
+    results.fulfillmentCaseIsNew = isNew;
+  } catch (e) {
+    console.error("[notifyWinnerDrawn] ensureFulfillmentCaseForRaffle error", e?.message || e);
+  }
+
   const { data: raffle } = await supabaseAdmin
     .from("raffles")
     .select("id,title,creator_email")
@@ -130,7 +149,6 @@ export async function notifyWinnerDrawn(raffleId, winner) {
   if (!creatorEmail && process.env.CREATOR_FALLBACK_EMAIL) creatorEmail = process.env.CREATOR_FALLBACK_EMAIL;
 
   const raffleLink = raffleId ? `${BASE}/rifas/${raffleId}` : BASE || "";
-  const results = { winnerEmailed: false, creatorEmailed: false };
 
   if (isValidEmail(winner?.buyer_email)) {
     try {

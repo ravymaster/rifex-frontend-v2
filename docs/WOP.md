@@ -4,6 +4,56 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CUMPLIMIENTO-2 (2026-08-30) — integración DRAW → fulfillment case (DEV only)
+
+Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía
+`bee778f` (CUMPLIMIENTO-1). Nueva rama `cumplimiento-2` desde
+`origin/develop`.
+
+Conecta el resultado autoritativo de DRAW (`raffle_results`, PK
+`raffle_id`) con `ensureFulfillmentCaseForRaffle` de CUMPLIMIENTO-1: se
+agregó una llamada a esa función al inicio de
+`notifyWinnerDrawn(raffleId, winner)` en `src/lib/drawWinner.js`, en su
+propio `try/catch` — nunca depende del éxito del email ni bloquea su
+envío, y viceversa. `notifyWinnerDrawn` ya se invocaba exactamente una
+vez por sorteo real (guardado por `isNew:true` de `drawWinner()`) desde
+los 3 call sites existentes — ningún call site fue tocado, ningún
+cambio al algoritmo de sorteo, elegibilidad de tickets, ni la
+protección exactly-once ya certificada de `raffle_results`.
+
+17 pruebas nuevas (`tests/drawFulfillmentIntegration.test.mjs`) contra
+un almacén en memoria con la lógica REAL de `drawWinner`/
+`notifyWinnerDrawn`/`ensureFulfillmentCaseForRaffle` cubren los 18
+escenarios requeridos: exactly-once bajo retry secuencial y
+concurrente, snapshot inmutable ante ediciones posteriores de la rifa y
+la compra, ausencia total de backfill para resultados históricos,
+independencia caso↔notificación en ambos sentidos, recovery idempotente,
+y ausencia estructural de cualquier endpoint público que exponga la
+recuperación. Además, una prueba de integración real contra
+`rifex-dev` (fixture desechable, `ENABLE_EMAILS=false`) confirmó el
+flujo completo en vivo.
+
+**Hallazgo real durante la limpieza del fixture de la prueba en vivo**:
+el trigger append-only de `raffle_fulfillment_events` (CUMPLIMIENTO-1)
+bloquea correctamente el `DELETE` en cascada del caso una vez que tiene
+al menos un evento — lo cual es el comportamiento deseado, no un bug.
+No se intentó deshabilitar el trigger para forzar la limpieza. Quedó un
+residuo permanente en `rifex-dev` (1 fila en `raffles`/`purchases`/
+`raffle_fulfillment_cases`/`raffle_fulfillment_events`, sin PII real,
+título "CUMPLIMIENTO-2 DEV integration fixture") — implicación real:
+todo caso de cumplimiento, una vez creado, es permanente por diseño.
+Detalle completo, incluyendo el análisis previo de `drawWinner()`, en
+`docs/cumplimiento/CUMPLIMIENTO_2_DRAW_INTEGRATION.md`.
+
+Regresión completa: 235 tests totales, 234 pass, 1 flaky ya documentado
+(mismo timing XLSX de EVENT-3) — cero fallos funcionales nuevos.
+`npm run build` PASS. Sin migración nueva — CUMPLIMIENTO-1 ya proveía
+el schema necesario. PROD, `main` y `/cumplimiento` (que sigue diciendo
+"Próximamente") sin tocar. **CUMPLIMIENTO-3 (respuestas creador/ganador)
+remains NOT AUTHORIZED.**
+
+---
+
 ## CUMPLIMIENTO-1 (2026-08-30) — fundación técnica de Rifex Cumplimiento (DEV only)
 
 Baseline reconfirmado antes de trabajar: `origin/main = e7311c1` (tag
