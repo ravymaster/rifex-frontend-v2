@@ -1,6 +1,74 @@
 # RIFEX FULL PROD RELEASE — 2026-08-30
 
-**Estado: RELEASE CANDIDATE CONSTRUIDO Y CERTIFICADO EN STAGE 2. NO DESPLEGADO A PROD.**
+**Estado: STAGE 3 — MIGRACIONES PROD APLICADAS. CÓDIGO PROD SIN DESPLEGAR (main sigue en `3f3d6c4`).**
+
+## STAGE 3 — PROD MIGRATIONS APPLIED (2026-08-30)
+
+Ejecutado contra Supabase PROD real (`wrdkdfuiwlujfxxijpao`), con autorización
+explícita de Rodrigo exclusiva para esta etapa. Ningún push a `main`, ningún
+deploy, ninguna promoción de código — el código servido en PROD hoy sigue
+siendo exactamente `origin/main @ 3f3d6c4`.
+
+**Reconciliación real (Git + PROD, no el contador narrativo de Stage 2):**
+antes de aplicar nada se verificó el estado real de PROD vía
+`supabase db query --linked` (Management API, sin password de DB). Se
+encontró que 2 de las 11 migraciones del release candidate ya estaban
+efectivas en PROD por un fix quirúrgico anterior (documentado en
+`docs/WOP.md`, sección EVENT-6 Fase 2):
+
+| Migración | Ya efectiva en PROD | Acción |
+|---|---|---|
+| `2026-08-25c` (RLS raffle_date_extensions) | SÍ — `relrowsecurity=true` confirmado | Omitida (no reaplicada) |
+| `2026-08-26b` (revoke create_tickets_for_raffle) | SÍ — grants ya solo `postgres`+`service_role` | Omitida (no reaplicada) |
+| `2026-08-26c` (search_path + revoke 2 RPCs) | NO | **Aplicada** |
+| `2026-08-26d` (revoke 4 funciones trigger) | NO | **Aplicada** |
+| `2026-08-26d5` (country columns reconstruida) | NO | **Aplicada** |
+| `2026-08-26e` (TRUST-1 onboarding) | NO | **Aplicada** |
+| `2026-08-27` (TRUST-2 identidad) | NO | **Aplicada** |
+| `2026-08-27b` (TRUST-3A verificación + bucket) | NO | **Aplicada** |
+| `2026-08-27c` (fix FKs borrado usuario) | NO | **Aplicada** |
+| `2026-08-28` (mp_identity_match + Persona/Empresa) | NO | **Aplicada** |
+| `2026-08-29` (premio físico transferencia) | NO | **Aplicada** |
+
+9 migraciones aplicadas realmente, 2 confirmadas ya-efectivas y omitidas
+deliberadamente (nunca reaplicadas a ciegas). Total de 11 migraciones del
+release candidate, todas contabilizadas.
+
+**Guardrail:** se abrió temporalmente una única regla de allowlist en
+`.claude/settings.json` (`Bash(supabase db query --project-ref
+wrdkdfuiwlujfxxijpao:*)`), diff de una línea contra el backup previo. Se
+restauró byte-for-byte al finalizar — hash SHA-256 verificado idéntico
+antes/después (`a5f58c56...b13a7f`). Ningún otro bloqueo (main push,
+merge, vercel deploy, otros proyectos Supabase) fue tocado.
+
+**Postcheck global:** confirmado sin pérdida de filas en ninguna tabla
+(`merchant_gateways`: 2→2, `mp_oauth_state`: 0→0, `purchases`: 2→2,
+`events`: 1→1, `event_orders`: 1→1, `event_tickets`: 0→0,
+`users_profile`: 5→5; `raffles`: 2→5 y `tickets`: 60→360 — incremento por
+tráfico orgánico real durante la ventana de migración, no por acción de
+las migraciones). Tablas Trust creadas con RLS habilitada y 0 filas
+(nuevas, vacías). Columnas de país y premio físico presentes con los
+tipos/defaults/constraints certificados en Stage 2. `create_raffle_with_
+declarations`/`extend_raffle_draw` y las 4 funciones trigger sin grants a
+PUBLIC/anon/authenticated. `trust_onboarding.birth_date`/`legal_name`
+eliminadas de forma segura (tabla recién creada, 0 filas reales en el
+momento del drop). Bucket privado `trust-documents` creado
+(`public=false`).
+
+**Smoke de aplicación vieja:** `GET /rest/v1/raffles?select=id&limit=1`
+contra PROD respondió `200` después de todas las migraciones — el código
+actualmente servido (main `3f3d6c4`, que no conoce ninguna tabla/columna
+nueva) sigue funcionando sin errores, confirmando compatibilidad hacia
+atrás.
+
+**No se tocó:** `main`, Vercel, secrets, Argentina (sigue `enabled:
+false`), datos de usuarios reales más allá de las columnas de schema
+descritas arriba, ningún pago, ninguna conexión/desconexión de Mercado
+Pago.
+
+---
+
+**Estado original (Stage 2): RELEASE CANDIDATE CONSTRUIDO Y CERTIFICADO. NO DESPLEGADO A PROD.**
 
 Este documento describe el release candidate construido en Stage 2 del proceso
 `RIFEX FULL PROD RELEASE`. Ninguna de las acciones aquí descritas ha sido
