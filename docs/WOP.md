@@ -4,6 +4,66 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CUMPLIMIENTO-5 (2026-08-30) — mesa de revisión administrativa dentro de /admin (DEV only)
+
+Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía
+`bee778f`/`ad0b792`/`8cd116b`/`f904c95` (C1-C4). Nueva rama
+`cumplimiento-5` desde `origin/develop`.
+
+Autoauditoría previa confirmó que Rifex ya tiene un `/admin` real,
+protegido por `src/lib/adminAuth.js#resolveAdmin` (Bearer token +
+`auth.getUser()` + `app_metadata.role==='admin'`) — **ese mismo
+mecanismo se reutilizó sin cambios**; no se creó ningún panel admin
+nuevo, ni segundo login, ni segunda autoridad. La sección "Cumplimiento"
+se agregó directamente a `/admin` (resumen con 4 KPIs + enlace) y la
+gestión detallada vive en la subruta `/admin/cumplimiento` +
+`/admin/cumplimiento/[id]` — dentro del mismo panel, no un sistema
+separado.
+
+Otro hallazgo clave de la autoauditoría: `raffle_fulfillment_events`
+(C1) ya tenía `actor_type` con `'admin'` permitido en su CHECK desde el
+día uno, y `event_type` es texto libre. Iniciar revisión, agregar una
+nota interna, y resolver una revisión se implementaron como nuevos
+`event_type` sobre esa MISMA tabla append-only — **no se creó ninguna
+tabla nueva de notas/revisión**. Solo se agregaron 3 columnas nullable
+(`admin_review_status`, `admin_reviewed_by`, `admin_reviewed_at`) a
+`raffle_fulfillment_cases` como resumen mutable de lectura rápida
+(mismo patrón exacto que `creator_response`/`winner_response` desde
+CUMPLIMIENTO-1).
+
+La resolución administrativa es una capa estrictamente posterior:
+`resolveAdminReview` nunca toca `winner_response`, `creator_response`,
+`closed_at`, `escalation_reason` ni ningún evento histórico — solo
+agrega un evento nuevo y actualiza el resumen de revisión. Estados de
+revisión: `null` (pendiente), `in_review`, `resolved`,
+`closed_without_determination` — deliberadamente sin `fraud`/`guilty`/
+`criminal`; el sistema nunca determina delitos.
+
+Se corrigió voseo argentino remanente en las superficies de
+Cumplimiento tocadas por C3/C4 (`tenés`→`tienes`, `podés`→`puedes`,
+`Contanos`→`Cuéntanos`, `Coordiná`→`Coordina`, `Respondé`→`Responde`,
+`vos`→`tú`, etc.) en `mailer.js` y las páginas de
+`/cumplimiento`/`/panel/cumplimiento`.
+
+29 tests nuevos (`tests/adminFulfillmentReview.test.mjs`, cubren los 40
+escenarios requeridos), certificados también en vivo contra
+`rifex-dev` reutilizando el fixture residual de C2/C3/C4 (ya escalado
+por la propia QA de C4): listado+resumen, expediente sin exponer el
+token del ganador, iniciar revisión, agregar nota, resolver, reintento
+idempotente, y verificación explícita de que nada automático se alteró.
+325 tests totales en la suite completa (324 pasan, 1 flaky de timing
+XLSX ya documentado, no relacionado). Ver
+`docs/cumplimiento/CUMPLIMIENTO_5_ADMIN_REVIEW.md` para el detalle
+completo, incluida la limitación conocida: no se hizo un click-through
+en navegador real de las nuevas páginas `/admin/cumplimiento*` (solo
+QA a nivel de librería + forma de API contra datos reales de DEV) —
+recomendado antes de un uso más amplio.
+
+Próximo paso: ningún trabajo adicional autorizado sin nueva instrucción
+de Rodrigo (explícitamente NO se comienza CUMPLIMIENTO-6).
+
+---
+
 ## CUMPLIMIENTO-4 (2026-08-30) — respuestas + Día 10/15/20 + escalamiento interno (DEV only)
 
 Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía

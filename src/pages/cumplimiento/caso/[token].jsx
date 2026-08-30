@@ -17,11 +17,11 @@ const DELIVERY_METHOD_LABELS = {
   envio_pagado: "Envío a cargo del ganador",
   a_convenir: "A convenir con el creador",
 };
-const TRANSFER_OWNER_LABELS = { creator: "el creador de la rifa", winner: "vos (el ganador)" };
+const TRANSFER_OWNER_LABELS = { creator: "el creador de la rifa", winner: "tú (el ganador)" };
 
 const STATUS_COPY = {
   pending_delivery: { title: "Pendiente de entrega", body: "Todavía no hay confirmaciones registradas. El creador se pondrá en contacto para coordinar." },
-  creator_reported_delivered: { title: "El creador informó que ya entregó el premio", body: "Confirmá abajo si ya lo recibiste." },
+  creator_reported_delivered: { title: "El creador informó que ya entregó el premio", body: "Confirma abajo si ya lo recibiste." },
   fulfillment_confirmed: { title: "Cumplimiento confirmado", body: "Se confirmó la entrega del premio." },
   delivery_pending: { title: "Entrega pendiente", body: "La entrega todavía no se ha confirmado." },
   under_review: { title: "En revisión", body: "Hay una discrepancia registrada sobre la entrega — está en revisión." },
@@ -86,12 +86,12 @@ export default function CasoCumplimiento() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.ok) {
-        setSubmitError("No pudimos registrar tu respuesta. Probá de nuevo.");
+        setSubmitError("No pudimos registrar tu respuesta. Prueba de nuevo.");
         return;
       }
       setData(json.case);
     } catch {
-      setSubmitError("No pudimos registrar tu respuesta. Probá de nuevo.");
+      setSubmitError("No pudimos registrar tu respuesta. Prueba de nuevo.");
     } finally {
       setSubmitting(false);
     }
@@ -110,7 +110,7 @@ export default function CasoCumplimiento() {
       <main style={{ maxWidth: 640, margin: "0 auto", padding: "40px 16px" }}>
         <h1>Enlace no válido</h1>
         <p style={{ color: "#6B7280" }}>
-          Este enlace no es válido o expiró. Si creés que esto es un error, contactá al creador de la rifa.
+          Este enlace no es válido o expiró. Si crees que esto es un error, contacta al creador de la rifa.
         </p>
       </main>
     );
@@ -185,7 +185,7 @@ export default function CasoCumplimiento() {
         ) : (
           <>
             <p style={{ color: "#6B7280", margin: "0 0 12px", fontSize: 14 }}>
-              Contanos el estado actual de la entrega. Podés cambiar tu respuesta más adelante si la situación
+              Cuéntanos el estado actual de la entrega. Puedes cambiar tu respuesta más adelante si la situación
               cambia.
             </p>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>

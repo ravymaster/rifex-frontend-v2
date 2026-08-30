@@ -59,7 +59,7 @@ export default function PanelCumplimiento() {
 
         {error && <p style={{ color: "#b91c1c" }}>{error}</p>}
         {items === null && <p>Cargando…</p>}
-        {items && items.length === 0 && <p style={{ color: "#94a3b8" }}>Todavía no tenés casos de cumplimiento (se crean automáticamente cuando una de tus rifas tiene ganador).</p>}
+        {items && items.length === 0 && <p style={{ color: "#94a3b8" }}>Todavía no tienes casos de cumplimiento. Se crearán automáticamente cuando una de tus rifas tenga un ganador.</p>}
 
         <div style={{ display: "grid", gap: 12 }}>
           {(items || []).map((c) => (

@@ -84,12 +84,12 @@ export default function PanelCumplimientoDetalle() {
       });
       const json = await res.json().catch(() => null);
       if (!res.ok || !json?.ok) {
-        setSubmitError("No pudimos registrar tu respuesta. Probá de nuevo.");
+        setSubmitError("No pudimos registrar tu respuesta. Prueba de nuevo.");
         return;
       }
       setData(json.case);
     } catch {
-      setSubmitError("No pudimos registrar tu respuesta. Probá de nuevo.");
+      setSubmitError("No pudimos registrar tu respuesta. Prueba de nuevo.");
     } finally {
       setSubmitting(false);
     }

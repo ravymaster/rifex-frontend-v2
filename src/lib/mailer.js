@@ -427,7 +427,7 @@ export async function sendCreatorWinnerEmail({
         )}</h2>
       </div>
       <div style="padding:18px 20px;color:#0f172a">
-        <p style="margin:0 0 12px">Se sorteó el ganador de tu rifa. Comienza la etapa de coordinación de entrega — recordá las condiciones que vos mismo publicaste antes de que la rifa empezara a vender.</p>
+        <p style="margin:0 0 12px">Se sorteó el ganador de tu rifa. Comienza la etapa de coordinación de entrega — recuerda las condiciones que tú mismo publicaste antes de que la rifa empezara a vender.</p>
         <table style="width:100%;border-collapse:collapse;margin:8px 0 14px">
           <tbody>
             <tr>
@@ -463,7 +463,7 @@ export async function sendCreatorWinnerEmail({
     text:
       `Ya hay ganador en ${raffleTitle}. ` +
       `Número: ${number}. Ganador: ${winnerName || "-"} (${winnerEmail || "-"}). ${extraText} ` +
-      `Coordiná la entrega del premio.`,
+      `Coordina la entrega del premio.`,
   });
 }
 
@@ -503,14 +503,14 @@ export async function sendFulfillmentDay10WinnerEmail({ to, winnerName, raffleTi
     ${
       accessLink
         ? `<p style="margin:0 0 14px">${ctaButton(accessLink, "Responder ahora")}</p>`
-        : `<p style="margin:0 0 14px">Podés responder usando el enlace que te enviamos anteriormente por email para acceder a tu caso.</p>`
+        : `<p style="margin:0 0 14px">Puedes responder usando el enlace que te enviamos anteriormente por email para acceder a tu caso.</p>`
     }
   `;
   return sendEmail({
     to,
     subject,
     html: shell({ headerEmoji: "📦", headerTitle: `¿Recibiste tu premio? — ${raffleTitle}`, bodyHtml: body }),
-    text: `¿Recibiste tu premio de ${raffleTitle}?${accessLink ? ` Respondé acá: ${accessLink}` : " Respondé usando el enlace que te enviamos anteriormente."}`,
+    text: `¿Recibiste tu premio de ${raffleTitle}?${accessLink ? ` Responde acá: ${accessLink}` : " Responde usando el enlace que te enviamos anteriormente."}`,
   });
 }
 
@@ -525,7 +525,7 @@ export async function sendFulfillmentDay10CreatorEmail({ to, raffleTitle, panelL
     to,
     subject,
     html: shell({ headerEmoji: "📦", headerTitle: `¿Ya entregaste el premio? — ${raffleTitle}`, bodyHtml: body }),
-    text: `¿Ya entregaste el premio de ${raffleTitle}? Respondé desde tu panel: ${panelLink}`,
+    text: `¿Ya entregaste el premio de ${raffleTitle}? Responde desde tu panel: ${panelLink}`,
   });
 }
 
@@ -539,14 +539,14 @@ export async function sendFulfillmentDay15ReminderWinnerEmail({ to, winnerName, 
     ${
       accessLink
         ? `<p style="margin:0 0 14px">${ctaButton(accessLink, "Responder ahora")}</p>`
-        : `<p style="margin:0 0 14px">Podés responder usando el enlace que te enviamos anteriormente por email para acceder a tu caso.</p>`
+        : `<p style="margin:0 0 14px">Puedes responder usando el enlace que te enviamos anteriormente por email para acceder a tu caso.</p>`
     }
   `;
   return sendEmail({
     to,
     subject,
     html: shell({ headerEmoji: "⏰", headerTitle: `Recordatorio — ${raffleTitle}`, bodyHtml: body }),
-    text: `Recordatorio: todavía no respondiste sobre tu premio de ${raffleTitle}.${accessLink ? ` Respondé acá: ${accessLink}` : " Respondé usando el enlace que te enviamos anteriormente."}`,
+    text: `Recordatorio: todavía no respondiste sobre tu premio de ${raffleTitle}.${accessLink ? ` Responde acá: ${accessLink}` : " Responde usando el enlace que te enviamos anteriormente."}`,
   });
 }
 
@@ -561,7 +561,7 @@ export async function sendFulfillmentDay15ReminderCreatorEmail({ to, raffleTitle
     to,
     subject,
     html: shell({ headerEmoji: "⏰", headerTitle: `Recordatorio — ${raffleTitle}`, bodyHtml: body }),
-    text: `Recordatorio: todavía no respondiste sobre la entrega del premio de ${raffleTitle}. Respondé desde tu panel: ${panelLink}`,
+    text: `Recordatorio: todavía no respondiste sobre la entrega del premio de ${raffleTitle}. Responde desde tu panel: ${panelLink}`,
   });
 }
 
