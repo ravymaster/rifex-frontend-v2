@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearEvento.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const COVER_TARGET = { w: 1600, h: 700 };
@@ -90,6 +91,12 @@ export default function CrearEvento() {
       const session = data?.session;
       if (!session) { router.push('/login?next=/crear-evento'); return; }
       setToken(session.access_token);
+      try {
+        const trustUrl = await resolveTrustOnboardingRedirect('/crear-evento');
+        if (trustUrl) router.replace(trustUrl);
+      } catch (e) {
+        console.warn('trust onboarding check:', e?.message);
+      }
     })();
   }, [router]);
 

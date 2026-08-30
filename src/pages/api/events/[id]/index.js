@@ -5,6 +5,7 @@
 // directamente desde el body (status solo cambia vía publish.js o acciones
 // explícitas futuras — EVENT-1 permite cancelar aquí, ver más abajo).
 import { createClient } from '@supabase/supabase-js';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -69,6 +70,11 @@ export default async function handler(req, res) {
       const user = await getRequester(req);
       if (!user) return res.status(401).json({ ok: false, error: 'missing_auth' });
       if (user.id !== event.organizer_id) return res.status(403).json({ ok: false, error: 'not_your_event' });
+
+      // TRUST-1/TRUST-2: editar datos sensibles (incluida la cancelación)
+      // exige onboarding universal + identidad básica (18+, RUT para Chile).
+      const eligibility = await assertCreatorEligible(user.id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
       const body = req.body || {};
       const patch = {};

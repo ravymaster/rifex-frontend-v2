@@ -9,6 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearColecta.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
 import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
 
 // Tope solo para que el navegador no se cuelgue decodificando algo absurdo.
@@ -132,6 +133,12 @@ export default function CrearColecta() {
       if (!session) { router.push('/login?next=/crear-colecta'); return; }
       setToken(session.access_token);
       loadMine(session.access_token);
+      try {
+        const trustUrl = await resolveTrustOnboardingRedirect('/crear-colecta');
+        if (trustUrl) router.replace(trustUrl);
+      } catch (e) {
+        console.warn('trust onboarding check:', e?.message);
+      }
     })();
   }, [router, loadMine]);
 

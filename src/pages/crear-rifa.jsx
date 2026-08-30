@@ -3,19 +3,35 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
+import { resolveTrustOnboardingRedirect } from "@/lib/trustOnboardingClient";
 import Layout from "@/components/Layout";
 import styles from "@/styles/crearRifa.module.css";
 
-const THEMES = [
-  { id: "mixto", label: "Mixto", icon: "🔀" },
-  { id: "universo", label: "Universo", icon: "🌌" },
-  { id: "mitologia", label: "Mitología", icon: "🏛️" },
-  { id: "dinosaurios", label: "Dinosaurios", icon: "🦕" },
-  { id: "videojuegos", label: "Videojuegos", icon: "🎮" },
-  { id: "flora-fauna", label: "Flora y Fauna", icon: "🌿" },
-  { id: "comidas", label: "Comidas", icon: "🍔" },
-  { id: "deportes", label: "Deportes", icon: "⚽" },
-  { id: "viajes", label: "Viajes", icon: "✈️" },
+// RIFEX CLOSURE PASS (2026-08-29): la sección "Temática" se eliminó del
+// formulario — auditoría previa confirmó que theme persiste y se lee
+// correctamente, pero no controla el set de íconos de los números (eso
+// lo resuelve src/hooks/useIconsMap.js con un orden global fijo,
+// totalmente independiente de este campo) ni ninguna otra lógica real.
+// Toda rifa nueva se crea con theme='mixto' fijo — mismo default que ya
+// tenía la columna — para no romper los badges que sí leen theme en
+// /rifas y en RaffleIntroModal, ni las rifas históricas con otros
+// valores.
+const DEFAULT_THEME = "mixto";
+
+// RIFEX CLOSURE PASS (2026-08-29): "a_convenir" deja de ofrecerse en el
+// selector para rifas NUEVAS — las condiciones económicas de entrega
+// deben conocerse antes de participar. Rifas históricas con
+// delivery_method='a_convenir' siguen leyéndose y funcionando igual,
+// nunca se migran.
+const DELIVERY_METHODS = [
+  { id: "retira_en_tienda", label: "Retiro / entrega presencial" },
+  { id: "envio_incluido", label: "Envío pagado por el creador" },
+  { id: "envio_pagado", label: "Envío pagado por el ganador" },
+];
+
+const TRANSFER_EXPENSES_OWNERS = [
+  { id: "creator", label: "Creador" },
+  { id: "winner", label: "Ganador" },
 ];
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -55,22 +71,46 @@ async function uploadPrizePhotos(files, token) {
 export default function CrearRifaPage() {
   const router = useRouter();
 
+  // TRUST-1: chequeo de sesión + onboarding universal al montar — esta
+  // página antes solo verificaba sesión recién al enviar el formulario
+  // (dejaba llenar todo primero). La autoridad real que bloquea la
+  // creación sigue siendo server-side (POST /api/rifas), esto es
+  // solo UX temprana.
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data?.session) { router.push('/login?next=/crear-rifa'); return; }
+      try {
+        const trustUrl = await resolveTrustOnboardingRedirect('/crear-rifa');
+        if (trustUrl) router.replace(trustUrl);
+      } catch (e) {
+        console.warn('trust onboarding check:', e?.message);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Básicos
   const [title, setTitle] = useState("");
   const [priceClp, setPriceClp] = useState("");
   const [totalNumbers, setTotalNumbers] = useState("");
   const [description, setDescription] = useState("");
 
-  // Temática
-  const [theme, setTheme] = useState("mixto");
-
   // Premio — el único método de pago del premio es transferencia directa
   // del creador (DRAW-UX-FINAL: se retiró "Depósito por Rifex").
   const [prizeType, setPrizeType] = useState("money"); // money | physical
   const [prizeAmount, setPrizeAmount] = useState("");  // CLP
   const PAYOUT_METHOD = "creator_direct";
-  const [deliveryMethod, setDeliveryMethod] = useState("a_convenir");
+  const [deliveryMethod, setDeliveryMethod] = useState("");
   const [prizePhotos, setPrizePhotos] = useState([]); // File[]
+
+  // RIFEX CLOSURE PASS (2026-08-29): transparencia de premios físicos que
+  // requieren transferencia/trámites (ej. vehículo, propiedad). Progressive
+  // disclosure: nada de esto se pide si prizeType !== 'physical', y los
+  // campos de condiciones solo aparecen si requiresTransfer === true.
+  const [requiresTransfer, setRequiresTransfer] = useState(false);
+  const [transferOwner, setTransferOwner] = useState("");
+  const [transferConditions, setTransferConditions] = useState("");
 
   // Fechas/estado — "Término" ya no se pide por separado: DRAW-UX-FINAL
   // unificó esa decisión en "Fecha y hora del sorteo" (abajo), que ahora es
@@ -118,6 +158,20 @@ export default function CrearRifaPage() {
       alert("Indica el monto del premio en CLP.");
       return;
     }
+    if (prizeType === "physical" && !deliveryMethod) {
+      alert("Indica cómo se entregará el premio.");
+      return;
+    }
+    if (prizeType === "physical" && requiresTransfer) {
+      if (!transferOwner) {
+        alert("Indica quién asume los gastos de transferencia y trámites.");
+        return;
+      }
+      if (!transferConditions.trim()) {
+        alert("Indica las condiciones de transferencia.");
+        return;
+      }
+    }
     if (!drawDate || !drawTime) {
       alert("Indica la fecha y hora del sorteo.");
       return;
@@ -153,12 +207,15 @@ export default function CrearRifaPage() {
         description: description || null,
 
         plan: "free",
-        theme,
+        theme: DEFAULT_THEME,
         prize_type: prizeType,
         prize_amount_cents: prizeType === "money" ? Math.round(Number(prizeAmount || 0) * 100) : null,
         payout_method: prizeType === "money" ? PAYOUT_METHOD : null,
         delivery_method: prizeType === "physical" ? deliveryMethod : null,
         prize_photos: prizeType === "physical" ? photos : null,
+        requires_transfer_procedures: prizeType === "physical" ? requiresTransfer : false,
+        transfer_expenses_owner: prizeType === "physical" && requiresTransfer ? transferOwner : null,
+        transfer_conditions: prizeType === "physical" && requiresTransfer ? transferConditions.trim() : null,
 
         start_date: startDate || null,
         // end_date se deriva de la fecha del sorteo (compat V1 — ver arriba).
@@ -225,34 +282,27 @@ export default function CrearRifaPage() {
                 <textarea className="rf-pill" rows={4} placeholder="Descripción (opcional)" value={description} onChange={e=>setDescription(e.target.value)} />
               </div>
 
-              {/* Temática */}
-              <div className={styles.section}>
-                <div className={styles.sectionTitle}>Temática</div>
-                <div className={styles.themeGrid}>
-                  {THEMES.map(t => (
-                    <button
-                      type="button"
-                      key={t.id}
-                      className={styles.themeCard}
-                      data-active={theme === t.id}
-                      onClick={() => setTheme(t.id)}
-                      aria-pressed={theme === t.id}
-                    >
-                      <div className={styles.themeIcon}>{t.icon}</div>
-                      <div className={styles.themeLabel}>{t.label}</div>
-                    </button>
-                  ))}
-                </div>
-                <p className={styles.fieldLabel} style={{ fontWeight: 400, color: "var(--gris)" }}>
-                  Elige el set de íconos para los números de tu rifa.
-                </p>
-              </div>
-
               {/* Premio */}
               <div className={styles.section}>
                 <div className={styles.sectionTitle}>Tipo de premio</div>
                 <div className="rf-toggle" style={{ marginBottom: 16 }}>
-                  <button type="button" className={`rf-toggle-btn${prizeType==="money" ? " active" : ""}`} onClick={()=>setPrizeType("money")}>Dinero</button>
+                  <button
+                    type="button"
+                    className={`rf-toggle-btn${prizeType==="money" ? " active" : ""}`}
+                    onClick={() => {
+                      setPrizeType("money");
+                      // Cambiar a Dinero limpia cualquier condición física
+                      // que se hubiera empezado a llenar — nunca se envía
+                      // un estado mixto/residual al servidor.
+                      setDeliveryMethod("");
+                      setRequiresTransfer(false);
+                      setTransferOwner("");
+                      setTransferConditions("");
+                      setPrizePhotos([]);
+                    }}
+                  >
+                    Dinero
+                  </button>
                   <button type="button" className={`rf-toggle-btn${prizeType==="physical" ? " active" : ""}`} onClick={()=>setPrizeType("physical")}>Físico</button>
                 </div>
 
@@ -265,19 +315,82 @@ export default function CrearRifaPage() {
 
                 {prizeType==="physical" && (
                   <>
-                    <div className={styles.field} style={{ marginBottom: 12 }}>
+                    <div className={styles.field} style={{ marginBottom: 16 }}>
                       <span className={styles.fieldLabel}>Fotos del premio (hasta 3)</span>
                       <input type="file" accept="image/*" multiple onChange={e=>setPrizePhotos(Array.from(e.target.files||[]))} />
                     </div>
-                    <div className={styles.field}>
-                      <span className={styles.fieldLabel}>Método de entrega</span>
-                      <select className="rf-pill" value={deliveryMethod} onChange={e=>setDeliveryMethod(e.target.value)}>
-                        <option value="a_convenir">A convenir</option>
-                        <option value="retira_en_tienda">Retiro en punto</option>
-                        <option value="envio_pagado">Envío pagado por el ganador</option>
-                        <option value="envio_incluido">Envío incluido por el creador</option>
-                      </select>
+
+                    {/* RIFEX CLOSURE PASS: entrega — obligatoria, sin "a
+                        convenir" para rifas nuevas. Segmented control en
+                        vez de <select> para que las 3 opciones económicas
+                        sean visibles de inmediato. */}
+                    <div className={styles.field} style={{ marginBottom: 16 }}>
+                      <span className={styles.fieldLabel}>Entrega del premio *</span>
+                      <div className={styles.radioGroup}>
+                        {DELIVERY_METHODS.map((m) => (
+                          <label key={m.id} className={styles.radioOption} data-active={deliveryMethod === m.id}>
+                            <input
+                              type="radio"
+                              name="delivery_method"
+                              value={m.id}
+                              checked={deliveryMethod === m.id}
+                              onChange={() => setDeliveryMethod(m.id)}
+                            />
+                            <span>{m.label}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
+
+                    {/* RIFEX CLOSURE PASS: transferencia/trámites — progressive
+                        disclosure real, nada se pide hasta elegir "Sí". */}
+                    <div className={styles.field} style={{ marginBottom: requiresTransfer ? 12 : 0 }}>
+                      <span className={styles.fieldLabel}>¿El premio requiere transferencia o trámites?</span>
+                      <div className={styles.radioGroup}>
+                        <label className={styles.radioOption} data-active={!requiresTransfer}>
+                          <input type="radio" name="requires_transfer" checked={!requiresTransfer} onChange={() => { setRequiresTransfer(false); setTransferOwner(""); setTransferConditions(""); }} />
+                          <span>No</span>
+                        </label>
+                        <label className={styles.radioOption} data-active={requiresTransfer}>
+                          <input type="radio" name="requires_transfer" checked={requiresTransfer} onChange={() => setRequiresTransfer(true)} />
+                          <span>Sí</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {requiresTransfer && (
+                      <>
+                        <div className={styles.field} style={{ marginBottom: 12 }}>
+                          <span className={styles.fieldLabel}>Gastos de transferencia y trámites *</span>
+                          <div className={styles.radioGroup}>
+                            {TRANSFER_EXPENSES_OWNERS.map((o) => (
+                              <label key={o.id} className={styles.radioOption} data-active={transferOwner === o.id}>
+                                <input
+                                  type="radio"
+                                  name="transfer_owner"
+                                  value={o.id}
+                                  checked={transferOwner === o.id}
+                                  onChange={() => setTransferOwner(o.id)}
+                                />
+                                <span>{o.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div className={styles.field}>
+                          <span className={styles.fieldLabel}>Condiciones de transferencia *</span>
+                          <textarea
+                            className="rf-pill"
+                            rows={2}
+                            maxLength={280}
+                            placeholder="Ej: el ganador paga transferencia e inscripción del vehículo."
+                            value={transferConditions}
+                            onChange={(e) => setTransferConditions(e.target.value)}
+                          />
+                          <p className={styles.fieldHelp}>Los gastos y condiciones deben informarse antes de publicar.</p>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
               </div>

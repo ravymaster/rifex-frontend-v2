@@ -65,6 +65,7 @@ export default function Bancos({ ssrUser }) {
 
   // ------- MP status -------
   const [mpConnected, setMpConnected] = useState(false);
+  const [mpIdentityMatch, setMpIdentityMatch] = useState(null);
   const [checkingMp, setCheckingMp] = useState(true);
   const [mpBusy, setMpBusy] = useState(false);
 
@@ -90,8 +91,10 @@ export default function Bancos({ ssrUser }) {
       });
       const j = await r.json();
       setMpConnected(!!j?.connected);
+      setMpIdentityMatch(j?.identity_match || null);
     } catch {
       setMpConnected(false);
+      setMpIdentityMatch(null);
     }
   }
 
@@ -286,6 +289,27 @@ export default function Bancos({ ssrUser }) {
                     </button>
                   </div>
                 </div>
+
+                {mpConnected && mpIdentityMatch === "matched" && (
+                  <p style={{ color: "#166534", fontWeight: 700, marginTop: 10 }}>
+                    ✅ Cuenta de Mercado Pago validada.
+                  </p>
+                )}
+                {mpConnected && (mpIdentityMatch === "mismatch" || mpIdentityMatch === "needs_review") && (
+                  <p style={{ color: "#991b1b", fontWeight: 700, marginTop: 10 }}>
+                    No pudimos validar tu cuenta de Mercado Pago. Los datos del titular no coinciden con los
+                    registrados en Rifex. Revisa tus datos o conecta una cuenta que te pertenezca.
+                  </p>
+                )}
+                {mpConnected && mpIdentityMatch === "unavailable" && (
+                  <p style={{ color: "#92400E", fontWeight: 600, marginTop: 10 }}>
+                    No pudimos confirmar automáticamente la titularidad con Mercado Pago. Tu cuenta puede quedar
+                    sujeta a una revisión adicional.
+                  </p>
+                )}
+                {mpConnected && mpIdentityMatch === "checking" && (
+                  <p style={{ color: "var(--gris)", marginTop: 10 }}>Validando tu cuenta de Mercado Pago…</p>
+                )}
               </div>
             </section>
         </div>

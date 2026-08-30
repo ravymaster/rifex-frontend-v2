@@ -2,6 +2,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { assertCountryGate } from "@/lib/countryGate";
+import { resolveAdapterForSeller } from "@/lib/paymentEngine/engine";
+import { computePlatformFeeMinor } from "@/lib/paymentEngine/feePolicy";
+import { createPaymentIntent } from "@/lib/paymentEngine/contracts";
+import { resolveFallbackDecision } from "@/lib/paymentEngine/fallbackPolicy";
 import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -196,10 +200,65 @@ export default async function handler(req, res) {
     // se crea con el token OAuth de un vendedor real conectado (no con el token
     // de plataforma usado como fallback), porque ahí es donde MP hace el split.
     const totalCLP = unitPriceCLP * qty;
+
+    // P2/AR2: primer consumidor real del Payment Engine (P1) — resuelve
+    // country/currency/provider. Si el motor no resuelve para CL (no
+    // debería pasar, ya pasó el Country Gate arriba), cae al comportamiento
+    // legado exacto — cero cambio observable garantizado. Si el país
+    // autoritativo NO es CL, AR2 exige fail closed: nunca se completa el
+    // checkout con configuración/moneda de Chile para otro país.
+    let currency = "CLP";
+    let providerId = "mercado_pago";
+    let engineCountry = null;
+    let routed;
+    try {
+      routed = await resolveAdapterForSeller(raffle.creator_id, "mercadoPago");
+    } catch (e) {
+      console.warn("[mp][payment-engine] error resolviendo:", e?.message || e);
+      routed = { ok: false, reason: "engine_error", country: null };
+    }
+
+    const decision = resolveFallbackDecision(routed);
+    if (decision === "fail_closed") {
+      console.error("[mp][payment-engine] FAIL CLOSED — país no-CL sin motor listo:", routed.country, routed.reason);
+      await supabase
+        .from("tickets")
+        .update({ status: "available", purchase_id: null, hold_until: null })
+        .eq("raffle_id", rid)
+        .in("number", numbers)
+        .eq("purchase_id", purchase.id);
+      await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
+      return res.status(400).json({ ok: false, error: "country_payment_engine_unavailable" });
+    }
+    if (decision === "use_engine") {
+      currency = routed.currency || currency;
+      providerId = routed.provider || providerId;
+      engineCountry = routed.country;
+    } else {
+      console.warn("[mp][payment-engine] fallback a legado CL:", routed.reason);
+    }
+
     let marketplaceFee = undefined;
     if (sellerToken) {
-      const rawFee = Math.floor(totalCLP * RIFEX_FEE_RATE);
-      marketplaceFee = Math.max(0, Math.min(rawFee, totalCLP));
+      const engineFee = computePlatformFeeMinor(totalCLP, engineCountry || "CL", providerId);
+      marketplaceFee = engineFee != null
+        ? engineFee
+        : Math.max(0, Math.min(Math.floor(totalCLP * RIFEX_FEE_RATE), totalCLP)); // fallback exacto, no debería ejecutarse hoy para CL
+    }
+
+    try {
+      createPaymentIntent({
+        country: engineCountry || "CL",
+        currency,
+        provider: providerId,
+        productType: "raffle_ticket",
+        sellerId: raffle.creator_id,
+        externalReference: String(purchase.id),
+        grossAmountMinor: totalCLP,
+        platformFeeMinor: marketplaceFee ?? 0,
+      });
+    } catch (e) {
+      console.warn("[mp][payment-engine] contrato neutral no construido (no bloquea):", e?.message || e);
     }
 
     const prefBody = {
@@ -207,7 +266,7 @@ export default async function handler(req, res) {
         title: cleanTitle,
         quantity: qty,
         unit_price: unitPriceCLP, // precio por número
-        currency_id: "CLP",
+        currency_id: currency,
       }],
       ...(marketplaceFee != null ? { marketplace_fee: marketplaceFee } : {}),
       payer: { email: buyer_email || undefined, name: buyer_name || undefined },

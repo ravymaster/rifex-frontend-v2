@@ -7,6 +7,7 @@ import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
+import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -26,8 +27,13 @@ export default function AuthCallback() {
       if (!session) { setErr('No se pudo completar el inicio de sesión con Google.'); return; }
       // G1: si falta declarar país operativo, el onboarding pasa primero —
       // preserva `next` para volver ahí una vez completado.
-      const onboardingUrl = await resolveCountryOnboardingRedirect(next);
-      router.replace(onboardingUrl || next);
+      const countryUrl = await resolveCountryOnboardingRedirect(next);
+      if (countryUrl) { router.replace(countryUrl); return; }
+      // TRUST-1: Google OAuth nunca marca el onboarding universal como
+      // completo por sí solo — solo autentica. Si falta, pasa antes de
+      // continuar hacia `next`.
+      const trustUrl = await resolveTrustOnboardingRedirect(next);
+      router.replace(trustUrl || next);
     };
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {

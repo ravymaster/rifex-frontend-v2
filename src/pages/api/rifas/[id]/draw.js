@@ -6,6 +6,7 @@
 // triggered_by quedan en raffle_results, ver drawWinner.js/DRAW-1 migration).
 import { createClient } from '@supabase/supabase-js';
 import { drawWinner, notifyWinnerDrawn } from '@/lib/drawWinner';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -37,6 +38,10 @@ export default async function handler(req, res) {
     if (!raffle) return res.status(404).json({ ok: false, error: 'not_found' });
     const isOwner = raffle.creator_id === uid || (raffle.creator_email || '').toLowerCase() === email;
     if (!isOwner) return res.status(403).json({ ok: false, error: 'not_your_raffle' });
+
+    // TRUST-1/TRUST-2: acción administrativa sobre una iniciativa propia.
+    const eligibility = await assertCreatorEligible(uid);
+    if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
     if (raffle.status !== 'closed') {
       return res.status(409).json({ ok: false, error: 'sales_not_closed_yet' });

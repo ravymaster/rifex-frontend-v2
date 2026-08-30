@@ -1,6 +1,7 @@
 // src/pages/api/rifas/index.js
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { COUNTRY_POLICY } from '@/lib/countryPolicy';
 import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
 import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
@@ -29,12 +30,23 @@ const ALLOWED_CREATE_FIELDS = new Set([
   'end_date',
   'status',
   'extension_limit',
+  'requires_transfer_procedures',
+  'transfer_expenses_owner',
+  'transfer_conditions',
 ]);
 
 const MAX_EXTENSION_LIMIT = 3;
 // DRAW-1B: anticipación mínima — con T-5, esto deja al menos 5 minutos
 // reales de venta antes de que sales_end_at cierre las compras.
 const MIN_LEAD_MINUTES = 10;
+
+// RIFEX CLOSURE PASS (2026-08-29): "a_convenir" sigue siendo un valor
+// válido en la DB (rifas históricas), pero ninguna rifa NUEVA puede
+// crearse con él — las condiciones económicas de entrega deben conocerse
+// antes de participar.
+const DELIVERY_METHODS_FOR_NEW_RAFFLES = new Set(['retira_en_tienda', 'envio_incluido', 'envio_pagado']);
+const TRANSFER_EXPENSES_OWNERS = new Set(['creator', 'winner']);
+const MAX_TRANSFER_CONDITIONS_LENGTH = 500;
 
 export default async function handler(req, res) {
   try {
@@ -90,6 +102,13 @@ export default async function handler(req, res) {
       const gate = await assertCountryGate(creator_id, 'raffles');
       if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
 
+      // TRUST-1/TRUST-2: onboarding universal + identidad básica (18+,
+      // RUT para Chile) obligatorios antes de crear — igual criterio
+      // que el Country Gate, autoridad única server-side, nunca
+      // confiado a que el cliente ya haya pasado por /registro/continuar.
+      const eligibility = await assertCreatorEligible(creator_id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
+
       // DRAW-1: declaraciones obligatorias — 18+ y propiedad del premio.
       // Server-side siempre (nunca confiar solo en el checkbox del cliente).
       if (body.age_confirmed !== true) {
@@ -114,6 +133,45 @@ export default async function handler(req, res) {
       if (!row.status) row.status = 'active';
 
       row.extension_limit = Math.max(0, Math.min(MAX_EXTENSION_LIMIT, Math.round(Number(row.extension_limit || 0))));
+
+      // RIFEX CLOSURE PASS (2026-08-29): transparencia de entrega/
+      // transferencia — nunca confiar en lo que mande el cliente más allá
+      // de lo que la forma del premio realmente permite. Cada rama fuerza
+      // explícitamente los campos que NO aplican a null/false, en vez de
+      // solo validar los que sí — así un payload adversarial no puede
+      // colar transfer_expenses_owner en una rifa de dinero, por ejemplo.
+      if (row.prize_type === 'money') {
+        row.delivery_method = null;
+        row.requires_transfer_procedures = false;
+        row.transfer_expenses_owner = null;
+        row.transfer_conditions = null;
+      } else if (row.prize_type === 'physical') {
+        if (!DELIVERY_METHODS_FOR_NEW_RAFFLES.has(row.delivery_method)) {
+          return res.status(400).json({ ok: false, error: 'invalid_delivery_method' });
+        }
+        const requiresTransfer = row.requires_transfer_procedures === true;
+        row.requires_transfer_procedures = requiresTransfer;
+        if (!requiresTransfer) {
+          row.transfer_expenses_owner = null;
+          row.transfer_conditions = null;
+        } else {
+          const owner = row.transfer_expenses_owner;
+          if (!TRANSFER_EXPENSES_OWNERS.has(owner)) {
+            return res.status(400).json({ ok: false, error: 'invalid_transfer_expenses_owner' });
+          }
+          const conditions = typeof row.transfer_conditions === 'string' ? row.transfer_conditions.trim() : '';
+          if (!conditions) {
+            return res.status(400).json({ ok: false, error: 'missing_transfer_conditions' });
+          }
+          if (conditions.length > MAX_TRANSFER_CONDITIONS_LENGTH) {
+            return res.status(400).json({ ok: false, error: 'transfer_conditions_too_long' });
+          }
+          row.transfer_expenses_owner = owner;
+          row.transfer_conditions = conditions;
+        }
+      } else {
+        return res.status(400).json({ ok: false, error: 'invalid_prize_type' });
+      }
 
       // Asignar creador si viene (evitamos depender del trigger)
       if (creator_email) row.creator_email = creator_email;

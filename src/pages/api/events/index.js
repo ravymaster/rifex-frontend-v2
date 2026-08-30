@@ -6,6 +6,7 @@
 // mismo criterio ya certificado en /api/rifas e /api/colectas.
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
@@ -44,6 +45,11 @@ export default async function handler(req, res) {
 
       const gate = await assertCountryGate(organizer_id, 'events');
       if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
+
+      // TRUST-1/TRUST-2: onboarding universal + identidad básica (18+,
+      // RUT para Chile) obligatorios antes de crear.
+      const eligibility = await assertCreatorEligible(organizer_id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
 
       const body = req.body || {};
       const title = String(body.title || '').trim();

@@ -10,6 +10,10 @@ export default function BuyerForm({
   priceCLP = 0,          // cents
   termsVersion = "v1.0",
   onSubmit,
+  // RIFEX CLOSURE PASS (2026-08-29): lista corta de avisos de costo
+  // adicional a cargo del ganador (envío, transferencia/trámites) — se
+  // muestra en el resumen, inmediatamente antes de pagar.
+  extraCostNotices = [],
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,6 +44,13 @@ export default function BuyerForm({
           <div className={styles.summary}>
             <div><b>Números:</b> {selected.join(", ") || "—"}</div>
             <div><b>Total:</b> {total}</div>
+            {extraCostNotices.length > 0 && (
+              <div className={styles.extraCosts}>
+                {extraCostNotices.map((notice, i) => (
+                  <div key={i}>⚠️ {notice}</div>
+                ))}
+              </div>
+            )}
           </div>
 
           <label className={styles.label}>Nombre</label>

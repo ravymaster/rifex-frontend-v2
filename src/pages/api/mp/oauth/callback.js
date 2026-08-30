@@ -1,5 +1,7 @@
 // src/pages/api/mp/oauth/callback.js
 import { createClient } from "@supabase/supabase-js";
+import { getMpAppConfig } from "@/lib/paymentEngine/mpAppConfig";
+import { resolveMpIdentityMatch } from "@/lib/mpIdentityMatchGate";
 
 const supabaseSR = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,7 +30,7 @@ export default async function handler(req, res) {
     // 1) Recuperar PKCE + metadatos del state guardado en DB
     const { data: st, error: stErr } = await supabaseSR
       .from("mp_oauth_state")
-      .select("id, code_verifier, creator_email, uid")
+      .select("id, code_verifier, creator_email, uid, country")
       .eq("id", state)
       .maybeSingle();
 
@@ -41,9 +43,17 @@ export default async function handler(req, res) {
       return res.redirect("/panel/bancos?mp=missing_uid");
     }
 
-    const clientId = process.env.MP_CLIENT_ID;
-    const clientSecret = process.env.MP_CLIENT_SECRET || null; // opcional si usas PKCE
-    if (!clientId) return res.redirect("/panel/bancos?mp=missing_creds");
+    // AR2: misma app de MP resuelta en start.js, guardada en el state — no
+    // se vuelve a inferir país acá. `st.country` puede venir null solo en
+    // un state legado (creado antes de este deploy) — se trata como CL
+    // para conservar el comportamiento existente sin interrupciones.
+    const country = st.country || "CL";
+    const mpAppConfig = getMpAppConfig(country);
+    if (!mpAppConfig || !mpAppConfig.clientId) {
+      return res.redirect("/panel/bancos?mp=country_config_missing");
+    }
+    const clientId = mpAppConfig.clientId;
+    const clientSecret = mpAppConfig.clientSecret; // opcional si usas PKCE
 
     const redirectUri = `${resolveBaseUrl(req)}/api/mp/oauth/callback`;
 
@@ -82,9 +92,14 @@ export default async function handler(req, res) {
       return res.redirect("/panel/bancos?mp=token_error&reason=missing_access_token");
     }
 
-    // 3) Complemento: email y public_key del owner (best effort)
+    // 3) Complemento: email y public_key del owner (best effort). Se
+    // conserva el objeto `me` completo en memoria (nunca en logs, nunca
+    // persistido tal cual) para intentar la coincidencia de identidad
+    // con Mercado Pago más abajo (Fase 5) — ver
+    // src/lib/mpIdentityMatchGate.js, extractMpRutFromUsersMe.
     let linked_email = st.creator_email || null;
     let mp_public_key = null;
+    let usersMeResponse = null;
     try {
       const meR = await fetch("https://api.mercadopago.com/users/me", {
         headers: { Authorization: `Bearer ${access_token}` },
@@ -93,11 +108,12 @@ export default async function handler(req, res) {
       if (meR.ok && me) {
         linked_email = linked_email || me?.email || null;
         mp_public_key = me?.public_key || null;
+        usersMeResponse = me;
       } else {
-        console.warn("[mp/oauth/callback] users/me not ok:", me);
+        console.warn("[mp/oauth/callback] users/me not ok, status:", meR.status);
       }
     } catch (e) {
-      console.warn("[mp/oauth/callback] users/me error:", e?.message || e);
+      console.warn("[mp/oauth/callback] users/me error:", e?.message || "fetch_failed");
     }
 
     // 4) Calcular expires_at
@@ -108,6 +124,7 @@ export default async function handler(req, res) {
     const upsertRow = {
       user_id: String(st.uid),
       provider: "mp",
+      country,
       mp_user_id,
       linked_email,
       mp_public_key,
@@ -130,6 +147,17 @@ export default async function handler(req, res) {
       console.error("[mp/oauth/callback] upsert merchant_gateways error:", upErr);
       const reason = encodeURIComponent(upErr.message || String(upErr));
       return res.redirect(`/panel/bancos?mp=upsert_error&reason=${reason}`);
+    }
+
+    // 5b) Corrección canónica — Mercado Pago como control principal:
+    // intenta la coincidencia de identidad ahora que la conexión quedó
+    // guardada. Nunca bloquea el flujo si falla — el estado real queda
+    // reflejado en mp_identity_match, y assertCreatorEligible (Fase 6)
+    // es quien decide si eso permite continuar.
+    try {
+      await resolveMpIdentityMatch({ userId: String(st.uid), mpUserId: mp_user_id, usersMeResponse });
+    } catch (e) {
+      console.error("[mp/oauth/callback] resolveMpIdentityMatch error:", e?.message || "match_failed");
     }
 
     // 6) Limpieza del state

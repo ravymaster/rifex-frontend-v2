@@ -45,6 +45,12 @@ export default async function handler(req, res) {
         expires_at: null,
         revoked_at: new Date().toISOString(),
         status: "not_connected",
+        // Corrección canónica: desconectar invalida cualquier
+        // coincidencia de identidad previa — nunca se asume vigente
+        // tras desconectar (Fase 5, punto 9).
+        mp_identity_match: "disconnected",
+        mp_identity_matched_at: new Date().toISOString(),
+        mp_identity_match_reason: "disconnected",
         updated_at: new Date().toISOString(),
       }, { count: "exact" })
       .eq("user_id", userId)

@@ -10,6 +10,7 @@
 // de candidatos, solo éxito/error sobre UN email exacto.
 import { createClient } from '@supabase/supabase-js';
 import { enforceRateLimit, resolveClientIp } from '@/lib/rateLimit';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -57,6 +58,14 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      // TRUST-1: agregar staff es una acción administrativa sobre una
+      // iniciativa propia — exige onboarding universal + identidad
+      // básica (18+, RUT para Chile). La lectura (GET) de arriba queda
+      // sin gatear, mismo criterio que el resto de lecturas owner-only
+      // de este proyecto.
+      const eligibility = await assertCreatorEligible(user.id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
+
       const body = req.body || {};
       const email = String(body.email || '').trim().toLowerCase();
       if (!email || email.length > 200 || !email.includes('@')) {
