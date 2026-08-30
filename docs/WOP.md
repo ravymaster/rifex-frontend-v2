@@ -4,6 +4,53 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CUMPLIMIENTO-1 (2026-08-30) — fundación técnica de Rifex Cumplimiento (DEV only)
+
+Baseline reconfirmado antes de trabajar: `origin/main = e7311c1` (tag
+`v2.1-rifex-full-prod`), sin drift. Nueva rama `cumplimiento-1` desde
+`origin/develop` (`8cd0cf9`).
+
+Migración aditiva `db/migrations/2026-08-30_cumplimiento1_foundation.sql`
+crea `raffle_fulfillment_cases` (`raffle_id` como PRIMARY KEY —
+imposible duplicar caso por rifa a nivel de base de datos, mismo patrón
+que `raffle_results`) y `raffle_fulfillment_events` (log append-only,
+mismo patrón exacto que `trust_identity_audit_log` de TRUST-3A: trigger
+rechaza UPDATE/DELETE). RLS default-deny total en ambas — cero
+políticas, todo acceso vía `service_role` + ownership filtrado en la
+query de la API (mismo criterio que `trust_onboarding`/`event_orders`).
+Verificado en vivo contra `rifex-dev` real: la clave `anon` recibe
+`401`/`42501 permission denied` en ambas tablas.
+
+Dominio puro `src/lib/fulfillmentEvaluation.js`
+(`evaluateFulfillmentStatus`) codifica los 6 estados ya publicados en
+`/cumplimiento` desde RIFEX CLOSURE PASS — sin scheduler, sin
+`Date.now()` escondido, `afterDeadline` como parámetro explícito que
+nadie invoca todavía. `src/lib/fulfillmentCaseService.js` expone
+`ensureFulfillmentCaseForRaffle` (idempotente por colisión de PK real,
+certificado con 5 llamadas concurrentes vía `Promise.all` → exactamente
+un caso creado), `recordCreatorResponse`/`recordWinnerResponse` (cada
+respuesta se audita antes de sobreescribir el estado actual) y
+`getCreatorCases`/`getCreatorCaseDetail` (ownership aplicado en la
+query). 2 endpoints mínimos, ambos GET, ambos exigen Bearer token real:
+`GET /api/panel/cumplimiento` y `GET /api/panel/cumplimiento/[id]`.
+
+`drawWinner()`/`notifyWinnerDrawn()` **no fueron modificados** — el
+punto de integración para que CUMPLIMIENTO-2 cree el caso
+automáticamente al determinar un ganador quedó auditado y documentado
+(nunca conectado) en
+`docs/cumplimiento/CUMPLIMIENTO_1_FOUNDATION.md`, sección 13.
+
+27 pruebas nuevas (14 evaluación pura + 13 servicio con mock en
+memoria, mismo patrón de `tests/trust3bE2EFlow.test.mjs`) + regresión
+completa: 218 tests totales, 217 pass, 1 flaky ya documentado (mismo
+timing XLSX de EVENT-3) — cero fallos funcionales nuevos. `npm run
+build` PASS. Migración aplicada solo a `rifex-dev` — PROD, main y
+`/cumplimiento` (que sigue diciendo "Próximamente") sin tocar. Detalle
+completo en `docs/cumplimiento/CUMPLIMIENTO_1_FOUNDATION.md`.
+**CUMPLIMIENTO-2 (cron/scheduler/emails/ciclo temporal) remains NOT AUTHORIZED.**
+
+---
+
 ## RIFEX CLOSURE PASS (2026-08-30) — physical prize transparency + Crear Rifa refresh + Rifex Cumplimiento roadmap (DEV only)
 
 Product closure pass before the next PROD release. Removed the "Temática" selector from Crear Rifa — audited and confirmed it never controlled the ticket-number icon set (`useIconsMap.js` uses a fixed global order, independent of `theme`) and had no other functional effect; new raffles are created with `theme='mixto'` fixed, historical raffles/badges untouched, no data migration. "A convenir" is no longer offered as a delivery option for **new** raffles (only Retiro/Envío pagado por el creador/Envío pagado por el ganador) — historical raffles with `delivery_method='a_convenir'` keep working unchanged.
