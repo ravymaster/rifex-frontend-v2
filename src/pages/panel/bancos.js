@@ -1,4 +1,11 @@
 // src/pages/panel/bancos.js
+// ONBOARDING+BANCOS/MP: este archivo concentra TODA la experiencia
+// específica de proveedor de pago -- el onboarding (/registro/continuar)
+// ya no menciona Mercado Pago en absoluto, solo enlaza acá. La tarjeta
+// de Mercado Pago distingue explícitamente "conectado" de "validado"
+// (mp_identity_match==='matched' es el único estado que realmente
+// habilita creator eligibility -- ver src/lib/trustIdentityGate.js,
+// nunca modificado por este cambio).
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
@@ -6,6 +13,21 @@ import Layout from "@/components/Layout";
 import styles from "@/styles/bancos.module.css";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { sanitizeNextPath } from "@/lib/countryPolicy";
+
+// Enlace oficial de alta de cuenta Mercado Pago Chile (verificado en
+// vivo contra mercadopago.cl, no inventado) -- deliberadamente
+// DISTINTO del botón "Conectar" (OAuth): crear cuenta y conectar una
+// cuenta ya existente son dos acciones distintas.
+const MP_SIGNUP_URL = "https://www.mercadopago.cl/hub/registration/landing";
+
+// Clave de sessionStorage usada para sobrevivir el viaje redondo a
+// Mercado Pago (OAuth): el usuario sale de Rifex por completo y vuelve
+// por /api/mp/oauth/callback, que siempre redirige a
+// /panel/bancos?mp=connected -- sin `next` en la URL. Guardarlo acá
+// (nunca en el backend, nunca en una tabla nueva) es la forma más
+// simple de recordar a dónde volver sin tocar el flujo de OAuth.
+const BANCOS_NEXT_STORAGE_KEY = "rifex_bancos_next";
 
 /**
  * SSR: no redirige si no hay sesión (evita loops).
@@ -65,9 +87,66 @@ export default function Bancos({ ssrUser }) {
 
   // ------- MP status -------
   const [mpConnected, setMpConnected] = useState(false);
+  const [mpReason, setMpReason] = useState(null);
   const [mpIdentityMatch, setMpIdentityMatch] = useState(null);
   const [checkingMp, setCheckingMp] = useState(true);
   const [mpBusy, setMpBusy] = useState(false);
+
+  // ------- Verificar cuenta (revalidación de conexión existente) -------
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyResult, setVerifyResult] = useState(null); // { status, reason } | null
+
+  // ------- next preservado a través del onboarding + ida/vuelta a MP -------
+  const [pendingNext, setPendingNext] = useState(null);
+  const [creatorEligible, setCreatorEligible] = useState(false);
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const rawNext = router.query?.next;
+    if (rawNext) {
+      const safe = sanitizeNextPath(Array.isArray(rawNext) ? rawNext[0] : rawNext, "");
+      if (safe) {
+        try {
+          sessionStorage.setItem(BANCOS_NEXT_STORAGE_KEY, safe);
+        } catch {
+          // sessionStorage puede fallar (modo privado estricto, cuota) --
+          // degradamos a "sin next recordado", nunca rompe la página.
+        }
+        setPendingNext(safe);
+        return;
+      }
+    }
+    try {
+      const stored = sessionStorage.getItem(BANCOS_NEXT_STORAGE_KEY);
+      if (stored) setPendingNext(stored);
+    } catch {
+      // idem
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query?.next]);
+
+  async function refreshCreatorEligibility() {
+    try {
+      const { data: sres } = await supabase.auth.getSession();
+      const token = sres?.session?.access_token;
+      if (!token) return;
+      const r = await fetch("/api/onboarding/trust/status", { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      setCreatorEligible(!!(r.ok && j?.ok && j.onboarding_complete_for_creators));
+    } catch {
+      setCreatorEligible(false);
+    }
+  }
+
+  function continueToNext() {
+    if (!pendingNext) return;
+    try {
+      sessionStorage.removeItem(BANCOS_NEXT_STORAGE_KEY);
+    } catch {
+      // idem
+    }
+    router.push(pendingNext);
+  }
 
   const mpConnectHref = useMemo(() => {
     const base = "/api/mp/oauth/start";
@@ -91,10 +170,39 @@ export default function Bancos({ ssrUser }) {
       });
       const j = await r.json();
       setMpConnected(!!j?.connected);
+      setMpReason(j?.reason || null);
       setMpIdentityMatch(j?.identity_match || null);
     } catch {
       setMpConnected(false);
+      setMpReason(null);
       setMpIdentityMatch(null);
+    }
+  }
+
+  async function runVerifyAccount() {
+    if (verifyBusy) return; // guarda contra doble click -- la request en sí también es idempotente del lado servidor
+    setVerifyBusy(true);
+    setVerifyResult(null);
+    try {
+      const { data: sres } = await supabase.auth.getSession();
+      const token = sres?.session?.access_token;
+      if (!token) throw new Error("missing_auth");
+      const r = await fetch("/api/mp/revalidate", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const j = await r.json().catch(() => ({ ok: false }));
+      if (!r.ok || !j?.ok) {
+        setVerifyResult({ status: "unavailable" });
+      } else {
+        setVerifyResult({ status: j.status, reason: j.reason });
+      }
+      await refreshMpStatus();
+      await refreshCreatorEligibility();
+    } catch {
+      setVerifyResult({ status: "unavailable" });
+    } finally {
+      setVerifyBusy(false);
     }
   }
 
@@ -107,10 +215,12 @@ export default function Bancos({ ssrUser }) {
           return;
         }
         await refreshMpStatus();
+        await refreshCreatorEligibility();
       } finally {
         setCheckingMp(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
   // ------- Ganancias -------
@@ -215,6 +325,26 @@ export default function Bancos({ ssrUser }) {
             )}
           </section>
 
+          {pendingNext && creatorEligible && (
+            <div
+              style={{
+                background: "#DCFCE7", border: "1px solid #BBF7D0", color: "#166534",
+                borderRadius: 12, padding: "12px 16px", marginBottom: 16, fontWeight: 700,
+                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
+              }}
+            >
+              <span>Tu cuenta ya está lista para crear iniciativas.</span>
+              <button
+                type="button"
+                className={styles.btnConnect}
+                onClick={continueToNext}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                Continuar
+              </button>
+            </div>
+          )}
+
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>Proveedores de pago</h2>
               <p className={styles.cardSub}>
@@ -222,94 +352,165 @@ export default function Bancos({ ssrUser }) {
               </p>
 
               <div className={styles.providers}>
-                {/* Mercado Pago */}
+                {/* ---- Mercado Pago ---- */}
+                {(() => {
+                  const mpNeedsReconnect = !mpConnected && (mpReason === "revoked" || mpReason === "token_expired");
+                  const mpPendingValidation =
+                    mpConnected &&
+                    (!mpIdentityMatch ||
+                      mpIdentityMatch === "not_connected" ||
+                      mpIdentityMatch === "checking" ||
+                      mpIdentityMatch === "disconnected");
+                  const mpValidated = mpConnected && mpIdentityMatch === "matched";
+                  const mpMismatch = mpConnected && (mpIdentityMatch === "mismatch" || mpIdentityMatch === "needs_review");
+                  const mpUnavailable = mpConnected && mpIdentityMatch === "unavailable";
+
+                  const statusLabel = mpConnected ? (mpValidated ? "Validada" : "Conectada") : mpNeedsReconnect ? "Reconexión requerida" : "No conectada";
+                  const statusState = mpValidated ? "ok" : mpConnected ? "pending" : "off";
+
+                  return (
+                    <div className={styles.providerCard}>
+                      <div className={styles.providerHead}>
+                        <div className={styles.providerInfo}>
+                          <div className={styles.providerLogo}>MP</div>
+                          <div>
+                            <div className={styles.providerName}>Mercado Pago</div>
+                            <div className={styles.providerDesc}>Pagos rápidos en CLP.</div>
+                          </div>
+                        </div>
+                        <span className={styles.status} data-state={statusState} title={checkingMp ? "Verificando…" : ""}>
+                          {statusLabel}
+                        </span>
+                      </div>
+
+                      {/* Texto humano por estado -- nunca solo color, siempre texto explícito. */}
+                      {!mpConnected && !mpNeedsReconnect && (
+                        <p style={{ color: "var(--gris)", marginTop: 10 }}>No tienes una cuenta de Mercado Pago conectada.</p>
+                      )}
+                      {mpNeedsReconnect && (
+                        <p style={{ color: "#92400E", fontWeight: 600, marginTop: 10 }}>Necesitamos que vuelvas a conectar tu cuenta.</p>
+                      )}
+                      {mpPendingValidation && (
+                        <p style={{ color: "#92400E", fontWeight: 600, marginTop: 10 }}>
+                          Tu cuenta está conectada, pero necesitamos validar su titularidad.
+                        </p>
+                      )}
+                      {mpValidated && (
+                        <p style={{ color: "#166534", fontWeight: 700, marginTop: 10 }}>✓ Cuenta de Mercado Pago validada.</p>
+                      )}
+                      {mpMismatch && (
+                        <p style={{ color: "#991b1b", fontWeight: 700, marginTop: 10 }}>
+                          No pudimos validar que la cuenta receptora corresponda con la identidad registrada en Rifex.
+                        </p>
+                      )}
+                      {mpUnavailable && (
+                        <p style={{ color: "#92400E", fontWeight: 600, marginTop: 10 }}>
+                          No pudimos verificar tu cuenta en este momento. Inténtalo nuevamente.
+                        </p>
+                      )}
+
+                      {verifyResult && (
+                        <p style={{ color: verifyResult.status === "matched" ? "#166534" : verifyResult.status === "mismatch" || verifyResult.status === "needs_review" ? "#991b1b" : "#92400E", fontWeight: 600, marginTop: 6, fontSize: 13 }}>
+                          {verifyResult.status === "matched" && "✓ Cuenta de Mercado Pago validada."}
+                          {(verifyResult.status === "mismatch" || verifyResult.status === "needs_review") && "No pudimos validar la titularidad de esta cuenta."}
+                          {verifyResult.status === "unavailable" && "No pudimos verificar la cuenta en este momento."}
+                          {verifyResult.status === "reconnect_required" && "Necesitamos que vuelvas a conectar tu cuenta."}
+                        </p>
+                      )}
+
+                      <div className={styles.providerActions} style={{ gap: 8, marginTop: 10 }}>
+                        {/* Conectar: solo cuando no hay conexión utilizable (nunca conectada, o requiere reconexión). */}
+                        {(!mpConnected) && (
+                          <a
+                            className={styles.btnConnect}
+                            href={mpConnectHref}
+                            aria-disabled={mpBusy}
+                            onClick={(e) => {
+                              if (mpBusy) e.preventDefault();
+                            }}
+                          >
+                            Conectar
+                          </a>
+                        )}
+
+                        {/* Verificar cuenta: reutiliza la conexión existente, NUNCA desconecta ni vuelve a OAuth. */}
+                        {(mpPendingValidation || mpMismatch || mpUnavailable) && (
+                          <button type="button" className={styles.btnConnect} disabled={verifyBusy} onClick={runVerifyAccount}>
+                            {verifyBusy ? "Verificando…" : "Verificar cuenta"}
+                          </button>
+                        )}
+
+                        {/* Desconectar: habilitado solo si hay algo conectado. */}
+                        <button
+                          className={styles.btnDanger}
+                          disabled={!mpConnected || mpBusy}
+                          onClick={async () => {
+                            if (!user?.id) return alert("Debes iniciar sesión.");
+                            if (!confirm("¿Seguro que deseas desconectar tu cuenta de Mercado Pago?")) return;
+                            try {
+                              setMpBusy(true);
+                              const { data: sres } = await supabase.auth.getSession();
+                              const token = sres?.session?.access_token;
+                              if (!token) throw new Error("Debes iniciar sesión.");
+                              const r = await fetch("/api/mp/disconnect", {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                  Authorization: `Bearer ${token}`,
+                                },
+                              });
+                              const j = await r.json();
+                              if (!j.ok) throw new Error(j.error || "No se pudo desconectar");
+
+                              setVerifyResult(null);
+                              await refreshMpStatus();
+                              await refreshCreatorEligibility();
+                              alert("Cuenta de Mercado Pago desconectada. Puedes volver a conectar cuando quieras.");
+                            } catch (err) {
+                              alert(err.message || "Error al desconectar.");
+                            } finally {
+                              setMpBusy(false);
+                            }
+                          }}
+                        >
+                          {mpBusy ? "Desconectando…" : "Desconectar"}
+                        </button>
+                      </div>
+
+                      {!mpConnected && (
+                        <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--borde, #E5E7EB)" }}>
+                          <p style={{ fontWeight: 700, margin: "0 0 4px", fontSize: 14 }}>¿No tienes una cuenta de Mercado Pago?</p>
+                          <p style={{ color: "var(--gris)", margin: "0 0 8px", fontSize: 13 }}>
+                            Te llevaremos a Mercado Pago para crear tu cuenta. Luego podrás conectarla a Rifex y
+                            recibir tus pagos directamente en ella.
+                          </p>
+                          <a href={MP_SIGNUP_URL} target="_blank" rel="noreferrer" style={{ fontSize: 13, fontWeight: 700 }}>
+                            Crear cuenta en Mercado Pago →
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* ---- Stripe -- solo catálogo visual, sin integración real ---- */}
                 <div className={styles.providerCard}>
                   <div className={styles.providerHead}>
                     <div className={styles.providerInfo}>
-                      <div className={styles.providerLogo}>MP</div>
+                      <div className={styles.providerLogo}>ST</div>
                       <div>
-                        <div className={styles.providerName}>Mercado Pago</div>
-                        <div className={styles.providerDesc}>Pagos rápidos en CLP.</div>
+                        <div className={styles.providerName}>Stripe</div>
+                        <div className={styles.providerDesc}>No disponible en tu país.</div>
                       </div>
                     </div>
-                    <span
-                      className={styles.status}
-                      data-state={mpConnected ? "ok" : "off"}
-                      title={checkingMp ? "Verificando…" : ""}
-                    >
-                      {mpConnected ? "Conectado" : "No conectado"}
-                    </span>
+                    <span className={styles.status} data-state="off">No disponible</span>
                   </div>
-
-                  <div className={styles.providerActions} style={{ gap: 8 }}>
-                    {/* Botón Conectar: habilitado SOLO si NO está conectado */}
-                    <a
-                      className={styles.btnConnect}
-                      href={mpConnected ? undefined : mpConnectHref}
-                      aria-disabled={mpConnected || mpBusy}
-                      onClick={(e) => {
-                        if (mpConnected || mpBusy) e.preventDefault();
-                      }}
-                    >
-                      Conectar
-                    </a>
-
-                    {/* Botón Desconectar: habilitado SOLO si SÍ está conectado */}
-                    <button
-                      className={styles.btnDanger}
-                      disabled={!mpConnected || mpBusy}
-                      onClick={async () => {
-                        if (!user?.id) return alert("Debes iniciar sesión.");
-                        if (!confirm("¿Seguro que deseas desconectar tu cuenta de Mercado Pago?")) return;
-                        try {
-                          setMpBusy(true);
-                          const { data: sres } = await supabase.auth.getSession();
-                          const token = sres?.session?.access_token;
-                          if (!token) throw new Error("Debes iniciar sesión.");
-                          const r = await fetch("/api/mp/disconnect", {
-                            method: "POST",
-                            headers: {
-                              "Content-Type": "application/json",
-                              Authorization: `Bearer ${token}`,
-                            },
-                          });
-                          const j = await r.json();
-                          if (!j.ok) throw new Error(j.error || "No se pudo desconectar");
-
-                          await refreshMpStatus();
-                          alert("Cuenta de Mercado Pago desconectada. Puedes volver a conectar cuando quieras.");
-                        } catch (err) {
-                          alert(err.message || "Error al desconectar.");
-                        } finally {
-                          setMpBusy(false);
-                        }
-                      }}
-                    >
-                      {mpBusy ? "Desconectando…" : "Desconectar"}
+                  <div className={styles.providerActions} style={{ gap: 8, marginTop: 10 }}>
+                    <button type="button" className={styles.btnConnect} disabled aria-disabled="true">
+                      Próximamente
                     </button>
                   </div>
                 </div>
-
-                {mpConnected && mpIdentityMatch === "matched" && (
-                  <p style={{ color: "#166534", fontWeight: 700, marginTop: 10 }}>
-                    ✅ Cuenta de Mercado Pago validada.
-                  </p>
-                )}
-                {mpConnected && (mpIdentityMatch === "mismatch" || mpIdentityMatch === "needs_review") && (
-                  <p style={{ color: "#991b1b", fontWeight: 700, marginTop: 10 }}>
-                    No pudimos validar tu cuenta de Mercado Pago. Los datos del titular no coinciden con los
-                    registrados en Rifex. Revisa tus datos o conecta una cuenta que te pertenezca.
-                  </p>
-                )}
-                {mpConnected && mpIdentityMatch === "unavailable" && (
-                  <p style={{ color: "#92400E", fontWeight: 600, marginTop: 10 }}>
-                    No pudimos confirmar automáticamente la titularidad con Mercado Pago. Tu cuenta puede quedar
-                    sujeta a una revisión adicional.
-                  </p>
-                )}
-                {mpConnected && mpIdentityMatch === "checking" && (
-                  <p style={{ color: "var(--gris)", marginTop: 10 }}>Validando tu cuenta de Mercado Pago…</p>
-                )}
               </div>
             </section>
         </div>

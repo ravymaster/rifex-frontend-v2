@@ -93,11 +93,14 @@ export default function RegistroContinuar() {
   const [rutMasked, setRutMasked] = useState(null);
   const [rutError, setRutError] = useState('');
 
-  // Corrección canónica — cierre real del onboarding vía Mercado Pago.
+  // Corrección canónica — cierre real del onboarding vía un medio de
+  // pago conectado y validado (Mercado Pago hoy) -- el onboarding solo
+  // necesita saber SI ese paso falta (mpState.required) y si ya se
+  // completó todo (readyForWelcome); el detalle de proveedor vive en
+  // /panel/bancos (ver ONBOARDING+BANCOS/MP).
   const [localComplete, setLocalComplete] = useState(false);
   const [mpState, setMpState] = useState(null); // { required, connected, identity_match }
   const [readyForWelcome, setReadyForWelcome] = useState(false);
-  const [checkingMp, setCheckingMp] = useState(false);
 
   const nextPath = sanitizeNextPath(
     router.isReady ? router.query?.next?.toString() : '',
@@ -325,16 +328,6 @@ export default function RegistroContinuar() {
     }
   }
 
-  async function handleCheckMp() {
-    if (!token) return;
-    setCheckingMp(true);
-    try {
-      await refreshStatus(token);
-    } finally {
-      setCheckingMp(false);
-    }
-  }
-
   if (!ready || loading) return null;
 
   // Paso final: bienvenida real, solo cuando TODO (incluido Mercado
@@ -360,54 +353,31 @@ export default function RegistroContinuar() {
     );
   }
 
-  // Registro local completo pero falta Mercado Pago — paso de cierre.
+  // Registro local completo pero todavía falta un medio de pago — paso
+  // de cierre. Deliberadamente NEUTRAL respecto del proveedor (decisión
+  // de producto ONBOARDING+BANCOS/MP): el onboarding nunca vuelve a
+  // mencionar Mercado Pago, ni expone connected/matched/mismatch/
+  // unavailable -- toda esa experiencia específica de proveedor vive
+  // exclusivamente en /panel/bancos, con un único CTA de salida acá.
   if (localComplete && mpState?.required && !readyForWelcome) {
-    const identityMatch = mpState.identity_match;
     return (
       <>
-        <Head><title>Conecta Mercado Pago — Rifex</title></Head>
+        <Head><title>Conecta tu medio de pago — Rifex</title></Head>
         <main className={styles.page}>
           <section className={styles.shell}>
             <div className={styles.inner}>
               <h1 className={styles.title}>Un último paso</h1>
               <p className={styles.sub}>
-                Conecta la cuenta de Mercado Pago donde recibirás el dinero de tus iniciativas. Verificamos que el
-                titular coincida con el RUT que declaraste, para proteger a los compradores.
+                Para crear iniciativas necesitas conectar tu medio de pago, donde recibirás tus pagos.
               </p>
 
-              {!mpState.connected && (
-                <div className={styles.actions} style={{ justifyContent: 'flex-start' }}>
-                  <a className="btn btn-primary btnPrimary" href="/api/mp/oauth/start">
-                    Conectar Mercado Pago
-                  </a>
-                </div>
-              )}
-
-              {mpState.connected && identityMatch === 'matched' && (
-                <p className={styles.notice} style={{ color: '#166534', fontWeight: 700 }}>
-                  ✅ Cuenta de Mercado Pago validada.
-                </p>
-              )}
-              {mpState.connected && (identityMatch === 'mismatch' || identityMatch === 'needs_review') && (
-                <p className={styles.err}>
-                  No pudimos validar tu cuenta de Mercado Pago. Los datos del titular no coinciden con los
-                  registrados en Rifex. Revisa tus datos o conecta una cuenta que te pertenezca.
-                </p>
-              )}
-              {mpState.connected && identityMatch === 'unavailable' && (
-                <p className={styles.notice}>
-                  No pudimos confirmar automáticamente la titularidad — tu cuenta puede quedar sujeta a revisión
-                  adicional antes de operar.
-                </p>
-              )}
-              {mpState.connected && identityMatch === 'checking' && (
-                <p className={styles.notice}>Validando tu cuenta de Mercado Pago…</p>
-              )}
-
-              <div className={styles.actions}>
-                <button type="button" className="btn btn-primary btnPrimary" onClick={handleCheckMp} disabled={checkingMp}>
-                  {checkingMp ? 'Verificando…' : 'Ya conecté, verificar'}
-                </button>
+              <div className={styles.actions} style={{ justifyContent: 'flex-start' }}>
+                <a
+                  className="btn btn-primary btnPrimary"
+                  href={`/panel/bancos?next=${encodeURIComponent(nextPath)}`}
+                >
+                  Ir a conectar tu medio de pago
+                </a>
               </div>
             </div>
           </section>
@@ -560,7 +530,7 @@ export default function RegistroContinuar() {
                       {rutError ? (
                         <p className={styles.fieldError}>{rutError}</p>
                       ) : (
-                        <p className={styles.fieldHelp}>Lo validamos con el dígito verificador. Más adelante comprobamos que coincida con tu cuenta de Mercado Pago.</p>
+                        <p className={styles.fieldHelp}>Lo validamos con el dígito verificador. Más adelante comprobamos que coincida con el titular de tu medio de pago conectado.</p>
                       )}
                     </>
                   )}

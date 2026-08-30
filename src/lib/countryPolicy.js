@@ -114,11 +114,62 @@ export function evaluateCountryGate(countryCode, capability) {
 }
 
 // Sanitiza un `next` recibido por query string: solo rutas internas
-// absolutas ("/algo"), nunca protocolo-relativas ("//evil.com") ni
-// absolutas a otro host. Mismo criterio que ya usan login.jsx/callback.js,
-// centralizado acá para reusarlo también en el onboarding.
+// absolutas ("/algo"), nunca protocolo-relativas ("//evil.com"),
+// absolutas a otro host, esquemas peligrosos (javascript:, data:), ni
+// variantes con backslash que algunos navegadores normalizan como "/"
+// al resolver una URL relativa contra un origen de esquema especial
+// (http/https) -- ese es el vector real detrás de "/\evil.com" o
+// "/\\evil.com": el parser WHATWG trata el backslash como separador de
+// autoridad, así que "/\evil.com" puede terminar apuntando a
+// evil.com. La defensa robusta contra esa clase entera de bypass
+// (incluidas variantes que un chequeo de prefijo por string no cubre)
+// es resolver el string con el parser real de URL y verificar que el
+// origen resultante NUNCA cambió -- no intentar enumerar cada patrón
+// de memoria.
+//
+// Endurecido (auditoría ONBOARDING+BANCOS/MP): el chequeo de prefijo
+// original ya bloqueaba "//" y "/\" al inicio, pero no ofrecía ninguna
+// garantía sobre variantes menos obvias (control characters, múltiples
+// slashes, etc.) -- el enfoque basado en URL() es estrictamente más
+// fuerte y es el mismo patrón recomendado por OWASP para "safe
+// redirect" (comparar origin, nunca reconstruir a mano).
+const SANITIZE_BASE_ORIGIN = "https://internal.rifex.invalid";
+
 export function sanitizeNextPath(raw, fallback = "/panel") {
-  const s = String(raw || "");
-  if (s.startsWith("/") && !s.startsWith("//") && !s.startsWith("/\\")) return s;
-  return fallback;
+  const s = String(raw ?? "").trim();
+  if (!s) return fallback;
+
+  // Caracteres de control (incluye tab/CR/LF, usados en bypasses reales
+  // para confundir parsers de URL más permisivos que el propio
+  // navegador) nunca son válidos en una ruta interna legítima.
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code <= 0x1f || code === 0x7f) return fallback;
+  }
+
+  // Debe empezar con exactamente un "/" real -- rechaza de entrada
+  // cualquier esquema (https:, javascript:, data:, etc.), cualquier
+  // variante protocol-relative ("//evil.com"), y cualquier backslash
+  // en la posición donde el parser podría interpretarlo como inicio de
+  // autoridad.
+  if (!s.startsWith("/") || s.startsWith("//") || s.startsWith("/\\") || s.includes("\\")) {
+    return fallback;
+  }
+
+  try {
+    const parsed = new URL(s, SANITIZE_BASE_ORIGIN);
+    // Si el origen cambió, `s` logró introducir un host/esquema distinto
+    // pese a los chequeos de arriba (defensa en profundidad) -- nunca se
+    // sigue esa URL.
+    if (parsed.origin !== SANITIZE_BASE_ORIGIN) return fallback;
+    if (parsed.protocol !== "https:") return fallback;
+    const rebuilt = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    // Nunca devolver una ruta vacía o que ya no empiece con "/" tras el
+    // parseo (no debería ocurrir dado los chequeos previos, pero es la
+    // última línea de defensa antes de confiar en el resultado).
+    if (!rebuilt.startsWith("/")) return fallback;
+    return rebuilt;
+  } catch {
+    return fallback;
+  }
 }

@@ -4,6 +4,84 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## ONBOARDING + BANCOS/MP (2026-08-30) — onboarding neutral + revalidación de MP legacy (DEV only)
+
+Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía
+`bee778f`/`ad0b792`/`8cd116b`/`f904c95`/`2f48227` (C1-C5). Nueva rama
+`mp-onboarding` desde `origin/develop`.
+
+**Onboarding neutral**: el paso de cierre de `/registro/continuar`
+("Un último paso") dejó de mencionar Mercado Pago por completo —
+copy genérica ("conecta tu medio de pago") + un único CTA hacia
+`/panel/bancos?next=<ruta preservada>`, en vez de los dos botones
+anteriores ("Conectar Mercado Pago" / "Ya conecté, verificar") con
+texto específico de matched/mismatch/unavailable. Toda esa experiencia
+de proveedor vive ahora exclusivamente en `/panel/bancos`.
+
+**`sanitizeNextPath` endurecido** (`src/lib/countryPolicy.js`, único
+punto compartido por los 5 call sites existentes): pasó de un chequeo
+de prefijo por string a resolver con `new URL()` y comparar `origin`
+contra un origen interno de referencia — la técnica recomendada por
+OWASP para "safe redirect", cubre backslash-trick, protocol-relative,
+esquemas peligrosos y caracteres de control sin enumerar patrones de
+memoria.
+
+**`/panel/bancos` — estados A-E explícitos** (nunca solo color):
+desconectado, conectado-pendiente-de-validar, validado, inconsistencia
+(mismatch), temporalmente no disponible — más un sexto estado
+("necesitamos que vuelvas a conectar") para tokens expirados/revocados,
+distinguido de mismatch. Botón "Verificar cuenta" nuevo (idempotente,
+guarda de doble click) junto al histórico "Conectar"/"Desconectar".
+Bloque "¿No tienes cuenta de Mercado Pago?" con el enlace oficial real
+de alta (`mercadopago.cl/hub/registration/landing`, verificado en vivo
+contra el sitio real), deliberadamente distinto del botón de conectar.
+Tarjeta Stripe agregada como catálogo puramente visual
+("No disponible en tu país" / "Próximamente", deshabilitado) — cero
+integración real. El `next` recibido desde el onboarding sobrevive el
+viaje redondo a Mercado Pago vía `sessionStorage` (el callback de OAuth
+no se tocó) y ofrece un CTA "Continuar" una vez que
+`onboarding_complete_for_creators` es real (confirmado server-side).
+
+**Bug de revalidación legacy corregido**: `src/lib/mpRevalidate.js`
+(nuevo) + `POST /api/mp/revalidate` — reutiliza el `access_token` ya
+guardado en `merchant_gateways` para volver a consultar `/users/me` y
+aplica **exactamente** la regla TRUST-3B ya certificada
+(`resolveMpIdentityMatch`, sin cambios) — nunca desconecta, nunca
+vuelve a OAuth, nunca crea una segunda fila. Un token muerto (401/403
+de Mercado Pago) se distingue de un mismatch real: marca `revoked_at` +
+`status='not_connected'` para que `/api/mp/status` refleje
+correctamente "necesita reconectar", sin inventar un flujo de refresh
+token nuevo.
+
+**Trust/creator eligibility**: `assertCreatorEligible` y la regla
+matched-only NO se tocaron. `NULL`/`unavailable`/`mismatch`/solo-
+`connected` siguen sin habilitar; solo `matched` real habilita.
+
+**Sin migración**: toda la misión se resolvió con código +
+`merchant_gateways`/Trust/Country Gate ya existentes — cero columnas
+nuevas, cero políticas RLS nuevas.
+
+**Hallazgo reportado, no corregido** (fuera de alcance explícito — "NO
+modificar RLS"): `merchant_gateways` tiene GRANT de tabla completo
+(SELECT/INSERT/UPDATE/DELETE) para el rol `anon`, aunque las políticas
+RLS (`auth.uid() = user_id`) bloquean correctamente cualquier acceso
+real sin sesión — confirmado en vivo, `curl` anónimo devuelve `200 []`
+nunca datos reales. No es una fuga de datos hoy, pero es una superficie
+más amplia de la necesaria (defensa en profundidad). Documentado para
+una futura misión que sí tenga autorización de tocar RLS/grants.
+
+Tests nuevos: 56 (`sanitizeNextPath.test.mjs`, `mpRevalidate.test.mjs`,
+`onboardingBancosUx.test.mjs`, cubren los 40 escenarios requeridos).
+Regresión completa: 381 tests, 380 pasan (1 flaky de timing XLSX ya
+documentado, no relacionado). Ver
+`docs/trust/ONBOARDING_BANCOS_MP_NEUTRAL.md` para el detalle completo.
+
+Próximo paso: ningún trabajo adicional autorizado sin nueva instrucción
+de Rodrigo (explícitamente NO se comienza Events sin nueva
+autorización).
+
+---
+
 ## CUMPLIMIENTO-5 (2026-08-30) — mesa de revisión administrativa dentro de /admin (DEV only)
 
 Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía
