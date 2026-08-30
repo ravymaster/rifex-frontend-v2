@@ -4,6 +4,19 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX FULL PROD RELEASE (2026-08-30) — Trust + Country Gate + Payment Engine + Closure Pass promoted to PROD, in full
+
+Four staged missions, each separately authorized by Rodrigo, promoted the complete approved `develop` content (TRUST-1/2/3A/3B, MP-identity-match, Country Gate/Payment Engine infra with Chile parity preserved, creator eligibility gate in Rifas/Colectas/Events, RIFEX Closure Pass) to Supabase PROD and Vercel PROD:
+
+- **Stage 1 (Release Gate):** read-only inventory of `main`/`develop` divergence, migration gap map, Trust/Country Gate/physical-prize readiness — verdict READY FOR STAGE 2.
+- **Stage 2 (Build Release Candidate):** clean worktree from `origin/main` (never merged `develop`), surgical `git checkout origin/develop -- <130 approved files>`, plus one reconstructed migration (`2026-08-26d5`) closing a real gap — `merchant_gateways.country`/`mp_oauth_state.country` existed in `rifex-dev` with no versioned migration file. All 11 release migrations rehearsed end-to-end in a disposable Docker Postgres replica of PROD's schema. Candidate committed at `ccbe0a5` on `release/rifex-full-prod-2026-08-30`, never pushed.
+- **Stage 3 (PROD Migrations):** real read-only reconciliation against PROD (via `supabase db query --linked`, Management API, no DB password) found 2 of the 11 migrations already effective from a prior out-of-band fix (`2026-08-25c` RLS, `2026-08-26b` critical revoke on `create_tickets_for_raffle`) — deliberately skipped, not blindly reapplied. The other 9 applied cleanly to PROD with per-migration postcheck. Zero rows lost in any table. Guardrail (`.claude/settings.json`) opened for exactly one allowlist line, restored byte-for-byte after (SHA-256 verified).
+- **Stage 4 (Code Promotion):** release branch (`5c15624`, docs-only commit on top of `ccbe0a5`) pushed to `origin/main` as a clean fast-forward (`3f3d6c4..5c15624`) — tree hash confirmed identical to the release candidate before deploying. Deployed via `vercel deploy --prod` from the exact release-candidate tree (never an uncommitted local checkout), auto-aliased to `rifex.pro`. Guardrail opened for exactly the push + deploy commands, restored byte-for-byte immediately after both completed.
+
+Full detail, migration reconciliation tables, and postcheck evidence: `docs/releases/RIFEX_FULL_PROD_RELEASE_2026-08-30.md`. Argentina remains `enabled: false` in every environment including PROD — the code exists, nothing activates it. Rifex Cumplimiento remains a public roadmap page only — no automatic backend engine was implemented or claimed.
+
+---
+
 ## RIFEX CLOSURE PASS (2026-08-30) — physical prize transparency + Crear Rifa refresh + Rifex Cumplimiento roadmap (DEV only)
 
 Product closure pass before the next PROD release. Removed the "Temática" selector from Crear Rifa — audited and confirmed it never controlled the ticket-number icon set (`useIconsMap.js` uses a fixed global order, independent of `theme`) and had no other functional effect; new raffles are created with `theme='mixto'` fixed, historical raffles/badges untouched, no data migration. "A convenir" is no longer offered as a delivery option for **new** raffles (only Retiro/Envío pagado por el creador/Envío pagado por el ganador) — historical raffles with `delivery_method='a_convenir'` keep working unchanged.

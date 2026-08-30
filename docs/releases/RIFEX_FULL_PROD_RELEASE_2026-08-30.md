@@ -1,6 +1,30 @@
 # RIFEX FULL PROD RELEASE — 2026-08-30
 
-**Estado: STAGE 3 — MIGRACIONES PROD APLICADAS. CÓDIGO PROD SIN DESPLEGAR (main sigue en `3f3d6c4`).**
+**Estado: STAGE 4 COMPLETO — DESPLEGADO A PROD. `main` = `5c15624`, Vercel PROD sirviendo ese SHA en `rifex.pro`.**
+
+## STAGE 4 — CODE PROMOTION TO PROD (2026-08-30)
+
+**Preflight:** `origin/main` reconfirmado `3f3d6c4` (sin drift desde Stage 3). Release branch HEAD `5c15624`, diff contra `ccbe0a5` confirmado docs-only (1 archivo). Worktree limpio.
+
+**Tests + build sobre el HEAD exacto a promover:** 191 tests, 190 pass, 1 flaky ya documentado (mismo timing XLSX). `npm run build` PASS, 49/49 páginas.
+
+**Promoción Git:** `git push origin release/rifex-full-prod-2026-08-30:main` — fast-forward limpio `3f3d6c4..5c15624`. Nunca se hizo merge de `develop`. Tree hash de `origin/main` post-push confirmado **idéntico** (`bcd4f75...`) al tree hash de la rama de release.
+
+**Deploy Vercel PROD:** `vercel deploy --prod` ejecutado desde el worktree de release (tree exactamente igual a `origin/main`, sin archivos sin commit) — nunca desde un checkout con cambios locales sueltos. Deployment `dpl_FMLB6LxwJEPfjd8fCXK9C8dpWBYm`, `readyState: READY`, `target: production`, auto-aliased a `rifex.pro`.
+
+**Guardrail:** abierto temporalmente para exactamente 2 comandos exactos (push del release branch a `main`; deploy `--prod` desde el path del worktree de release) — diff de 4 líneas contra el respaldo (2 allow añadidos, 2 deny removidos, ambos exclusivos de este push/deploy). Restaurado byte-for-byte inmediatamente después de completar ambas acciones — hash SHA-256 verificado idéntico (`a5f58c56...b13a7f`).
+
+**Smoke PROD (`rifex.pro`):** Home, Auth, Mis Iniciativas, Rifas, Colectas(vía Mis Iniciativas)/Eventos, Crear Rifa, Seguridad, Cumplimiento, Términos, `/registro/continuar`, `/trust/verificar` — los 11 `HTTP 200`. `/cumplimiento` confirmado presentándose como roadmap ("Próximamente"/"en preparación"), nunca como motor activo. `/crear-rifa` confirmado sin "Temática". `/terminos` confirmado con el párrafo de trámites/transferencia. Footer con enlace a `/cumplimiento` confirmado en home.
+
+**Trust fail-closed smoke:** las 4 rutas API de Trust (`/api/onboarding/trust/status`, `/api/mp/status`, `/api/trust/identity-verification/status`, más `POST /api/rifas`) confirmadas existentes y rechazando acceso no autenticado (`401`/`405` según método) — no se creó ni limpió ninguna cuenta throwaway; el fail-closed a nivel de API se demostró suficiente sin necesidad de una cuenta real, complementando la certificación E2E completa ya hecha en TRUST-3B.
+
+**Security postcheck:** bundle JS principal del cliente escaneado, sin coincidencias de `SERVICE_ROLE`/claves. Ningún cambio adicional a Supabase ocurrió en Stage 4 (el guardrail de escritura a PROD Supabase permaneció cerrado todo Stage 4) — el estado verificado en Stage 3 (`create_tickets_for_raffle` cerrado, RLS, grants) permanece sin alteración por construcción.
+
+**Fixtures:** ninguna cuenta ni fila creada en PROD durante Stage 4 — nada que limpiar.
+
+---
+
+**Estado anterior (Stage 3): MIGRACIONES PROD APLICADAS. CÓDIGO PROD SIN DESPLEGAR (main sigue en `3f3d6c4`).**
 
 ## STAGE 3 — PROD MIGRATIONS APPLIED (2026-08-30)
 

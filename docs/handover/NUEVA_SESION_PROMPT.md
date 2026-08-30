@@ -7,7 +7,26 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> 2026-08-29 (actualización más reciente) — **auditoría adversarial
+> **2026-08-30 (actualización más reciente) — NOTA IMPORTANTE, la nota de
+> arriba quedó desactualizada: `main` YA NO está congelado respecto de
+> Eventos/Trust.** Se ejecutó el RIFEX FULL PROD RELEASE completo (4 etapas,
+> cada una autorizada por separado por Rodrigo): `main`/PROD pasaron de
+> `3f3d6c4` a `5c15624`, con las 9 migraciones PROD pendientes aplicadas
+> (2 de las 11 del release candidate ya estaban efectivas en PROD por un fix
+> quirúrgico previo y se omitieron deliberadamente) y el código desplegado en
+> Vercel PROD, alias `rifex.pro`. `main` ahora contiene: Trust completo
+> (TRUST-1/2/3A/3B + MP-identity-match, fail-closed), Country Gate + Payment
+> Engine (Chile con paridad exacta, Argentina `enabled: false` en todos los
+> entornos), el gate `assertCreatorEligible` en Rifas/Colectas/Events, y
+> RIFEX Closure Pass (premio físico/transferencia, `/cumplimiento` roadmap,
+> footer, términos). Detalle completo: `docs/releases/RIFEX_FULL_PROD_RELEASE_2026-08-30.md`
+> y `docs/WOP.md`, sección "RIFEX FULL PROD RELEASE (2026-08-30)". `develop`
+> sigue siendo la rama de trabajo activa para nuevas misiones, pero ya no
+> está "adelante" de `main` en el contenido recién promovido — antes de
+> asumir qué falta promover, comparar contra el `main` real, no contra esta
+> nota.
+>
+> 2026-08-29 (actualización anterior) — **auditoría adversarial
 > autónoma (solo lectura, sin correcciones aplicadas)** de TRUST-1/2/3A
 > y del onboarding Mercado Pago. Encontró un **fail-open CRÍTICO real y
 > demostrado**: `assertCreatorEligible` trata `mp_identity_match=NULL`
