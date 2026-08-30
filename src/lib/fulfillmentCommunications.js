@@ -42,7 +42,7 @@ function baseUrl() {
  * la migración -- colisión 23505 se resuelve re-leyendo, mismo patrón
  * ya certificado en ensureFulfillmentCaseForRaffle).
  */
-async function ensureCommunicationIntent(caseId, communicationType, recipientRole) {
+export async function ensureCommunicationIntent(caseId, communicationType, recipientRole) {
   const { data: existing, error: eExisting } = await supabaseAdmin
     .from("raffle_fulfillment_communications")
     .select("*")
@@ -74,24 +74,52 @@ async function ensureCommunicationIntent(caseId, communicationType, recipientRol
   return saved;
 }
 
-async function markAttempt(intentId, patch) {
+export async function markAttempt(intentId, patch) {
   const { error } = await supabaseAdmin.from("raffle_fulfillment_communications").update(patch).eq("id", intentId);
   if (error) throw error;
 }
 
+export function safeErrorMessage(err) {
+  return safeError(err);
+}
+
+/**
+ * ¿Ya existe alguna comunicación al ganador (de CUALQUIER tipo --
+ * Día 0, Día 10, Día 15) confirmada como 'sent' para este caso, aparte
+ * de currentIntentId? CUMPLIMIENTO-4 usa esto para decidir si el token
+ * ya está "confirmado y vigente" en el sentido del mandato de la
+ * sección 17 -- no solo si ESTE envío puntual ya se mandó.
+ */
+async function hasConfirmedWinnerCommunication(caseId, excludeIntentId = null) {
+  const { data, error } = await supabaseAdmin
+    .from("raffle_fulfillment_communications")
+    .select("id")
+    .eq("case_id", caseId)
+    .eq("recipient_role", "winner")
+    .eq("status", "sent");
+  if (error) throw error;
+  return (data || []).some((row) => row.id !== excludeIntentId);
+}
+
 /**
  * Genera (o reutiliza) el token de acceso del ganador para un caso.
- * Solo rota el token mientras DAY_0_WINNER no esté en status='sent' --
- * una vez confirmado el envío, el token queda estable para el resto
- * del ciclo de vida del caso (no se invalida un link ya entregado).
- * Devuelve el token CRUDO únicamente cuando lo genera/rota en esta
- * llamada -- si ya existe un hash y no se rotó, devuelve null (el
- * crudo nunca se recupera desde el hash, por diseño).
+ * Regla de estabilidad (CUMPLIMIENTO-3 + extendida en CUMPLIMIENTO-4
+ * sección 17): mientras NINGÚN envío al ganador (Día 0, Día 10 o Día
+ * 15) haya sido confirmado, cada intento sin confirmar puede rotar el
+ * token (mismo comportamiento que reintentos de Día 0 ya certificado).
+ * En cuanto CUALQUIER envío al ganador queda confirmado 'sent', el
+ * token queda congelado para el resto del ciclo de vida del caso --
+ * Día 10/15 reutilizan el mismo hash y NO generan un token nuevo. El
+ * crudo nunca se recupera desde el hash por diseño: si el token ya
+ * está congelado, esta función devuelve raw:null y el email
+ * correspondiente se envía sin un link nuevo embebido (referencia al
+ * acceso ya entregado en un correo previo, ver mailer.js).
  */
-async function ensureWinnerAccessToken(fulfillmentCase, day0WinnerIntent) {
-  const alreadyConfirmedSent = day0WinnerIntent.status === "sent";
-  if (fulfillmentCase.winner_access_token_hash && alreadyConfirmedSent) {
-    return { raw: null, rotated: false };
+export async function ensureWinnerAccessToken(fulfillmentCase, currentIntent) {
+  if (fulfillmentCase.winner_access_token_hash) {
+    if (currentIntent.status === "sent") return { raw: null, rotated: false };
+    const stableFromOtherSend = await hasConfirmedWinnerCommunication(fulfillmentCase.raffle_id, currentIntent.id);
+    if (stableFromOtherSend) return { raw: null, rotated: false };
   }
   const { raw, hash } = generateWinnerAccessToken();
   const { error } = await supabaseAdmin
@@ -100,6 +128,30 @@ async function ensureWinnerAccessToken(fulfillmentCase, day0WinnerIntent) {
     .eq("raffle_id", fulfillmentCase.raffle_id);
   if (error) throw error;
   return { raw, rotated: true };
+}
+
+/** Lista completa (append-only) de intents de comunicación de un caso -- usada por el expediente interno de Día 20. */
+export async function getCommunicationLedgerForCase(caseId) {
+  const { data, error } = await supabaseAdmin
+    .from("raffle_fulfillment_communications")
+    .select("communication_type,recipient_role,status,attempt_count,sent_at,created_at")
+    .eq("case_id", caseId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+/** Intent existente (o null) para (caseId, type, role) -- lectura pura, sin crear fila. Usada por el scheduler para decidir si ya se procesó Día 10/15/20. */
+export async function findCommunicationIntent(caseId, communicationType, recipientRole) {
+  const { data, error } = await supabaseAdmin
+    .from("raffle_fulfillment_communications")
+    .select("*")
+    .eq("case_id", caseId)
+    .eq("communication_type", communicationType)
+    .eq("recipient_role", recipientRole)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 }
 
 /**

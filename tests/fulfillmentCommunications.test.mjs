@@ -44,6 +44,12 @@ function selectBuilder(rows, columns) {
       const found = rows.filter((r) => filters.every((f) => f(r)));
       return Promise.resolve({ data: found[0] ? project(found[0]) : null, error: null });
     },
+    // CUMPLIMIENTO-4: soporte para selects multi-fila sin .maybeSingle()
+    // (ej. hasConfirmedWinnerCommunication) -- awaiteable directamente.
+    then(resolve, reject) {
+      const found = rows.filter((r) => filters.every((f) => f(r))).map(project);
+      return Promise.resolve({ data: found, error: null }).then(resolve, reject);
+    },
   };
   return b;
 }
@@ -363,14 +369,15 @@ test("17. el creador sigue usando su sesión autenticada + ownership -- ningún 
   }
 });
 
-test("20. ninguna acción de respuesta está implementada todavía", async () => {
+test("20. (CUMPLIMIENTO-3 scope) el endpoint del token sigue rechazando métodos no soportados", async () => {
+  // CUMPLIMIENTO-4 activó la respuesta del ganador (POST) sobre este
+  // mismo endpoint -- ver tests/fulfillmentTimeline.test.mjs para la
+  // certificación completa de esa acción. Esta prueba, heredada de
+  // CUMPLIMIENTO-3, se reduce a confirmar que métodos no soportados
+  // (ej. DELETE) siguen devolviendo method_not_allowed.
   const fs = await import("node:fs");
   const path = await import("node:path");
-  const tokenPageFile = path.join(process.cwd(), "src", "pages", "cumplimiento", "caso", "[token].jsx");
   const tokenApiFile = path.join(process.cwd(), "src", "pages", "api", "cumplimiento", "caso", "[token].js");
-  const pageContent = fs.readFileSync(tokenPageFile, "utf8");
   const apiContent = fs.readFileSync(tokenApiFile, "utf8");
-  assert.doesNotMatch(pageContent, /recordCreatorResponse|recordWinnerResponse/i);
-  assert.doesNotMatch(apiContent, /recordCreatorResponse|recordWinnerResponse/i);
   assert.match(apiContent, /method_not_allowed/);
 });

@@ -4,6 +4,43 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CUMPLIMIENTO-4 (2026-08-30) — respuestas + Día 10/15/20 + escalamiento interno (DEV only)
+
+Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía
+`bee778f` (C1), `ad0b792` (C2), `8cd116b` (C3). Nueva rama
+`cumplimiento-4` desde `origin/develop`. No se duplicó ninguna tabla —
+C1/C2/C3 ya dejaban estructura suficiente; solo se agregaron 3 columnas
+(`closed_at`, `escalated_at`, `escalation_reason`) a
+`raffle_fulfillment_cases`.
+
+Activó las respuestas del ganador (token seguro, sin cuenta) y del
+creador (sesión + ownership), extendió `evaluateFulfillmentStatus` con
+`determineEscalationReason` (distingue `winner_denied_receipt` de
+`winner_no_response`), y construyó `processFulfillmentTimeline(now)`
+(`src/lib/fulfillmentTimeline.js`) — orquestador puro en su lógica
+temporal (nunca lee el reloj, siempre recibe `now` explícito) que aplica
+Día 10 (pregunta), Día 15 (recordatorio solo a quien no respondió) y
+Día 20 (cierre automático + escalamiento interno + avisos de revisión),
+todo idempotente vía el ledger de comunicaciones de C3 + la guarda
+`closed_at is null`. Nuevo endpoint cron
+`src/pages/api/cron/fulfillment-scheduler.js` (mismo patrón
+`CRON_SECRET` que `draw-scheduler.js`) — **no activado en PROD**. UI
+mínima activada en `/cumplimiento/caso/[token].jsx` (respuestas del
+ganador) y nuevas `/panel/cumplimiento/{index,[id]}.jsx` (respuestas del
+creador). `/cumplimiento` público sigue "Próximamente".
+
+QA temporal certificada contra `rifex-dev` real (`processFulfillmentTimeline`
+con `now` explícito = `winner_determined_at + {10,15,20} días`, nunca
+esperas reales, nunca se tocó el reloj) reutilizando el fixture residual
+de C2/C3 en vez de crear uno nuevo permanente. 41 tests nuevos
+(`tests/fulfillmentTimeline.test.mjs`, cubren los 35 escenarios
+requeridos + adversariales), 296 tests totales en la suite completa
+(295 pasan, 1 flaky de timing XLSX ya documentado, no relacionado). Ver
+`docs/cumplimiento/CUMPLIMIENTO_4_RESPONSES_AND_TIMELINE.md` para el
+detalle completo.
+
+---
+
 ## CUMPLIMIENTO-3 (2026-08-30) — comunicaciones Día 0 + acceso seguro del ganador (DEV only)
 
 Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía

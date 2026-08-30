@@ -22,13 +22,21 @@ const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process
   auth: { persistSession: false },
 });
 
-const CASE_COLUMNS =
+// CUMPLIMIENTO-4: incluye closed_at/escalated_at/escalation_reason
+// (migración 2026-08-30_cumplimiento4_timeline_and_escalation.sql) y
+// winner_access_token_hash/winner_access_token_created_at (CUMPLIMIENTO-3
+// -- imprescindibles acá para que fulfillmentTimeline.js pueda decidir
+// si el token del ganador ya está establecido y estable, sin volver a
+// consultar la tabla aparte). Exportada para que fulfillmentTimeline.js
+// reutilice la misma lista de columnas en vez de duplicarla.
+export const CASE_COLUMNS =
   "raffle_id,creator_id,winner_purchase_id,winner_ticket_number,winner_buyer_email,winner_buyer_name," +
   "raffle_title,prize_type,prize_amount_cents,delivery_method,requires_transfer_procedures," +
   "transfer_expenses_owner,transfer_conditions,raffle_closed_at,winner_determined_at,status," +
-  "creator_response,creator_response_at,winner_response,winner_response_at,created_at,updated_at";
+  "creator_response,creator_response_at,winner_response,winner_response_at,closed_at,escalated_at," +
+  "escalation_reason,winner_access_token_hash,winner_access_token_created_at,created_at,updated_at";
 
-async function insertEvent({ caseId, eventType, actorType, actorUserId = null, previousStatus = null, newStatus = null, metadata = {} }) {
+export async function insertEvent({ caseId, eventType, actorType, actorUserId = null, previousStatus = null, newStatus = null, metadata = {} }) {
   const { error } = await supabaseAdmin.from("raffle_fulfillment_events").insert({
     case_id: caseId,
     event_type: eventType,
@@ -145,11 +153,58 @@ async function recordResponse({ caseId, actorType, response, actorUserId = null,
   if (eCurrent) throw eCurrent;
   if (!current) return { case: null, reason: "case_not_found" };
 
+  // Double-submit / retry safety (CUMPLIMIENTO-4): si la respuesta
+  // entrante es idéntica a la ya registrada para este actor, es un
+  // reintento del mismo submit (doble click, retry de red) — no un
+  // cambio de opinión. No se crea un evento nuevo ni se vuelve a
+  // escribir la fila: se devuelve el estado actual tal cual, sin ruido
+  // en el historial append-only. Un cambio real de valor sí sigue el
+  // camino normal más abajo.
+  const alreadyRecorded = actorType === "creator" ? current.creator_response : current.winner_response;
+  if (alreadyRecorded === response) {
+    return { case: current, previousStatus: current.status, newStatus: current.status, noop: true };
+  }
+
+  const previousStatus = current.status;
+  const now = new Date().toISOString();
+
+  // Respuesta tardía (CUMPLIMIENTO-4 sección 20): el caso ya pasó por
+  // el cierre automático de Día 20 (closed_at set). Nunca se reescribe
+  // silenciosamente el resultado automático -- status/closed_at/
+  // escalation_reason quedan congelados tal como los dejó el cierre.
+  // La respuesta SÍ se registra (visible como "última respuesta" en la
+  // fila + evento append-only distinguible como tardío), para que
+  // quede disponible en la revisión interna sin perder historial.
+  if (current.closed_at) {
+    await insertEvent({
+      caseId,
+      eventType: actorType === "creator" ? "creator_late_response_recorded" : "winner_late_response_recorded",
+      actorType,
+      actorUserId,
+      previousStatus,
+      newStatus: previousStatus,
+      metadata: { ...metadata, response, late: true, received_after_closed_at: current.closed_at },
+    });
+
+    const latePatch =
+      actorType === "creator"
+        ? { creator_response: response, creator_response_at: now }
+        : { winner_response: response, winner_response_at: now };
+
+    const { data: updatedLate, error: eUpdateLate } = await supabaseAdmin
+      .from("raffle_fulfillment_cases")
+      .update(latePatch)
+      .eq("raffle_id", caseId)
+      .select(CASE_COLUMNS)
+      .maybeSingle();
+    if (eUpdateLate) throw eUpdateLate;
+
+    return { case: updatedLate, previousStatus, newStatus: previousStatus, late: true };
+  }
+
   const creatorResponse = actorType === "creator" ? response : current.creator_response;
   const winnerResponse = actorType === "winner" ? response : current.winner_response;
   const newStatus = evaluateFulfillmentStatus({ creatorResponse, winnerResponse });
-  const previousStatus = current.status;
-  const now = new Date().toISOString();
 
   await insertEvent({
     caseId,
@@ -210,6 +265,24 @@ export async function getCreatorCases(creatorId) {
     .select(CASE_COLUMNS)
     .eq("creator_id", creatorId)
     .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+/**
+ * CUMPLIMIENTO-4 — casos todavía abiertos (closed_at is null), candidatos
+ * a procesamiento de línea de tiempo (Día 10/15/20) por
+ * fulfillmentTimeline.js. closed_at is null es la única señal
+ * confiable de "el cierre automático de Día 20 no corrió todavía para
+ * este caso" -- ver justificación en la migración de CUMPLIMIENTO-4.
+ */
+export async function getOpenFulfillmentCases() {
+  const { data, error } = await supabaseAdmin
+    .from("raffle_fulfillment_cases")
+    .select(CASE_COLUMNS)
+    .is("closed_at", null)
+    .not("winner_determined_at", "is", null)
+    .order("winner_determined_at", { ascending: true });
   if (error) throw error;
   return data || [];
 }

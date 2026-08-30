@@ -1,11 +1,12 @@
 // src/pages/cumplimiento/caso/[token].jsx
-// CUMPLIMIENTO-3 — vista pública, solo lectura, del caso de cumplimiento
-// para el ganador invitado (sin cuenta Rifex). Mismo patrón que
-// /eventos/orden/[token] (EVENT-3): token opaco en la URL, fetch
-// client-side al endpoint tokenizado, sin auth.getUser(). Estrictamente
-// de solo lectura en esta fase — sin acciones de confirmación de
-// recepción todavía (eso es CUMPLIMIENTO-4). Nunca expone PII de
-// terceros, tokens internos, ni metadata de auditoría.
+// CUMPLIMIENTO-3/4 — vista pública del caso de cumplimiento para el
+// ganador invitado (sin cuenta Rifex), con las dos respuestas activas
+// desde CUMPLIMIENTO-4. Mismo patrón que /eventos/orden/[token]
+// (EVENT-3): token opaco en la URL, fetch client-side al endpoint
+// tokenizado, sin auth.getUser() -- el token ES la identidad. Nunca
+// expone PII de terceros, tokens internos, correos de revisión interna
+// ni metadata de auditoría. Nunca usa lenguaje de fraude/denuncia/
+// estafa/incumplimiento -- solo "recibiste" / "todavía no".
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Layout from "@/components/Layout";
@@ -20,7 +21,7 @@ const TRANSFER_OWNER_LABELS = { creator: "el creador de la rifa", winner: "vos (
 
 const STATUS_COPY = {
   pending_delivery: { title: "Pendiente de entrega", body: "Todavía no hay confirmaciones registradas. El creador se pondrá en contacto para coordinar." },
-  creator_reported_delivered: { title: "El creador informó que ya entregó el premio", body: "Cuando el sistema de confirmación esté disponible, se te pedirá que confirmes la recepción." },
+  creator_reported_delivered: { title: "El creador informó que ya entregó el premio", body: "Confirmá abajo si ya lo recibiste." },
   fulfillment_confirmed: { title: "Cumplimiento confirmado", body: "Se confirmó la entrega del premio." },
   delivery_pending: { title: "Entrega pendiente", body: "La entrega todavía no se ha confirmado." },
   under_review: { title: "En revisión", body: "Hay una discrepancia registrada sobre la entrega — está en revisión." },
@@ -42,6 +43,8 @@ export default function CasoCumplimiento() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   useEffect(() => {
     if (!token) return;
@@ -68,6 +71,31 @@ export default function CasoCumplimiento() {
       cancelled = true;
     };
   }, [token]);
+
+  async function respond(value) {
+    // Guarda contra doble submit: mientras hay un envío en curso, o si
+    // ya se registró exactamente esa misma respuesta, no se reenvía.
+    if (submitting || data?.winner_response === value) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch(`/api/cumplimiento/caso/${encodeURIComponent(token)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response: value }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.ok) {
+        setSubmitError("No pudimos registrar tu respuesta. Probá de nuevo.");
+        return;
+      }
+      setData(json.case);
+    } catch {
+      setSubmitError("No pudimos registrar tu respuesta. Probá de nuevo.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -145,10 +173,67 @@ export default function CasoCumplimiento() {
         </dl>
       </div>
 
+      <div style={{ border: "1px solid #E5E7EB", borderRadius: 12, padding: "16px 18px", marginTop: 16 }}>
+        <h2 style={{ fontSize: 16, margin: "0 0 10px" }}>¿Recibiste tu premio?</h2>
+
+        {data.winner_response ? (
+          <p style={{ margin: 0, color: "#111827" }}>
+            {data.winner_response === "yes"
+              ? "Registramos que recibiste tu premio. ¡Gracias por confirmar!"
+              : "Registramos que todavía no lo recibiste. Te avisaremos sobre los próximos pasos."}
+          </p>
+        ) : (
+          <>
+            <p style={{ color: "#6B7280", margin: "0 0 12px", fontSize: 14 }}>
+              Contanos el estado actual de la entrega. Podés cambiar tu respuesta más adelante si la situación
+              cambia.
+            </p>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => respond("yes")}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "#18a957",
+                  color: "#fff",
+                  fontWeight: 700,
+                  cursor: submitting ? "default" : "pointer",
+                  opacity: submitting ? 0.7 : 1,
+                }}
+              >
+                Sí, recibí mi premio
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => respond("not_yet")}
+                style={{
+                  padding: "10px 16px",
+                  borderRadius: 10,
+                  border: "1px solid #D1D5DB",
+                  background: "#fff",
+                  color: "#111827",
+                  fontWeight: 700,
+                  cursor: submitting ? "default" : "pointer",
+                  opacity: submitting ? 0.7 : 1,
+                }}
+              >
+                Todavía no lo recibo
+              </button>
+            </div>
+            {submitError && (
+              <p style={{ color: "#B91C1C", fontSize: 13, marginTop: 10 }}>{submitError}</p>
+            )}
+          </>
+        )}
+      </div>
+
       <p style={{ color: "#9CA3AF", fontSize: 12.5, marginTop: 20 }}>
         Esta información corresponde a las condiciones publicadas por el creador antes de que la rifa comenzara a
-        vender — no cambia si la rifa se edita después. Rifex Cumplimiento todavía está en preparación; esta
-        página solo muestra el estado actual, sin acciones disponibles todavía.
+        vender — no cambia si la rifa se edita después.
       </p>
     </main>
   );

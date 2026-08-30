@@ -2,9 +2,10 @@
 // scheduler, sin Date.now() escondido. La regla temporal "sin respuestas
 // después del plazo" nunca lee el reloj por sí misma: recibe
 // `afterDeadline` como contexto explícito que el llamador debe calcular
-// y pasar — hoy nada en el código real invoca esta función con
-// afterDeadline:true, porque el ciclo temporal (Día 10/15/20) todavía no
-// existe (CUMPLIMIENTO-2+).
+// y pasar. CUMPLIMIENTO-4 es el primer código real que invoca esta
+// función con afterDeadline:true — desde
+// src/lib/fulfillmentTimeline.js, siempre con un `now` explícito
+// recibido como parámetro, nunca leído del reloj del sistema acá.
 
 export const FULFILLMENT_STATUSES = Object.freeze({
   PENDING_DELIVERY: "pending_delivery",
@@ -103,4 +104,31 @@ export function evaluateFulfillmentStatus({ creatorResponse = null, winnerRespon
   // combinación tampoco se relabelea como "unconfirmed" por vencimiento
   // de plazo, porque ya hay evidencia real, no silencio puro.
   return FULFILLMENT_STATUSES.DELIVERY_PENDING;
+}
+
+export const ESCALATION_REASONS = Object.freeze({
+  WINNER_DENIED_RECEIPT: "winner_denied_receipt",
+  WINNER_NO_RESPONSE: "winner_no_response",
+});
+
+/**
+ * CUMPLIMIENTO-4 — distingue el peso probatorio de un caso no resuelto
+ * al cierre del ciclo: una negativa explícita del ganador
+ * (`winner_response='not_yet'`) NO es equivalente a su silencio total
+ * (`winner_response=null`) — ambas escalan a revisión interna, pero
+ * nunca deben presentarse como lo mismo. Función pura, solo aplicable
+ * a casos que efectivamente terminan sin `fulfillment_confirmed` (el
+ * llamador decide cuándo invocarla, nunca lee el reloj acá).
+ *
+ * @param {{ winnerResponse?: 'yes'|'not_yet'|null }} input
+ * @returns {string|null} uno de ESCALATION_REASONS, o null si el caso
+ *   no debería escalar (winnerResponse='yes' -> ya confirmado).
+ */
+export function determineEscalationReason({ winnerResponse = null } = {}) {
+  if (!isValidWinnerResponse(winnerResponse)) {
+    throw new Error(`invalid_winner_response: ${winnerResponse}`);
+  }
+  if (winnerResponse === WINNER_RESPONSES.YES) return null;
+  if (winnerResponse === WINNER_RESPONSES.NOT_YET) return ESCALATION_REASONS.WINNER_DENIED_RECEIPT;
+  return ESCALATION_REASONS.WINNER_NO_RESPONSE;
 }
