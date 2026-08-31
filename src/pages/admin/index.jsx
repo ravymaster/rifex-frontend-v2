@@ -3,7 +3,10 @@
 // nunca decide autoridad por sí sola: siempre pregunta a /api/admin/me y
 // refleja lo que responde. Todo lo demás es solo lectura — sin acciones
 // destructivas, sin edición manual de estados, sin ejecutar C5R desde acá.
+// CUMPLIMIENTO-5 agregó la sección "Cumplimiento" (resumen + enlace a
+// /admin/cumplimiento) -- MISMO panel, MISMA autorización, sin rediseño.
 import Head from "next/head";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
@@ -61,6 +64,7 @@ export default function AdminHome() {
   const [email, setEmail] = useState(null);
   const [metrics, setMetrics] = useState(null);
   const [overview, setOverview] = useState(null);
+  const [cumplimiento, setCumplimiento] = useState(null);
   const [errMsg, setErrMsg] = useState("");
   const [accessToken, setAccessToken] = useState(null);
 
@@ -91,13 +95,19 @@ export default function AdminHome() {
         setEmail(j.email || null);
         setState("ok");
 
-        const [mr, or_] = await Promise.all([
+        const [mr, or_, cr] = await Promise.all([
           fetch("/api/admin/metrics", { headers: { Authorization: `Bearer ${token}` } }),
           fetch("/api/admin/overview", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/admin/cumplimiento", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
-        const [mj, oj] = await Promise.all([mr.json().catch(() => ({ ok: false })), or_.json().catch(() => ({ ok: false }))]);
+        const [mj, oj, cj] = await Promise.all([
+          mr.json().catch(() => ({ ok: false })),
+          or_.json().catch(() => ({ ok: false })),
+          cr.json().catch(() => ({ ok: false })),
+        ]);
         if (mr.ok && mj?.ok) setMetrics(mj);
         if (or_.ok && oj?.ok) setOverview(oj);
+        if (cr.ok && cj?.ok) setCumplimiento(cj);
         if (!(mr.ok && mj?.ok) || !(or_.ok && oj?.ok)) setErrMsg("Algunas métricas no se pudieron cargar.");
       } catch (e) {
         console.error("[admin] error validando autoridad / cargando datos", e);
@@ -329,6 +339,24 @@ export default function AdminHome() {
                   <Kpi label="Pagos approved" value={overview.counts.payments_approved} />
                   <Kpi label="Pagos pending" value={overview.counts.payments_pending} />
                   <Kpi label="Pagos rejected" value={overview.counts.payments_rejected} />
+                </div>
+              </section>
+            )}
+
+            {/* ---- Cumplimiento (CUMPLIMIENTO-5) ---- */}
+            {cumplimiento && (
+              <section style={section}>
+                <div style={{ ...sectionTitle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Cumplimiento</span>
+                  <Link href="/admin/cumplimiento" style={{ fontSize: 13, fontWeight: 700 }}>
+                    Ver casos →
+                  </Link>
+                </div>
+                <div style={grid}>
+                  <Kpi label="Requieren revisión" value={cumplimiento.summary.requires_review} />
+                  <Kpi label="Entregas pendientes" value={cumplimiento.summary.delivery_pending} />
+                  <Kpi label="Cumplimientos confirmados" value={cumplimiento.summary.confirmed} />
+                  <Kpi label="Sin confirmación" value={cumplimiento.summary.unconfirmed} />
                 </div>
               </section>
             )}
