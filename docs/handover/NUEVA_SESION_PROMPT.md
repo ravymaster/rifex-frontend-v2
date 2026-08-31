@@ -7,7 +7,30 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > guardado en `docs/WOP.md`, sección "RIFEX CURRENT STATE" → "Reentry Prompt" —
 > mantenerlos idénticos si se edita alguno.
 >
-> **2026-08-30 (actualización más reciente) — NOTA IMPORTANTE, la nota de
+> **2026-08-31 (actualización más reciente) — RIFEX CONTROLLED PROD RELEASE:
+> `main`/PROD pasó de `e7311c1` a `5145d91` (fast-forward limpio, sin merge,
+> sin force push).** Se promovieron exactamente 4 bloques certificados de
+> `develop`, archivo por archivo (nunca merge, nunca el rango crudo de
+> commits): **Cumplimiento V1** (C1/C3/C4/C5 — seguimiento de casos de
+> cumplimiento post-sorteo), **Onboarding + Bancos/MP** (onboarding neutral,
+> máquina de estados en `/panel/bancos`, revalidación MP server-side, Stripe
+> solo catálogo visual), **Events Capacity + Live Attendance** (EVENT-8 —
+> invariante de aforo, asistencia en vivo en el scanner), y **Home V1**
+> (rediseño de la Home pública en torno a Eventos/Entradas/Campañas, hero con
+> foto real, tarjetas de capacidad premium). Las 5 migraciones PROD
+> requeridas se aplicaron con re-chequeo de drift y verificación posterior
+> en cada una; los conteos de filas financieras no cambiaron (`raffles`=7,
+> `tickets`=420, `payments`=4). Auditoría de 65 archivos contra el baseline
+> confirmó cero fuga fuera de los 4 bloques certificados. Desplegado vía el
+> auto-deploy GitHub → Vercel existente, alias `rifex.pro`, verificado con
+> contenido HTTP real (no solo el estado del deployment). Quedaron
+> explícitamente fuera de esta promoción, y siguen solo en `develop`:
+> Difundir iniciativa, TXT V4, MP QUALITY 100, nuevas políticas, reactivación
+> de Argentina, integración real de Stripe. Detalle completo:
+> `docs/WOP.md`, sección "RIFEX CONTROLLED PROD RELEASE (2026-08-31)", y
+> `docs/releases/RIFEX_CONTROLLED_PROD_RELEASE_2026-08-31.md`.
+>
+> **2026-08-30 (actualización anterior) — NOTA IMPORTANTE, la nota de
 > arriba quedó desactualizada: `main` YA NO está congelado respecto de
 > Eventos/Trust.** Se ejecutó el RIFEX FULL PROD RELEASE completo (4 etapas,
 > cada una autorizada por separado por Rodrigo): `main`/PROD pasaron de
