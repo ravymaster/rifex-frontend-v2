@@ -519,7 +519,7 @@ export default function Bancos({ ssrUser }) {
   );
 }
 
-Bancos.getLayout = (page) => <Layout>{page}</Layout>;
+Bancos.getLayout = (page) => <Layout noindex>{page}</Layout>;
 
 
 

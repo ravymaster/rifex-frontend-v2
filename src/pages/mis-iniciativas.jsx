@@ -29,7 +29,7 @@ export default function MisIniciativas() {
   if (checking) return null;
 
   return (
-    <Layout title="Mis iniciativas — Rifex" description="Rifas, Campañas y Eventos en un solo lugar.">
+    <Layout title="Mis iniciativas — Rifex" description="Rifas, Campañas y Eventos en un solo lugar." noindex>
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 6 }}>Mis iniciativas</h1>
         <p style={{ color: '#64748b', fontSize: 14.5, marginBottom: 28 }}>Cada producto tiene su propio panel especializado.</p>

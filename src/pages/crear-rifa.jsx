@@ -492,4 +492,4 @@ export default function CrearRifaPage() {
   );
 }
 
-CrearRifaPage.getLayout = (page) => <Layout>{page}</Layout>;
+CrearRifaPage.getLayout = (page) => <Layout noindex>{page}</Layout>;

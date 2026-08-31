@@ -38,7 +38,7 @@ export default function PanelEventos() {
   }, [router]);
 
   return (
-    <Layout title="Mis eventos — Rifex">
+    <Layout noindex title="Mis eventos — Rifex">
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: 0 }}>Mis eventos</h1>

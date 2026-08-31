@@ -171,4 +171,4 @@ export default function AdminTrustCaseDetail() {
   );
 }
 
-AdminTrustCaseDetail.getLayout = (page) => <Layout>{page}</Layout>;
+AdminTrustCaseDetail.getLayout = (page) => <Layout noindex>{page}</Layout>;

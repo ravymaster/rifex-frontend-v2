@@ -506,4 +506,4 @@ export default function AdminHome() {
   );
 }
 
-AdminHome.getLayout = (page) => <Layout>{page}</Layout>;
+AdminHome.getLayout = (page) => <Layout noindex>{page}</Layout>;

@@ -222,7 +222,7 @@ export default function Register(){
   );
 }
 
-Register.getLayout = (page) => <Layout>{page}</Layout>;
+Register.getLayout = (page) => <Layout noindex>{page}</Layout>;
 
 
 

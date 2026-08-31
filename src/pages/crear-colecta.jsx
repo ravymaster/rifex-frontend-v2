@@ -391,7 +391,7 @@ export default function CrearColecta() {
     </>
   );
 }
-CrearColecta.getLayout = (page) => <Layout>{page}</Layout>;
+CrearColecta.getLayout = (page) => <Layout noindex>{page}</Layout>;
 
 function GalleryThumb({ file, onRemove }) {
   const [url, setUrl] = useState(null);

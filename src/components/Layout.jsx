@@ -4,10 +4,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { DEFAULT_OG_IMAGE, canonicalUrl } from '@/lib/publicMetadata';
 
 export default function Layout({
   title = 'Rifex',
   description = 'Crea eventos, vende entradas digitales y administra campañas de recaudación desde una sola plataforma.',
+  // RIFEX V4 A1 — metadata pública opcional. canonicalPath acepta un path
+  // ("/eventos") o una URL absoluta ya resuelta por la página (landings
+  // individuales calculan su propio canonical con el id real). noindex
+  // NUNCA reemplaza auth/RLS — es solo una señal para rastreadores.
+  canonicalPath = null,
+  noindex = false,
+  ogType = 'website',
+  ogImage = DEFAULT_OG_IMAGE,
   children,
 }) {
   const router = useRouter();
@@ -27,6 +36,7 @@ export default function Layout({
     { label: 'Cómo funciona',  href: '/wizard' },
     { label: 'Precios',        href: '/planes' },
     { label: 'Seguridad',      href: '/seguridad' },
+    { label: 'Ayuda',          href: '/preguntas-frecuentes' },
   ];
 
   // EVENT-1 (Fase 12): "Panel" pasa a ser "Mis iniciativas" — el
@@ -87,12 +97,28 @@ export default function Layout({
 
   const initial = (user?.email || '?').trim().charAt(0).toUpperCase();
 
+  const canonical = canonicalPath
+    ? (canonicalPath.startsWith('http') ? canonicalPath : canonicalUrl(canonicalPath))
+    : canonicalUrl(pathname || '/');
+
   return (
     <>
       <Head>
-        <title>{title}</title>
-        <meta name="description" content={description} />
+        <title key="title">{title}</title>
+        <meta key="description" name="description" content={description} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link key="canonical" rel="canonical" href={canonical} />
+        {noindex && <meta key="robots" name="robots" content="noindex, nofollow" />}
+        <meta key="og:title" property="og:title" content={title} />
+        <meta key="og:description" property="og:description" content={description} />
+        <meta key="og:url" property="og:url" content={canonical} />
+        <meta key="og:type" property="og:type" content={ogType} />
+        <meta key="og:image" property="og:image" content={ogImage} />
+        <meta property="og:site_name" content="Rifex" />
+        <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+        <meta key="twitter:title" name="twitter:title" content={title} />
+        <meta key="twitter:description" name="twitter:description" content={description} />
+        <meta key="twitter:image" name="twitter:image" content={ogImage} />
       </Head>
 
       <header className="rf-header" role="banner">
@@ -231,16 +257,26 @@ export default function Layout({
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Legal</span>
               <Link href="/terminos">Términos</Link>
-              <Link href="/terminos#privacidad">Privacidad</Link>
+              <Link href="/privacidad">Privacidad</Link>
+              <Link href="/cookies">Cookies</Link>
+              <Link href="/uso-aceptable">Uso aceptable</Link>
               <Link href="/seguridad">Seguridad</Link>
               <Link href="/cumplimiento">Rifex Cumplimiento</Link>
+              <Link href="/reportar">Reportar</Link>
             </div>
           </div>
         </div>
         <div className="rf-foot__bottom">
           <span>© {new Date().getFullYear()} Rifex. Todos los derechos reservados.</span>
           <div className="rf-foot__bottomRight">
-            <span className="rf-foot__pay">Pagos con Mercado Pago</span>
+            <Link href="/confianza">Confianza</Link>
+            <button
+              type="button"
+              className="rf-foot__cookiePrefs"
+              onClick={() => window.dispatchEvent(new Event('rifex:open-cookie-preferences'))}
+            >
+              Preferencias de cookies
+            </button>
           </div>
         </div>
       </footer>
@@ -300,7 +336,17 @@ export default function Layout({
         .rf-foot__bottomRight { display: flex; align-items: center; gap: 16px; }
         .rf-foot__bottomRight :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; }
         .rf-foot__bottomRight :global(a:hover) { color: #fff; }
-        .rf-foot__pay { display: inline-flex; align-items: center; gap: 5px; }
+        .rf-foot__cookiePrefs {
+          background: transparent;
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 12px;
+          font-family: inherit;
+          cursor: pointer;
+          padding: 0;
+          text-decoration: underline;
+        }
+        .rf-foot__cookiePrefs:hover { color: #fff; }
 
         @media (max-width: 640px) {
           .rf-foot__top { flex-direction: column; gap: 24px; }

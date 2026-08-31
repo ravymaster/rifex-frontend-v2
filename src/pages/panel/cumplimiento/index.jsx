@@ -53,7 +53,7 @@ export default function PanelCumplimiento() {
   }, [router]);
 
   return (
-    <Layout title="Cumplimiento — Rifex">
+    <Layout noindex title="Cumplimiento — Rifex">
       <div style={{ maxWidth: 900, margin: "0 auto" }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: "#0f172a", margin: "0 0 20px" }}>Cumplimiento de entregas</h1>
 

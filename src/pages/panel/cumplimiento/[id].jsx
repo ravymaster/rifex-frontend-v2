@@ -97,7 +97,7 @@ export default function PanelCumplimientoDetalle() {
 
   if (loading) {
     return (
-      <Layout title="Cumplimiento — Rifex">
+      <Layout noindex title="Cumplimiento — Rifex">
         <p style={{ maxWidth: 720, margin: "0 auto" }}>Cargando…</p>
       </Layout>
     );
@@ -105,7 +105,7 @@ export default function PanelCumplimientoDetalle() {
 
   if (error || !data) {
     return (
-      <Layout title="Cumplimiento — Rifex">
+      <Layout noindex title="Cumplimiento — Rifex">
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <h1>Caso no encontrado</h1>
           <p style={{ color: "#6B7280" }}>Este caso no existe o no te pertenece.</p>
@@ -115,7 +115,7 @@ export default function PanelCumplimientoDetalle() {
   }
 
   return (
-    <Layout title="Cumplimiento — Rifex">
+    <Layout noindex title="Cumplimiento — Rifex">
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 4px" }}>{data.raffle_title}</h1>
         <p style={{ color: "#6B7280", margin: "0 0 20px" }}>

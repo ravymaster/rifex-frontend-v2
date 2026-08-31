@@ -587,4 +587,4 @@ export default function RegistroContinuar() {
   );
 }
 
-RegistroContinuar.getLayout = (page) => <Layout>{page}</Layout>;
+RegistroContinuar.getLayout = (page) => <Layout noindex>{page}</Layout>;
