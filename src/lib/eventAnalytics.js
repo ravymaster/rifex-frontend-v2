@@ -72,7 +72,7 @@ export async function checkAnalyticsLimits(supabase, eventId) {
 export async function fetchEventAnalyticsData(supabase, eventId) {
   const { data: event, error: evErr } = await supabase
     .from('events')
-    .select('id, organizer_id, title, status, starts_at, ends_at, timezone, venue_name')
+    .select('id, organizer_id, title, status, starts_at, ends_at, timezone, venue_name, capacity')
     .eq('id', eventId)
     .maybeSingle();
   if (evErr) throw evErr;
@@ -80,7 +80,7 @@ export async function fetchEventAnalyticsData(supabase, eventId) {
 
   const { data: ticketTypes, error: ttErr } = await supabase
     .from('event_ticket_types')
-    .select('id, name, quantity_total, quantity_sold, quantity_reserved, price_cents')
+    .select('id, name, status, quantity_total, quantity_sold, quantity_reserved, price_cents')
     .eq('event_id', eventId);
   if (ttErr) throw ttErr;
 
@@ -146,8 +146,23 @@ export function computeEventAnalyticsSummary(data) {
   const { event, ticketTypes, orders, orderItems, tickets, checkins, staff } = data;
 
   // ---- Operacional ----
+  // "capacity" acá SIEMPRE significó "suma de quantity_total configurado
+  // en tipos de entrada" (EVENT-5) — se mantiene sin tocar, nunca
+  // renombrado, para no romper el contrato ya certificado del dashboard/
+  // XLSX. `event_capacity` (EVENT-8) es un concepto DISTINTO: el aforo
+  // real del evento (events.capacity), null cuando no está definido —
+  // nunca se colapsan en el mismo número.
   const capacity = sum(ticketTypes, (t) => t.quantity_total);
   const sold = sum(ticketTypes, (t) => t.quantity_sold);
+  const eventCapacity = event.capacity ?? null;
+  // Disponible real para vender: SUM por tipo ACTIVO de
+  // (total - vendido - reservado) — nunca event_capacity - sold, que
+  // ignoraría aforo sin asignar a ningún tipo o tipos ocultos con cupo
+  // aún vigente (ver mandato EVENT-8, sección de "available_to_sell").
+  const availableToSell = sum(
+    ticketTypes.filter((t) => t.status === 'active'),
+    (t) => Math.max(0, (t.quantity_total || 0) - (t.quantity_sold || 0) - (t.quantity_reserved || 0))
+  );
 
   const emittedTotal = tickets.length;
   const valid = tickets.filter((t) => t.status !== 'void').length;
@@ -193,8 +208,10 @@ export function computeEventAnalyticsSummary(data) {
   const byTicketType = ticketTypes.map((t) => ({
     id: t.id,
     name: t.name,
+    status: t.status,
     capacity: t.quantity_total,
     sold: t.quantity_sold,
+    available: Math.max(0, (t.quantity_total || 0) - (t.quantity_sold || 0) - (t.quantity_reserved || 0)),
     ordered_quantity: qtyByOrderTypeName.get(t.name) || 0,
     emitted_total: issuedByTypeId.get(t.id) || 0,
     valid: validByTypeId.get(t.id) || 0,
@@ -260,6 +277,8 @@ export function computeEventAnalyticsSummary(data) {
     },
     operational: {
       capacity,
+      event_capacity: eventCapacity,
+      available_to_sell: availableToSell,
       sold,
       emitted_total: emittedTotal,
       valid,

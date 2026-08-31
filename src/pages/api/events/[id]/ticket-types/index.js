@@ -117,7 +117,15 @@ export default async function handler(req, res) {
         })
         .select('*')
         .single();
-      if (insErr) throw insErr;
+      if (insErr) {
+        // EVENT-8: event_ticket_types_capacity_trg — un tipo activo cuyo
+        // quantity_total suma más que events.capacity se traduce a 409
+        // legible, nunca un 500 crudo.
+        if (insErr.code === 'P0001' || /event_capacity_exceeded/.test(insErr.message || '')) {
+          return res.status(409).json({ ok: false, error: 'event_capacity_exceeded' });
+        }
+        throw insErr;
+      }
 
       return res.status(201).json({ ok: true, ticket_type: created });
     }

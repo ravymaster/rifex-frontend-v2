@@ -140,7 +140,15 @@ export default async function handler(req, res) {
       .eq('id', typeId)
       .select('*')
       .single();
-    if (updErr) throw updErr;
+    if (updErr) {
+      // EVENT-8: event_ticket_types_capacity_trg — subir quantity_total o
+      // reactivar (status='active') un tipo que empuje la suma comprometida
+      // por sobre events.capacity se traduce a 409 legible.
+      if (updErr.code === 'P0001' || /event_capacity_exceeded/.test(updErr.message || '')) {
+        return res.status(409).json({ ok: false, error: 'event_capacity_exceeded' });
+      }
+      throw updErr;
+    }
 
     return res.status(200).json({ ok: true, ticket_type: updated });
   } catch (e) {

@@ -50,6 +50,14 @@ function toLocalInputValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// EVENT-8: mensajes legibles para los errores server-side de aforo —
+// mismo criterio que el mapeo de errores de personal en
+// panel/eventos/[id].jsx.
+const EVENT_ERROR_LABEL = {
+  invalid_capacity: 'El aforo debe ser un número entero mayor a 0.',
+  event_capacity_exceeded: 'La suma de cupos de tus tipos de entrada activos supera el aforo definido. Sube el aforo o reduce los cupos.',
+};
+
 const emptyTicketType = () => ({
   key: Math.random().toString(36).slice(2),
   id: null,
@@ -72,6 +80,7 @@ export default function CrearEvento() {
   const [endsAt, setEndsAt] = useState('');
   const [venueName, setVenueName] = useState('');
   const [address, setAddress] = useState('');
+  const [capacity, setCapacity] = useState('');
 
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState(null);
@@ -160,10 +169,11 @@ export default function CrearEvento() {
           timezone: 'America/Santiago',
           venue_name: venueName.trim() || null,
           address: address.trim() || null,
+          capacity: capacity.trim() === '' ? null : capacity.trim(),
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar el evento');
+      if (!res.ok || !data.ok) throw new Error(EVENT_ERROR_LABEL[data.error] || data.error || 'No se pudo guardar el evento');
       setEvent(data.event);
       setNotice('Borrador guardado.');
     } catch (e) {
@@ -205,7 +215,7 @@ export default function CrearEvento() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar el tipo de entrada');
+      if (!res.ok || !data.ok) throw new Error(EVENT_ERROR_LABEL[data.error] || data.error || 'No se pudo guardar el tipo de entrada');
       updateTicketType(key, { id: data.ticket_type.id, saving: false });
     } catch (e) {
       updateTicketType(key, { saving: false, error: e.message || 'No se pudo guardar' });
@@ -303,6 +313,22 @@ export default function CrearEvento() {
               <label className={styles.label}>Dirección</label>
               <input className={styles.input} value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Calle y número" />
             </div>
+          </div>
+
+          <div className={styles.field}>
+            <label className={styles.label}>Aforo (capacidad máxima)</label>
+            <input
+              className={styles.input}
+              type="number"
+              min="1"
+              value={capacity}
+              onChange={(e) => setCapacity(e.target.value)}
+              placeholder="Ej: 200"
+            />
+            <p className={styles.hint}>
+              Opcional. Si lo defines, la suma de cupos de tus tipos de entrada activos nunca podrá superarlo.
+              Déjalo vacío si aún no tienes un aforo definido.
+            </p>
           </div>
 
           <div className={styles.actions}>

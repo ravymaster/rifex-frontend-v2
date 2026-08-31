@@ -228,7 +228,8 @@ export default function PanelEventoDetalle() {
           <p style={{ margin: '0 0 6px', fontSize: 14 }}><strong>Inicio:</strong> {new Date(event.starts_at).toLocaleString('es-CL', { timeZone: event.timezone || 'America/Santiago' })}</p>
           <p style={{ margin: '0 0 6px', fontSize: 14 }}><strong>Término:</strong> {new Date(event.ends_at).toLocaleString('es-CL', { timeZone: event.timezone || 'America/Santiago' })}</p>
           {event.venue_name && <p style={{ margin: '0 0 6px', fontSize: 14 }}><strong>Lugar:</strong> {event.venue_name}</p>}
-          {event.address && <p style={{ margin: 0, fontSize: 14 }}><strong>Dirección:</strong> {event.address}</p>}
+          {event.address && <p style={{ margin: '0 0 6px', fontSize: 14 }}><strong>Dirección:</strong> {event.address}</p>}
+          <p style={{ margin: 0, fontSize: 14 }}><strong>Aforo:</strong> {event.capacity ?? 'No definido'}</p>
         </div>
 
         {summary && (
@@ -266,11 +267,12 @@ export default function PanelEventoDetalle() {
           {ticketTypes.map((t) => {
             const emitted = summary?.ticket_types?.find((x) => x.id === t.id)?.issued ?? null;
             const discrepancy = emitted !== null && emitted !== t.quantity_sold;
+            const available = Math.max(0, (t.quantity_total || 0) - (t.quantity_sold || 0) - (t.quantity_reserved || 0));
             return (
               <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 16px' }}>
                 <span style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</span>
                 <span style={{ fontSize: 13.5, color: discrepancy ? '#b45309' : '#64748b' }}>
-                  {t.quantity_sold}/{t.quantity_total} vendidas{t.quantity_reserved > 0 ? ` · ${t.quantity_reserved} reservadas` : ''}
+                  {t.quantity_sold}/{t.quantity_total} vendidas · {available} disponibles{t.quantity_reserved > 0 ? ` · ${t.quantity_reserved} reservadas` : ''}
                   {emitted !== null ? ` · ${emitted} emitidas` : ''}
                   {discrepancy ? ' ⚠' : ''}
                 </span>
@@ -357,8 +359,10 @@ export default function PanelEventoDetalle() {
             <h3 style={{ fontSize: 13.5, fontWeight: 700, color: '#64748b', margin: '0 0 8px' }}>Operacional</h3>
             <div style={{ border: '1px solid #e5e7eb', borderRadius: 14, padding: 18, marginBottom: 18, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 14 }}>
               {[
-                ['Capacidad', analytics.operational.capacity],
+                ['Aforo del evento', analytics.operational.event_capacity ?? 'No definido'],
+                ['Capacidad configurada (tipos)', analytics.operational.capacity],
                 ['Vendidas', analytics.operational.sold],
+                ['Disponibles', analytics.operational.available_to_sell],
                 ['Emitidas totales', analytics.operational.emitted_total],
                 ['Válidas', analytics.operational.valid],
                 ['Anuladas', analytics.operational.voided],
@@ -403,7 +407,7 @@ export default function PanelEventoDetalle() {
               {analytics.analytics.by_ticket_type.map((t) => (
                 <div key={t.id} style={{ display: 'flex', justifyContent: 'space-between', border: '1px solid #e5e7eb', borderRadius: 12, padding: '10px 16px', fontSize: 13.5 }}>
                   <span style={{ fontWeight: 600 }}>{t.name}</span>
-                  <span style={{ color: '#64748b' }}>{t.sold}/{t.capacity} vendidas · {t.emitted_total} emitidas · {t.checked_in} ingresadas</span>
+                  <span style={{ color: '#64748b' }}>{t.sold}/{t.capacity} vendidas · {t.available} disponibles · {t.emitted_total} emitidas · {t.checked_in} ingresadas</span>
                 </div>
               ))}
             </div>
