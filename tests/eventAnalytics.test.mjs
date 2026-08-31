@@ -280,3 +280,88 @@ test('checkAnalyticsLimits: staff excede su límite propio (500), independiente 
   assert.equal(result.limit, 'staff');
   assert.equal(result.max, 500);
 });
+
+// ---- EVENT-8: aforo (events.capacity), nunca colapsado con "capacity" ----
+// ("suma de quantity_total configurado", ya certificado en EVENT-5).
+
+test('EVENT-8 · event_capacity es un campo DISTINTO de capacity (suma de tipos) — nunca se pisan entre sí', () => {
+  const data = {
+    event: baseEvent({ capacity: 10 }),
+    ticketTypes: [{ id: 'tt1', name: 'General', status: 'active', quantity_total: 100, quantity_sold: 2, quantity_reserved: 0 }],
+    orders: [], orderItems: [], tickets: [], checkins: [], staff: [],
+  };
+  const s = computeEventAnalyticsSummary(data);
+  assert.equal(s.operational.event_capacity, 10, 'aforo real del evento');
+  assert.equal(s.operational.capacity, 100, 'capacidad configurada en tipos — sin tocar, contrato EVENT-5 intacto');
+});
+
+test('EVENT-8 · event_capacity es null cuando el evento no lo definió ("sin aforo definido", nunca 0 ni inventado)', () => {
+  const data = {
+    event: baseEvent({ capacity: null }),
+    ticketTypes: [],
+    orders: [], orderItems: [], tickets: [], checkins: [], staff: [],
+  };
+  const s = computeEventAnalyticsSummary(data);
+  assert.equal(s.operational.event_capacity, null);
+});
+
+test('EVENT-8 · event_capacity es null cuando el campo directamente no viene en la fila (undefined -> null, nunca undefined en el JSON)', () => {
+  const data = {
+    event: baseEvent(),
+    ticketTypes: [],
+    orders: [], orderItems: [], tickets: [], checkins: [], staff: [],
+  };
+  const s = computeEventAnalyticsSummary(data);
+  assert.equal(s.operational.event_capacity, null);
+});
+
+test('EVENT-8 · available_to_sell suma solo tipos ACTIVOS (total-sold-reserved), nunca capacity-sold', () => {
+  const data = {
+    event: baseEvent({ capacity: 100 }), // aforo con margen sin asignar a ningún tipo — no debe filtrarse a available_to_sell
+    ticketTypes: [
+      { id: 'tt1', name: 'General', status: 'active', quantity_total: 10, quantity_sold: 6, quantity_reserved: 1 },
+      { id: 'tt2', name: 'VIP', status: 'active', quantity_total: 5, quantity_sold: 5, quantity_reserved: 0 },
+    ],
+    orders: [], orderItems: [], tickets: [], checkins: [], staff: [],
+  };
+  const s = computeEventAnalyticsSummary(data);
+  // General: 10-6-1=3 disponibles; VIP: 5-5-0=0 disponibles. Total: 3.
+  // NUNCA 100-11=89 (eso ignoraría el aforo sin asignar a ningún tipo).
+  assert.equal(s.operational.available_to_sell, 3);
+});
+
+test('EVENT-8 · available_to_sell excluye tipos ocultos — no son vendibles aunque tengan cupo libre', () => {
+  const data = {
+    event: baseEvent({ capacity: null }),
+    ticketTypes: [
+      { id: 'tt1', name: 'General', status: 'active', quantity_total: 10, quantity_sold: 10, quantity_reserved: 0 },
+      { id: 'tt2', name: 'Backstage', status: 'hidden', quantity_total: 50, quantity_sold: 0, quantity_reserved: 0 },
+    ],
+    orders: [], orderItems: [], tickets: [], checkins: [], staff: [],
+  };
+  const s = computeEventAnalyticsSummary(data);
+  assert.equal(s.operational.available_to_sell, 0, 'General agotado; Backstage oculto no cuenta como vendible');
+});
+
+test('EVENT-8 · available_to_sell nunca queda negativo cuando sold+reserved excede total por algún dato transitorio', () => {
+  const data = {
+    event: baseEvent(),
+    ticketTypes: [{ id: 'tt1', name: 'General', status: 'active', quantity_total: 5, quantity_sold: 5, quantity_reserved: 1 }],
+    orders: [], orderItems: [], tickets: [], checkins: [], staff: [],
+  };
+  const s = computeEventAnalyticsSummary(data);
+  assert.equal(s.operational.available_to_sell, 0);
+});
+
+test('EVENT-8 · by_ticket_type incluye "available" por tipo, calculado igual que el agregado', () => {
+  const data = {
+    event: baseEvent(),
+    ticketTypes: [
+      { id: 'tt1', name: 'General', status: 'active', quantity_total: 10, quantity_sold: 4, quantity_reserved: 2 },
+    ],
+    orders: [], orderItems: [], tickets: [], checkins: [], staff: [],
+  };
+  const s = computeEventAnalyticsSummary(data);
+  assert.equal(s.analytics.by_ticket_type[0].available, 4);
+  assert.equal(s.analytics.by_ticket_type[0].status, 'active');
+});

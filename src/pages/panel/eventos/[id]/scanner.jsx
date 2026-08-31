@@ -68,6 +68,12 @@ export default function EventScanner() {
 
   const [phase, setPhase] = useState('loading'); // loading | unauthorized | ready | camera-error
   const [eventInfo, setEventInfo] = useState(null);
+  // EVENT-8: contador de asistencia en vivo — nunca incrementado
+  // localmente por la UI, solo reflejado desde lo que devuelve el
+  // servidor (ping inicial + cada respuesta de /check-in). El servidor
+  // deriva SIEMPRE de event_tickets.used_at (fetchAttendance en
+  // check-in.js) — nunca una segunda fuente de verdad en el cliente.
+  const [attendance, setAttendance] = useState(null); // { checked_in, event_capacity } | null
   const [scanning, setScanning] = useState(false);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null); // { kind: 'pass'|'reject', title, detail }
@@ -111,6 +117,7 @@ export default function EventScanner() {
         const body = await res.json();
         if (!res.ok || !body.ok) { setPhase('unauthorized'); return; }
         setEventInfo(body.event);
+        if (body.attendance) setAttendance(body.attendance);
         setPhase(body.authorized ? 'ready' : 'unauthorized');
       } catch {
         setPhase('unauthorized');
@@ -150,6 +157,7 @@ export default function EventScanner() {
       setResult({ kind: 'reject', title: 'NO PASA', detail: REJECT_LABEL.network });
       return;
     }
+    if (outcome.result?.body?.attendance) setAttendance(outcome.result.body.attendance);
     setResult(resultFromResponse(outcome.result));
   }, [stopDecodeLoop]);
 
@@ -258,6 +266,11 @@ export default function EventScanner() {
           <Link href={`/panel/eventos/${id}`} style={{ color: '#1e3a8a', fontWeight: 600, fontSize: 13.5, textDecoration: 'none' }}>← Panel del evento</Link>
         </p>
         <h1 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', textAlign: 'center' }}>{eventInfo?.title}</h1>
+        {attendance && (
+          <p style={{ textAlign: 'center', fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 8px' }}>
+            Ingresaron: {attendance.checked_in}{attendance.event_capacity != null ? ` / ${attendance.event_capacity}` : ''}
+          </p>
+        )}
         {eventInfo?.status === 'cancelled' && (
           <p style={{ textAlign: 'center', color: '#b91c1c', fontWeight: 700, fontSize: 13.5, margin: '0 0 10px' }}>Evento cancelado — el check-in siempre será rechazado.</p>
         )}

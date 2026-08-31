@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
+import { parseCapacityInput } from '@/lib/eventCapacity';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -83,6 +84,14 @@ export default async function handler(req, res) {
       const address = body.address ? String(body.address).trim() : null;
       const termsText = body.terms_text ? String(body.terms_text).trim() : null;
 
+      // EVENT-8: aforo opcional. null = "sin aforo definido" (nunca un
+      // valor inventado) — ver cabecera de la migración de este campo.
+      const capacityInput = parseCapacityInput(body.capacity);
+      if (capacityInput.provided && !capacityInput.ok) {
+        return res.status(400).json({ ok: false, error: capacityInput.error });
+      }
+      const capacity = capacityInput.provided ? capacityInput.value : null;
+
       const { data: created, error: insErr } = await supabase
         .from('events')
         .insert({
@@ -97,6 +106,7 @@ export default async function handler(req, res) {
           venue_name: venueName,
           address,
           terms_text: termsText,
+          capacity,
           status: 'draft',
         })
         .select('*')

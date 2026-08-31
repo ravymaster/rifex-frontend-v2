@@ -32,6 +32,23 @@ async function getRequester(req) {
   return ures.user;
 }
 
+// EVENT-8: contador de asistencia en vivo — SIEMPRE deriva de
+// event_tickets.used_at (la misma autoridad de consumo que escribe
+// check_in_event_ticket, la misma que ya usa orders-summary.js/
+// eventAnalytics.js para "Ingresaron"). Nunca un contador mutable en
+// event_staff/events — nunca una segunda fuente de verdad. Reutiliza el
+// índice parcial event_tickets_used_at_idx creado en EVENT-4 justo para
+// este conteo.
+async function fetchAttendance(eventId) {
+  const [{ count: checkedIn, error: ciErr }, { data: ev, error: evErr }] = await Promise.all([
+    supabase.from('event_tickets').select('id', { count: 'exact', head: true }).eq('event_id', eventId).not('used_at', 'is', null),
+    supabase.from('events').select('capacity').eq('id', eventId).maybeSingle(),
+  ]);
+  if (ciErr) throw ciErr;
+  if (evErr) throw evErr;
+  return { checked_in: checkedIn || 0, event_capacity: ev?.capacity ?? null };
+}
+
 // Mapa de los códigos de error de la RPC a HTTP status — la RPC decide
 // QUÉ pasó, esta función solo lo traduce a un status HTTP razonable.
 const ERROR_STATUS = {
@@ -68,10 +85,12 @@ export default async function handler(req, res) {
       if (!event) return res.status(404).json({ ok: false, error: 'not_found' });
 
       const authorized = await canCheckIn(supabase, eventId, user.id);
+      const attendance = authorized ? await fetchAttendance(eventId) : null;
       return res.status(200).json({
         ok: true,
         authorized,
         event: { id: event.id, title: event.title, status: event.status },
+        attendance,
       });
     }
 
@@ -114,11 +133,20 @@ export default async function handler(req, res) {
       });
       if (rpcErr) throw rpcErr;
 
+      // EVENT-8: se adjunta el contador de asistencia vigente a CUALQUIER
+      // resultado (pass, already_used, void, cross-event, etc.) — un
+      // refetch liviano tras cada intento de escaneo, nunca un contador
+      // local del cliente como autoridad (ver cabecera del archivo y
+      // fetchAttendance arriba). Solo un intento fallido antes de la
+      // resolución del ticket (missing_actor/invalid_token/etc.) no
+      // altera el conteo real, pero igual se informa el valor vigente.
+      const attendance = await fetchAttendance(eventId);
+
       if (!rpcResult?.ok) {
         const status = ERROR_STATUS[rpcResult?.error] || 400;
-        return res.status(status).json(rpcResult);
+        return res.status(status).json({ ...rpcResult, attendance });
       }
-      return res.status(200).json(rpcResult);
+      return res.status(200).json({ ...rpcResult, attendance });
     }
 
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });

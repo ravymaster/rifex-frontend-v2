@@ -6,6 +6,7 @@
 // explícitas futuras — EVENT-1 permite cancelar aquí, ver más abajo).
 import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
+import { parseCapacityInput } from '@/lib/eventCapacity';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -102,6 +103,17 @@ export default async function handler(req, res) {
       if (body.terms_text !== undefined) patch.terms_text = body.terms_text ? String(body.terms_text).trim() : null;
       if (body.timezone !== undefined) patch.timezone = String(body.timezone || 'America/Santiago');
 
+      // EVENT-8: aforo — editable en cualquier momento, pero nunca por
+      // debajo de lo ya comprometido (vendido/reservado/configurado
+      // activo). El trigger events_capacity_change_trg es la autoridad
+      // real; acá solo se valida forma (entero positivo o null para
+      // "sin aforo definido").
+      const capacityInput = parseCapacityInput(body.capacity);
+      if (capacityInput.provided) {
+        if (!capacityInput.ok) return res.status(400).json({ ok: false, error: capacityInput.error });
+        patch.capacity = capacityInput.value;
+      }
+
       let nextStartsAt = event.starts_at;
       let nextEndsAt = event.ends_at;
       if (body.starts_at !== undefined) {
@@ -149,7 +161,16 @@ export default async function handler(req, res) {
         .eq('id', id)
         .select('*')
         .single();
-      if (updErr) throw updErr;
+      if (updErr) {
+        // EVENT-8: events_capacity_change_trg — reducir capacity por
+        // debajo de lo ya comprometido (vendido/reservado/configurado
+        // activo) se traduce a 409 legible, mismo criterio que el 23503
+        // de ticket-types/[typeId].js.
+        if (updErr.code === 'P0001' || /event_capacity_exceeded/.test(updErr.message || '')) {
+          return res.status(409).json({ ok: false, error: 'event_capacity_exceeded' });
+        }
+        throw updErr;
+      }
 
       if (patch.status === 'cancelled') {
         const { data: paidOrders, error: poErr } = await supabase
