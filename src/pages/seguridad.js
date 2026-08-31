@@ -4,13 +4,11 @@
 // "Anti-Trust", "biometría verificada", "100% seguro", "sin fraude" ni
 // afirmaciones legales absolutas, y nunca detalla nada que facilite
 // evadir los controles descritos.
-import Head from "next/head";
 import Layout from "@/components/Layout";
 
 export default function Seguridad() {
   return (
     <>
-      <Head><title>Seguridad y confianza en Rifex</title></Head>
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
         <h1 style={{ marginBottom: 8 }}>Seguridad y confianza en Rifex</h1>
         <p style={{ color: "#6B7280" }}>
@@ -53,12 +51,21 @@ export default function Seguridad() {
         </section>
 
         <section>
-          <h2>Cuenta receptora conectada y verificación de titularidad</h2>
+          <h2>Verificación del organizador y la cuenta receptora</h2>
           <p>
             Todo creador debe conectar la cuenta de Mercado Pago donde recibirá el dinero de sus iniciativas — los
-            pagos van directo a esa cuenta, Rifex nunca los intermedia. Cuando la información entregada por Mercado
-            Pago lo permite, Rifex verifica la consistencia entre los datos del creador y la titularidad de la
-            cuenta receptora mediante su proveedor de pagos, antes de dejarlo operar sin restricciones.
+            pagos van directo a esa cuenta, Rifex nunca los intermedia. Para proteger a quienes compran entradas o
+            realizan aportes, Rifex contrasta el RUT registrado por el organizador con la información de titularidad
+            disponible en la cuenta de pago conectada.
+          </p>
+          <p>
+            <strong>Si los datos no coinciden o requieren comprobaciones adicionales, la cuenta queda pendiente de
+            revisión y no queda habilitada automáticamente para operar.</strong> Este mecanismo permite aprovechar
+            los controles de identidad y seguridad del proveedor de pagos, evitando que Rifex solicite nuevamente
+            fotografías del carnet o implemente su propio proceso de biometría facial.
+          </p>
+          <p>
+            Los datos utilizados para esta comprobación son privados y no se muestran a otros usuarios.
           </p>
         </section>
 
@@ -100,7 +107,7 @@ export default function Seguridad() {
           <p>
             Tus datos privados (RUT, teléfono, domicilio, documentos) nunca se muestran públicamente ni se entregan
             automáticamente a otros usuarios. Se usan únicamente para operar la plataforma, prevenir fraude y
-            cumplir obligaciones legales. Más detalle en nuestra <a href="/terminos#privacidad">Política de Privacidad</a>.
+            cumplir obligaciones legales. Más detalle en nuestra <a href="/privacidad">Política de Privacidad</a>.
           </p>
         </section>
 
@@ -121,4 +128,12 @@ export default function Seguridad() {
   );
 }
 
-Seguridad.getLayout = (page) => <Layout>{page}</Layout>;
+Seguridad.getLayout = (page) => (
+  <Layout
+    title="Seguridad y verificación de organizadores — Rifex"
+    description="Rifex contrasta la identidad del organizador con la titularidad de su cuenta de pago. Las inconsistencias quedan pendientes de revisión antes de operar."
+    canonicalPath="/seguridad"
+  >
+    {page}
+  </Layout>
+);

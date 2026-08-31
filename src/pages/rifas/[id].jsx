@@ -6,6 +6,9 @@ import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
 import { getIconByNumber } from "../../hooks/useIconsMap";
 import Layout from "../../components/Layout";
+import TrustBadge from "../../components/TrustBadge";
+import TrustPopup from "../../components/TrustPopup";
+import { canonicalUrl, DEFAULT_OG_IMAGE } from "../../lib/publicMetadata";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
@@ -207,6 +210,7 @@ export default function RifaDetalle() {
       end_date: r.termino ?? r.end_date ?? null,
       start_date: r.inicio ?? r.start_date ?? null,
       creator_id: r.creador_id ?? r.creator_id ?? null,
+      creator_trust_level: r.creator_trust_level ?? null,
       created_at: r.created_at,
     };
   }
@@ -482,7 +486,32 @@ export default function RifaDetalle() {
 
   return (
     <div className={styles.page} style={pageIsolated}>
-      <Head><title>{`${titleCap || "Rifa"} — Rifex`}</title></Head>
+      <Head>
+        <title key="title">{`${titleCap || "Rifa"} — Información y condiciones | Rifex`}</title>
+        <meta
+          key="description"
+          name="description"
+          content="Consulta organizador, finalidad, premio, fecha, condiciones y estado de confianza de esta iniciativa en Rifex."
+        />
+        {/* RIFEX V4 A6 — landing individual con premio: fuera de catálogo/sitemap,
+            noindex pero follow (así Facebook/WhatsApp/X pueden seguir generando
+            la vista previa aunque no se indexe en buscadores), canonical propia.
+            key="robots" pisa el <meta robots> que Layout agregaría solo si se le
+            pasara noindex — acá se define directamente el valor exacto de V4. */}
+        <meta key="robots" name="robots" content="noindex, follow, noarchive" />
+        <link key="canonical" rel="canonical" href={canonicalUrl(`/rifas/${id || ""}`)} />
+        <meta key="og:title" property="og:title" content={`${titleCap || "Rifa"} — Información de la iniciativa`} />
+        <meta
+          key="og:description"
+          property="og:description"
+          content="Consulta organizador, finalidad, fecha, condiciones y estado de confianza en Rifex."
+        />
+        <meta key="og:url" property="og:url" content={canonicalUrl(`/rifas/${id || ""}`)} />
+        <meta key="og:type" property="og:type" content="website" />
+        <meta key="og:image" property="og:image" content={DEFAULT_OG_IMAGE} />
+        <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+      </Head>
+      <TrustPopup trustLevel={raffle?.creator_trust_level ?? null} />
 
       {/* Overlay spinner durante la redirección a MP */}
       {redirecting && (
@@ -614,6 +643,8 @@ export default function RifaDetalle() {
             ))}
           </div>
         )}
+
+        <TrustBadge level={raffle?.creator_trust_level ?? null} />
 
         <div className={styles.linksRow}>
           {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
