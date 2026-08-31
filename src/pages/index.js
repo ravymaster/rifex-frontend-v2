@@ -1,124 +1,200 @@
 // src/pages/index.js
-import Head from 'next/head';
-import styles from '@/styles/index.module.css';
+// PUBLIC HOME V1 — identidad pública: Eventos / Entradas digitales /
+// Campañas de recaudación. Nunca promociona Rifas acá (Rifas sigue
+// intacto dentro del área autenticada — ver Layout.jsx accountItems y
+// /mis-iniciativas).
+//
+// AJUSTE VISUAL (photo hero): el visual del hero es ahora
+// public/images/hero/rifex-hero-events.png — una fotografía real que ya
+// incluye visualmente las tres métricas de ejemplo (Entradas vendidas,
+// Ingresos totales, Entrada validada) y el fondo navy de concierto. Por
+// eso este archivo NUNCA debe volver a agregar cards HTML duplicadas ni
+// una ilustración SVG propia encima: la foto ES el visual completo, no
+// solo un fondo decorativo.
+import Image from 'next/image';
 import Layout from '@/components/Layout';
+import styles from '@/styles/index.module.css';
+import heroPhoto from '../../public/images/hero/rifex-hero-events.png';
 
-export default function Home() {
+const TRUST_ITEMS = [
+  { icon: '🪪', label: 'Titularidad contrastada' },
+  { icon: '💳', label: 'Pagos mediante proveedor conectado' },
+  { icon: '🎫', label: 'Tickets digitales con QR' },
+  { icon: '🚪', label: 'Control de acceso' },
+  { icon: '📊', label: 'Soporte y reportes' },
+];
+
+// Iconos propios en SVG inline (sin librería nueva) — line-icons livianos,
+// stroke="currentColor" para heredar el accent de cada card vía CSS.
+const ICON_PROPS = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round', strokeLinejoin: 'round' };
+
+function TicketIcon() {
   return (
-    <>
-      <Head>
-        <title>Rifex — Inicio</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
-
-      {/* HERO */}
-      <section className={styles.heroDark}>
-        <span className={styles.dot1} aria-hidden="true">07</span>
-        <span className={styles.dot2} aria-hidden="true">24</span>
-
-        <div className="container">
-          <div className={styles.heroDarkInner}>
-            <span className={styles.badgeDark}><span>📡</span> Rifas y campañas de recaudación</span>
-            <h1 className={styles.heroTitleDark}>
-              Crea. Comparte. <span>Recauda.</span>
-            </h1>
-            <p className={styles.heroSubDark}>
-              Organiza rifas o campañas de recaudación y cobra con Mercado Pago, sin planillas ni complicaciones.
-            </p>
-
-            <div className={styles.ctaRowDark}>
-              <a href="/crear-rifa" className={`btn ${styles.ctaPrimaryDark}`}>Crear rifa</a>
-              <a href="/crear-colecta" className={`btn ${styles.ctaPrimaryDark}`}>Crear campaña</a>
-            </div>
-          </div>
-
-          <p className={styles.showcaseLabel}>Así se ve una rifa en Rifex</p>
-          <div className={styles.showcase}>
-            <div className={styles.showcaseCard}>
-              <div className={styles.showcaseIcon} style={{ background: '#FAEEDA' }}>✈️</div>
-              <p className={styles.showcaseTitle}>Viaje a Cancún</p>
-              <p className={styles.showcasePrice}>$5.000 el número</p>
-              <div className={styles.showcaseBar}><div className={styles.showcaseBarFill} style={{ width: '68%', background: 'var(--turquesa)' }} /></div>
-            </div>
-            <div className={styles.showcaseCard}>
-              <div className={styles.showcaseIcon} style={{ background: '#E1F5EE' }}>📱</div>
-              <p className={styles.showcaseTitle}>iPhone 15 Pro</p>
-              <p className={styles.showcasePrice}>$3.000 el número</p>
-              <div className={styles.showcaseBar}><div className={styles.showcaseBarFill} style={{ width: '91%', background: 'var(--trebol)' }} /></div>
-            </div>
-            <div className={styles.showcaseCard}>
-              <div className={styles.showcaseIcon} style={{ background: '#FAECE7' }}>🚗</div>
-              <p className={styles.showcaseTitle}>Auto 0km</p>
-              <p className={styles.showcasePrice}>$10.000 el número</p>
-              <div className={styles.showcaseBar}><div className={styles.showcaseBarFill} style={{ width: '45%', background: 'var(--ultramar)' }} /></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* PRODUCTOS */}
-      <section className={styles.products}>
-        <div className="container">
-          <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>Dos formas de recaudar con Rifex</h2>
-            <p className={styles.sectionSub}>Elige la que mejor se adapte a lo que necesitas.</p>
-          </div>
-          <div className={styles.productsGrid}>
-            <article className={styles.productCard}>
-              <div className={styles.productIcon}>🎟️</div>
-              <h3 className={styles.productTitle}>Rifas</h3>
-              <p className={styles.productText}>Crea una rifa, comparte tus números y administra todo desde Rifex.</p>
-              <div className={styles.productCtas}>
-                <a href="/crear-rifa" className={`btn btn-primary ${styles.productCtaPrimary}`}>Crear rifa</a>
-              </div>
-            </article>
-
-            <article className={styles.productCard}>
-              <div className={styles.productIcon}>🤝</div>
-              <h3 className={styles.productTitle}>Campañas de recaudación</h3>
-              <p className={styles.productText}>Crea una campaña, comparte tu historia y recibe aportes directamente en tu Mercado Pago.</p>
-              <div className={styles.productCtas}>
-                <a href="/crear-colecta" className={`btn btn-primary ${styles.productCtaPrimary}`}>Crear campaña</a>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section className={styles.features}>
-        <div className="container">
-          <div className={styles.sectionHead}>
-            <h2 className={styles.sectionTitle}>Todo lo que necesitas, en un solo lugar</h2>
-            <p className={styles.sectionSub}>Desde crear tu rifa hasta cobrar el último número.</p>
-          </div>
-          <div className={styles.featuresGrid}>
-            <div className={styles.featureCard}>
-              <div className={styles.featureIcon}>⚡</div>
-              <h3 className={styles.featureTitle}>Publica en minutos</h3>
-              <p className={styles.featureText}>Formulario simple: título, precio, cupos y listo.</p>
-            </div>
-
-            <div className={styles.featureCard}>
-              <div className={styles.featureIcon}>🔗</div>
-              <h3 className={styles.featureTitle}>Comparte el enlace</h3>
-              <p className={styles.featureText}>Comparte por WhatsApp, Instagram o donde quieras.</p>
-            </div>
-
-            <div className={styles.featureCard}>
-              <div className={styles.featureIcon}>💳</div>
-              <h3 className={styles.featureTitle}>Cobra online</h3>
-              <p className={styles.featureText}>Pagos seguros y registro automático de participantes.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </>
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V8Z" />
+      <path d="M13 6v2M13 11v2M13 16v2" />
+    </svg>
+  );
+}
+function DeviceCheckIcon() {
+  return (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <rect x="5" y="3" width="14" height="18" rx="2.5" />
+      <path d="M9 12l2.2 2.2L15.5 9.5" />
+    </svg>
+  );
+}
+function HeartIcon() {
+  return (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <path d="M12 19.2s-7-4.6-7-9.7a4.3 4.3 0 0 1 7-3.3 4.3 4.3 0 0 1 7 3.3c0 5.1-7 9.7-7 9.7Z" />
+    </svg>
+  );
+}
+function BarsIcon() {
+  return (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <path d="M4 21V11" />
+      <path d="M10.5 21V6" />
+      <path d="M17 21v-8" />
+      <path d="M3 21h18" />
+    </svg>
   );
 }
 
-/* Mantener layout SOLO en Home.
-   Si la quieres sin layout, borra la función completa. */
+const CAPABILITIES = [
+  {
+    key: 'entradas',
+    icon: <TicketIcon />,
+    title: 'Entradas digitales',
+    text: 'Vende entradas y genera códigos QR.',
+    detail: 'Venta + QR',
+    accent: '#23B6C6',
+    accentSoft: 'rgba(35, 182, 198, 0.16)',
+    accentBorder: 'rgba(35, 182, 198, 0.4)',
+  },
+  {
+    key: 'acceso',
+    icon: <DeviceCheckIcon />,
+    title: 'Control de acceso',
+    text: 'Valida entradas desde el celular.',
+    detail: 'Validación móvil',
+    accent: '#7c6fe8',
+    accentSoft: 'rgba(124, 111, 232, 0.16)',
+    accentBorder: 'rgba(124, 111, 232, 0.4)',
+  },
+  {
+    key: 'campanas',
+    icon: <HeartIcon />,
+    title: 'Campañas de recaudación',
+    text: 'Recibe aportes mediante tu proveedor conectado.',
+    detail: 'Aportes',
+    accent: '#18A957',
+    accentSoft: 'rgba(24, 169, 87, 0.16)',
+    accentBorder: 'rgba(24, 169, 87, 0.4)',
+  },
+  {
+    key: 'reportes',
+    icon: <BarsIcon />,
+    title: 'Reportes',
+    text: 'Consulta ventas, entradas y actividad de tus iniciativas.',
+    detail: 'Actividad',
+    accent: '#4f8ef7',
+    accentSoft: 'rgba(79, 142, 247, 0.16)',
+    accentBorder: 'rgba(79, 142, 247, 0.4)',
+  },
+];
+
+export default function Home() {
+  return (
+    <div className={styles.page}>
+      {/* HERO */}
+      <section className={styles.hero}>
+        <div className="container">
+          <div className={styles.heroContent}>
+            <span className={styles.eyebrow}>
+              <span>●</span> Eventos · Entradas digitales · Campañas de recaudación
+            </span>
+            <h1 className={styles.heroTitle}>
+              Crea eventos.<br />
+              Vende entradas.<br />
+              <span className={styles.heroTitleAccent}>Impulsa causas.</span>
+            </h1>
+            <p className={styles.heroSub}>
+              Organiza eventos, controla el acceso y recauda fondos con herramientas simples y seguras.
+            </p>
+            <div className={styles.heroCtas}>
+              <a href="/crear-evento" className={styles.ctaPrimary}>Crear un evento</a>
+              <a href="/crear-colecta" className={styles.ctaSecondary}>Crear una campaña</a>
+            </div>
+          </div>
+
+          {/* Foto real (public/images/hero/rifex-hero-events.png). Ya
+              incluye visualmente las métricas de ejemplo — nunca
+              duplicarlas como cards HTML acá. En mobile queda en flujo
+              normal, después de las CTAs; en desktop (min-width:1024px)
+              pasa a position:absolute para fusionarse con el fondo navy
+              del Hero (ver .heroPhotoWrap). */}
+          <div className={styles.heroPhotoWrap} aria-hidden="true">
+            <Image
+              src={heroPhoto}
+              alt=""
+              fill
+              priority
+              sizes="(min-width: 1024px) 68vw, 100vw"
+              className={styles.heroPhotoImg}
+            />
+          </div>
+
+          {/* TRUST STRIP */}
+          <div className={styles.trust}>
+            <div className={styles.trustGrid}>
+              {TRUST_ITEMS.map((it) => (
+                <div key={it.label} className={styles.trustItem}>
+                  <span className={styles.trustIcon} aria-hidden="true">{it.icon}</span>
+                  <p className={styles.trustLabel}>{it.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CAPACIDADES */}
+      <section className={styles.capabilities}>
+        <div className="container">
+          <div className={styles.sectionHead}>
+            <span className={styles.capEyebrow}>Herramientas para tu iniciativa</span>
+            <h2 className={styles.sectionTitle}>Todo lo que necesitas para gestionar tu iniciativa</h2>
+            <p className={styles.sectionSub}>Desde vender la primera entrada hasta revisar el último reporte.</p>
+          </div>
+          <div className={styles.capGrid}>
+            {CAPABILITIES.map((c) => (
+              <div
+                key={c.key}
+                className={styles.capCard}
+                style={{ '--accent': c.accent, '--accentSoft': c.accentSoft, '--accentBorder': c.accentBorder }}
+              >
+                <div className={styles.capIconBox}>{c.icon}</div>
+                <h3 className={styles.capTitle}>{c.title}</h3>
+                <p className={styles.capText}>{c.text}</p>
+                {c.detail && <span className={styles.capDetail}>{c.detail}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 Home.getLayout = function getLayout(page) {
-  return <Layout>{page}</Layout>;
+  return (
+    <Layout
+      title="Rifex — Eventos, entradas y recaudación en línea"
+      description="Crea eventos, vende entradas digitales y administra campañas de recaudación desde una sola plataforma."
+    >
+      {page}
+    </Layout>
+  );
 };

@@ -7,7 +7,7 @@ import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
 export default function Layout({
   title = 'Rifex',
-  description = 'Crea rifas en minutos, comparte el enlace y cobra online.',
+  description = 'Crea eventos, vende entradas digitales y administra campañas de recaudación desde una sola plataforma.',
   children,
 }) {
   const router = useRouter();
@@ -17,16 +17,16 @@ export default function Layout({
   const [user, setUser] = useState(null);
   const userMenuRef = useRef(null);
 
-  // Nav principal: solo páginas de cara al público. Todo lo de cuenta va al menú de usuario.
-  // UX/CRO-1: "Rifas" queda temporalmente fuera del nav (sigue existiendo y
-  // accesible por URL directa, y desde el footer/CTAs) a favor de la guía
-  // pública /wizard.
+  // PUBLIC HOME V1: nav público reescrito alrededor de la identidad
+  // Eventos/Entradas/Campañas — "Crear rifa" queda fuera del nav público
+  // por instrucción explícita (Rifas sigue intacto dentro del área
+  // autenticada: /panel, /mis-iniciativas, y accesible por URL directa).
   const navItems = [
-    { label: 'Inicio',         href: '/' },
+    { label: 'Eventos',        href: '/eventos' },
+    { label: 'Campañas',       href: '/crear-colecta' },
     { label: 'Cómo funciona',  href: '/wizard' },
-    { label: 'Crear rifa',     href: '/crear-rifa' },
-    { label: 'Planes',         href: '/planes' },
-    { label: 'Blog',           href: '/blog' },
+    { label: 'Precios',        href: '/planes' },
+    { label: 'Seguridad',      href: '/seguridad' },
   ];
 
   // EVENT-1 (Fase 12): "Panel" pasa a ser "Mis iniciativas" — el
@@ -146,8 +146,8 @@ export default function Layout({
               </div>
             ) : (
               <div className="rf-auth-actions rf-nav-desktop-only">
-                <Link href="/login" className="rf-btn-ghost">Ingresar</Link>
-                <Link href="/register" className="rf-btn-primary">Crear cuenta</Link>
+                <Link href="/login" className="rf-btn-ghost">Iniciar sesión</Link>
+                <Link href="/mis-iniciativas" className="rf-btn-primary">Crear una iniciativa</Link>
               </div>
             )}
 
@@ -196,8 +196,8 @@ export default function Layout({
               </>
             ) : (
               <>
-                <Link href="/login" className="rf-mobile-link">Ingresar</Link>
-                <Link href="/register" className="rf-mobile-link">Crear cuenta</Link>
+                <Link href="/login" className="rf-mobile-link">Iniciar sesión</Link>
+                <Link href="/mis-iniciativas" className="rf-mobile-link">Crear una iniciativa</Link>
               </>
             )}
           </nav>
@@ -213,13 +213,14 @@ export default function Layout({
               <img src="/rifex-logo.png" alt="" width={22} height={22} />
               <span>Rifex</span>
             </div>
-            <p>La forma más simple de organizar y participar en rifas online.</p>
+            <p>La forma más simple de crear eventos, vender entradas y recaudar fondos.</p>
           </div>
           <div className="rf-foot__cols">
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Producto</span>
-              <Link href="/crear-rifa">Crear rifa</Link>
-              <Link href="/planes">Planes</Link>
+              <Link href="/crear-evento">Crear evento</Link>
+              <Link href="/crear-colecta">Crear campaña</Link>
+              <Link href="/planes">Precios</Link>
             </div>
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Soporte</span>
