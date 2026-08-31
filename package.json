@@ -11,7 +11,12 @@
     "test:trust-onboarding": "node --test tests/trustOnboardingPolicy.test.mjs tests/trustOnboardingGate.test.mjs",
     "test:trust-identity": "node --test tests/trustIdentityPolicy.test.mjs tests/trustIdentityGate.test.mjs",
     "test:trust-identity-verification": "node --test tests/trustIdentityVerificationPolicy.test.mjs tests/trustIdentityDocumentProcessing.test.mjs tests/trustIdentityVerificationGate.test.mjs",
-    "test:mp-identity-match": "node --test tests/mpIdentityMatchPolicy.test.mjs tests/mpIdentityMatchGate.test.mjs"
+    "test:mp-identity-match": "node --test tests/mpIdentityMatchPolicy.test.mjs tests/mpIdentityMatchGate.test.mjs",
+    "test:onboarding-bancos-mp": "node --test tests/sanitizeNextPath.test.mjs tests/mpRevalidate.test.mjs tests/onboardingBancosUx.test.mjs",
+    "test:cumplimiento-1": "node --test tests/fulfillmentEvaluation.test.mjs tests/fulfillmentCaseService.test.mjs",
+    "test:cumplimiento-2": "node --test tests/drawFulfillmentIntegration.test.mjs",
+    "test:cumplimiento-3": "node --test tests/fulfillmentCommunications.test.mjs",
+    "test:cumplimiento-4": "node --test tests/fulfillmentTimeline.test.mjs"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",
