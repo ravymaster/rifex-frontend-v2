@@ -1,12 +1,10 @@
 // src/pages/cumplimiento.js
-// RIFEX CLOSURE PASS (2026-08-29) — página pública informativa de "Rifex
-// Cumplimiento". Es ROADMAP: describe cómo funcionará la capa post-rifa
-// que ayudará a verificar que un premio se entregó bajo las condiciones
-// informadas. NO hay motor automático implementado — ni scheduler, ni
-// emails reales, ni estados en DB para esto. Nunca afirmar que algo de
-// esto ya está activo; nunca prometer arbitraje legal ni garantía
-// material de entrega.
-import Head from "next/head";
+// RIFEX V4 A5/Cumplimiento — actualizado tras la promoción real de C1
+// (foundation), C3 (comunicaciones/acceso del ganador), C4 (timeline y
+// escalación) y C5 (revisión administrativa) a PROD. Describe únicamente
+// controles REALMENTE activos — nunca C6 (reputación pública), nunca
+// arbitraje legal, nunca garantía material de entrega; el silencio del
+// creador o del ganador nunca se interpreta como incumplimiento.
 import Layout from "@/components/Layout";
 
 const badgeStyle = {
@@ -59,14 +57,14 @@ const stateChip = {
 export default function Cumplimiento() {
   return (
     <>
-      <Head><title>Rifex Cumplimiento — Próximamente</title></Head>
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
-        <div style={badgeStyle}>🔧 Funcionalidad en preparación — Próximamente</div>
+        <div style={badgeStyle}>✅ Controles activos</div>
         <h1 style={{ margin: "12px 0 8px" }}>Rifex Cumplimiento</h1>
         <p style={{ color: "#6B7280" }}>
-          Esta página describe cómo funcionará la capa de seguimiento posterior a una rifa. <strong>Nada de lo
-          descrito aquí está activo todavía</strong> — es el roadmap del producto, no una funcionalidad en
-          operación. Lo iremos activando por partes y actualizaremos esta página cuando eso ocurra.
+          Esta página describe la capa de seguimiento posterior a una rifa que ya está activa: registro del caso,
+          comunicaciones al ganador y al creador, un control por plazos y, cuando corresponde, revisión
+          administrativa. La sección "Reputación futura" al final sigue siendo, explícitamente, una función no
+          implementada — se distingue del resto de esta página.
         </p>
 
         <hr style={{ margin: "20px 0" }} />
@@ -90,7 +88,7 @@ export default function Cumplimiento() {
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Flujo post-rifa (roadmap)</h2>
+          <h2>Flujo post-rifa</h2>
           <div style={{ maxWidth: 420, margin: "16px auto", display: "grid", gap: 0 }}>
             {[
               "Rifa finaliza",
@@ -114,7 +112,7 @@ export default function Cumplimiento() {
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Correos al finalizar la rifa (roadmap)</h2>
+          <h2>Correos al finalizar la rifa</h2>
           <p style={{ color: "#6B7280", fontSize: 13.5 }}>
             Un solo correo por destinatario en este momento — nunca una secuencia de mensajes para quienes no
             ganaron.
@@ -144,7 +142,7 @@ export default function Cumplimiento() {
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Plazos propuestos (roadmap)</h2>
+          <h2>Plazos del control automático</h2>
           <div style={timelineDay}>
             <div style={dayLabel}>Día 0</div>
             Rifa finalizada y correos de resultado enviados.
@@ -173,7 +171,7 @@ export default function Cumplimiento() {
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Cómo se decidiría el resultado (roadmap)</h2>
+          <h2>Cómo se decide el resultado</h2>
           <p style={{ color: "#6B7280", fontSize: 13.5 }}>
             El silencio nunca se interpreta como incumplimiento, y ninguna de estas reglas otorga
             automáticamente una sanción.
@@ -195,35 +193,35 @@ export default function Cumplimiento() {
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Estados posibles (roadmap)</h2>
+          <h2>Estados posibles</h2>
           <div>
             {["Pendiente de entrega", "Entrega informada", "Cumplimiento confirmado", "Entrega pendiente", "En revisión", "Sin confirmación"].map((s) => (
               <span key={s} style={stateChip}>{s}</span>
             ))}
           </div>
           <p style={{ color: "#6B7280", fontSize: 13, marginTop: 10 }}>
-            Estos estados son conceptuales — todavía no existen como columnas ni valores en ninguna base de
-            datos de Rifex.
+            Estos estados existen hoy en el registro interno del caso — nunca se publican junto con datos
+            personales de creadores ni ganadores.
           </p>
         </section>
 
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Qué evidencia podrá registrar (roadmap)</h2>
-          <p>Cuando este módulo exista, podría registrar información como:</p>
+          <h2>Qué evidencia registra</h2>
+          <p>El registro interno de cada caso incluye:</p>
           <ul>
             <li>Fecha de finalización de la rifa.</li>
             <li>Condiciones del premio vigentes al momento de participar (modalidad de entrega, quién asumía el
               envío, si requería transferencia/trámites y quién los asumía).</li>
             <li>Fecha en que el creador informó la entrega.</li>
             <li>Fecha y respuesta del ganador.</li>
-            <li>Estado final del seguimiento.</li>
+            <li>Estado final del seguimiento y, si corresponde, la revisión administrativa asociada.</li>
           </ul>
           <p style={{ color: "#6B7280", fontSize: 13.5 }}>
-            Nunca se publicaría información personal (PII) de creadores ni ganadores — ni en esta página, ni en
-            ningún historial visible públicamente. Ese almacenamiento tampoco existe todavía; se implementaría
-            junto con el motor real de Rifex Cumplimiento, no antes.
+            Nunca se publica información personal (PII) de creadores ni ganadores — ni en esta página, ni en
+            ningún historial visible públicamente. El registro es interno y solo accesible para revisión
+            administrativa.
           </p>
         </section>
 
@@ -267,7 +265,7 @@ export default function Cumplimiento() {
         </section>
 
         <p style={{ color: "#6B7280", marginTop: 24, fontSize: 13 }}>
-          Última actualización: 29/08/2026. Consulta también nuestros <a href="/terminos">Términos y
+          Última actualización: 31/08/2026. Consulta también nuestros <a href="/terminos">Términos y
           Condiciones</a> y nuestra página de <a href="/seguridad">Seguridad</a>.
         </p>
       </main>
@@ -275,4 +273,12 @@ export default function Cumplimiento() {
   );
 }
 
-Cumplimiento.getLayout = (page) => <Layout>{page}</Layout>;
+Cumplimiento.getLayout = (page) => (
+  <Layout
+    title="Rifex Cumplimiento — Seguimiento post-entrega"
+    description="Seguimiento y escalación de la entrega de premios en iniciativas con premio, con controles hoy activos."
+    canonicalPath="/cumplimiento"
+  >
+    {page}
+  </Layout>
+);

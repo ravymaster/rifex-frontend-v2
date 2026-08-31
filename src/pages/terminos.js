@@ -1,11 +1,9 @@
 // pages/terminos.js
-import Head from "next/head";
 import Layout from "@/components/Layout";
 
 export default function Terminos() {
   return (
     <>
-      <Head><title>Términos y Condiciones — Rifex</title></Head>
       <main style={{maxWidth:900, margin:"0 auto", padding:"24px 16px"}}>
         <h1 style={{marginBottom:8}}>Términos y Condiciones</h1>
         <p style={{color:"#6B7280"}}>Última actualización: 15/08/2026</p>
@@ -16,8 +14,10 @@ export default function Terminos() {
           <a href="#comprador">Comprador</a>{" · "}
           <a href="#creador">Creador</a>{" · "}
           <a href="#rifex">Condiciones de Rifex</a>{" · "}
-          <a href="#privacidad">Privacidad</a>{" · "}
-          <a href="#cookies">Cookies</a>
+          <a href="/privacidad">Privacidad</a>{" · "}
+          <a href="/cookies">Cookies</a>{" · "}
+          <a href="/uso-aceptable">Uso aceptable</a>{" · "}
+          <a href="/reglas-iniciativas-premio">Anexo iniciativas con premio</a>
         </nav>
 
         <section id="comprador">
@@ -27,7 +27,7 @@ export default function Terminos() {
             <li><strong>Requisitos.</strong> Mayor de 18 años; datos veraces; no usar medios de pago ajenos sin autorización.</li>
             <li><strong>Estados de números.</strong> Disponible, Reservado, Vendido. Si hay colisión, prevalece el pago aprobado primero por la pasarela.</li>
             <li><strong>Pagos.</strong> Se procesan con pasarelas (p. ej., Mercado Pago) y aplican sus comisiones/condiciones. Rifex cobra una comisión del 7% sobre cada número vendido, descontada automáticamente por la pasarela al momento del pago.</li>
-            <li><strong>Premio y sorteo.</strong> Definidos por el creador y visibles en la ficha; debe publicar evidencia del sorteo. En “Depósito por Rifex”, Rifex transfiere el premio en dinero en el plazo informado.</li>
+            <li><strong>Premio y sorteo.</strong> Definidos por el creador y visibles en la ficha; debe publicar evidencia del sorteo. Rifex no custodia ni transfiere directamente el dinero del premio — los pagos de los compradores se acreditan directo en la cuenta del creador conectada al proveedor de pagos, descontada la comisión de Rifex.</li>
             <li><strong>Entrega del premio.</strong> Dinero: transferencia. Físico: a convenir / retiro / envío pagado / envío incluido (según rifa).</li>
             <li><strong>Reembolsos y disputas.</strong> Cargo duplicado o error: gestionar con pasarela y notificar a Rifex. Incumplimiento del creador: abre ticket con evidencia; Rifex puede sancionar al creador, sin garantizar reembolso fuera de lo exigido por ley/pasarela.</li>
             <li><strong>Limitaciones.</strong> Participar en rifas implica aleatoriedad. Rifex no garantiza resultados ni cumplimiento de terceros, salvo en rifas marcadas como depósito por Rifex.</li>
@@ -55,7 +55,7 @@ export default function Terminos() {
             <li><strong>Prohibiciones.</strong> Premios ilícitos/restringidos, publicidad engañosa, infracción de marcas/copyright, manipulación del sorteo.</li>
             <li><strong>Auditoría.</strong> Rifex puede solicitar comprobantes; la falta puede implicar suspensión.</li>
             <li><strong>Consecuencias por incumplimiento, suspensión y bloqueo de nuevas iniciativas.</strong> Un incumplimiento verificado puede derivar en suspensión de la cuenta y bloqueo para crear nuevas iniciativas, de forma proporcional a la gravedad y sin perjuicio de otras medidas de este documento. Rifex no califica automáticamente un incumplimiento como delito — eso corresponde exclusivamente a la autoridad competente.</li>
-            <li><strong>Fraude y chargebacks.</strong> Rifex puede pausar, retener fondos, cancelar transacciones y bloquear cuentas.</li>
+            <li><strong>Fraude y chargebacks.</strong> Rifex puede pausar una iniciativa, cancelar transacciones y bloquear cuentas. Rifex no custodia los fondos de las ventas — no puede "retener" dinero que nunca recibe; el proveedor de pagos conectado es quien procesa cargos, contracargos y disputas de pago según sus propias políticas.</li>
             <li><strong>Historial y preservación de evidencia.</strong> Rifex mantiene un historial de las iniciativas y decisiones asociadas a cada cuenta, y preserva la evidencia relevante mientras exista una razón legítima para conservarla (auditoría, disputa, obligación legal).</li>
             <li><strong>Cooperación con autoridades.</strong> Ante una solicitud válida de una autoridad competente, Rifex puede cooperar entregando la información e información que corresponda conforme a la ley.</li>
             <li><strong>Derechos de participantes y ganadores.</strong> Quienes compran un número o resultan ganadores tienen derecho a la información veraz de la iniciativa, al premio anunciado en las condiciones publicadas, y a presentar una denuncia si detectan un incumplimiento.</li>
@@ -115,4 +115,12 @@ export default function Terminos() {
   );
 }
 
-Terminos.getLayout = (page) => <Layout>{page}</Layout>;
+Terminos.getLayout = (page) => (
+  <Layout
+    title="Términos y Condiciones — Rifex"
+    description="Términos y condiciones de uso de Rifex para compradores, aportantes y creadores de eventos, campañas e iniciativas."
+    canonicalPath="/terminos"
+  >
+    {page}
+  </Layout>
+);
