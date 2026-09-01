@@ -296,4 +296,4 @@ export default function ColectaPublica() {
     </>
   );
 }
-ColectaPublica.getLayout = (page) => <Layout>{page}</Layout>;
+ColectaPublica.getLayout = (page) => <Layout disableAutoMeta>{page}</Layout>;

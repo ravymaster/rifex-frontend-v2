@@ -17,10 +17,20 @@ export default function Layout({
   noindex = false,
   ogType = 'website',
   ogImage = DEFAULT_OG_IMAGE,
+  // RIFEX V4 A6 fix — Next 14's next/head keeps the FIRST occurrence of a
+  // keyed tag, not the last, when two <Head> instances in the tree share a
+  // key. Layout's own <Head> always renders before a page's nested <Head>,
+  // so on pages that compute their own dynamic title/canonical/OG (e.g. a
+  // per-item landing where Layout can't know the real id at getLayout time,
+  // since getLayout has no access to render-time props), Layout's generic
+  // defaults were winning over the page's specific ones. disableAutoMeta
+  // skips Layout's own metadata tags entirely so the page's <Head> is the
+  // only source — used by rifas/[id].jsx.
+  disableAutoMeta = false,
   children,
 }) {
   const router = useRouter();
-  const { pathname } = router;
+  const { pathname, asPath } = router;
   const [open, setOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -97,29 +107,41 @@ export default function Layout({
 
   const initial = (user?.email || '?').trim().charAt(0).toUpperCase();
 
+  // canonicalPath gana siempre que se pase explícitamente. Si no, se usa
+  // asPath (no pathname): pathname es el patrón de ruta literal de Next
+  // ("/eventos/[id]"), asPath ya trae el id real resuelto. Se descarta el
+  // query string — un canonical nunca debe variar por parámetros de
+  // tracking o de estado de UI.
   const canonical = canonicalPath
     ? (canonicalPath.startsWith('http') ? canonicalPath : canonicalUrl(canonicalPath))
-    : canonicalUrl(pathname || '/');
+    : canonicalUrl((asPath || pathname || '/').split('?')[0]);
 
   return (
     <>
-      <Head>
-        <title key="title">{title}</title>
-        <meta key="description" name="description" content={description} />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link key="canonical" rel="canonical" href={canonical} />
-        {noindex && <meta key="robots" name="robots" content="noindex, nofollow" />}
-        <meta key="og:title" property="og:title" content={title} />
-        <meta key="og:description" property="og:description" content={description} />
-        <meta key="og:url" property="og:url" content={canonical} />
-        <meta key="og:type" property="og:type" content={ogType} />
-        <meta key="og:image" property="og:image" content={ogImage} />
-        <meta property="og:site_name" content="Rifex" />
-        <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
-        <meta key="twitter:title" name="twitter:title" content={title} />
-        <meta key="twitter:description" name="twitter:description" content={description} />
-        <meta key="twitter:image" name="twitter:image" content={ogImage} />
-      </Head>
+      {!disableAutoMeta && (
+        <Head>
+          <title key="title">{title}</title>
+          <meta key="description" name="description" content={description} />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link key="canonical" rel="canonical" href={canonical} />
+          {noindex && <meta key="robots" name="robots" content="noindex, nofollow" />}
+          <meta key="og:title" property="og:title" content={title} />
+          <meta key="og:description" property="og:description" content={description} />
+          <meta key="og:url" property="og:url" content={canonical} />
+          <meta key="og:type" property="og:type" content={ogType} />
+          <meta key="og:image" property="og:image" content={ogImage} />
+          <meta property="og:site_name" content="Rifex" />
+          <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+          <meta key="twitter:title" name="twitter:title" content={title} />
+          <meta key="twitter:description" name="twitter:description" content={description} />
+          <meta key="twitter:image" name="twitter:image" content={ogImage} />
+        </Head>
+      )}
+      {disableAutoMeta && (
+        <Head>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+        </Head>
+      )}
 
       <header className="rf-header" role="banner">
         <div className="rf-header-inner">

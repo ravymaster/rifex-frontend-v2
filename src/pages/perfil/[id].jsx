@@ -68,4 +68,4 @@ export default function PerfilPublico() {
   );
 }
 
-PerfilPublico.getLayout = (page) => <Layout>{page}</Layout>;
+PerfilPublico.getLayout = (page) => <Layout disableAutoMeta>{page}</Layout>;

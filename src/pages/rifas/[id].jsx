@@ -858,5 +858,5 @@ export default function RifaDetalle() {
   );
 }
 
-RifaDetalle.getLayout = (page) => <Layout>{page}</Layout>;
+RifaDetalle.getLayout = (page) => <Layout disableAutoMeta>{page}</Layout>;
 
