@@ -40,13 +40,14 @@ export default function Layout({
   // Eventos/Entradas/Campañas — "Crear rifa" queda fuera del nav público
   // por instrucción explícita (Rifas sigue intacto dentro del área
   // autenticada: /panel, /mis-iniciativas, y accesible por URL directa).
+  // ETAPA 2 (identidad pública) — navbar reducida a exactamente Eventos /
+  // Campañas / Cómo funciona, más cuenta/login. Precios, Seguridad y Ayuda
+  // siguen existiendo y accesibles (footer, enlaces internos), solo dejan
+  // de tener su propio ítem de primer nivel en la navegación pública.
   const navItems = [
     { label: 'Eventos',        href: '/eventos' },
     { label: 'Campañas',       href: '/crear-colecta' },
     { label: 'Cómo funciona',  href: '/wizard' },
-    { label: 'Precios',        href: '/planes' },
-    { label: 'Seguridad',      href: '/seguridad' },
-    { label: 'Ayuda',          href: '/preguntas-frecuentes' },
   ];
 
   // EVENT-1 (Fase 12): "Panel" pasa a ser "Mis iniciativas" — el
@@ -268,7 +269,7 @@ export default function Layout({
               <span className="rf-foot__colTitle">Producto</span>
               <Link href="/crear-evento">Crear evento</Link>
               <Link href="/crear-colecta">Crear campaña</Link>
-              <Link href="/planes">Precios</Link>
+              <Link href="/planes">Comisión</Link>
             </div>
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Soporte</span>

@@ -14,14 +14,14 @@ export default function Planes() {
   return (
     <>
       <Head>
-        <title>Precios — Rifex</title>
+        <title>Comisión — Rifex</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <section className={styles.page}>
         <div className="container">
           <header className={styles.header}>
-            <h1 className={styles.title}>Precios</h1>
+            <h1 className={styles.title}>Comisión</h1>
             <p className={styles.sub}>Un solo modelo, simple y transparente. Sin planes ni suscripciones.</p>
           </header>
 
