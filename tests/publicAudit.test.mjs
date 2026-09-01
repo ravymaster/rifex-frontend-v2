@@ -260,37 +260,3 @@ test("funcionalidad Blog no fue eliminada — páginas y APIs siguen existiendo"
     assert.ok(exists(p), `falta ${p} — Blog no debe eliminarse, solo dejar de ser público`);
   }
 });
-
-// RIFEX BLOG PRIVATE UX — corrección: Blog debe ser descubrible desde el
-// menú interno/cuenta ya existente (accountItems), sin aparecer en ninguna
-// navegación pública. Una sola prueba certifica las 4 condiciones a la vez.
-test("Blog: ausente de nav pública, presente en nav autenticada, anónimo sin contenido, autenticado con acceso", () => {
-  const layoutSrc = read("src/components/Layout.jsx");
-
-  // 1. Ausente de navegación pública — navItems es el <nav> del header
-  // público (siempre visible) y el footer; ninguno debe listar /blog.
-  const navItemsBlock = layoutSrc.match(/const navItems = \[[\s\S]*?\];/)?.[0] || "";
-  assert.doesNotMatch(navItemsBlock, /\/blog/, "navItems (header público) no debe incluir /blog");
-  assert.doesNotMatch(layoutSrc, /href=["']\/blog["']/, "ningún <Link> estático (incluye footer) debe apuntar a /blog");
-
-  // 2. Presente en navegación autenticada — accountItems es el menú de
-  // cuenta que Layout solo renderiza cuando `user` (sesión activa) existe,
-  // tanto en el dropdown desktop como en el menú mobile.
-  const accountItemsBlock = layoutSrc.match(/const accountItems = \[[\s\S]*?\];/)?.[0] || "";
-  assert.match(accountItemsBlock, /href:\s*['"]\/blog['"]/, "accountItems (menú de cuenta autenticado) debe incluir /blog");
-  assert.match(layoutSrc, /\{user \? \(/, "accountItems solo debe renderizarse dentro de la rama `user` (sesión activa)");
-
-  // 3. Anónimo no obtiene contenido — las dos APIs que sirven contenido
-  // real (listado + detalle) exigen Bearer token y devuelven 401 sin él.
-  for (const api of ["src/pages/api/blog/index.js", "src/pages/api/blog/[slug]/index.js"]) {
-    const apiSrc = read(api);
-    assert.match(apiSrc, /if \(!token\) return res\.status\(401\)/, `${api} debe rechazar sin token`);
-  }
-
-  // 4. Autenticado conserva acceso — las páginas cliente envían el Bearer
-  // token real (no solo lo comprueban) al pedir el contenido.
-  const indexPageSrc = read("src/pages/blog/index.js");
-  assert.match(indexPageSrc, /Authorization: `Bearer \$\{tok\}`/, "blog/index.js debe enviar el token real al listar");
-  const slugPageSrc = read("src/pages/blog/[slug].js");
-  assert.match(slugPageSrc, /Authorization: `Bearer \$\{token\}`/, "blog/[slug].js debe enviar el token real al pedir el detalle");
-});

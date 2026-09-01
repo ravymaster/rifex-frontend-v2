@@ -58,11 +58,6 @@ export default function Layout({
     { label: 'Mis campañas',    href: '/crear-colecta' },
     { label: 'Bancos & Pagos',  href: '/panel/bancos' },
     { label: 'Perfil',          href: '/perfil' },
-    // RIFEX BLOG PRIVATE UX — Blog dejó de ser superficie pública (footer,
-    // navbar, sitemap), pero un usuario autenticado debe poder
-    // descubrirlo igual. Este menú (accountItems) sólo se renderiza con
-    // sesión activa — nunca aparece en el header/footer público.
-    { label: 'Blog',            href: '/blog' },
   ];
 
   const isActive = (href) => {
