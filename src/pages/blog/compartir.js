@@ -84,7 +84,10 @@ export default function CompartirHistoria() {
 
   return (
     <>
-      <Head><title>Compartir mi historia — Rifex</title></Head>
+      <Head>
+        <title>Compartir mi historia — Rifex</title>
+        <meta name="robots" content="noindex, nofollow, noarchive" />
+      </Head>
       <section className={styles.page}>
         <div className="container" style={{ maxWidth: 640 }}>
           <div className={styles.card}>

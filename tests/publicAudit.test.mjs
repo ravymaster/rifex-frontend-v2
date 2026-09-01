@@ -62,6 +62,11 @@ const PRIVATE_PAGES = [
   "src/pages/checkout/index.js",
   "src/pages/registro/continuar.jsx",
   "src/pages/onboarding/pais.jsx",
+  // RIFEX BLOG PRIVATE PRE-PROD — Blog ya no es superficie pública.
+  "src/pages/blog/index.js",
+  "src/pages/blog/[slug].js",
+  "src/pages/blog/compartir.js",
+  "src/pages/blog/nueva.js",
 ];
 
 for (const page of PRIVATE_PAGES) {
@@ -199,4 +204,59 @@ test("publicMetadata.js expone SITE_URL y canonicalUrl de forma pura", () => {
   const src = read("src/lib/publicMetadata.js");
   assert.match(src, /SITE_URL/);
   assert.match(src, /export function canonicalUrl/);
+});
+
+// RIFEX BLOG PRIVATE PRE-PROD
+
+test("footer no enlaza /blog", () => {
+  const src = read("src/components/Layout.jsx");
+  assert.doesNotMatch(src, /href=["']\/blog["']/);
+});
+
+test("robots.txt excluye /blog", () => {
+  const src = read("public/robots.txt");
+  assert.match(src, /Disallow:\s*\/blog/);
+});
+
+test("sitemap.xml no incluye /blog", () => {
+  const src = read("public/sitemap.xml");
+  assert.doesNotMatch(src, /\/blog</);
+});
+
+for (const page of ["src/pages/blog/index.js", "src/pages/blog/[slug].js", "src/pages/blog/compartir.js", "src/pages/blog/nueva.js"]) {
+  test(`${page}: robots exacto noindex,nofollow,noarchive`, () => {
+    const src = read(page);
+    assert.match(src, /noindex,\s*nofollow,\s*noarchive/);
+  });
+
+  test(`${page}: redirige a /login si no hay sesión`, () => {
+    const src = read(page);
+    assert.match(src, /router\.push\([`'"]\/login\?next=/);
+  });
+}
+
+for (const api of ["src/pages/api/blog/index.js", "src/pages/api/blog/[slug]/index.js"]) {
+  test(`${api}: exige Bearer auth (contenido ya no es público)`, () => {
+    const src = read(api);
+    assert.match(src, /missing_auth/);
+    assert.match(src, /getUser\(token\)/);
+  });
+}
+
+test("funcionalidad Blog no fue eliminada — páginas y APIs siguen existiendo", () => {
+  for (const p of [
+    "src/pages/blog/index.js",
+    "src/pages/blog/[slug].js",
+    "src/pages/blog/compartir.js",
+    "src/pages/blog/nueva.js",
+    "src/pages/api/blog/index.js",
+    "src/pages/api/blog/[slug]/index.js",
+    "src/pages/api/blog/admin.js",
+    "src/pages/api/blog/historia.js",
+    "src/pages/api/blog/subscribe.js",
+    "src/pages/api/blog/[slug]/comments.js",
+    "src/pages/api/blog/[slug]/react.js",
+  ]) {
+    assert.ok(exists(p), `falta ${p} — Blog no debe eliminarse, solo dejar de ser público`);
+  }
 });

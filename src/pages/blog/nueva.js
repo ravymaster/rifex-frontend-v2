@@ -72,7 +72,10 @@ export default function NuevaPublicacion() {
 
   return (
     <>
-      <Head><title>Nueva publicación — Rifex</title></Head>
+      <Head>
+        <title>Nueva publicación — Rifex</title>
+        <meta name="robots" content="noindex, nofollow, noarchive" />
+      </Head>
       <section className={styles.page}>
         <div className="container" style={{ maxWidth: 640 }}>
           <div className={styles.card}>

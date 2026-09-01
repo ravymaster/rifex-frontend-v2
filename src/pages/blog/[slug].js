@@ -19,7 +19,8 @@ function timeLabel(iso) {
 }
 
 export default function Post() {
-  const { query } = useRouter();
+  const router = useRouter();
+  const { query, isReady } = router;
   const slug = query.slug;
 
   const [post, setPost] = useState(null);
@@ -30,6 +31,7 @@ export default function Post() {
   const [notFound, setNotFound] = useState(false);
   const [viewer, setViewer] = useState(null);
   const [token, setToken] = useState(null);
+  const [authOk, setAuthOk] = useState(false);
 
   const [commentText, setCommentText] = useState('');
   const [guestName, setGuestName] = useState('');
@@ -37,23 +39,30 @@ export default function Post() {
   const [err, setErr] = useState('');
   const listRef = useRef(null);
 
+  // RIFEX BLOG PRIVATE PRE-PROD — igual criterio que /blog/nueva y
+  // /blog/compartir ya aplicaban: sin sesión, redirige a /login
+  // preservando `next` con router.asPath (mismo mecanismo seguro ya usado
+  // en el resto del sitio — solo rutas internas, sin open redirect).
   useEffect(() => {
+    if (!isReady) return;
     (async () => {
       const { data } = await supabase.auth.getSession();
-      if (data?.session) { setViewer(data.session.user); setToken(data.session.access_token); }
-      else setGuestName(localStorage.getItem(GUEST_NAME_KEY) || '');
+      const session = data?.session;
+      if (!session) { router.push(`/login?next=${encodeURIComponent(router.asPath)}`); return; }
+      setViewer(session.user);
+      setToken(session.access_token);
+      setGuestName(localStorage.getItem(GUEST_NAME_KEY) || '');
+      setAuthOk(true);
     })();
-  }, []);
+  }, [isReady, router]);
 
   useEffect(() => {
-    if (!slug) return;
+    if (!slug || !authOk) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const headers = {};
-        const { data: sres } = await supabase.auth.getSession();
-        if (sres?.session) headers.Authorization = `Bearer ${sres.session.access_token}`;
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
         const r = await fetch(`/api/blog/${slug}`, { headers });
         const j = await r.json();
         if (cancelled) return;
@@ -67,7 +76,7 @@ export default function Post() {
       }
     })();
     return () => { cancelled = true; };
-  }, [slug]);
+  }, [slug, authOk, token]);
 
   useEffect(() => {
     if (!post?.id) return;
@@ -139,6 +148,7 @@ export default function Post() {
       <Head>
         <title>{`${post.title} — Blog Rifex`}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex, nofollow, noarchive" />
       </Head>
 
       <article className={styles.page}>

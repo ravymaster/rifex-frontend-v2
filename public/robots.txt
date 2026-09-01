@@ -10,6 +10,7 @@ Disallow: /crear-evento
 Disallow: /crear-colecta
 Disallow: /checkout
 Disallow: /mis-iniciativas
+Disallow: /blog
 Disallow: /onboarding
 Disallow: /auth
 Disallow: /registro

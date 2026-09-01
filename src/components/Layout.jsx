@@ -273,7 +273,6 @@ export default function Layout({
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Soporte</span>
               <Link href="/contacto">Contacto</Link>
-              <Link href="/blog">Blog</Link>
               <Link href="/preguntas-frecuentes">Preguntas frecuentes</Link>
             </div>
             <div className="rf-foot__col">
