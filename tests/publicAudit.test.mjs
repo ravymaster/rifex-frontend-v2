@@ -160,6 +160,10 @@ const CORPORATE_GLOBAL_SURFACES = [
   "src/pages/confianza.js",
   "src/pages/politica-eventos.js",
   "src/pages/politica-campanas.js",
+  // ETAPA 2 — neutralizadas, ahora forman parte de la identidad
+  // corporativa pública global.
+  "src/pages/seguridad.js",
+  "src/pages/cumplimiento.js",
 ];
 
 for (const page of CORPORATE_GLOBAL_SURFACES) {
@@ -259,4 +263,94 @@ test("funcionalidad Blog no fue eliminada — páginas y APIs siguen existiendo"
   ]) {
     assert.ok(exists(p), `falta ${p} — Blog no debe eliminarse, solo dejar de ser público`);
   }
+});
+
+// RIFEX ETAPA 2 — IDENTIDAD PÚBLICA + POLÍTICAS
+
+test("navbar pública: exactamente Eventos / Campañas / Cómo funciona (sin Blog/Rifas/Precios/Seguridad/Ayuda)", () => {
+  const src = read("src/components/Layout.jsx");
+  const match = src.match(/const navItems = \[[\s\S]*?\];/);
+  assert.ok(match, "no se encontró el bloque navItems");
+  const block = match[0];
+  assert.match(block, /Eventos/);
+  assert.match(block, /Campañas/);
+  assert.match(block, /Cómo funciona/);
+  for (const label of ["Blog", "Rifas", "Precios", "Seguridad", "Ayuda"]) {
+    assert.doesNotMatch(block, new RegExp(`label:\\s*['"\`]${label}`), `navItems no debe incluir "${label}"`);
+  }
+});
+
+test("footer: label 'Comisión' presente (reemplaza 'Precios')", () => {
+  const src = read("src/components/Layout.jsx");
+  assert.match(src, />Comisión<\/Link>/);
+  assert.doesNotMatch(src, />Precios<\/Link>/);
+});
+
+test("seguridad.js: no revela el mecanismo exacto RUT/MP, usa la frase neutral", () => {
+  const src = read("src/pages/seguridad.js");
+  assert.doesNotMatch(src, /contrasta el RUT/i);
+  assert.match(src, /controles de registro, validación de identidad y titularidad de cuentas/);
+});
+
+test("cumplimiento.js: sin calendario/inventario operativo público (día 10/15/20, tabla de decisión, estados internos)", () => {
+  const src = read("src/pages/cumplimiento.js");
+  assert.doesNotMatch(src, /Día 10|Día 15|Día 20/);
+  assert.doesNotMatch(src, /cumplimiento confirmado.*discrepancia, requiere/is);
+  assert.match(src, /Rifex Cumplimiento incorpora controles de seguimiento, confirmación y revisión posterior/);
+  assert.match(src, /Hoy no existe ningún puntaje/);
+});
+
+test("terminos.js: nueva sección Eventos/Campañas/plataforma, sección histórica de rifas intacta", () => {
+  const src = read("src/pages/terminos.js");
+  assert.match(src, /id="plataforma"/);
+  assert.match(src, /Eventos, entradas digitales y Campañas de recaudación/);
+  assert.match(src, /Conoce las condiciones de uso de Rifex para organizadores y usuarios de eventos, entradas digitales y campañas de recaudación en línea\./);
+  assert.match(src, /id="comprador"/);
+  assert.match(src, /id="creador"/);
+  assert.match(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+});
+
+test("reportar.js: placeholders neutralizados, metadata exacta", () => {
+  const src = read("src/pages/reportar.js");
+  assert.doesNotMatch(src, /\/rifas\//);
+  assert.match(src, /Reporta una iniciativa o comportamiento que pueda incumplir las condiciones de Rifex\. Los reportes son revisados utilizando la información disponible\./);
+});
+
+test("uso-aceptable.js: sin banner jurídico visible, incluye la frase de actualización periódica", () => {
+  const src = read("src/pages/uso-aceptable.js");
+  const norm = src.replace(/\s+/g, " ");
+  assert.doesNotMatch(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  assert.match(norm, /Rifex actualiza periódicamente sus políticas para reflejar mejoras en la plataforma y los requisitos aplicables en los países donde opera\./);
+});
+
+test("cookies.js: sin banner de clasificación jurídica visible, metadata exacta", () => {
+  const src = read("src/pages/cookies.js");
+  assert.doesNotMatch(src, /CLASIFICACIÓN JURÍDICA PENDIENTE DE REVISIÓN/);
+  assert.match(src, /Conoce qué cookies y tecnologías similares utiliza Rifex, para qué se usan y cómo puedes administrar tus preferencias de medición y publicidad\./);
+});
+
+test("privacidad.js: sección 'Verificación y seguridad de la cuenta' con texto exacto, sin revelar mecanismo Trust", () => {
+  const src = read("src/pages/privacidad.js");
+  const norm = src.replace(/\s+/g, " ");
+  assert.match(src, /Verificación y seguridad de la cuenta/);
+  assert.match(norm, /Rifex puede aplicar controles de identidad y titularidad para proteger las cuentas, reducir usos indebidos y determinar la habilitación de determinadas operaciones\. Los resultados de estas verificaciones se utilizan para fines operativos y de seguridad y no se muestran públicamente\./);
+  assert.doesNotMatch(norm, /contraste con la titularidad informada por el proveedor de pagos/);
+});
+
+test("preguntas-frecuentes.js: reescrita para Eventos/Campañas, sin contenido de creación de rifas indexable", () => {
+  const src = read("src/pages/preguntas-frecuentes.js");
+  assert.match(src, /Eventos/);
+  assert.match(src, /Campañas/);
+  assert.match(src, /QR/);
+  assert.match(src, /\/reportar/);
+  assert.doesNotMatch(src, /href="\/crear-rifa"/);
+});
+
+test("docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt existe con la estructura requerida", () => {
+  const src = read("docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt");
+  assert.match(src, /^Este documento no presupone que Rifex cumple jurídicamente con los puntos enumerados\./);
+  assert.match(src, /Estado: /);
+  assert.match(src, /Observación del abogado:/);
+  assert.match(src, /Redacción recomendada:/);
+  assert.match(src, /Norma o fundamento, si corresponde:/);
 });

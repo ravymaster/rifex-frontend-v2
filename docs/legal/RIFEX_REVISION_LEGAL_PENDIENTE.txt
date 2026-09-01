@@ -1,0 +1,169 @@
+Este documento no presupone que Rifex cumple jurídicamente con los puntos enumerados. Su finalidad es solicitar una revisión profesional antes de declarar como definitivas las políticas públicas correspondientes.
+
+============================================================
+RIFEX — REVISIÓN LEGAL PENDIENTE
+Consolidado desde las páginas públicas (ETAPA 2, identidad pública y políticas)
+Última actualización: 01/09/2026
+============================================================
+
+Contexto: como parte de la misión ETAPA 2 (identidad pública + políticas),
+se retiraron de varias páginas públicas las advertencias jurídicas
+visibles ("PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD" y
+similares) para no exponer al público general un aviso legal interno sin
+contexto. Ningún punto fue "resuelto" por ese retiro — cada uno sigue
+pendiente y queda consolidado aquí para que un abogado chileno lo revise
+antes de que cualquiera de estas políticas se declare definitiva.
+
+------------------------------------------------------------
+1. Uso Aceptable (src/pages/uso-aceptable.js)
+------------------------------------------------------------
+Descripción: lista de conductas prohibidas y consecuencias posibles
+(revisión de cuenta, despublicación, suspensión, comunicación a la
+autoridad competente cuando corresponda). La página aclara explícitamente
+que Rifex no custodia fondos y no puede "retener" dinero que nunca recibe.
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+2. Cookies y tecnologías similares (src/pages/cookies.js)
+------------------------------------------------------------
+Descripción: inventario técnico verificado contra el código real (cookies
+de sesión de Supabase Auth, preferencia de consentimiento en
+localStorage, Meta Pixel gateado por consentimiento explícito). Lo que
+falta es la clasificación jurídica exacta: qué de esto requiere
+consentimiento explícito bajo la Ley 19.628 vigente (y, desde el 1 de
+diciembre de 2026, la Ley 21.719).
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+3. Términos del Creador — sección de rifas (src/pages/terminos.js#creador)
+------------------------------------------------------------
+Descripción: sección histórica/ya aceptada por creadores existentes,
+específica de rifas (comisión, existencia y propiedad del premio,
+entrega, fraude/chargebacks, consecuencias por incumplimiento). No fue
+modificada por ETAPA 2 — el banner de revisión pendiente sigue visible en
+la propia página, se documenta aquí solo para consolidar el seguimiento.
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+4. Nueva sección — Eventos, entradas digitales y Campañas (src/pages/terminos.js#plataforma)
+------------------------------------------------------------
+Descripción: sección nueva agregada en ETAPA 2, sin tocar las secciones
+históricas de rifas. Cubre qué es un Evento/Campaña en Rifex, comisión,
+pagos, responsabilidades del organizador y reembolsos, remitiendo a las
+políticas dedicadas (/politica-eventos, /politica-campanas, /reembolsos).
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+5. Política de Privacidad (src/pages/privacidad.js)
+------------------------------------------------------------
+Descripción: describe responsable del tratamiento, datos recopilados,
+verificación de identidad/titularidad (redactada en ETAPA 2 sin revelar
+el mecanismo interno — ver punto 8), finalidades, proveedores técnicos,
+conservación, derechos, menores de edad. La base jurídica exacta bajo la
+Ley 19.628 vigente y la Ley 21.719 (vigencia desde el 1 de diciembre de
+2026) sigue sin confirmación legal.
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+6. Anexo de iniciativas con premio — rifas (src/pages/reglas-iniciativas-premio.js)
+------------------------------------------------------------
+Descripción: anexo específico donde sí se permite la terminología de
+rifas/sorteos, separado de la identidad corporativa global. La
+legalidad general de las rifas/colecciones con premio en Chile ya está
+documentada como zona gris en docs/trust/ (Ley 10.262/1952 — en
+principio autorizadas solo a personas jurídicas sin fines de lucro; el
+modelo de creador individual de Rifex se ubica en esa zona gris).
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+7. Política de Campañas (src/pages/politica-campanas.js)
+------------------------------------------------------------
+Descripción: describe el modelo real de campañas de recaudación (sin
+promesa de meta obligatoria, sin devolución automática si no se alcanza
+un objetivo).
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+8. Política de Eventos (src/pages/politica-eventos.js)
+------------------------------------------------------------
+Descripción: describe el modelo real de Events V1 (organizador, entradas,
+QR de un solo uso, capacidad/aforo). No inventa un flujo de reembolso
+automatizado que el código no tiene.
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+9. Reembolsos (src/pages/reembolsos.js)
+------------------------------------------------------------
+Descripción: página prudente basada en auditoría read-only real del
+Payment Engine y api/events — confirma que los pagos se acreditan
+directo en la cuenta del organizador vía split de Mercado Pago
+(application_fee) y que Rifex nunca custodia el monto de la venta; no
+existe hoy un endpoint ni mecanismo automatizado de reembolso.
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+10. Verificación de identidad y titularidad — mecanismo interno (Seguridad + Privacidad)
+------------------------------------------------------------
+Descripción: ETAPA 2 reemplazó, en las páginas públicas /seguridad y
+/privacidad, cualquier descripción del mecanismo técnico exacto (RUT
+declarado contrastado contra la titularidad informada por Mercado Pago)
+por lenguaje neutral: "Rifex aplica controles de registro, validación de
+identidad y titularidad de cuentas antes de habilitar determinadas
+operaciones." El mecanismo real sigue intacto en el backend
+(assertCreatorEligible, trustIdentityGate.js) — este punto es sobre si el
+lenguaje público neutral es jurídicamente suficiente o si se requiere
+mayor detalle público sobre el tratamiento de datos de identidad.
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
+
+------------------------------------------------------------
+Identidad legal del operador
+------------------------------------------------------------
+Descripción: la identidad legal completa de Rifex como operador (razón
+social, RUT de empresa, domicilio comercial) no ha sido confirmada y no
+se declara en ninguna página pública mientras no exista esa confirmación
+(ver /privacidad, sección "Responsable del tratamiento").
+
+Estado: MODIFICAR
+Observación del abogado:
+Redacción recomendada:
+Norma o fundamento, si corresponde:
