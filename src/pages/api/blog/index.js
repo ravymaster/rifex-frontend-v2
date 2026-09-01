@@ -1,5 +1,6 @@
 // src/pages/api/blog/index.js
-// Listado público del blog. Sin auth.
+// RIFEX BLOG PRIVATE PRE-PROD — el listado ya no es público: requiere el
+// mismo Bearer token que historia.js/react.js ya exigían para escribir.
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -18,6 +19,12 @@ export default async function handler(req, res) {
   const category = CATEGORIES.includes(req.query.category) ? req.query.category : null;
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || DEFAULT_LIMIT, 1), 30);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+  const authz = req.headers.authorization || '';
+  const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+  if (!token) return res.status(401).json({ ok: false, error: 'missing_auth' });
+  const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+  if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
 
   try {
     let q = supabase

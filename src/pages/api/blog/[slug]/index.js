@@ -1,5 +1,7 @@
 // src/pages/api/blog/[slug]/index.js
-// Detalle público de un post + comentarios + estado de reacción del visitante.
+// RIFEX BLOG PRIVATE PRE-PROD — el detalle de un post (incluye body y
+// comentarios) ya no es público: requiere el mismo Bearer token que el
+// resto de las rutas de escritura del blog ya exigían.
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -14,6 +16,13 @@ export default async function handler(req, res) {
 
   const slug = String(req.query.slug || '').trim();
   if (!slug) return res.status(400).json({ ok: false, error: 'missing_slug' });
+
+  const authz = req.headers.authorization || '';
+  const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+  if (!token) return res.status(401).json({ ok: false, error: 'missing_auth' });
+  const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+  if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+  const viewerId = ures.user.id;
 
   try {
     const { data: post, error } = await supabase
@@ -57,21 +66,13 @@ export default async function handler(req, res) {
       avatar_url: c.user_id ? (authorsById[c.user_id]?.avatar_url || null) : null,
     }));
 
-    let viewerReacted = false;
-    const authz = req.headers.authorization || '';
-    const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
-    if (token) {
-      const { data: ures } = await supabase.auth.getUser(token);
-      if (ures?.user) {
-        const { data: myReaction } = await supabase
-          .from('blog_reactions')
-          .select('post_id')
-          .eq('post_id', post.id)
-          .eq('user_id', ures.user.id)
-          .maybeSingle();
-        viewerReacted = !!myReaction;
-      }
-    }
+    const { data: myReaction } = await supabase
+      .from('blog_reactions')
+      .select('post_id')
+      .eq('post_id', post.id)
+      .eq('user_id', viewerId)
+      .maybeSingle();
+    const viewerReacted = !!myReaction;
 
     return res.status(200).json({
       ok: true,

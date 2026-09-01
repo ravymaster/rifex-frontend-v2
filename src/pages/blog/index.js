@@ -1,7 +1,13 @@
 // src/pages/blog/index.js
+// RIFEX BLOG PRIVATE PRE-PROD — Blog deja de ser superficie pública: se
+// exige sesión igual que /blog/nueva y /blog/compartir ya exigían, y las
+// APIs de lectura (list + detalle) ahora también requieren el mismo Bearer
+// token, para que el contenido no quede accesible anónimamente por fuera
+// de la página.
 import Head from 'next/head';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import styles from '@/styles/blog.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
@@ -21,6 +27,7 @@ function clp(cents) {
 }
 
 export default function Blog() {
+  const router = useRouter();
   const [category, setCategory] = useState(null);
   const [posts, setPosts] = useState([]);
   const [categoryCounts, setCategoryCounts] = useState(null);
@@ -29,22 +36,26 @@ export default function Blog() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [viewer, setViewer] = useState(null);
+  const [token, setToken] = useState(null);
   const [email, setEmail] = useState('');
   const [subOk, setSubOk] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
-      if (data?.session) setViewer(data.session.user);
+      const session = data?.session;
+      if (!session) { router.push(`/login?next=${encodeURIComponent('/blog')}`); return; }
+      setViewer(session.user);
+      setToken(session.access_token);
     })();
-  }, []);
+  }, [router]);
 
-  async function loadFirstPage(cat) {
+  async function loadFirstPage(cat, tok) {
     setLoading(true);
     try {
       const url = new URL('/api/blog', window.location.origin);
       if (cat) url.searchParams.set('category', cat);
-      const r = await fetch(url.toString());
+      const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${tok}` } });
       const j = await r.json();
       if (r.ok && j.ok) {
         setPosts(j.posts || []);
@@ -57,7 +68,9 @@ export default function Blog() {
     }
   }
 
-  useEffect(() => { loadFirstPage(category); }, [category]);
+  // Solo carga una vez que la sesión está confirmada — evita un primer
+  // fetch anónimo que ahora devolvería 401.
+  useEffect(() => { if (token) loadFirstPage(category, token); }, [category, token]);
 
   async function loadMore() {
     setLoadingMore(true);
@@ -65,7 +78,7 @@ export default function Blog() {
       const url = new URL('/api/blog', window.location.origin);
       if (category) url.searchParams.set('category', category);
       url.searchParams.set('offset', String(posts.length));
-      const r = await fetch(url.toString());
+      const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
       const j = await r.json();
       if (r.ok && j.ok) {
         setPosts((prev) => [...prev, ...(j.posts || [])]);
@@ -95,6 +108,7 @@ export default function Blog() {
       <Head>
         <title>Blog — Rifex</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="robots" content="noindex, nofollow, noarchive" />
       </Head>
 
       <section className={styles.page}>
