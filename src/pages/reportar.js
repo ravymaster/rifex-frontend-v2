@@ -49,10 +49,10 @@ export default function Reportar() {
 
       <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
         <label className="label">URL o identificador de la iniciativa (opcional)</label>
-        <input className="input" value={form.url} onChange={(e) => update("url", e.target.value)} placeholder="https://rifex.pro/rifas/..." />
+        <input className="input" value={form.url} onChange={(e) => update("url", e.target.value)} placeholder="https://rifex.pro/eventos/..." />
 
         <label className="label">Motivo</label>
-        <input className="input" required value={form.reason} onChange={(e) => update("reason", e.target.value)} placeholder="Ej: premio no entregado" />
+        <input className="input" required value={form.reason} onChange={(e) => update("reason", e.target.value)} placeholder="Ej: la iniciativa no cumplió lo anunciado" />
 
         <label className="label">Descripción</label>
         <textarea className="input" required rows={6} value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Cuéntanos qué ocurrió, con el mayor detalle posible" />
@@ -74,7 +74,7 @@ export default function Reportar() {
 Reportar.getLayout = (page) => (
   <Layout
     title="Reportar — Rifex"
-    description="Reporta una iniciativa o un creador que incumple lo anunciado en Rifex, sin necesidad de iniciar sesión."
+    description="Reporta una iniciativa o comportamiento que pueda incumplir las condiciones de Rifex. Los reportes son revisados utilizando la información disponible."
     canonicalPath="/reportar"
   >
     {page}

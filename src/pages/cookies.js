@@ -4,14 +4,14 @@
 // src/components/ConsentBanner.jsx) separado explícitamente de la
 // clasificación jurídica de qué exactamente requiere consentimiento, que
 // queda LEGAL_REVIEW_REQUIRED.
+// ETAPA 2 (identidad pública) — la advertencia jurídica visible se retiró
+// de esta página pública; el ítem sigue vivo en
+// docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt para revisión de abogado.
+// El inventario técnico que queda abajo está verificado contra el código
+// real, no es una afirmación inventada.
 import { useEffect } from "react";
 import Layout from "@/components/Layout";
 import { setStoredConsent } from "@/lib/consent";
-
-const legalBanner = {
-  background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E",
-  borderRadius: 8, padding: "10px 14px", fontWeight: 700, marginBottom: 16,
-};
 
 export default function Cookies() {
   useEffect(() => {
@@ -32,12 +32,6 @@ export default function Cookies() {
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
       <h1 style={{ marginBottom: 4 }}>Cookies y tecnologías similares</h1>
       <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 31/08/2026</p>
-
-      <p style={legalBanner}>
-        INVENTARIO TÉCNICO (verificado contra el código real) — CLASIFICACIÓN JURÍDICA PENDIENTE DE REVISIÓN. Esta
-        página describe con exactitud qué tecnologías existen hoy en Rifex y cuándo se activan; qué exactamente
-        requiere consentimiento explícito bajo la ley chilena vigente queda pendiente de confirmación por un abogado.
-      </p>
 
       <section>
         <h2>Estrictamente necesarias</h2>
@@ -94,7 +88,7 @@ export default function Cookies() {
 Cookies.getLayout = (page) => (
   <Layout
     title="Cookies — Rifex"
-    description="Qué cookies y tecnologías de medición usa Rifex, cuándo se activan y cómo cambiar tu elección."
+    description="Conoce qué cookies y tecnologías similares utiliza Rifex, para qué se usan y cómo puedes administrar tus preferencias de medición y publicidad."
     canonicalPath="/cookies"
   >
     {page}

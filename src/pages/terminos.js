@@ -11,6 +11,7 @@ export default function Terminos() {
         <hr style={{margin:"16px 0"}}/>
 
         <nav style={{margin:"12px 0 24px"}}>
+          <a href="#plataforma">Eventos y Campañas</a>{" · "}
           <a href="#comprador">Comprador</a>{" · "}
           <a href="#creador">Creador</a>{" · "}
           <a href="#rifex">Condiciones de Rifex</a>{" · "}
@@ -19,6 +20,26 @@ export default function Terminos() {
           <a href="/uso-aceptable">Uso aceptable</a>{" · "}
           <a href="/reglas-iniciativas-premio">Anexo iniciativas con premio</a>
         </nav>
+
+        <section id="plataforma">
+          <h2>Eventos, entradas digitales y Campañas de recaudación</h2>
+          <p style={{color:"#6B7280", fontSize: 13.5}}>
+            Esta sección aplica a organizadores y usuarios de Eventos y Campañas. No modifica ni reemplaza los
+            Términos del Comprador ni los Términos del Creador de rifas descritos más abajo, que siguen vigentes
+            para esa modalidad tal como fueron publicados.
+          </p>
+          <ol>
+            <li><strong>Qué es un Evento en Rifex.</strong> Un organizador publica un evento con uno o más tipos de entrada digital, cada una con su propio cupo. Cada entrada se emite como un código QR de un solo uso para el control de acceso.</li>
+            <li><strong>Qué es una Campaña en Rifex.</strong> Un organizador publica una campaña de recaudación y quienes aportan reciben confirmación de su aporte; el detalle operativo está en la <a href="/politica-campanas">Política de Campañas</a>.</li>
+            <li><strong>Comisión.</strong> Rifex cobra la misma comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por la pasarela de pago — ver <a href="/planes">Comisión</a>.</li>
+            <li><strong>Pagos.</strong> Se procesan con Mercado Pago; los fondos se acreditan directo en la cuenta del organizador conectada al proveedor de pagos, descontada la comisión de Rifex.</li>
+            <li><strong>Responsabilidades del organizador.</strong> Describir claramente el evento o la campaña, cumplir la normativa aplicable, y respetar las condiciones publicadas antes de recibir pagos.</li>
+            <li><strong>Reembolsos.</strong> Ver <a href="/reembolsos">Política de Reembolsos</a> para el detalle real de qué es posible hoy en la plataforma.</li>
+            <li><strong>Más detalle por producto.</strong> <a href="/politica-eventos">Política de Eventos</a> y <a href="/politica-campanas">Política de Campañas</a>.</li>
+          </ol>
+        </section>
+
+        <hr style={{margin:"24px 0"}}/>
 
         <section id="comprador">
           <h2>Términos del Comprador</h2>
@@ -118,7 +139,7 @@ export default function Terminos() {
 Terminos.getLayout = (page) => (
   <Layout
     title="Términos y Condiciones — Rifex"
-    description="Términos y condiciones de uso de Rifex para compradores, aportantes y creadores de eventos, campañas e iniciativas."
+    description="Conoce las condiciones de uso de Rifex para organizadores y usuarios de eventos, entradas digitales y campañas de recaudación en línea."
     canonicalPath="/terminos"
   >
     {page}

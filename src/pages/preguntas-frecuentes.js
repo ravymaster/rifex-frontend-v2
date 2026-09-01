@@ -1,4 +1,8 @@
 // pages/preguntas-frecuentes.js
+// ETAPA 2 (identidad pública) — reescrita alrededor de la identidad
+// corporativa pública actual (Eventos/Entradas/Campañas). El contenido
+// específico de Rifas no se publica aquí — sigue disponible dentro del
+// área autenticada y en /reglas-iniciativas-premio (anexo específico).
 import Head from "next/head";
 import Layout from "@/components/Layout";
 
@@ -16,30 +20,41 @@ export default function PreguntasFrecuentes() {
         <hr style={{ margin: "16px 0" }} />
 
         <section>
-          <h2>¿Cómo creo una rifa?</h2>
+          <h2>¿Qué es Rifex?</h2>
           <p>
-            Desde <a href="/crear-rifa">Crear rifa</a> completas título, precio por número, cantidad de
-            cupos y la información del premio. Al publicarla queda disponible en tu enlace para compartir.
+            Rifex es una plataforma para crear eventos con entradas digitales y campañas de recaudación en línea,
+            cobrando pagos directo a la cuenta del organizador.
           </p>
         </section>
 
         <hr style={{ margin: "24px 0" }} />
 
         <section>
-          <h2>¿Cómo compro un número?</h2>
+          <h2>¿Cómo creo un evento y vendo entradas?</h2>
           <p>
-            Entra al enlace de la rifa, elige tus números y paga con Mercado Pago. Mientras se confirma
-            el pago, el número queda reservado; si el pago no se completa, vuelve a estar disponible.
+            Desde <a href="/crear-evento">Crear evento</a> defines el evento, uno o más tipos de entrada y su
+            cupo. Cada entrada vendida se emite como un código QR de un solo uso. Más detalle en la{" "}
+            <a href="/politica-eventos">Política de Eventos</a>.
           </p>
         </section>
 
         <hr style={{ margin: "24px 0" }} />
 
         <section>
-          <h2>¿Cómo se elige al ganador?</h2>
+          <h2>¿Cómo funciona el control de acceso (QR / check-in)?</h2>
           <p>
-            El creador define el mecanismo de sorteo y debe publicar evidencia, según lo establecido en
-            los <a href="/terminos#creador">Términos del Creador</a>.
+            El día del evento, el staff del organizador escanea el código QR de cada entrada desde el panel de
+            Rifex. Cada QR es de un solo uso: si ya fue escaneado, un segundo intento se marca como inválido.
+          </p>
+        </section>
+
+        <hr style={{ margin: "24px 0" }} />
+
+        <section>
+          <h2>¿Cómo creo una campaña de recaudación?</h2>
+          <p>
+            Desde <a href="/crear-colecta">Crear campaña</a> defines el objetivo y compartes tu enlace para
+            recibir aportes. Más detalle en la <a href="/politica-campanas">Política de Campañas</a>.
           </p>
         </section>
 
@@ -48,18 +63,30 @@ export default function PreguntasFrecuentes() {
         <section>
           <h2>¿Cuánto cobra Rifex?</h2>
           <p>
-            Un 7% sobre cada número vendido, descontado automáticamente por Mercado Pago al momento del pago —
-            no hay planes ni suscripciones. Más detalle en los <a href="/terminos#creador">Términos del Creador</a>.
+            Una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por
+            Mercado Pago al momento del pago — no hay planes ni suscripciones. Más detalle en{" "}
+            <a href="/planes">Comisión</a>.
           </p>
         </section>
 
         <hr style={{ margin: "24px 0" }} />
 
         <section>
-          <h2>Tengo un problema con un pago o una rifa</h2>
+          <h2>¿Cómo se procesan los pagos?</h2>
           <p>
-            Escríbenos desde <a href="/contacto">Contacto</a> o a{" "}
-            <a href="mailto:contacto@rifex.pro">contacto@rifex.pro</a> con el detalle de tu caso.
+            A través de Mercado Pago. Los fondos se acreditan directo en la cuenta del organizador conectada al
+            proveedor de pagos — Rifex nunca los intermedia. Más detalle en{" "}
+            <a href="/seguridad">Seguridad</a>.
+          </p>
+        </section>
+
+        <hr style={{ margin: "24px 0" }} />
+
+        <section>
+          <h2>Tengo un problema con una iniciativa o un pago</h2>
+          <p>
+            Puedes <a href="/reportar">reportar una iniciativa o comportamiento</a> sin necesidad de iniciar
+            sesión, o escribirnos desde <a href="/contacto">Contacto</a>.
           </p>
         </section>
       </main>
@@ -67,4 +94,12 @@ export default function PreguntasFrecuentes() {
   );
 }
 
-PreguntasFrecuentes.getLayout = (page) => <Layout>{page}</Layout>;
+PreguntasFrecuentes.getLayout = (page) => (
+  <Layout
+    title="Preguntas frecuentes — Rifex"
+    description="Respuestas rápidas sobre cómo funciona Rifex: eventos, entradas digitales, campañas de recaudación, pagos, comisión y reportes."
+    canonicalPath="/preguntas-frecuentes"
+  >
+    {page}
+  </Layout>
+);

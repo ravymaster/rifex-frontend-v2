@@ -29,9 +29,9 @@ export default function Seguridad() {
         <section>
           <h2>Registro obligatorio antes de crear iniciativas</h2>
           <p>
-            Antes de poder crear una rifa, colecta o evento, todo creador debe completar un registro: nombre (de
-            persona natural o de una empresa/organización), RUT válido, teléfono de contacto, declaración de ser
-            mayor de 18 años, y la aceptación de nuestros Términos y Política de Privacidad.
+            Antes de poder crear un evento, una campaña u otra iniciativa, todo creador debe completar un registro:
+            nombre (de persona natural o de una empresa/organización), RUT válido, teléfono de contacto, declaración
+            de ser mayor de 18 años, y la aceptación de nuestros Términos y Política de Privacidad.
           </p>
         </section>
 
@@ -53,19 +53,19 @@ export default function Seguridad() {
         <section>
           <h2>Verificación del organizador y la cuenta receptora</h2>
           <p>
-            Todo creador debe conectar la cuenta de Mercado Pago donde recibirá el dinero de sus iniciativas — los
-            pagos van directo a esa cuenta, Rifex nunca los intermedia. Para proteger a quienes compran entradas o
-            realizan aportes, Rifex contrasta el RUT registrado por el organizador con la información de titularidad
-            disponible en la cuenta de pago conectada.
+            Todo creador debe conectar la cuenta de pago donde recibirá el dinero de sus iniciativas — los pagos van
+            directo a esa cuenta, Rifex nunca los intermedia. Rifex aplica controles de registro, validación de
+            identidad y titularidad de cuentas antes de habilitar determinadas operaciones.
           </p>
           <p>
-            <strong>Si los datos no coinciden o requieren comprobaciones adicionales, la cuenta queda pendiente de
-            revisión y no queda habilitada automáticamente para operar.</strong> Este mecanismo permite aprovechar
-            los controles de identidad y seguridad del proveedor de pagos, evitando que Rifex solicite nuevamente
-            fotografías del carnet o implemente su propio proceso de biometría facial.
+            <strong>Si una verificación no se completa o requiere comprobaciones adicionales, la cuenta queda
+            pendiente de revisión y no queda habilitada automáticamente para operar.</strong> Estos controles
+            aprovechan la infraestructura de identidad y seguridad ya disponible en los proveedores conectados,
+            evitando que Rifex solicite nuevamente fotografías del carnet o implemente su propio proceso de
+            biometría facial.
           </p>
           <p>
-            Los datos utilizados para esta comprobación son privados y no se muestran a otros usuarios.
+            Los resultados de estas verificaciones son privados y no se muestran a otros usuarios.
           </p>
         </section>
 
@@ -97,8 +97,8 @@ export default function Seguridad() {
         <section>
           <h2>Evidencia posterior a la transacción</h2>
           <p>
-            Pedimos a los creadores que dejen evidencia del sorteo y de la entrega del premio — esa evidencia queda
-            protegida y puede usarse para resolver una disputa o una denuncia.
+            Pedimos a los creadores que dejen evidencia del resultado y del cumplimiento de una iniciativa — esa
+            evidencia queda protegida y puede usarse para resolver una disputa o una denuncia.
           </p>
         </section>
 
@@ -131,7 +131,7 @@ export default function Seguridad() {
 Seguridad.getLayout = (page) => (
   <Layout
     title="Seguridad y verificación de organizadores — Rifex"
-    description="Rifex contrasta la identidad del organizador con la titularidad de su cuenta de pago. Las inconsistencias quedan pendientes de revisión antes de operar."
+    description="Rifex aplica controles de registro, validación de identidad y titularidad de cuentas antes de habilitar determinadas operaciones."
     canonicalPath="/seguridad"
   >
     {page}

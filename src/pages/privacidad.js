@@ -37,17 +37,16 @@ export default function Privacidad() {
         <ul>
           <li>Datos de cuenta: nombre o razón social, correo, RUT, teléfono, IP y actividad técnica de la sesión.</li>
           <li>Datos de iniciativas: eventos, campañas y rifas creadas, entradas emitidas, aportes y compras realizadas.</li>
-          <li>Datos de verificación: RUT declarado y el resultado del contraste con la titularidad informada por el proveedor de pagos conectado (nunca el detalle bancario del proveedor).</li>
+          <li>Datos de verificación: información de identidad proporcionada por el usuario y resultados derivados de controles de identidad y titularidad (nunca el detalle bancario del proveedor de pagos).</li>
         </ul>
       </section>
 
       <section>
-        <h2>Contraste de titularidad</h2>
+        <h2>Verificación y seguridad de la cuenta</h2>
         <p>
-          Rifex utiliza los datos de identidad declarados por el organizador y la información de titularidad
-          proporcionada por el proveedor de pagos para comprobar su consistencia, prevenir suplantaciones y reducir
-          el riesgo de fraude. Si se detecta una diferencia, la cuenta queda pendiente de revisión y no se habilita
-          automáticamente para operar. Esta información no se muestra públicamente.
+          Rifex puede aplicar controles de identidad y titularidad para proteger las cuentas, reducir usos
+          indebidos y determinar la habilitación de determinadas operaciones. Los resultados de estas
+          verificaciones se utilizan para fines operativos y de seguridad y no se muestran públicamente.
         </p>
       </section>
 
