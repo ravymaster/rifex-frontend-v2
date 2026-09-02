@@ -267,5 +267,5 @@ export default function ResetPassword() {
   );
 }
 
-ResetPassword.getLayout = (page) => <Layout>{page}</Layout>;
+ResetPassword.getLayout = (page) => <Layout noindex>{page}</Layout>;
 

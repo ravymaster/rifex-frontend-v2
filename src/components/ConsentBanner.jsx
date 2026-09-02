@@ -27,7 +27,7 @@ export default function ConsentBanner({ onAccept, onReject }) {
       <p style={{ margin: 0, fontSize: 13, maxWidth: 640 }}>
         Usamos tecnologías de medición y publicidad (Meta Pixel) para entender cómo se usa Rifex. Solo se activan
         si aceptas. Podés revisar más en{" "}
-        <a href="/terminos#cookies" style={{ color: "#fff", textDecoration: "underline" }}>
+        <a href="/cookies" style={{ color: "#fff", textDecoration: "underline" }}>
           nuestra política de cookies
         </a>
         .

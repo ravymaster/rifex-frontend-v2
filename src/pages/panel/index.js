@@ -529,7 +529,7 @@ export default function Panel() {
   }
 
   return (
-    <Layout>
+    <Layout noindex>
       <main className="container" style={{ padding: '24px' }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h1 style={{ margin: 0 }}>Panel</h1>

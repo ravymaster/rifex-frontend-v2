@@ -30,7 +30,7 @@ export default function EventosListado() {
   }, []);
 
   return (
-    <Layout title="Eventos — Rifex" description="Descubre eventos y compra tus entradas.">
+    <Layout title="Eventos — Rifex" description="Descubre eventos y compra tus entradas." canonicalPath="/eventos">
       <div className={styles.wrap}>
         <h1 className={styles.title}>Eventos</h1>
         {loading && <p>Cargando…</p>}

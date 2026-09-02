@@ -79,4 +79,4 @@ export default function AdminTrustQueue() {
   );
 }
 
-AdminTrustQueue.getLayout = (page) => <Layout>{page}</Layout>;
+AdminTrustQueue.getLayout = (page) => <Layout noindex>{page}</Layout>;

@@ -337,4 +337,4 @@ export default function AdminCumplimientoCase() {
   );
 }
 
-AdminCumplimientoCase.getLayout = (page) => <Layout>{page}</Layout>;
+AdminCumplimientoCase.getLayout = (page) => <Layout noindex>{page}</Layout>;

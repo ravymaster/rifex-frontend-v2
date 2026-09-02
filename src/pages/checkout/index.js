@@ -19,10 +19,7 @@ export default function CheckoutIndex() {
           </p>
 
           <div className={styles.actions}>
-            <Link href="/rifas" className={`${styles.btn} ${styles.prim}`}>
-              Ver rifas
-            </Link>
-            <Link href="/" className={styles.btn}>
+            <Link href="/" className={`${styles.btn} ${styles.prim}`}>
               Ir al inicio
             </Link>
           </div>
@@ -32,4 +29,4 @@ export default function CheckoutIndex() {
   );
 }
 
-CheckoutIndex.getLayout = (page) => <Layout>{page}</Layout>;
+CheckoutIndex.getLayout = (page) => <Layout noindex>{page}</Layout>;

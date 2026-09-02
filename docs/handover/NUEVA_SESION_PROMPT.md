@@ -1,6 +1,30 @@
-Repositorio: rifex-frontend-v2 (Rifex, plataforma de rifas/campañas/eventos).
+Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
+> 2026-09-02 (actualización más reciente) — **RIFEX V4 PUBLIC TRUST (A1-A7)
+> + STAGE 2 PROD PROMOTION.** `origin/main`/PROD avanzó desde `a2d6a60`
+> mediante una promoción quirúrgica de 61 archivos de código exactos
+> (verificados byte-idénticos contra `origin/develop` antes del commit)
+> más addenda acotadas en `docs/WOP.md`/`CURRENT_STATE.md`/este archivo.
+> El pre-flight encontró que PROD nunca había recibido la base V4 Public
+> Trust (A1-A7) sobre la que Stage 2 está construido — páginas como
+> `cookies.js`, `privacidad.js`, `uso-aceptable.js`, `terminos-rifas.js`
+> y la infraestructura `publicMetadata.js`/`robots.txt`/`sitemap.xml`
+> simplemente no existían en `main`. Rodrigo autorizó ampliar el alcance
+> del release tras la demostración. 11 archivos quedaron explícitamente
+> excluidos (tooling de DEV, Blog ya promovido por separado, archivos
+> exclusivos del historial de `main`). Autoauditoría de contenido: cero
+> referencias reales a webhook/Payment Engine/comisión/Argentina/
+> migraciones en el diff de código. PROD ahora sirve: catálogo público
+> de `/rifas` removido, canonical siempre `rifex.pro`, `robots.txt`/
+> `sitemap.xml` en vivo por primera vez, `/terminos` como documento
+> corporativo, `/wizard` representando solo Eventos + Campañas, navbar
+> reducida, footer con "Comisión". Rifas como producto (creación, panel,
+> `/mis-iniciativas`, lógica de pago/sorteo) permanece intacta. Detalle
+> completo, HEAD exacto, deployment y tag: `docs/WOP.md`, "RIFEX V4
+> PUBLIC TRUST (A1-A7) + STAGE 2 (PUBLIC IDENTITY + POLICIES) — PROD
+> PROMOTION (2026-09-02)".
+>
 > 2026-08-24: este prompt fue actualizado para el handoff Santiago → Antofagasta
 > tras EVENT-3. La rama activa de trabajo es `develop` (no `main` — `main` es
 > PROD, congelado respecto de Eventos). El texto verbatim de abajo es el mismo

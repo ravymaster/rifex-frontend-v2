@@ -64,6 +64,8 @@ test("funcionalidad Blog no fue eliminada — páginas y APIs siguen existiendo"
   }
 });
 
-test("sitemap.xml no existe en PROD todavía — verificación de exclusión N/A (no hay sitemap que pueda listar /blog)", () => {
-  assert.equal(exists("public/sitemap.xml"), false);
+test("sitemap.xml (ahora presente en PROD vía V4 A1-A2) no lista /blog; robots.txt sigue bloqueándolo", () => {
+  assert.ok(exists("public/sitemap.xml"), "public/sitemap.xml debe existir tras la promoción V4+Stage2");
+  assert.doesNotMatch(read("public/sitemap.xml"), /\/blog/);
+  assert.match(read("public/robots.txt"), /Disallow:\s*\/blog/);
 });

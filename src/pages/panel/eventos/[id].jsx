@@ -201,7 +201,7 @@ export default function PanelEventoDetalle() {
 
   if (!event) {
     return (
-      <Layout title="Evento — Rifex">
+      <Layout noindex title="Evento — Rifex">
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           {error ? <p style={{ color: '#b91c1c' }}>{error}</p> : <p>Cargando…</p>}
         </div>
@@ -210,7 +210,7 @@ export default function PanelEventoDetalle() {
   }
 
   return (
-    <Layout title={`${event.title} — Panel Eventos`}>
+    <Layout noindex title={`${event.title} — Panel Eventos`}>
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
         <p style={{ marginBottom: 8 }}><Link href="/panel/eventos" style={{ color: '#1e3a8a', fontWeight: 600, fontSize: 13.5, textDecoration: 'none' }}>← Mis eventos</Link></p>
 

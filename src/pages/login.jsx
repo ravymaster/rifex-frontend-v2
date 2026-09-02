@@ -185,7 +185,7 @@ export default function Login() {
   );
 }
 
-Login.getLayout = (page) => <Layout>{page}</Layout>;
+Login.getLayout = (page) => <Layout noindex>{page}</Layout>;
 
 
 

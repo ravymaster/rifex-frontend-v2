@@ -243,13 +243,13 @@ export default function EventScanner() {
 
   if (phase === 'loading') {
     return (
-      <Layout title="Scanner — Rifex"><div style={{ maxWidth: 480, margin: '48px auto', textAlign: 'center' }}><p>Cargando…</p></div></Layout>
+      <Layout noindex title="Scanner — Rifex"><div style={{ maxWidth: 480, margin: '48px auto', textAlign: 'center' }}><p>Cargando…</p></div></Layout>
     );
   }
 
   if (phase === 'unauthorized') {
     return (
-      <Layout title="Scanner — Rifex">
+      <Layout noindex title="Scanner — Rifex">
         <div style={{ maxWidth: 480, margin: '48px auto', textAlign: 'center', padding: '0 16px' }}>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>No autorizado</h1>
           <p style={{ color: '#64748b', fontSize: 14, marginTop: 8 }}>No tienes autorización para operar el scanner de este evento.</p>
@@ -260,7 +260,7 @@ export default function EventScanner() {
   }
 
   return (
-    <Layout title={`Scanner — ${eventInfo?.title || 'Evento'}`}>
+    <Layout noindex title={`Scanner — ${eventInfo?.title || 'Evento'}`}>
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 12px' }}>
         <p style={{ margin: '8px 0 12px' }}>
           <Link href={`/panel/eventos/${id}`} style={{ color: '#1e3a8a', fontWeight: 600, fontSize: 13.5, textDecoration: 'none' }}>← Panel del evento</Link>

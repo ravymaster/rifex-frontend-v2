@@ -4,17 +4,15 @@
 // "Anti-Trust", "biometría verificada", "100% seguro", "sin fraude" ni
 // afirmaciones legales absolutas, y nunca detalla nada que facilite
 // evadir los controles descritos.
-import Head from "next/head";
 import Layout from "@/components/Layout";
 
 export default function Seguridad() {
   return (
     <>
-      <Head><title>Seguridad y confianza en Rifex</title></Head>
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
         <h1 style={{ marginBottom: 8 }}>Seguridad y confianza en Rifex</h1>
         <p style={{ color: "#6B7280" }}>
-          Estas son las medidas reales que usamos hoy para proteger a compradores y creadores. Las iremos
+          Estas son las medidas reales que usamos hoy para proteger a usuarios y organizadores. Las iremos
           actualizando a medida que sigamos mejorando la plataforma.
         </p>
 
@@ -31,9 +29,9 @@ export default function Seguridad() {
         <section>
           <h2>Registro obligatorio antes de crear iniciativas</h2>
           <p>
-            Antes de poder crear una rifa, colecta o evento, todo creador debe completar un registro: nombre (de
-            persona natural o de una empresa/organización), RUT válido, teléfono de contacto, declaración de ser
-            mayor de 18 años, y la aceptación de nuestros Términos y Política de Privacidad.
+            Antes de poder crear un evento, una campaña u otra iniciativa, todo creador debe completar un registro:
+            nombre (de persona natural o de una empresa/organización), RUT válido, teléfono de contacto, declaración
+            de ser mayor de 18 años, y la aceptación de nuestros Términos y Política de Privacidad.
           </p>
         </section>
 
@@ -53,29 +51,22 @@ export default function Seguridad() {
         </section>
 
         <section>
-          <h2>Cuenta receptora conectada y verificación de titularidad</h2>
+          <h2>Verificación del organizador y la cuenta receptora</h2>
           <p>
-            Todo creador debe conectar la cuenta de Mercado Pago donde recibirá el dinero de sus iniciativas — los
-            pagos van directo a esa cuenta, Rifex nunca los intermedia. Cuando la información entregada por Mercado
-            Pago lo permite, Rifex verifica la consistencia entre los datos del creador y la titularidad de la
-            cuenta receptora mediante su proveedor de pagos, antes de dejarlo operar sin restricciones.
+            Rifex aplica controles de registro, validación de identidad y titularidad de cuentas antes de habilitar
+            determinadas operaciones. Algunas operaciones pueden requerir comprobaciones adicionales antes de
+            quedar habilitadas.
+          </p>
+          <p>
+            Los resultados de estas verificaciones son privados y no se muestran a otros usuarios.
           </p>
         </section>
 
         <section>
-          <h2>Pagos directos</h2>
+          <h2>Pagos</h2>
           <p>
-            Los pagos de compradores y aportantes se procesan a través de Mercado Pago y se acreditan directo en la
-            cuenta del creador — Rifex nunca retiene el dinero de una venta aprobada más allá de su comisión.
-          </p>
-        </section>
-
-        <section>
-          <h2>Documentación según riesgo</h2>
-          <p>
-            En casos puntuales, Rifex puede pedir a un creador que verifique su identidad con un documento —
-            revisado siempre por una persona, de forma privada, y almacenado en un espacio protegido, nunca público.
-            Esto es hoy una revisión excepcional, no un paso obligatorio para todos los creadores.
+            Los pagos se procesan mediante el proveedor de pagos conectado y se acreditan en la cuenta del
+            organizador. Rifex aplica su comisión de servicio mediante la integración con el proveedor.
           </p>
         </section>
 
@@ -90,8 +81,8 @@ export default function Seguridad() {
         <section>
           <h2>Evidencia posterior a la transacción</h2>
           <p>
-            Pedimos a los creadores que dejen evidencia del sorteo y de la entrega del premio — esa evidencia queda
-            protegida y puede usarse para resolver una disputa o una denuncia.
+            Rifex mantiene determinados registros o evidencias asociados a operaciones cuando son necesarios para
+            soporte, reportes o revisiones.
           </p>
         </section>
 
@@ -99,8 +90,9 @@ export default function Seguridad() {
           <h2>Protección de datos</h2>
           <p>
             Tus datos privados (RUT, teléfono, domicilio, documentos) nunca se muestran públicamente ni se entregan
-            automáticamente a otros usuarios. Se usan únicamente para operar la plataforma, prevenir fraude y
-            cumplir obligaciones legales. Más detalle en nuestra <a href="/terminos#privacidad">Política de Privacidad</a>.
+            automáticamente a otros usuarios. Se usan únicamente para proteger la operación, reducir usos indebidos
+            y cumplir las obligaciones aplicables. Más detalle en nuestra <a href="/privacidad">Política de
+            Privacidad</a>.
           </p>
         </section>
 
@@ -121,4 +113,12 @@ export default function Seguridad() {
   );
 }
 
-Seguridad.getLayout = (page) => <Layout>{page}</Layout>;
+Seguridad.getLayout = (page) => (
+  <Layout
+    title="Seguridad y verificación de organizadores — Rifex"
+    description="Rifex aplica controles de registro, validación de identidad y titularidad de cuentas antes de habilitar determinadas operaciones."
+    canonicalPath="/seguridad"
+  >
+    {page}
+  </Layout>
+);

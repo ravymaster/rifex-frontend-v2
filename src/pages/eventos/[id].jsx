@@ -5,7 +5,6 @@
 // no tiene Mercado Pago conectado (mp_connected=false) — nunca se ofrece
 // una compra que no se puede cobrar.
 import { useRouter } from 'next/router';
-import Head from 'next/head';
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/evento.module.css';
@@ -150,7 +149,6 @@ export default function EventoPublico() {
 
   return (
     <Layout title={`${event.title} — Rifex Eventos`} description={event.description || 'Evento en Rifex.'}>
-      <Head><meta property="og:title" content={event.title} /></Head>
       <div className={styles.wrap}>
         {event.cover_image_url && <img className={styles.cover} src={event.cover_image_url} alt="" />}
         <h1 className={styles.title}>{event.title}</h1>

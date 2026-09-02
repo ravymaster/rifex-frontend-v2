@@ -68,4 +68,4 @@ export default function Perfil() {
   );
 }
 
-Perfil.getLayout = (page) => <Layout>{page}</Layout>;
+Perfil.getLayout = (page) => <Layout noindex>{page}</Layout>;

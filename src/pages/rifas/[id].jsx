@@ -6,6 +6,9 @@ import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
 import { getIconByNumber } from "../../hooks/useIconsMap";
 import Layout from "../../components/Layout";
+import TrustBadge from "../../components/TrustBadge";
+import TrustPopup from "../../components/TrustPopup";
+import { canonicalUrl, DEFAULT_OG_IMAGE } from "../../lib/publicMetadata";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
@@ -29,7 +32,35 @@ const DELIVERY_METHOD_LABELS = {
   a_convenir: "A convenir con el creador",
 };
 
-export default function RifaDetalle() {
+// RIFEX V4 A6 fix — esta página siempre fue client-fetch puro (raffle
+// llega recién tras el useEffect) y tiene un return temprano de "cargando"
+// antes de llegar al <Head> de abajo. Eso significa que un rastreador que
+// no ejecuta JS (Facebook, WhatsApp, X) nunca veía el <title>/canonical/OG
+// reales — solo el shell vacío. getServerSideProps resuelve exclusivamente
+// lo mínimo para metadata (title, creator_trust_level, vía el mismo
+// endpoint que ya usa el fetch client-side, sin duplicar su lógica) — el
+// resto de la página sigue funcionando exactamente igual que antes, con su
+// propio fetch client-side para la UI interactiva real.
+export async function getServerSideProps({ params, req }) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const base = `${proto}://${req.headers.host}`;
+  try {
+    const r = await fetch(`${base}/api/rifas/${params.id}`);
+    if (!r.ok) return { props: { metaTitle: null, metaTrustLevel: null } };
+    const j = await r.json();
+    const raffle = j?.data;
+    return {
+      props: {
+        metaTitle: raffle?.titulo || raffle?.title || null,
+        metaTrustLevel: raffle?.creator_trust_level ?? null,
+      },
+    };
+  } catch {
+    return { props: { metaTitle: null, metaTrustLevel: null } };
+  }
+}
+
+export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
   const router = useRouter();
   const { id } = router.query;
 
@@ -207,6 +238,7 @@ export default function RifaDetalle() {
       end_date: r.termino ?? r.end_date ?? null,
       start_date: r.inicio ?? r.start_date ?? null,
       creator_id: r.creador_id ?? r.creator_id ?? null,
+      creator_trust_level: r.creator_trust_level ?? null,
       created_at: r.created_at,
     };
   }
@@ -404,16 +436,55 @@ export default function RifaDetalle() {
     }
   }
 
+  // RIFEX V4 A6 fix — esta página tenía returns tempranos (cargando/error/no
+  // encontrada) que corrían ANTES de llegar al <Head> más abajo. Como toda
+  // la data llega por fetch client-side, la primera pasada SSR (la que ve
+  // un rastreador sin JS) siempre caía en el branch "Cargando…" sin
+  // title/canonical/OG reales. metaTitle/metaTrustLevel (de
+  // getServerSideProps) permiten construir el Head correcto ANTES de
+  // saber si `raffle` ya cargó en el cliente, y se renderiza en los tres
+  // branches de abajo además del branch principal.
+  const effectiveTitle = titleCap || metaTitle || "Rifa";
+  const effectiveTrustLevel = raffle?.creator_trust_level ?? metaTrustLevel ?? null;
+  const metaHead = (
+    <Head>
+      <title key="title">{`${effectiveTitle} — Información y condiciones | Rifex`}</title>
+      <meta
+        key="description"
+        name="description"
+        content="Consulta organizador, finalidad, premio, fecha, condiciones y estado de confianza de esta iniciativa en Rifex."
+      />
+      {/* RIFEX V4 A6 — landing individual con premio: fuera de catálogo/sitemap,
+          noindex pero follow (así Facebook/WhatsApp/X pueden seguir generando
+          la vista previa aunque no se indexe en buscadores), canonical propia.
+          key="robots" pisa el <meta robots> que Layout agregaría solo si se le
+          pasara noindex — acá se define directamente el valor exacto de V4. */}
+      <meta key="robots" name="robots" content="noindex, follow, noarchive" />
+      <link key="canonical" rel="canonical" href={canonicalUrl(`/rifas/${id || ""}`)} />
+      <meta key="og:title" property="og:title" content={`${effectiveTitle} — Información de la iniciativa`} />
+      <meta
+        key="og:description"
+        property="og:description"
+        content="Consulta organizador, finalidad, fecha, condiciones y estado de confianza en Rifex."
+      />
+      <meta key="og:url" property="og:url" content={canonicalUrl(`/rifas/${id || ""}`)} />
+      <meta key="og:type" property="og:type" content="website" />
+      <meta key="og:image" property="og:image" content={DEFAULT_OG_IMAGE} />
+      <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+    </Head>
+  );
+
   if (loading) {
-    return (<div className={styles.page}><div className={styles.loading}>Cargando rifa…</div></div>);
+    return (<div className={styles.page}>{metaHead}<div className={styles.loading}>Cargando rifa…</div></div>);
   }
   if (error) {
-    return (<div className={styles.page}><div className={styles.error}>{error}</div></div>);
+    return (<div className={styles.page}>{metaHead}<div className={styles.error}>{error}</div></div>);
   }
   // Fallback visible (evita pantalla en blanco)
   if (!raffle) {
     return (
       <div className={styles.page} style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        {metaHead}
         <div className={styles.error}>
           No encontramos esta rifa. Revisa el enlace o vuelve al <a href="/panel">panel</a>.
         </div>
@@ -482,7 +553,8 @@ export default function RifaDetalle() {
 
   return (
     <div className={styles.page} style={pageIsolated}>
-      <Head><title>{`${titleCap || "Rifa"} — Rifex`}</title></Head>
+      {metaHead}
+      <TrustPopup trustLevel={effectiveTrustLevel} />
 
       {/* Overlay spinner durante la redirección a MP */}
       {redirecting && (
@@ -615,9 +687,11 @@ export default function RifaDetalle() {
           </div>
         )}
 
+        <TrustBadge level={raffle?.creator_trust_level ?? null} />
+
         <div className={styles.linksRow}>
           {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
-          <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
+          <a className={styles.linkMuted} href="/terminos-rifas" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
         </div>
 
         {/* Grid de números */}
@@ -827,5 +901,5 @@ export default function RifaDetalle() {
   );
 }
 
-RifaDetalle.getLayout = (page) => <Layout>{page}</Layout>;
+RifaDetalle.getLayout = (page) => <Layout disableAutoMeta>{page}</Layout>;
 

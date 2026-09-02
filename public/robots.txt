@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /panel
+Disallow: /admin
+Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+Disallow: /crear-rifa
+Disallow: /crear-evento
+Disallow: /crear-colecta
+Disallow: /checkout
+Disallow: /mis-iniciativas
+Disallow: /blog
+Disallow: /onboarding
+Disallow: /auth
+Disallow: /registro
+Sitemap: https://rifex.pro/sitemap.xml

@@ -4,14 +4,33 @@ import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { DEFAULT_OG_IMAGE, canonicalUrl } from '@/lib/publicMetadata';
 
 export default function Layout({
   title = 'Rifex',
   description = 'Crea eventos, vende entradas digitales y administra campañas de recaudación desde una sola plataforma.',
+  // RIFEX V4 A1 — metadata pública opcional. canonicalPath acepta un path
+  // ("/eventos") o una URL absoluta ya resuelta por la página (landings
+  // individuales calculan su propio canonical con el id real). noindex
+  // NUNCA reemplaza auth/RLS — es solo una señal para rastreadores.
+  canonicalPath = null,
+  noindex = false,
+  ogType = 'website',
+  ogImage = DEFAULT_OG_IMAGE,
+  // RIFEX V4 A6 fix — Next 14's next/head keeps the FIRST occurrence of a
+  // keyed tag, not the last, when two <Head> instances in the tree share a
+  // key. Layout's own <Head> always renders before a page's nested <Head>,
+  // so on pages that compute their own dynamic title/canonical/OG (e.g. a
+  // per-item landing where Layout can't know the real id at getLayout time,
+  // since getLayout has no access to render-time props), Layout's generic
+  // defaults were winning over the page's specific ones. disableAutoMeta
+  // skips Layout's own metadata tags entirely so the page's <Head> is the
+  // only source — used by rifas/[id].jsx.
+  disableAutoMeta = false,
   children,
 }) {
   const router = useRouter();
-  const { pathname } = router;
+  const { pathname, asPath } = router;
   const [open, setOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [user, setUser] = useState(null);
@@ -21,21 +40,26 @@ export default function Layout({
   // Eventos/Entradas/Campañas — "Crear rifa" queda fuera del nav público
   // por instrucción explícita (Rifas sigue intacto dentro del área
   // autenticada: /panel, /mis-iniciativas, y accesible por URL directa).
+  // ETAPA 2 (identidad pública) — navbar reducida a exactamente Eventos /
+  // Campañas / Cómo funciona, más cuenta/login. Precios, Seguridad y Ayuda
+  // siguen existiendo y accesibles (footer, enlaces internos), solo dejan
+  // de tener su propio ítem de primer nivel en la navegación pública.
   const navItems = [
     { label: 'Eventos',        href: '/eventos' },
     { label: 'Campañas',       href: '/crear-colecta' },
     { label: 'Cómo funciona',  href: '/wizard' },
-    { label: 'Precios',        href: '/planes' },
-    { label: 'Seguridad',      href: '/seguridad' },
   ];
 
   // EVENT-1 (Fase 12): "Panel" pasa a ser "Mis iniciativas" — el
   // distribuidor superior de Rifas/Campañas/Eventos. /panel (Rifas) sigue
   // existiendo intacto, solo deja de tener su propio link de primer nivel
   // acá; se llega igual desde Mis iniciativas o por URL directa.
+  // STAGE 2 REPAIR — "Mis campañas" quitado del dropdown: duplicaba la
+  // card Campañas que ya vive dentro de /mis-iniciativas, el único punto
+  // de entrada a los productos del usuario. La ruta /crear-colecta y su
+  // panel siguen intactos, solo dejan de tener su propio ítem acá.
   const accountItems = [
     { label: 'Mis iniciativas', href: '/mis-iniciativas' },
-    { label: 'Mis campañas',    href: '/crear-colecta' },
     { label: 'Bancos & Pagos',  href: '/panel/bancos' },
     { label: 'Perfil',          href: '/perfil' },
   ];
@@ -87,13 +111,41 @@ export default function Layout({
 
   const initial = (user?.email || '?').trim().charAt(0).toUpperCase();
 
+  // canonicalPath gana siempre que se pase explícitamente. Si no, se usa
+  // asPath (no pathname): pathname es el patrón de ruta literal de Next
+  // ("/eventos/[id]"), asPath ya trae el id real resuelto. Se descarta el
+  // query string — un canonical nunca debe variar por parámetros de
+  // tracking o de estado de UI.
+  const canonical = canonicalPath
+    ? (canonicalPath.startsWith('http') ? canonicalPath : canonicalUrl(canonicalPath))
+    : canonicalUrl((asPath || pathname || '/').split('?')[0]);
+
   return (
     <>
-      <Head>
-        <title>{title}</title>
-        <meta name="description" content={description} />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
+      {!disableAutoMeta && (
+        <Head>
+          <title key="title">{title}</title>
+          <meta key="description" name="description" content={description} />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link key="canonical" rel="canonical" href={canonical} />
+          {noindex && <meta key="robots" name="robots" content="noindex, nofollow" />}
+          <meta key="og:title" property="og:title" content={title} />
+          <meta key="og:description" property="og:description" content={description} />
+          <meta key="og:url" property="og:url" content={canonical} />
+          <meta key="og:type" property="og:type" content={ogType} />
+          <meta key="og:image" property="og:image" content={ogImage} />
+          <meta property="og:site_name" content="Rifex" />
+          <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+          <meta key="twitter:title" name="twitter:title" content={title} />
+          <meta key="twitter:description" name="twitter:description" content={description} />
+          <meta key="twitter:image" name="twitter:image" content={ogImage} />
+        </Head>
+      )}
+      {disableAutoMeta && (
+        <Head>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+        </Head>
+      )}
 
       <header className="rf-header" role="banner">
         <div className="rf-header-inner">
@@ -220,7 +272,8 @@ export default function Layout({
               <span className="rf-foot__colTitle">Producto</span>
               <Link href="/crear-evento">Crear evento</Link>
               <Link href="/crear-colecta">Crear campaña</Link>
-              <Link href="/planes">Precios</Link>
+              <Link href="/planes">Comisión</Link>
+              <Link href="/register" className="rf-foot__community">Conoce más productos de Rifex siendo parte de la comunidad</Link>
             </div>
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Soporte</span>
@@ -230,16 +283,26 @@ export default function Layout({
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Legal</span>
               <Link href="/terminos">Términos</Link>
-              <Link href="/terminos#privacidad">Privacidad</Link>
+              <Link href="/privacidad">Privacidad</Link>
+              <Link href="/cookies">Cookies</Link>
+              <Link href="/uso-aceptable">Uso aceptable</Link>
               <Link href="/seguridad">Seguridad</Link>
               <Link href="/cumplimiento">Rifex Cumplimiento</Link>
+              <Link href="/reportar">Reportar</Link>
             </div>
           </div>
         </div>
         <div className="rf-foot__bottom">
           <span>© {new Date().getFullYear()} Rifex. Todos los derechos reservados.</span>
           <div className="rf-foot__bottomRight">
-            <span className="rf-foot__pay">Pagos con Mercado Pago</span>
+            <Link href="/confianza">Confianza</Link>
+            <button
+              type="button"
+              className="rf-foot__cookiePrefs"
+              onClick={() => window.dispatchEvent(new Event('rifex:open-cookie-preferences'))}
+            >
+              Preferencias de cookies
+            </button>
           </div>
         </div>
       </footer>
@@ -283,6 +346,8 @@ export default function Layout({
         .rf-foot__colTitle { font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.85); margin-bottom: 2px; }
         .rf-foot__col :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; font-size: 13.5px; }
         .rf-foot__col :global(a:hover) { color: #fff; }
+        .rf-foot__col :global(a.rf-foot__community) { font-size: 12px; font-style: italic; color: rgba(255, 255, 255, 0.45); max-width: 220px; }
+        .rf-foot__col :global(a.rf-foot__community:hover) { color: rgba(255, 255, 255, 0.8); }
 
         .rf-foot__bottom {
           border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -299,7 +364,17 @@ export default function Layout({
         .rf-foot__bottomRight { display: flex; align-items: center; gap: 16px; }
         .rf-foot__bottomRight :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; }
         .rf-foot__bottomRight :global(a:hover) { color: #fff; }
-        .rf-foot__pay { display: inline-flex; align-items: center; gap: 5px; }
+        .rf-foot__cookiePrefs {
+          background: transparent;
+          border: none;
+          color: rgba(255, 255, 255, 0.6);
+          font-size: 12px;
+          font-family: inherit;
+          cursor: pointer;
+          padding: 0;
+          text-decoration: underline;
+        }
+        .rf-foot__cookiePrefs:hover { color: #fff; }
 
         @media (max-width: 640px) {
           .rf-foot__top { flex-direction: column; gap: 24px; }

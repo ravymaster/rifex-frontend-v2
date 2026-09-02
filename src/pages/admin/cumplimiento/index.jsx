@@ -145,4 +145,4 @@ export default function AdminCumplimientoList() {
   );
 }
 
-AdminCumplimientoList.getLayout = (page) => <Layout>{page}</Layout>;
+AdminCumplimientoList.getLayout = (page) => <Layout noindex>{page}</Layout>;

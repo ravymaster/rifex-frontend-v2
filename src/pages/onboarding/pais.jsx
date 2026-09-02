@@ -112,4 +112,4 @@ export default function OnboardingPais() {
   );
 }
 
-OnboardingPais.getLayout = (page) => <Layout>{page}</Layout>;
+OnboardingPais.getLayout = (page) => <Layout noindex>{page}</Layout>;

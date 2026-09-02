@@ -31,7 +31,26 @@ export default async function handler(req, res) {
       const { data, error } = await supabase.from('raffles').select('*').eq('id', id).maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ ok: false, error: 'not_found' });
-      return res.status(200).json({ ok: true, data });
+
+      // RIFEX V4 A3 — nivel de confianza público del organizador, derivado
+      // exclusivamente del mismo estado real que usa assertCreatorEligible
+      // (nunca inventado): Nivel 3 solo si mp_identity_match==='matched' con
+      // la cuenta conectada y vigente; Nivel 2 si hay cuenta conectada sin
+      // match confirmado; null en cualquier otro caso (nunca se sobre-declara).
+      let creatorTrustLevel = null;
+      if (data.creator_id) {
+        const { data: mg } = await supabase
+          .from('merchant_gateways')
+          .select('status, revoked_at, mp_identity_match')
+          .eq('user_id', data.creator_id)
+          .eq('provider', 'mp')
+          .maybeSingle();
+        if (mg && mg.status === 'connected' && !mg.revoked_at) {
+          creatorTrustLevel = mg.mp_identity_match === 'matched' ? 3 : 2;
+        }
+      }
+
+      return res.status(200).json({ ok: true, data: { ...data, creator_trust_level: creatorTrustLevel } });
     }
 
     if (req.method === 'PATCH') {

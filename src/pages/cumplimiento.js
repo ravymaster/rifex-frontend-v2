@@ -1,12 +1,17 @@
 // src/pages/cumplimiento.js
-// RIFEX CLOSURE PASS (2026-08-29) — página pública informativa de "Rifex
-// Cumplimiento". Es ROADMAP: describe cómo funcionará la capa post-rifa
-// que ayudará a verificar que un premio se entregó bajo las condiciones
-// informadas. NO hay motor automático implementado — ni scheduler, ni
-// emails reales, ni estados en DB para esto. Nunca afirmar que algo de
-// esto ya está activo; nunca prometer arbitraje legal ni garantía
-// material de entrega.
-import Head from "next/head";
+// RIFEX V4 A5/Cumplimiento — describe únicamente controles REALMENTE
+// activos — nunca C6 (reputación pública), nunca arbitraje legal, nunca
+// garantía material de entrega; el silencio nunca se interpreta como
+// incumplimiento.
+// ETAPA 2 (identidad pública) — neutralizada: el flujo día-a-día, el
+// contenido exacto de los correos, la tabla de decisión y los estados
+// internos del caso (calendario/inventario operativo) dejaron de
+// publicarse aquí — son detalle interno, no comunicación pública. La
+// mecánica real sigue intacta en el backend (fulfillmentTimeline.js,
+// fulfillmentCaseService.js); esta página solo describe su existencia.
+// STAGE 2 REPAIR — se retiró por completo la sección "Reputación
+// futura": no anunciamos públicamente una función que todavía no
+// existe (C6 sigue sin implementar, sin fecha, sin promesa pública).
 import Layout from "@/components/Layout";
 
 const badgeStyle = {
@@ -22,51 +27,15 @@ const badgeStyle = {
   fontSize: 13,
 };
 
-const flowStep = {
-  border: "1px solid #E5E7EB",
-  borderRadius: 12,
-  padding: "10px 14px",
-  background: "#F8FAFC",
-  fontWeight: 700,
-  fontSize: 14,
-  color: "#0F172A",
-  textAlign: "center",
-};
-
-const arrow = { textAlign: "center", color: "#94A3B8", fontSize: 18, margin: "2px 0" };
-
-const timelineDay = {
-  border: "1px solid #E5E7EB",
-  borderRadius: 12,
-  padding: "12px 14px",
-  marginBottom: 10,
-};
-
-const dayLabel = { fontWeight: 800, color: "#1E3A8A", fontSize: 13, marginBottom: 4 };
-
-const stateChip = {
-  display: "inline-block",
-  border: "1px solid #E5E7EB",
-  borderRadius: 999,
-  padding: "4px 10px",
-  fontSize: 12.5,
-  fontWeight: 600,
-  color: "#334155",
-  background: "#fff",
-  margin: "3px 6px 3px 0",
-};
-
 export default function Cumplimiento() {
   return (
     <>
-      <Head><title>Rifex Cumplimiento — Próximamente</title></Head>
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
-        <div style={badgeStyle}>🔧 Funcionalidad en preparación — Próximamente</div>
+        <div style={badgeStyle}>✅ Controles activos</div>
         <h1 style={{ margin: "12px 0 8px" }}>Rifex Cumplimiento</h1>
         <p style={{ color: "#6B7280" }}>
-          Esta página describe cómo funcionará la capa de seguimiento posterior a una rifa. <strong>Nada de lo
-          descrito aquí está activo todavía</strong> — es el roadmap del producto, no una funcionalidad en
-          operación. Lo iremos activando por partes y actualizaremos esta página cuando eso ocurra.
+          Rifex Cumplimiento incorpora controles de seguimiento, confirmación y revisión posterior para
+          determinadas iniciativas realizadas en la plataforma.
         </p>
 
         <hr style={{ margin: "20px 0" }} />
@@ -74,200 +43,52 @@ export default function Cumplimiento() {
         <section>
           <h2>Qué busca Rifex Cumplimiento</h2>
           <p>
-            Rifex Cumplimiento busca ayudar a verificar que, después de finalizar una rifa, el premio sea
-            entregado bajo las condiciones que fueron informadas a los participantes antes de participar
-            (modalidad de entrega, quién asume el envío, y si corresponde, la transferencia o trámites del
-            premio).
+            Rifex Cumplimiento busca ayudar a verificar que, tras finalizar una iniciativa con un compromiso de
+            entrega, ese compromiso se cumpla bajo las condiciones que fueron informadas antes de participar.
           </p>
           <p>
-            <strong>Rifex Cumplimiento no reemplaza a los tribunales, no garantiza materialmente la entrega del
-            premio, y no realiza arbitraje legal.</strong> Busca registrar confirmaciones, recordar la entrega,
-            detectar discrepancias, generar un historial de cumplimiento y aumentar la transparencia entre
-            creadores y ganadores.
+            <strong>Rifex Cumplimiento no reemplaza a los tribunales, no garantiza materialmente la entrega, y no
+            realiza arbitraje legal.</strong> Busca registrar confirmaciones, hacer seguimiento de plazos, detectar
+            discrepancias y aumentar la transparencia entre las partes involucradas.
           </p>
         </section>
 
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Flujo post-rifa (roadmap)</h2>
-          <div style={{ maxWidth: 420, margin: "16px auto", display: "grid", gap: 0 }}>
-            {[
-              "Rifa finaliza",
-              "Ganador definido",
-              "Correo al ganador",
-              "Correo al creador",
-              "Correo a participantes no ganadores",
-              "Período de entrega",
-              "Rifex Cumplimiento",
-              "Confirmación",
-              "Estado de cumplimiento",
-            ].map((step, i, arr) => (
-              <div key={step}>
-                <div style={flowStep}>{step}</div>
-                {i < arr.length - 1 && <div style={arrow}>↓</div>}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Correos al finalizar la rifa (roadmap)</h2>
-          <p style={{ color: "#6B7280", fontSize: 13.5 }}>
-            Un solo correo por destinatario en este momento — nunca una secuencia de mensajes para quienes no
-            ganaron.
-          </p>
-          <h3 style={{ fontSize: 15 }}>Al ganador</h3>
-          <ul>
-            <li>Informar que ganó e identificar el premio.</li>
-            <li>Mostrar las condiciones de entrega publicadas (envío/transferencia, si corresponde).</li>
-            <li>Explicar que deberá coordinar la entrega con el creador.</li>
-            <li>Informar que Rifex más adelante solicitará una confirmación de recepción.</li>
-          </ul>
-          <h3 style={{ fontSize: 15 }}>Al creador</h3>
-          <ul>
-            <li>Informar el cierre de la rifa e identificar al ganador.</li>
-            <li>Recordar las condiciones de entrega que él mismo publicó.</li>
-            <li>Indicar que deberá coordinar la entrega.</li>
-            <li>Informar que Rifex más adelante solicitará una confirmación de entrega.</li>
-          </ul>
-          <h3 style={{ fontSize: 15 }}>A quienes no ganaron</h3>
-          <ul>
-            <li>Informar el resultado (ganador/número, según la política pública ya vigente).</li>
-            <li>Enlace a la rifa ya cerrada.</li>
-            <li>Agradecimiento por participar.</li>
-          </ul>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Plazos propuestos (roadmap)</h2>
-          <div style={timelineDay}>
-            <div style={dayLabel}>Día 0</div>
-            Rifa finalizada y correos de resultado enviados.
-          </div>
-          <div style={timelineDay}>
-            <div style={dayLabel}>Días 1–9</div>
-            Período razonable para que creador y ganador coordinen la entrega. Si el creador informa la entrega
-            antes, Rifex podría adelantar la consulta al ganador.
-          </div>
-          <div style={timelineDay}>
-            <div style={dayLabel}>Día 10 — primer control</div>
-            Al ganador: <em>&ldquo;¿Recibiste tu premio?&rdquo;</em> (Sí, lo recibí / No, todavía no). Al
-            creador: <em>&ldquo;¿Entregaste el premio?&rdquo;</em> (Sí, fue entregado / Todavía estoy
-            coordinando / Aún no).
-          </div>
-          <div style={timelineDay}>
-            <div style={dayLabel}>Día 15</div>
-            Recordatorio, únicamente a quien no haya respondido todavía.
-          </div>
-          <div style={timelineDay}>
-            <div style={dayLabel}>Día 20</div>
-            Cierre de la ronda automática de control. Rifex no envía correos de este tipo indefinidamente.
-          </div>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Cómo se decidiría el resultado (roadmap)</h2>
-          <p style={{ color: "#6B7280", fontSize: 13.5 }}>
-            El silencio nunca se interpreta como incumplimiento, y ninguna de estas reglas otorga
-            automáticamente una sanción.
-          </p>
-          <ul>
-            <li>Ganador confirma que recibió el premio → <strong>cumplimiento confirmado</strong> (la
-              confirmación del propio ganador tiene prioridad para acreditar la recepción).</li>
-            <li>Creador confirma entrega y ganador confirma recepción → <strong>cumplimiento confirmado</strong>.</li>
-            <li>Creador confirma entrega pero el ganador dice que no la recibió → <strong>discrepancia, requiere
-              revisión</strong>.</li>
-            <li>Creador dice que aún está coordinando o no ha entregado, y el ganador dice que no recibió →
-              <strong> entrega pendiente</strong>.</li>
-            <li>El ganador no responde pero el creador sí confirmó la entrega → entrega informada por el
-              creador, pendiente de confirmación del ganador (nunca se sanciona automáticamente por esto).</li>
-            <li>Ninguno de los dos responde → <strong>sin confirmación</strong>.</li>
-          </ul>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Estados posibles (roadmap)</h2>
-          <div>
-            {["Pendiente de entrega", "Entrega informada", "Cumplimiento confirmado", "Entrega pendiente", "En revisión", "Sin confirmación"].map((s) => (
-              <span key={s} style={stateChip}>{s}</span>
-            ))}
-          </div>
-          <p style={{ color: "#6B7280", fontSize: 13, marginTop: 10 }}>
-            Estos estados son conceptuales — todavía no existen como columnas ni valores en ninguna base de
-            datos de Rifex.
-          </p>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Qué evidencia podrá registrar (roadmap)</h2>
-          <p>Cuando este módulo exista, podría registrar información como:</p>
-          <ul>
-            <li>Fecha de finalización de la rifa.</li>
-            <li>Condiciones del premio vigentes al momento de participar (modalidad de entrega, quién asumía el
-              envío, si requería transferencia/trámites y quién los asumía).</li>
-            <li>Fecha en que el creador informó la entrega.</li>
-            <li>Fecha y respuesta del ganador.</li>
-            <li>Estado final del seguimiento.</li>
-          </ul>
-          <p style={{ color: "#6B7280", fontSize: 13.5 }}>
-            Nunca se publicaría información personal (PII) de creadores ni ganadores — ni en esta página, ni en
-            ningún historial visible públicamente. Ese almacenamiento tampoco existe todavía; se implementaría
-            junto con el motor real de Rifex Cumplimiento, no antes.
-          </p>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Por qué importan las condiciones informadas al participar</h2>
+          <h2>Cómo funciona, en términos generales</h2>
           <p>
-            Las condiciones que un creador publica al momento de crear su rifa (cómo se entrega el premio, quién
-            asume el envío, si requiere transferencia o trámites y quién los cubre) son la referencia relevante
-            para evaluar la entrega. Por ejemplo: no bastaría con entregar el premio si después se le imponen al
-            ganador costos o condiciones que no se habían informado antes de participar.
+            Cuando corresponde, Rifex hace un seguimiento por plazos e invita a las partes involucradas a
+            confirmar el estado del compromiso. <strong>El silencio nunca se interpreta como incumplimiento</strong>,
+            y ninguna respuesta por sí sola genera una sanción automática — una discrepancia puede derivar en una
+            revisión administrativa antes de cualquier decisión.
           </p>
+        </section>
+
+        <hr style={{ margin: "20px 0" }} />
+
+        <section>
+          <h2>Qué se registra</h2>
           <p style={{ color: "#6B7280", fontSize: 13.5 }}>
-            Esto no implica una acusación automática de fraude — busca dar un marco de referencia claro y
-            objetivo para resolver discrepancias.
+            Rifex mantiene un registro interno del seguimiento de cada caso. <strong>Nunca se publica información
+            personal (PII)</strong> de las personas involucradas — ni en esta página, ni en ningún historial visible
+            públicamente. El registro es interno y solo accesible para revisión administrativa.
           </p>
         </section>
 
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Reputación futura</h2>
+          <h2>Rifex Cumplimiento no es lo mismo que Seguridad</h2>
           <p>
-            Con el tiempo, un historial de premios confirmados podrá ayudar a mostrar señales de cumplimiento de
-            un creador. <strong>Hoy no existe ningún puntaje, estrellas, porcentaje ni penalización automática</strong> —
-            eso, si se implementa, será una decisión de producto separada y posterior.
-          </p>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Rifex Cumplimiento no es lo mismo que Seguridad / Trust</h2>
-          <p>
-            <strong>Seguridad de Rifex</strong> (ver <a href="/seguridad">nuestra página de Seguridad</a>) ayuda
-            a verificar quién es el creador antes de que pueda publicar. <strong>Rifex Cumplimiento</strong>{" "}
-            ayuda a registrar si las obligaciones posteriores de una rifa ya finalizada fueron cumplidas. Son dos
-            capas distintas, con datos y lógica separados.
+            <strong>Seguridad</strong> (ver <a href="/seguridad">nuestra página de Seguridad</a>) reúne controles
+            aplicables antes o durante determinadas operaciones. <strong>Rifex Cumplimiento</strong> incorpora
+            seguimiento posterior cuando corresponde. Son dos capas distintas, con datos y lógica separados.
           </p>
         </section>
 
         <p style={{ color: "#6B7280", marginTop: 24, fontSize: 13 }}>
-          Última actualización: 29/08/2026. Consulta también nuestros <a href="/terminos">Términos y
+          Última actualización: 01/09/2026. Consulta también nuestros <a href="/terminos">Términos y
           Condiciones</a> y nuestra página de <a href="/seguridad">Seguridad</a>.
         </p>
       </main>
@@ -275,4 +96,12 @@ export default function Cumplimiento() {
   );
 }
 
-Cumplimiento.getLayout = (page) => <Layout>{page}</Layout>;
+Cumplimiento.getLayout = (page) => (
+  <Layout
+    title="Rifex Cumplimiento — Seguimiento post-entrega"
+    description="Rifex Cumplimiento incorpora controles de seguimiento, confirmación y revisión posterior para determinadas iniciativas realizadas en la plataforma."
+    canonicalPath="/cumplimiento"
+  >
+    {page}
+  </Layout>
+);
