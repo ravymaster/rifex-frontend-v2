@@ -54,9 +54,12 @@ export default function Layout({
   // distribuidor superior de Rifas/Campañas/Eventos. /panel (Rifas) sigue
   // existiendo intacto, solo deja de tener su propio link de primer nivel
   // acá; se llega igual desde Mis iniciativas o por URL directa.
+  // STAGE 2 REPAIR — "Mis campañas" quitado del dropdown: duplicaba la
+  // card Campañas que ya vive dentro de /mis-iniciativas, el único punto
+  // de entrada a los productos del usuario. La ruta /crear-colecta y su
+  // panel siguen intactos, solo dejan de tener su propio ítem acá.
   const accountItems = [
     { label: 'Mis iniciativas', href: '/mis-iniciativas' },
-    { label: 'Mis campañas',    href: '/crear-colecta' },
     { label: 'Bancos & Pagos',  href: '/panel/bancos' },
     { label: 'Perfil',          href: '/perfil' },
   ];
@@ -270,6 +273,7 @@ export default function Layout({
               <Link href="/crear-evento">Crear evento</Link>
               <Link href="/crear-colecta">Crear campaña</Link>
               <Link href="/planes">Comisión</Link>
+              <Link href="/register" className="rf-foot__community">Conoce más productos de Rifex siendo parte de la comunidad</Link>
             </div>
             <div className="rf-foot__col">
               <span className="rf-foot__colTitle">Soporte</span>
@@ -342,6 +346,8 @@ export default function Layout({
         .rf-foot__colTitle { font-size: 12.5px; font-weight: 700; color: rgba(255, 255, 255, 0.85); margin-bottom: 2px; }
         .rf-foot__col :global(a) { color: rgba(255, 255, 255, 0.6); text-decoration: none; font-size: 13.5px; }
         .rf-foot__col :global(a:hover) { color: #fff; }
+        .rf-foot__col :global(a.rf-foot__community) { font-size: 12px; font-style: italic; color: rgba(255, 255, 255, 0.45); max-width: 220px; }
+        .rf-foot__col :global(a.rf-foot__community:hover) { color: rgba(255, 255, 255, 0.8); }
 
         .rf-foot__bottom {
           border-top: 1px solid rgba(255, 255, 255, 0.1);

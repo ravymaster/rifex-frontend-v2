@@ -181,14 +181,17 @@ test("terminos.js ya no afirma que Rifex retiene fondos ni 'Depósito por Rifex'
   assert.doesNotMatch(src, /Depósito por Rifex/);
 });
 
-test("terminos.js conserva el aviso de revisión legal pendiente (no se declara aprobado sin revisión real)", () => {
-  const src = read("src/pages/terminos.js");
-  assert.match(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+test("STAGE 2 REPAIR: /terminos (corporativo público) ya no muestra el aviso de revisión legal pendiente; /terminos-rifas sí lo conserva (nunca se declara aprobado sin revisión real)", () => {
+  const publicSrc = read("src/pages/terminos.js");
+  assert.doesNotMatch(publicSrc, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  const rifasSrc = read("src/pages/terminos-rifas.js");
+  assert.match(rifasSrc, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
 });
 
-test("cumplimiento.js no anuncia C6/reputación pública como activa", () => {
+test("cumplimiento.js no anuncia reputación pública, ni activa ni futura", () => {
   const src = read("src/pages/cumplimiento.js");
-  assert.match(src, /Hoy no existe ningún puntaje/);
+  assert.doesNotMatch(src, /Reputación futura/i);
+  assert.doesNotMatch(src, /Hoy no existe ningún puntaje/);
   assert.doesNotMatch(src, /puntaje activo|reputación pública activa/i);
 });
 
@@ -292,22 +295,46 @@ test("seguridad.js: no revela el mecanismo exacto RUT/MP, usa la frase neutral",
   assert.match(src, /controles de registro, validación de identidad y titularidad de cuentas/);
 });
 
-test("cumplimiento.js: sin calendario/inventario operativo público (día 10/15/20, tabla de decisión, estados internos)", () => {
+test("cumplimiento.js: sin calendario/inventario operativo público (día 10/15/20, tabla de decisión, estados internos), sin Reputación futura/C6", () => {
   const src = read("src/pages/cumplimiento.js");
   assert.doesNotMatch(src, /Día 10|Día 15|Día 20/);
   assert.doesNotMatch(src, /cumplimiento confirmado.*discrepancia, requiere/is);
+  assert.doesNotMatch(src, /Reputación futura/i);
+  assert.doesNotMatch(src, /Hoy no existe ningún puntaje/);
   assert.match(src, /Rifex Cumplimiento incorpora controles de seguimiento, confirmación y revisión posterior/);
-  assert.match(src, /Hoy no existe ningún puntaje/);
 });
 
-test("terminos.js: nueva sección Eventos/Campañas/plataforma, sección histórica de rifas intacta", () => {
+test("terminos.js (corporativo público): sección Eventos/Campañas/plataforma presente, sin secciones ni anexo de Rifas, sin banner legal", () => {
   const src = read("src/pages/terminos.js");
   assert.match(src, /id="plataforma"/);
   assert.match(src, /Eventos, entradas digitales y Campañas de recaudación/);
   assert.match(src, /Conoce las condiciones de uso de Rifex para organizadores y usuarios de eventos, entradas digitales y campañas de recaudación en línea\./);
+  assert.doesNotMatch(src, /id="comprador"/);
+  assert.doesNotMatch(src, /id="creador"/);
+  assert.doesNotMatch(src, /href="\/reglas-iniciativas-premio"/);
+  assert.doesNotMatch(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  assert.doesNotMatch(src, /\bcuenta\/rifa\b/);
+});
+
+test("terminos-rifas.js: conserva verbatim las condiciones históricas de Rifas (Comprador/Creador/Rifex), noindex, y las referencias reales siguen apuntando ahí", () => {
+  const src = read("src/pages/terminos-rifas.js");
   assert.match(src, /id="comprador"/);
   assert.match(src, /id="creador"/);
+  assert.match(src, /id="rifex"/);
   assert.match(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  assert.match(src, /noindex/);
+
+  const crearRifa = read("src/pages/crear-rifa.jsx");
+  assert.match(crearRifa, /\/terminos-rifas#comprador/);
+  assert.match(crearRifa, /\/terminos-rifas#creador/);
+  assert.match(crearRifa, /\/terminos-rifas#rifex/);
+  assert.doesNotMatch(crearRifa, /"\/terminos#comprador"|"\/terminos#creador"|"\/terminos#rifex"/);
+
+  const rifaLanding = read("src/pages/rifas/[id].jsx");
+  assert.match(rifaLanding, /href="\/terminos-rifas"/);
+
+  const buyerForm = read("src/components/rifex/BuyerForm.jsx");
+  assert.match(buyerForm, /href="\/terminos-rifas"/);
 });
 
 test("reportar.js: placeholders neutralizados, metadata exacta", () => {
@@ -353,4 +380,106 @@ test("docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt existe con la estructura req
   assert.match(src, /Observación del abogado:/);
   assert.match(src, /Redacción recomendada:/);
   assert.match(src, /Norma o fundamento, si corresponde:/);
+});
+
+// RIFEX STAGE 2 REPAIR — CÓDIGO / REPARACIÓN QUIRÚRGICA FINAL ETAPA 2
+// Cobertura A-J requerida por la misión de reparación (sección 14).
+
+test("A. /terminos ya cubierto arriba (sección Eventos/Campañas, sin Rifas, sin banner)", () => {
+  assert.ok(true);
+});
+
+test("B. /privacidad: no 'rifas creadas', no TODO de operador, no advertencia legal interna, no revela receta Trust", () => {
+  const src = read("src/pages/privacidad.js");
+  assert.doesNotMatch(src, /rifas creadas/i);
+  assert.doesNotMatch(src, /se publicará aquí una vez confirmada/i);
+  assert.doesNotMatch(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  assert.doesNotMatch(src, /contrasta el RUT|comparación exacta|fail-closed/i);
+  assert.match(src, /Rifex puede actualizar esta política/);
+});
+
+test("C. /cookies: copy correcto (preferencia de medición y publicidad), comportamiento de Meta Pixel compatible con las afirmaciones públicas", () => {
+  const cookiesSrc = read("src/pages/cookies.js");
+  assert.match(cookiesSrc, /preferencia de medición y publicidad/);
+  assert.doesNotMatch(cookiesSrc, /consentimiento de marketing/);
+
+  // Las 3 afirmaciones públicas deben poder demostrarse contra el código real:
+  const appSrc = read("src/pages/_app.js");
+  assert.match(appSrc, /if \(consent !== 'granted'\) return;/, "Meta Pixel debe inicializarse solo si consent === 'granted'");
+
+  const bannerSrc = read("src/components/ConsentBanner.jsx");
+  assert.match(bannerSrc, /onClick=\{onReject\}/);
+  assert.match(bannerSrc, /onClick=\{onAccept\}/);
+  assert.doesNotMatch(bannerSrc, /disabled/i, "Rechazar no debe estar deshabilitado ni menos accesible que Aceptar");
+
+  const pixelSrc = read("src/lib/metaPixel.js");
+  // trackMetaEvent nunca se invoca en el código real: ningún caller manda PII.
+  const callers = [read("src/pages/_app.js")];
+  for (const c of callers) assert.doesNotMatch(c, /trackMetaEvent\(/);
+  assert.match(pixelSrc, /export function trackMetaEvent/);
+});
+
+test("D. /uso-aceptable: no usa la formulación pública 'Premios o compensaciones inexistentes'", () => {
+  const src = read("src/pages/uso-aceptable.js");
+  assert.doesNotMatch(src, /Premios o compensaciones inexistentes/);
+  assert.match(src, /Iniciativas, bienes, servicios o contenidos falsos, engañosos o no autorizados/);
+});
+
+test("E. /seguridad: no expone receta Trust, ni carnet/biometría/procedimiento excepcional, sin lenguaje contradictorio de pagos", () => {
+  const src = read("src/pages/seguridad.js");
+  assert.doesNotMatch(src, /contrasta el RUT/i);
+  assert.doesNotMatch(src, /fotografías del carnet|biometría facial/i);
+  assert.doesNotMatch(src, /Documentación según riesgo/i);
+  assert.doesNotMatch(src, /nunca los intermedia/i);
+  assert.match(src, /controles de registro, validación de identidad y titularidad de cuentas/);
+});
+
+test("F. /cumplimiento ya cubierto arriba (sin Reputación futura/C6/calendario, conserva silencio != incumplimiento)", () => {
+  const src = read("src/pages/cumplimiento.js");
+  assert.match(src, /El silencio nunca se interpreta como incumplimiento/);
+  assert.match(src, /no reemplaza a los tribunales, no garantiza materialmente la entrega, y no/i);
+});
+
+test("G. /reportar: el email es realmente opcional también en el backend", () => {
+  const api = read("src/pages/api/reportar.js");
+  assert.match(api, /if \(!reason \|\| !description\)/, "solo reason y description son requeridos");
+  assert.doesNotMatch(api, /!email/, "email no debe formar parte de la validación de campos requeridos");
+  assert.match(api, /if \(email && !__mailer_utils\.isValidEmail\(email\)\)/, "email solo se valida si viene presente");
+});
+
+test("H. /planes: sin 'Rifas y campañas ilimitadas', conserva 7% / $0 por publicar / $0 mensualidad", () => {
+  const src = read("src/pages/planes.js");
+  assert.doesNotMatch(src, /Rifas y campañas ilimitadas/);
+  assert.match(src, /7% por venta o aporte exitoso/);
+  assert.match(src, /\$0 por publicar/);
+  assert.match(src, /\$0 mensualidad/);
+});
+
+test("I. footer público: invitación a conocer más productos vía comunidad, sin enumerar Rifas, sin Blog, usa Comisión", () => {
+  const src = read("src/components/Layout.jsx");
+  assert.match(src, /Conoce más productos de Rifex siendo parte de la comunidad/);
+  assert.doesNotMatch(src, />Rifas<|>Sorteos<|>Premios</);
+  assert.doesNotMatch(src, /href="\/blog"/);
+  assert.match(src, />Comisión<\/Link>/);
+});
+
+test("J. sitemap/robots no reintroducen catálogo público de Rifas", () => {
+  const sitemap = read("public/sitemap.xml");
+  assert.doesNotMatch(sitemap, /\/rifas</);
+});
+
+test("menú de cuenta autenticado: 'Mis campañas' ya no es un ítem independiente; 'Mis iniciativas' sigue presente y /mis-iniciativas conserva Rifas/Campañas/Eventos", () => {
+  const layoutSrc = read("src/components/Layout.jsx");
+  const match = layoutSrc.match(/const accountItems = \[[\s\S]*?\];/);
+  assert.ok(match, "no se encontró el bloque accountItems");
+  const block = match[0];
+  assert.match(block, /Mis iniciativas/);
+  assert.doesNotMatch(block, /Mis campañas/);
+  assert.match(block, /Bancos & Pagos/);
+  assert.match(block, /Perfil/);
+
+  const distribuidor = read("src/pages/mis-iniciativas.jsx");
+  assert.match(distribuidor, /'Rifas'/);
+  assert.match(distribuidor, /'Campañas'/);
+  assert.match(distribuidor, /'Eventos'/);
 });

@@ -43,13 +43,16 @@ Redacción recomendada:
 Norma o fundamento, si corresponde:
 
 ------------------------------------------------------------
-3. Términos del Creador — sección de rifas (src/pages/terminos.js#creador)
+3. Términos del Creador — sección de rifas (src/pages/terminos-rifas.js#creador)
 ------------------------------------------------------------
 Descripción: sección histórica/ya aceptada por creadores existentes,
 específica de rifas (comisión, existencia y propiedad del premio,
-entrega, fraude/chargebacks, consecuencias por incumplimiento). No fue
-modificada por ETAPA 2 — el banner de revisión pendiente sigue visible en
-la propia página, se documenta aquí solo para consolidar el seguimiento.
+entrega, fraude/chargebacks, consecuencias por incumplimiento). Movida
+verbatim desde terminos.js#creador a terminos-rifas.js en STAGE 2 REPAIR
+(mismo texto, mismo anchor) para separar la superficie corporativa
+pública de las condiciones específicas de Rifas — el contenido en sí no
+fue modificado, el banner de revisión pendiente sigue visible en la
+propia página, se documenta aquí solo para consolidar el seguimiento.
 
 Estado: MODIFICAR
 Observación del abogado:
@@ -104,7 +107,8 @@ Norma o fundamento, si corresponde:
 ------------------------------------------------------------
 Descripción: describe el modelo real de campañas de recaudación (sin
 promesa de meta obligatoria, sin devolución automática si no se alcanza
-un objetivo).
+un objetivo). El banner de revisión pendiente visible se retiró de la
+página pública en STAGE 2 REPAIR; este punto sigue pendiente aquí.
 
 Estado: MODIFICAR
 Observación del abogado:
@@ -116,7 +120,9 @@ Norma o fundamento, si corresponde:
 ------------------------------------------------------------
 Descripción: describe el modelo real de Events V1 (organizador, entradas,
 QR de un solo uso, capacidad/aforo). No inventa un flujo de reembolso
-automatizado que el código no tiene.
+automatizado que el código no tiene. El banner de revisión pendiente
+visible se retiró de la página pública en STAGE 2 REPAIR; este punto
+sigue pendiente aquí.
 
 Estado: MODIFICAR
 Observación del abogado:
@@ -130,7 +136,10 @@ Descripción: página prudente basada en auditoría read-only real del
 Payment Engine y api/events — confirma que los pagos se acreditan
 directo en la cuenta del organizador vía split de Mercado Pago
 (application_fee) y que Rifex nunca custodia el monto de la venta; no
-existe hoy un endpoint ni mecanismo automatizado de reembolso.
+existe hoy un endpoint ni mecanismo automatizado de reembolso. El
+banner de revisión pendiente visible se retiró de la página pública en
+STAGE 2 REPAIR (el contenido técnico se conserva); este punto sigue
+pendiente aquí.
 
 Estado: MODIFICAR
 Observación del abogado:
