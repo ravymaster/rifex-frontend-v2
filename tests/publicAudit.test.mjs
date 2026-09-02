@@ -483,3 +483,112 @@ test("menú de cuenta autenticado: 'Mis campañas' ya no es un ítem independien
   assert.match(distribuidor, /'Campañas'/);
   assert.match(distribuidor, /'Eventos'/);
 });
+
+// RIFEX STAGE 2 FINAL — CIERRE ETAPA 2 / PRE-PROD
+
+test("terminos.js no duplica los resúmenes de Privacidad/Cookies (enlaza a las páginas oficiales)", () => {
+  const src = read("src/pages/terminos.js");
+  assert.doesNotMatch(src, /id="privacidad"/);
+  assert.doesNotMatch(src, /id="cookies"/);
+  assert.doesNotMatch(src, /Política de Privacidad \(resumen\)/);
+  assert.doesNotMatch(src, /Política de Cookies \(resumen\)/);
+  assert.match(src, /href="\/privacidad"/);
+  assert.match(src, /href="\/cookies"/);
+});
+
+test("terminos.js no publica el tope de responsabilidad de 'últimos 3 meses'", () => {
+  const src = read("src/pages/terminos.js");
+  assert.doesNotMatch(src, /últimos 3 meses/);
+  assert.match(src, /En la medida permitida por la normativa aplicable, Rifex no será responsable por daños indirectos o lucro cesante/);
+});
+
+test("ConsentBanner.jsx y registro/continuar.jsx apuntan directo a /cookies y /privacidad (no a anchors ya removidos de /terminos)", () => {
+  const banner = read("src/components/ConsentBanner.jsx");
+  assert.match(banner, /href="\/cookies"/);
+  assert.doesNotMatch(banner, /terminos#cookies/);
+  const registro = read("src/pages/registro/continuar.jsx");
+  assert.match(registro, /href="\/privacidad"/);
+  assert.doesNotMatch(registro, /terminos#privacidad/);
+});
+
+test("preguntas-frecuentes.js ya no afirma que 'Rifex nunca los intermedia' — alineado con seguridad.js/terminos.js", () => {
+  const src = read("src/pages/preguntas-frecuentes.js");
+  const norm = src.replace(/\s+/g, " ");
+  assert.doesNotMatch(norm, /nunca los intermedia/);
+  assert.match(norm, /Rifex aplica su comisión de servicio mediante la integración con el proveedor/);
+});
+
+test("seguridad.js usa terminología transversal ('usuarios y organizadores', no 'compradores y creadores')", () => {
+  const src = read("src/pages/seguridad.js");
+  assert.doesNotMatch(src, /compradores y creadores/);
+  assert.match(src, /usuarios y organizadores/);
+});
+
+test("metadata pública: canonical siempre resuelve a rifex.pro (nunca al dominio Vercel), title/description sin Rifas/sorteo/premio", () => {
+  const publicMeta = read("src/lib/publicMetadata.js");
+  assert.match(publicMeta, /SITE_URL = "https:\/\/rifex\.pro"/);
+  assert.doesNotMatch(publicMeta, /vercel\.app/);
+
+  const pages = [
+    "src/pages/index.js", "src/pages/eventos/index.jsx", "src/pages/wizard.js",
+    "src/pages/planes.js", "src/pages/preguntas-frecuentes.js", "src/pages/terminos.js",
+    "src/pages/privacidad.js", "src/pages/cookies.js", "src/pages/uso-aceptable.js",
+    "src/pages/seguridad.js", "src/pages/cumplimiento.js", "src/pages/reportar.js",
+    "src/pages/contacto.js", "src/pages/politica-eventos.js", "src/pages/politica-campanas.js",
+    "src/pages/reembolsos.js",
+  ];
+  for (const p of pages) {
+    const src = read(p);
+    const descMatch = src.match(/description="([^"]*)"/);
+    if (descMatch) {
+      assert.doesNotMatch(descMatch[1], /\brifa\b|\brifas\b|\bsorteo\b|\bpremio\b/i, `${p}: description filtra Rifas/sorteo/premio`);
+    }
+  }
+});
+
+test("planes.js y wizard.js migraron a las props de Layout (sin <Head> propio en paralelo) — evita el bug de colisión de key de Next 14", () => {
+  const planes = read("src/pages/planes.js");
+  assert.doesNotMatch(planes, /import Head from 'next\/head'/);
+  assert.match(planes, /canonicalPath="\/planes"/);
+
+  const wizard = read("src/pages/wizard.js");
+  assert.doesNotMatch(wizard, /import Head from 'next\/head'/);
+  assert.match(wizard, /canonicalPath="\/wizard"/);
+});
+
+test("reglas-iniciativas-premio.js: mismo tratamiento que terminos-rifas.js — noindex, fuera del sitemap, sin '(rifas)' en la meta description", () => {
+  const src = read("src/pages/reglas-iniciativas-premio.js");
+  assert.match(src, /noindex/);
+  const sitemap = read("public/sitemap.xml");
+  assert.doesNotMatch(sitemap, /reglas-iniciativas-premio/);
+  const descMatch = src.match(/description="([^"]*)"/);
+  assert.ok(descMatch, "falta description en getLayout");
+  assert.doesNotMatch(descMatch[1], /\(rifas\)/);
+});
+
+test("sitemap.xml: cada URL listada corresponde a una página indexable (sin noindex) — sin contradicción sitemap/robots", () => {
+  const sitemap = read("public/sitemap.xml");
+  const urls = [...sitemap.matchAll(/<loc>https:\/\/rifex\.pro(\/[^<]*)<\/loc>/g)].map((m) => m[1]);
+  assert.ok(urls.length > 0, "el sitemap no debe estar vacío");
+  assert.doesNotMatch(sitemap, /\/blog/);
+  assert.doesNotMatch(sitemap, /\/terminos-rifas/);
+  assert.doesNotMatch(sitemap, /\/panel|\/admin|\/login|\/crear-rifa|\/mis-iniciativas/);
+});
+
+test("Blog conserva noindex/nofollow/noarchive, fuera de sitemap, fuera de navbar/footer/dropdown (re-certificación)", () => {
+  for (const p of ["src/pages/blog/index.js", "src/pages/blog/[slug].js", "src/pages/blog/compartir.js", "src/pages/blog/nueva.js"]) {
+    assert.match(read(p), /noindex,\s*nofollow,\s*noarchive/);
+  }
+  assert.doesNotMatch(read("public/sitemap.xml"), /\/blog/);
+  assert.match(read("public/robots.txt"), /Disallow:\s*\/blog/);
+  const layoutSrc = read("src/components/Layout.jsx");
+  assert.doesNotMatch(layoutSrc, /href="\/blog"/);
+});
+
+test("footer conserva 'Conoce más productos de Rifex'; dropdown sin 'Mis campañas' independiente (re-certificación)", () => {
+  const layoutSrc = read("src/components/Layout.jsx");
+  assert.match(layoutSrc, /Conoce más productos de Rifex siendo parte de la comunidad/);
+  const match = layoutSrc.match(/const accountItems = \[[\s\S]*?\];/);
+  assert.ok(match);
+  assert.doesNotMatch(match[0], /Mis campañas/);
+});
