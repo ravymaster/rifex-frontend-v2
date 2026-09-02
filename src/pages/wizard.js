@@ -2,7 +2,13 @@
 // UX/CRO-1: guía pública "Cómo funciona" — reemplaza temporalmente el
 // enlace de /rifas en el nav. No introduce conceptos técnicos, solo el
 // paso a paso en lenguaje simple.
-import Head from 'next/head';
+// STAGE 2 FINAL — metadata migrada a las props de Layout (mismo patrón
+// que el resto de las páginas certificadas; evita el bug real de
+// colisión de key de Next 14.2.32 entre el <Head> propio de esta página
+// y el de Layout) y su descripción pública ya no menciona "rifa". El
+// contenido del cuerpo (guía paso a paso, incluye un modo "rifa" con
+// terminología específica) NO se tocó — está fuera del alcance de esta
+// certificación de metadata y se reporta como hallazgo pendiente.
 import { useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/wizard.module.css';
@@ -46,15 +52,6 @@ export default function Wizard() {
 
   return (
     <>
-      <Head>
-        <title>Cómo funciona Rifex</title>
-        <meta
-          name="description"
-          content="Crear una rifa o iniciar una campaña en Rifex es más simple de lo que parece."
-        />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
-
       <section className={styles.page}>
         <div className="container">
           <header className={styles.header}>
@@ -114,4 +111,12 @@ export default function Wizard() {
   );
 }
 
-Wizard.getLayout = (page) => <Layout>{page}</Layout>;
+Wizard.getLayout = (page) => (
+  <Layout
+    title="Cómo funciona Rifex"
+    description="Crear un evento con entradas digitales o iniciar una campaña de recaudación en Rifex es más simple de lo que parece."
+    canonicalPath="/wizard"
+  >
+    {page}
+  </Layout>
+);

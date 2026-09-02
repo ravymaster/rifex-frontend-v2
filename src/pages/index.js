@@ -193,6 +193,7 @@ Home.getLayout = function getLayout(page) {
     <Layout
       title="Rifex — Eventos, entradas y recaudación en línea"
       description="Crea eventos, vende entradas digitales y administra campañas de recaudación desde una sola plataforma."
+      canonicalPath="/"
     >
       {page}
     </Layout>

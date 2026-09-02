@@ -3,6 +3,10 @@
 // se permite la terminología específica, separada de la identidad
 // corporativa global. Legalidad general en Chile ya documentada como zona
 // gris (ver docs/trust/) — revisión jurídica chilena obligatoria.
+// STAGE 2 FINAL — mismo tratamiento que /terminos-rifas: noindex y fuera
+// del sitemap, porque es contenido específico de Rifas y Rifas ya no es
+// parte del catálogo público. Sigue accesible por enlace directo desde
+// /terminos-rifas y /reembolsos — nada se eliminó.
 import Layout from "@/components/Layout";
 
 const legalBanner = {
@@ -74,8 +78,8 @@ export default function ReglasIniciativasPremio() {
 ReglasIniciativasPremio.getLayout = (page) => (
   <Layout
     title="Reglas de iniciativas con premio — Rifex"
-    description="Condiciones específicas aplicables a las iniciativas con premio (rifas) creadas en Rifex."
-    canonicalPath="/reglas-iniciativas-premio"
+    description="Condiciones específicas aplicables a iniciativas con premio en Rifex."
+    noindex
   >
     {page}
   </Layout>

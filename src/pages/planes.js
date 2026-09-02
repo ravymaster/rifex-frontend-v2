@@ -1,5 +1,11 @@
 // src/pages/planes.js
-import Head from 'next/head';
+// STAGE 2 FINAL — antes esta página tenía su propio <Head> en paralelo al
+// de Layout (sin disableAutoMeta): el mismo patrón que causó el bug real
+// de colisión de key en Next 14.2.32 en otras páginas (Layout renderiza
+// su Head genérico primero, la key repetida "gana" sobre el título/
+// descripción específicos de la página). Se migró a las props
+// title/description/canonicalPath de Layout, el mismo patrón ya usado y
+// certificado en el resto de las páginas públicas de Etapa 2.
 import Layout from '@/components/Layout';
 import styles from '@/styles/planes.module.css';
 
@@ -14,11 +20,6 @@ export default function Planes() {
 
   return (
     <>
-      <Head>
-        <title>Comisión — Rifex</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-      </Head>
-
       <section className={styles.page}>
         <div className="container">
           <header className={styles.header}>
@@ -71,4 +72,12 @@ export default function Planes() {
     </>
   );
 }
-Planes.getLayout = (page) => <Layout>{page}</Layout>;
+Planes.getLayout = (page) => (
+  <Layout
+    title="Comisión — Rifex"
+    description="Rifex cobra una comisión única del 7% por venta o aporte exitoso. Sin planes, sin mensualidad, sin cobro por publicar."
+    canonicalPath="/planes"
+  >
+    {page}
+  </Layout>
+);
