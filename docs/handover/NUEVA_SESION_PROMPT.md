@@ -1,7 +1,28 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-01 (actualización más reciente) — **RIFEX STAGE 2: último
+> 2026-09-02 (actualización más reciente) — **RIFEX AUTH UX 2026 +
+> CRAWLER SURFACE CLEANUP, DEV only.** `origin/develop` avanza desde
+> `9875ef0`. Modernización visual de Login/Register (copy neutral,
+> componente compartido `AuthShell` solo de presentación) + limpieza de
+> navbar público (sin "Crear una iniciativa", "Ingresar" en vez de
+> "Iniciar sesión", menú central centrado vía grid en desktop) + cierre
+> de una fuga real encontrada en auditoría: `/crear-rifa`,
+> `/crear-colecta` (destino real del enlace público "Campañas") y
+> `/crear-evento` rendereaban sus formularios completos de creación en
+> el HTML inicial para cualquier anónimo o crawler, y `/panel`
+> rendereaba su shell interno completo — solo había un `useEffect`
+> client-side. Corregido con `getServerSideProps` + `getSupabaseServer`
+> (infraestructura ya existente) en los 5 puntos afectados; verificado
+> en vivo: los 5 devuelven `307` real a `/login?next=...` para
+> anónimos. Cero cambios de lógica de Auth, cero cloaking (nada
+> bifurca por User-Agent). 21 tests nuevos, 142/142 junto con
+> publicAudit, regresión 568/569 (flake XLSX ya conocido), build
+> limpio. **`origin/main` (PROD) confirmado sin tocar, sigue en
+> `15d7d35`.** Detalle completo: `docs/WOP.md`, "RIFEX AUTH UX 2026 +
+> CRAWLER SURFACE CLEANUP (2026-09-02) — DEV only".
+>
+> 2026-09-01 — **RIFEX STAGE 2: último
 > bloqueo público resuelto — CERO bloqueos de identidad pública
 > conocidos.** `origin/develop` en `0244d7b`. La revisión humana final
 > de STAGE 2 FINAL encontró que `/wizard` ("Cómo funciona") seguía

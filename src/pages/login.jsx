@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import Layout from '@/components/Layout';
+import AuthShell from '@/components/auth/AuthShell';
 import styles from '@/styles/login.module.css';
 import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
 import { verifyCaptchaOrDevBypass } from '@/lib/captchaGate';
@@ -101,80 +102,60 @@ export default function Login() {
 
   return (
     <>
-      <Head><title>Iniciar sesión — Rifex</title></Head>
-      <main className={styles.page}>
-        <section className={styles.shell}>
-          <div className={styles.inner}>
-            {/* Panel marca */}
-            <aside className={styles.brandPanel}>
-              <div className={styles.brandBox}>
-                <img src="/rifex-logo.png" alt="Rifex" className={styles.logo} />
-                <h2 className={styles.brandTitle}>Rifex</h2>
-                <p className={styles.brandText}>Crea rifas en minutos, comparte el enlace y cobra online.</p>
-                <div className={styles.dots}>
-                  <span className={styles.dot} data-variant="blue" />
-                  <span className={styles.dot} data-variant="teal" />
-                  <span className={styles.dot} data-variant="green" />
-                </div>
-              </div>
-            </aside>
+      <Head><title>Ingresar — Rifex</title></Head>
+      <AuthShell brandText="Eventos, entradas digitales y campañas de recaudación desde una sola plataforma.">
+        <h1 className={styles.formTitle}>Ingresar</h1>
+        <p className={styles.formSub}>Accede a tus eventos, entradas y campañas.</p>
 
-            {/* Formulario */}
-            <section className={styles.formPanel}>
-              <h1 className={styles.formTitle}>Iniciar sesión</h1>
-              <p className={styles.formSub}>Accede para crear y administrar tus rifas.</p>
+        <form className={styles.form} onSubmit={onSubmit}>
+          <label className="label" htmlFor="email">Email</label>
+          <input
+            id="email"
+            className="input"
+            type="email"
+            placeholder="tucorreo@dominio.com"
+            value={email}
+            onChange={(e)=>setEmail(e.target.value)}
+            required
+          />
 
-              <form onSubmit={onSubmit}>
-                <label className="label" htmlFor="email">Email</label>
-                <input
-                  id="email"
-                  className="input"
-                  type="email"
-                  placeholder="tucorreo@dominio.com"
-                  value={email}
-                  onChange={(e)=>setEmail(e.target.value)}
-                  required
-                />
-
-                <div className={styles.row}>
-                  <label className="label" htmlFor="pass" style={{ marginTop: 10 }}>Contraseña</label>
-                  <a className={styles.link} href={`/reset-password?email=${encodeURIComponent(email || '')}`} title="Recuperar acceso">
-                    ¿Olvidaste tu contraseña?
-                  </a>
-                </div>
-
-                <input
-                  id="pass"
-                  className="input"
-                  type="password"
-                  placeholder="Tu contraseña"
-                  value={pass}
-                  onChange={(e)=>setPass(e.target.value)}
-                  required
-                />
-
-                <div className={styles.captchaWrap}>
-                  <div className="h-captcha" data-sitekey={sitekey} ref={captchaRef} />
-                </div>
-
-                {err && <p className={styles.err}>{err}</p>}
-
-                <div className={styles.actions}>
-                  <button className={`btn ${styles.btnPrimary}`} type="submit" disabled={loading}>
-                    {loading ? 'Entrando…' : 'Entrar'}
-                  </button>
-                  <a className={`btn ${styles.btnSecondary}`} href="/register">Crear cuenta</a>
-                </div>
-              </form>
-
-              <div className={styles.oauthArea}>
-                <div className={styles.hr}><span>o</span></div>
-                <GoogleButton label="Continuar con Google" className={styles.oauthBtn} />
-              </div>
-            </section>
+          <div className={styles.row}>
+            <label className="label" htmlFor="pass" style={{ marginTop: 10 }}>Contraseña</label>
+            <a className={styles.link} href={`/reset-password?email=${encodeURIComponent(email || '')}`} title="Recuperar acceso">
+              ¿Olvidaste tu contraseña?
+            </a>
           </div>
-        </section>
-      </main>
+
+          <input
+            id="pass"
+            className="input"
+            type="password"
+            placeholder="Tu contraseña"
+            value={pass}
+            onChange={(e)=>setPass(e.target.value)}
+            required
+          />
+
+          <div className={styles.captchaWrap}>
+            <div className="h-captcha" data-sitekey={sitekey} ref={captchaRef} />
+          </div>
+
+          {err && <p className={styles.err}>{err}</p>}
+
+          <div className={styles.actions}>
+            <button className={`btn ${styles.btnPrimary}`} type="submit" disabled={loading}>
+              {loading ? 'Entrando…' : 'Entrar'}
+            </button>
+          </div>
+        </form>
+
+        <div className={styles.oauthArea}>
+          <div className={styles.hr}><span>o</span></div>
+          <GoogleButton label="Continuar con Google" className={styles.oauthBtn} />
+        </div>
+
+        <p className={styles.footerLink}>¿Aún no tienes cuenta? <a href="/register">Crear cuenta</a></p>
+      </AuthShell>
     </>
   );
 }

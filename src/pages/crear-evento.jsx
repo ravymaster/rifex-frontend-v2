@@ -9,7 +9,26 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearEvento.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
+
+// AUTH UX 2026 — auth boundary real, mismo patrón que crear-rifa.jsx y
+// crear-colecta.jsx: sin esto, el formulario completo se renderizaba en
+// el HTML inicial para cualquier anónimo o crawler.
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: '/login?next=/crear-evento', permanent: false } };
+  }
+  return { props: {} };
+}
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const COVER_TARGET = { w: 1600, h: 700 };

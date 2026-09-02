@@ -9,8 +9,28 @@ import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearColecta.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
 import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
+
+// AUTH UX 2026 — auth boundary real: esta página es el destino directo del
+// enlace público "Campañas" del navbar (Layout.jsx). Sin esto, el
+// formulario de creación completo se renderizaba en el HTML inicial para
+// cualquier anónimo o crawler que hiciera clic desde la portada.
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: '/login?next=/crear-colecta', permanent: false } };
+  }
+  return { props: {} };
+}
 
 // Tope solo para que el navegador no se cuelgue decodificando algo absurdo.
 // No es un rechazo de "archivo muy pesado": toda foto se recorta y
