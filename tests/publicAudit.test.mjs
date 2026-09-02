@@ -592,3 +592,58 @@ test("footer conserva 'Conoce más productos de Rifex'; dropdown sin 'Mis campa�
   assert.ok(match);
   assert.doesNotMatch(match[0], /Mis campañas/);
 });
+
+// ÚLTIMO BLOQUEO PRE-PROD — /wizard ya no expone el flujo de Rifas en la
+// superficie pública. Rifas sigue existiendo como producto autenticado
+// (crear-rifa.jsx, /mis-iniciativas) — estos tests certifican solo la
+// página pública "Cómo funciona".
+test("wizard.js (público) no contiene 'rifa'/'rifas'/'sorteo'/'sorteos'/'premio'/'premios' en el contenido renderizado", () => {
+  // Se excluyen los comentarios de código (// ...), que documentan la
+  // migración y mencionan crear-rifa.jsx/Rifas como contexto interno,
+  // no como contenido público — mismo criterio ya usado para "C6" en
+  // comentarios de otras páginas de este mismo archivo de tests.
+  const wizard = read("src/pages/wizard.js");
+  const rendered = wizard
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
+  assert.doesNotMatch(rendered, /\brifas?\b/i);
+  assert.doesNotMatch(rendered, /\bsorteos?\b/i);
+  assert.doesNotMatch(rendered, /\bpremios?\b/i);
+});
+
+test("wizard.js ofrece los flujos de Eventos y Campañas con sus CTAs a las rutas reales", () => {
+  const wizard = read("src/pages/wizard.js");
+  assert.match(wizard, /Quiero crear un evento/);
+  assert.match(wizard, /Quiero crear una campaña/);
+  assert.match(wizard, /Así funciona un evento en Rifex/);
+  assert.match(wizard, /Así funciona una campaña en Rifex/);
+  assert.match(wizard, /href="\/crear-evento"/);
+  assert.match(wizard, /href="\/crear-colecta"/);
+});
+
+test("wizard.js: metadata pública coherente (canonical rifex.pro, index/follow, sin rifa/sorteo/premio en description)", () => {
+  const wizard = read("src/pages/wizard.js");
+  assert.match(wizard, /canonicalPath="\/wizard"/);
+  const descMatch = wizard.match(/description="([^"]*)"/);
+  assert.ok(descMatch, "wizard.js debe declarar description");
+  assert.doesNotMatch(descMatch[1], /\brifas?\b|\bsorteos?\b|\bpremios?\b/i);
+  // wizard.js no pasa noindex a Layout -> queda index,follow (comportamiento por defecto)
+  assert.doesNotMatch(wizard, /\bnoindex\b/);
+});
+
+test("sitemap/robots sin regresión tras el cambio de wizard.js", () => {
+  assert.match(read("public/sitemap.xml"), /https:\/\/rifex\.pro\/wizard/);
+  const robots = read("public/robots.txt");
+  assert.doesNotMatch(robots, /Disallow:\s*\/wizard/);
+});
+
+test("mis-iniciativas.js conserva Rifas, Campañas y Eventos; la creación autenticada de Rifas sigue intacta", () => {
+  const misIniciativas = read("src/pages/mis-iniciativas.jsx");
+  assert.match(misIniciativas, /Rifas/);
+  assert.match(misIniciativas, /Campañas/);
+  assert.match(misIniciativas, /Eventos/);
+  assert.ok(exists("src/pages/crear-rifa.jsx"), "crear-rifa.jsx debe seguir existiendo");
+  const crearRifa = read("src/pages/crear-rifa.jsx");
+  assert.match(crearRifa, /rifa/i);
+});

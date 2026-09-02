@@ -5,50 +5,40 @@
 // STAGE 2 FINAL — metadata migrada a las props de Layout (mismo patrón
 // que el resto de las páginas certificadas; evita el bug real de
 // colisión de key de Next 14.2.32 entre el <Head> propio de esta página
-// y el de Layout) y su descripción pública ya no menciona "rifa". El
-// contenido del cuerpo (guía paso a paso, incluye un modo "rifa" con
-// terminología específica) NO se tocó — está fuera del alcance de esta
-// certificación de metadata y se reporta como hallazgo pendiente.
+// y el de Layout).
+// ÚLTIMO BLOQUEO PRE-PROD — la superficie pública ahora representa
+// exclusivamente Eventos + Campañas (Rifas sigue existiendo como
+// producto autenticado vía Mis iniciativas/crear-rifa.jsx; esta página
+// nunca formó parte de esa arquitectura y no la modifica).
 import { useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/wizard.module.css';
 
-const RIFA_STEPS = [
+const EVENTO_STEPS = [
   'Crea tu cuenta.',
-  'Elige tu país.',
-  'Conecta el medio de pago disponible.',
-  'Pulsa Crear rifa.',
-  'Escribe título y descripción.',
-  'Agrega el premio y fotografías.',
-  'Define el precio de cada número.',
-  'Define la cantidad de números.',
-  'Define la fecha de término.',
-  'Revisa y publica.',
-  'Comparte el enlace.',
-  'Los participantes seleccionan un número y pagan.',
-  'Rifex registra automáticamente las ventas.',
-  'Realiza el sorteo cuando corresponda.',
-  'Entrega el premio al ganador.',
+  'Habilita tu cuenta cuando corresponda.',
+  'Crea tu evento.',
+  'Completa la información del evento.',
+  'Define uno o más tipos de entrada y sus cupos.',
+  'Publica y comparte el evento.',
+  'Los asistentes compran sus entradas.',
+  'Cada entrada se emite con su código QR.',
+  'El staff puede validar las entradas mediante el scanner/check-in de Rifex.',
 ];
 
 const COLECTA_STEPS = [
   'Crea tu cuenta.',
-  'Elige tu país.',
-  'Conecta el medio de pago disponible.',
-  'Pulsa Crear campaña.',
-  'Escribe título y descripción.',
-  'Agrega portada/fotografías.',
-  'Define la meta.',
-  'Define fechas.',
-  'Revisa y publica.',
-  'Comparte enlace o QR.',
-  'Las personas eligen cuánto aportar.',
-  'Los aportes llegan mediante el proveedor de pagos.',
-  'Rifex actualiza automáticamente lo recaudado.',
+  'Habilita tu cuenta cuando corresponda.',
+  'Crea tu campaña.',
+  'Completa título, descripción e información necesaria.',
+  'Agrega imágenes cuando corresponda.',
+  'Publica y comparte tu campaña.',
+  'Las personas pueden realizar aportes.',
+  'Los pagos se procesan mediante el proveedor conectado y se acreditan en la cuenta del organizador.',
 ];
 
 export default function Wizard() {
-  const [mode, setMode] = useState(null); // null | 'rifa' | 'colecta'
+  const [mode, setMode] = useState(null); // null | 'evento' | 'colecta'
 
   return (
     <>
@@ -57,19 +47,19 @@ export default function Wizard() {
           <header className={styles.header}>
             <h1 className={styles.title}>Cómo funciona Rifex</h1>
             <p className={styles.sub}>
-              Crear una rifa o iniciar una campaña es más simple de lo que parece.
+              Crea un evento o inicia una campaña de forma simple.
             </p>
           </header>
 
           <div className={styles.selector}>
             <button
               type="button"
-              className={`${styles.selectorBtn} ${mode === 'rifa' ? styles.selectorBtnActive : ''}`}
-              onClick={() => setMode('rifa')}
-              aria-pressed={mode === 'rifa'}
+              className={`${styles.selectorBtn} ${mode === 'evento' ? styles.selectorBtnActive : ''}`}
+              onClick={() => setMode('evento')}
+              aria-pressed={mode === 'evento'}
             >
               <span className={styles.selectorIcon} aria-hidden="true">🎟️</span>
-              Quiero crear una rifa
+              Quiero crear un evento
             </button>
             <button
               type="button"
@@ -82,13 +72,13 @@ export default function Wizard() {
             </button>
           </div>
 
-          {mode === 'rifa' && (
+          {mode === 'evento' && (
             <div className={styles.flow}>
-              <h2 className={styles.flowTitle}>Así funciona una rifa en Rifex</h2>
+              <h2 className={styles.flowTitle}>Así funciona un evento en Rifex</h2>
               <ol className={styles.steps}>
-                {RIFA_STEPS.map((s, i) => <li key={i}>{s}</li>)}
+                {EVENTO_STEPS.map((s, i) => <li key={i}>{s}</li>)}
               </ol>
-              <a href="/crear-rifa" className={styles.cta}>Crear mi rifa</a>
+              <a href="/crear-evento" className={styles.cta}>Crear mi evento</a>
             </div>
           )}
 
@@ -98,7 +88,7 @@ export default function Wizard() {
               <ol className={styles.steps}>
                 {COLECTA_STEPS.map((s, i) => <li key={i}>{s}</li>)}
               </ol>
-              <a href="/crear-colecta" className={styles.cta}>Crear una campaña</a>
+              <a href="/crear-colecta" className={styles.cta}>Crear mi campaña</a>
             </div>
           )}
 
@@ -114,7 +104,7 @@ export default function Wizard() {
 Wizard.getLayout = (page) => (
   <Layout
     title="Cómo funciona Rifex"
-    description="Crear un evento con entradas digitales o iniciar una campaña de recaudación en Rifex es más simple de lo que parece."
+    description="Crea un evento con entradas digitales o inicia una campaña de recaudación en Rifex de forma simple."
     canonicalPath="/wizard"
   >
     {page}
