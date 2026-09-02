@@ -4,6 +4,31 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX STAGE 2 REPAIR (2026-09-01) — ETAPA 2 identity/policy defects fixed in DEV, technically repaired, still pending human review
+
+`origin/develop` advanced `f13cc90` → `74b0aff` (3 commits: `26d0c56`, `c2d9b0d`, `74b0aff`), DEV only — `main`/PROD confirmed untouched throughout (`rifex.pro` still serves the pre-repair copy, e.g. `/terminos` there still shows "Términos del Comprador"). This is a surgical repair mission following defects Rodrigo + Doris found in human review of the earlier ETAPA 2 work — not a new audit, not a new phase, purely copy/surface-separation/tests.
+
+**`/terminos` — the priority fix**: the page had grown a corporate Eventos/Campañas section while still publicly exposing the historical Rifas-specific Comprador/Creador/Condiciones-de-Rifex sections, the "Anexo iniciativas con premio" link, and a visible lawyer-pending banner. Fixed by moving that Rifas content **verbatim** (same text, same anchor ids) to a new `/terminos-rifas` page (noindex) — and updating the 3 real references that depend on those anchors for actual contractual acceptance (`crear-rifa.jsx`'s 3 checkboxes, `rifas/[id].jsx`'s and `BuyerForm.jsx`'s "Términos de la rifa" links) so nothing broke. `/terminos` itself was rewritten as a genuinely corporate document: qué es Rifex, cuentas, Eventos/entradas/Campañas, pagos y comisión (7%, untouched), responsabilidades, reembolsos, suspensión, contacto, modificaciones — linking out to the dedicated policy pages rather than duplicating them.
+
+**Other repairs, each verified against the real code before changing copy** (no evidence was invented; where a claim could be demonstrated true, it was kept as-is):
+- `/privacidad`: removed the visible lawyer-pending banner and the operator-identity TODO; "rifas creadas" → "operaciones realizadas mediante la plataforma"; neutral finalidades wording; added a policy-update sentence.
+- `/cookies`: "consentimiento de marketing" → "preferencia de medición y publicidad"; the 3 public Meta Pixel claims (never initializes without consent, Reject as accessible as Accept, no PII in any event) were checked against `_app.js`/`ConsentBanner.jsx`/`metaPixel.js` and confirmed true — kept unchanged, not rewritten speculatively.
+- `/uso-aceptable`: "Premios o compensaciones inexistentes..." → neutral iniciativas/bienes/servicios wording.
+- `/seguridad`: removed "Documentación según riesgo" (excepción de carnet/biometría) entirely; simplified verification section to the certified neutral core sentence; resolved contradictory payment language ("nunca los intermedia" vs. "nunca retiene más allá de su comisión") into one prudent operational description; generalized post-transaction evidence and data-protection language.
+- `/cumplimiento`: removed "Reputación futura" entirely — no public announcement of an unimplemented feature (C6 stays undated, unpromised); reworded the Seguridad/Cumplimiento comparison neutrally.
+- `/planes`: removed "Rifas y campañas ilimitadas, sin suscripción" from the public commission card; 7% / $0 por publicar / $0 mensualidad untouched, no Payment Engine or calculation change.
+- `/reembolsos`, `/politica-eventos`, `/politica-campanas`: same lawyer-pending-banner removal (found during the transversal sweep, same category of defect as the pages above) — technical/factual content preserved as-is.
+- Footer: added a discreet "Conoce más productos de Rifex siendo parte de la comunidad" line in the Producto column (no product names listed, links to `/register`).
+- Authenticated account dropdown: removed the duplicate "Mis campañas" entry — `/mis-iniciativas` remains the single entry point with its Rifas/Campañas/Eventos cards untouched.
+
+**Legal debt discipline**: every banner removed from a public page was consolidated (not deleted) into `docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt`, which still opens with the same explicit disclaimer that nothing here presupposes legal compliance. No page anywhere declares "reviewed," "approved," or "legally compliant."
+
+12 new/rewritten tests added to `tests/publicAudit.test.mjs` (105 total in that file) covering the A–J checklist from the repair mission, plus the account-dropdown fix. Full regression: 531/532 (the same pre-existing, unrelated XLSX `writeBuffer` timing flake). `npm run build`: clean (62/62 pages). Self-audit of the 3-commit diff against `origin/develop` (17 files) found zero references to webhooks, Payment Engine, fee calculation, Trust backend logic, migrations, or Argentina anywhere in the change. Deployed to DEV via the existing auto-deploy integration; live smoke confirmed every fix (`/terminos` clean, `/terminos-rifas` preserves the historical content and banner, all removed banners/phrases absent, footer line and 7%/$0/$0 present) with every touched page returning `200`.
+
+**Status: technically repaired in DEV, not yet promoted, not legally reviewed.** No PROD write of any kind was made. Nothing here should be read as "legal approved," "production certified," or "PROD approved" — the professional legal review remains pending exactly as before, now tracked more accurately in the consolidated document.
+
+---
+
 ## RIFEX ETAPA 2 — IDENTIDAD PÚBLICA + POLÍTICAS (2026-09-01) — DEV ONLY, no promocionada
 
 `origin/develop` advanced `645c42a` on top of the Blog-hide/Blog-private-PROD-promotion chain (`c8363c6` → `0075749` → `ee94054` → `645c42a`), DEV only — `main`/PROD untouched (confirmed live: `rifex.pro` still shows the pre-ETAPA-2 navbar with Precios/Seguridad/Ayuda). Autonomous mission following an explicit combined authorization from Rodrigo covering both a PROD promotion (Blog Private) and, immediately after, this DEV-only identity/policies work with no further permission needed between subtasks.
