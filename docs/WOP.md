@@ -4,6 +4,28 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX ETAPA 2 — IDENTIDAD PÚBLICA + POLÍTICAS (2026-09-01) — DEV ONLY, no promocionada
+
+`origin/develop` advanced `645c42a` on top of the Blog-hide/Blog-private-PROD-promotion chain (`c8363c6` → `0075749` → `ee94054` → `645c42a`), DEV only — `main`/PROD untouched (confirmed live: `rifex.pro` still shows the pre-ETAPA-2 navbar with Precios/Seguridad/Ayuda). Autonomous mission following an explicit combined authorization from Rodrigo covering both a PROD promotion (Blog Private) and, immediately after, this DEV-only identity/policies work with no further permission needed between subtasks.
+
+A gap audit against the mission's scope found most of the required corporate identity already correct (footer already neutral of Blog/rifas, Términos/Cumplimiento already had honest disclaimers, Reembolsos/Políticas de Eventos/Campañas already existed from V4 A+B) — implementation was limited to the real gaps found:
+
+- **Navegación pública**: `navItems` reduced from 6 to exactly `Eventos / Campañas / Cómo funciona` — Precios, Seguridad and Ayuda dropped from the top-level nav (still reachable via footer/internal links, nothing deleted).
+- **Footer**: "Precios" → "Comisión" (same `/planes` route; page title/H1 renamed to match, commission content and 7% figure untouched).
+- **Seguridad + Privacidad**: the exact RUT↔Mercado Pago comparison mechanic was replaced, in both public pages, with the neutral phrase Rodrigo specified ("Rifex aplica controles de registro, validación de identidad y titularidad de cuentas antes de habilitar determinadas operaciones"); Privacidad gained a new "Verificación y seguridad de la cuenta" section with the exact required text. The real mechanism (`assertCreatorEligible`, `trustIdentityGate.js`) was not touched — only its public description.
+- **Cumplimiento**: the day-by-day operational timeline, the exact per-recipient email content, and the internal decision table/states were removed from the public page — that detail lives in the backend (`fulfillmentTimeline.js`) and is not a public communication. The honesty disclaimers already certified (no reemplaza tribunales, no garantiza materialmente, no arbitra, "Hoy no existe ningún puntaje...") were preserved verbatim.
+- **Términos**: a new "Eventos, entradas digitales y Campañas de recaudación" section was added, covering the current public product line — the historical/already-accepted Comprador/Creador/Rifex sections for rifas were audited line-by-line before writing and are byte-identical to before (confirmed via `git diff`, only additions).
+- **Reportar**: Rifas-specific placeholders (`/rifas/...`, "premio no entregado") neutralized.
+- **Uso Aceptable + Cookies**: the visible legal-pending banners were removed from these two public pages specifically (per Rodrigo's explicit instruction) — the underlying legal questions were not resolved, only consolidated into a new internal tracking document (see below). Uso Aceptable gained the required "Rifex actualiza periódicamente..." sentence.
+- **Preguntas frecuentes**: fully rewritten around Eventos/entradas/QR-check-in/Campañas/comisión/pagos/reportes — the previous page's Rifas-specific creation flow (publicly indexable) was replaced rather than left alongside the new content.
+- **New**: `docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt` — consolidates 10 legal-review points (the two removed banners, both Términos sections, Privacidad, the Rifas annex, Campañas/Eventos/Reembolsos policies, the identity-verification language, and the operator's legal identity) with the required Estado/Observación del abogado/Redacción recomendada/Norma o fundamento structure per point, opening with the exact required disclaimer sentence.
+
+13 new tests added to `tests/publicAudit.test.mjs` (93 total in that file), plus `seguridad.js`/`cumplimiento.js` added to the `CORPORATE_GLOBAL_SURFACES` neutral-language check for future regression detection. Full regression: 519/520 (the pre-existing, unrelated XLSX `writeBuffer` timing flake — same signature as every prior session). `npm run build`: clean. Self-audit confirmed the diff touches only navigation/footer/policy-page files and the new test/doc files — zero references to payments, webhooks, Trust backend logic, commission calculation, or Argentina anywhere in the diff. Deployed to DEV via the existing auto-deploy integration (`rifex-frontend-main`, aliased `rifex-frontend-main.vercel.app`); live smoke confirmed the new navbar, the "Comisión" footer label, the absence of both removed banners, and the absence of the RUT/MP mechanic and day-by-day timeline text, across all touched pages returning `200`.
+
+**Explicitly not done in this mission** (all correctly out of scope): no PROD write of any kind, no Payment Engine change, no commission-rate change, no webhook change, no Trust backend logic change, no Argentina activation, no onboarding progresivo, no Comunidad Rifex, no MP Quality, no C6. This mission does not promote to PROD — that remains a separate, future decision.
+
+---
+
 ## ONBOARDING + BANCOS/MP (2026-08-30) — onboarding neutral + revalidación de MP legacy (DEV only)
 
 Baseline reconfirmado: `origin/main = e7311c1`, `origin/develop` incluía
