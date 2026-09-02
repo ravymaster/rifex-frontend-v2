@@ -5,10 +5,11 @@ import styles from '@/styles/planes.module.css';
 
 export default function Planes() {
   const incluido = [
-    'Rifas y campañas ilimitadas, sin suscripción',
-    'Cobra directo en tu propia cuenta con tu proveedor de pagos',
+    'Eventos y entradas digitales',
+    'Campañas de recaudación',
+    'Cobro mediante tu cuenta conectada con el proveedor de pagos',
     'Sin monto fijo ni mensualidad',
-    'La comisión solo se cobra si consigues una venta o aporte',
+    'La comisión solo se cobra cuando existe una venta o aporte exitoso',
   ];
 
   return (

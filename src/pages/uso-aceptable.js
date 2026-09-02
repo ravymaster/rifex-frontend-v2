@@ -17,7 +17,7 @@ export default function UsoAceptable() {
         <h2>Prohibido en Rifex</h2>
         <ul>
           <li>Fraude, suplantación de identidad e información falsa.</li>
-          <li>Premios o compensaciones inexistentes o sin autorización de su propietario.</li>
+          <li>Iniciativas, bienes, servicios o contenidos falsos, engañosos o no autorizados.</li>
           <li>Bienes o servicios ilegales o restringidos.</li>
           <li>Uso de fondos de origen ilícito o lavado de activos.</li>
           <li>Vulneración de propiedad intelectual de terceros.</li>

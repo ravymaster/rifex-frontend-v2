@@ -44,7 +44,7 @@ export default function Cookies() {
       <section>
         <h2>Preferencias</h2>
         <p>
-          Tu elección de consentimiento de marketing se guarda en el almacenamiento local de tu navegador
+          Tu preferencia de medición y publicidad se guarda en el almacenamiento local de tu navegador
           (localStorage), no en una cookie de servidor.
         </p>
       </section>
@@ -72,6 +72,15 @@ export default function Cookies() {
             Rechazar
           </button>
         </div>
+      </section>
+
+      <section>
+        <h2>Otros proveedores</h2>
+        <p>
+          Algunos servicios utilizados por Rifex pueden emplear tecnologías propias necesarias para prestar sus
+          funciones. Cuando corresponda, su funcionamiento también se encuentra sujeto a las políticas del
+          proveedor respectivo.
+        </p>
       </section>
 
       <section>

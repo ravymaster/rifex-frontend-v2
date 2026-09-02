@@ -1,34 +1,21 @@
 // src/pages/privacidad.js
-// RIFEX V4 A5 — borrador técnico de Política de Privacidad. Estructura y
-// contenido técnicamente verdadero según el código real (contraste
-// RUT-titularidad, Meta Pixel gateado por consentimiento, proveedores
-// reales). Base jurídica exacta bajo Ley 19.628/21.719 queda marcada
-// LEGAL_REVIEW_REQUIRED — no se inventa ni se declara "revisado por
-// abogado" en este documento.
+// STAGE 2 REPAIR — la advertencia jurídica visible y el TODO de
+// identidad legal del operador se retiraron de esta página pública;
+// ambos siguen vivos en docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt.
+// Esto no declara ni implica que hubo revisión legal — solo deja de
+// exponer el pendiente interno al público.
 import Layout from "@/components/Layout";
-
-const legalBanner = {
-  background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E",
-  borderRadius: 8, padding: "10px 14px", fontWeight: 700, marginBottom: 16,
-};
 
 export default function Privacidad() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
       <h1 style={{ marginBottom: 4 }}>Política de Privacidad</h1>
-      <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 31/08/2026 · Responsable del documento: equipo Rifex</p>
-
-      <p style={legalBanner}>
-        PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD. Este documento describe técnicamente cómo funciona
-        Rifex hoy; la base jurídica exacta bajo la Ley 19.628 vigente y la Ley 21.719 (vigencia desde el 1 de
-        diciembre de 2026) requiere confirmación legal antes de considerarse una política final aprobada.
-      </p>
+      <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 01/09/2026</p>
 
       <section>
         <h2>Responsable del tratamiento</h2>
         <p>
-          Rifex (rifex.pro). La identidad legal completa del operador (razón social, RUT de empresa, domicilio
-          comercial) se publicará aquí una vez confirmada — no se declara mientras no exista esa confirmación.
+          Rifex (rifex.pro). Puedes contactarnos en <a href="mailto:contacto@rifex.pro">contacto@rifex.pro</a>.
         </p>
       </section>
 
@@ -36,7 +23,7 @@ export default function Privacidad() {
         <h2>Datos que recopilamos</h2>
         <ul>
           <li>Datos de cuenta: nombre o razón social, correo, RUT, teléfono, IP y actividad técnica de la sesión.</li>
-          <li>Datos de iniciativas: eventos, campañas y rifas creadas, entradas emitidas, aportes y compras realizadas.</li>
+          <li>Datos de iniciativas: eventos y campañas creadas, entradas emitidas, aportes, compras y otras operaciones realizadas mediante la plataforma.</li>
           <li>Datos de verificación: información de identidad proporcionada por el usuario y resultados derivados de controles de identidad y titularidad (nunca el detalle bancario del proveedor de pagos).</li>
         </ul>
       </section>
@@ -55,7 +42,7 @@ export default function Privacidad() {
         <ul>
           <li>Operar la plataforma: creación y administración de eventos, campañas e iniciativas.</li>
           <li>Procesar pagos a través de proveedores conectados.</li>
-          <li>Prevención de fraude y verificación de identidad/titularidad.</li>
+          <li>Seguridad, prevención de usos indebidos y controles de identidad y titularidad.</li>
           <li>Soporte, comunicaciones operativas y cumplimiento legal.</li>
         </ul>
       </section>
@@ -102,6 +89,15 @@ export default function Privacidad() {
         <p>
           Ante un incidente de seguridad o una consulta de privacidad, escribe a{" "}
           <a href="mailto:contacto@rifex.pro">contacto@rifex.pro</a>.
+        </p>
+      </section>
+
+      <section>
+        <h2>Actualizaciones de esta política</h2>
+        <p>
+          Rifex puede actualizar esta política para reflejar cambios en la plataforma, sus proveedores y los
+          requisitos aplicables en los países donde se encuentre disponible. La fecha de la versión vigente se
+          indica al comienzo de esta página.
         </p>
       </section>
     </main>

@@ -4,26 +4,23 @@
 // la cuenta del organizador vía split de Mercado Pago (application_fee),
 // Rifex nunca custodia el monto de la venta; no existe hoy un endpoint ni
 // flujo automatizado de cancelación de evento con reembolso masivo. Este
-// documento no inventa ese mecanismo — lo marca explícitamente pendiente.
+// documento no inventa ese mecanismo.
+// STAGE 2 REPAIR — la advertencia jurídica visible se retiró de esta
+// página pública; el ítem sigue vivo en
+// docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt. El contenido técnico
+// (qué es real hoy en la plataforma) se conserva sin cambios.
 import Layout from "@/components/Layout";
-
-const legalBanner = {
-  background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E",
-  borderRadius: 8, padding: "10px 14px", fontWeight: 700, marginBottom: 16,
-};
 
 export default function Reembolsos() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
       <h1 style={{ marginBottom: 4 }}>Cancelaciones y devoluciones</h1>
-      <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 31/08/2026</p>
+      <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 01/09/2026</p>
 
-      <p style={legalBanner}>
-        PENDIENTE DE REVISIÓN LEGAL Y DE PRODUCTO ANTES DE PROD. Rifex es una plataforma tecnológica que no custodia
-        el dinero de las ventas ni de los aportes — los pagos se acreditan directo en la cuenta del proveedor
-        conectada del organizador, descontada la comisión de Rifex. Rifex no puede iniciar por sí sola una
-        devolución de un pago ya acreditado al organizador. Este documento describe lo que hoy es técnicamente
-        cierto; no promete un mecanismo de reembolso que la plataforma todavía no automatiza.
+      <p>
+        Rifex es una plataforma tecnológica que no custodia el dinero de las ventas ni de los aportes — los pagos
+        se acreditan directo en la cuenta del proveedor conectada del organizador, descontada la comisión de
+        Rifex. Rifex no puede iniciar por sí sola una devolución de un pago ya acreditado al organizador.
       </p>
 
       <section>

@@ -53,16 +53,9 @@ export default function Seguridad() {
         <section>
           <h2>Verificación del organizador y la cuenta receptora</h2>
           <p>
-            Todo creador debe conectar la cuenta de pago donde recibirá el dinero de sus iniciativas — los pagos van
-            directo a esa cuenta, Rifex nunca los intermedia. Rifex aplica controles de registro, validación de
-            identidad y titularidad de cuentas antes de habilitar determinadas operaciones.
-          </p>
-          <p>
-            <strong>Si una verificación no se completa o requiere comprobaciones adicionales, la cuenta queda
-            pendiente de revisión y no queda habilitada automáticamente para operar.</strong> Estos controles
-            aprovechan la infraestructura de identidad y seguridad ya disponible en los proveedores conectados,
-            evitando que Rifex solicite nuevamente fotografías del carnet o implemente su propio proceso de
-            biometría facial.
+            Rifex aplica controles de registro, validación de identidad y titularidad de cuentas antes de habilitar
+            determinadas operaciones. Algunas operaciones pueden requerir comprobaciones adicionales antes de
+            quedar habilitadas.
           </p>
           <p>
             Los resultados de estas verificaciones son privados y no se muestran a otros usuarios.
@@ -70,19 +63,10 @@ export default function Seguridad() {
         </section>
 
         <section>
-          <h2>Pagos directos</h2>
+          <h2>Pagos</h2>
           <p>
-            Los pagos de compradores y aportantes se procesan a través de Mercado Pago y se acreditan directo en la
-            cuenta del creador — Rifex nunca retiene el dinero de una venta aprobada más allá de su comisión.
-          </p>
-        </section>
-
-        <section>
-          <h2>Documentación según riesgo</h2>
-          <p>
-            En casos puntuales, Rifex puede pedir a un creador que verifique su identidad con un documento —
-            revisado siempre por una persona, de forma privada, y almacenado en un espacio protegido, nunca público.
-            Esto es hoy una revisión excepcional, no un paso obligatorio para todos los creadores.
+            Los pagos se procesan mediante el proveedor de pagos conectado y se acreditan en la cuenta del
+            organizador. Rifex aplica su comisión de servicio mediante la integración con el proveedor.
           </p>
         </section>
 
@@ -97,8 +81,8 @@ export default function Seguridad() {
         <section>
           <h2>Evidencia posterior a la transacción</h2>
           <p>
-            Pedimos a los creadores que dejen evidencia del resultado y del cumplimiento de una iniciativa — esa
-            evidencia queda protegida y puede usarse para resolver una disputa o una denuncia.
+            Rifex mantiene determinados registros o evidencias asociados a operaciones cuando son necesarios para
+            soporte, reportes o revisiones.
           </p>
         </section>
 
@@ -106,8 +90,9 @@ export default function Seguridad() {
           <h2>Protección de datos</h2>
           <p>
             Tus datos privados (RUT, teléfono, domicilio, documentos) nunca se muestran públicamente ni se entregan
-            automáticamente a otros usuarios. Se usan únicamente para operar la plataforma, prevenir fraude y
-            cumplir obligaciones legales. Más detalle en nuestra <a href="/privacidad">Política de Privacidad</a>.
+            automáticamente a otros usuarios. Se usan únicamente para proteger la operación, reducir usos indebidos
+            y cumplir las obligaciones aplicables. Más detalle en nuestra <a href="/privacidad">Política de
+            Privacidad</a>.
           </p>
         </section>
 

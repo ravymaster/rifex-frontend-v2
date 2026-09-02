@@ -1,18 +1,14 @@
 // src/pages/politica-campanas.js
+// STAGE 2 REPAIR — la advertencia jurídica visible se retiró de esta
+// página pública; el ítem sigue vivo en
+// docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt.
 import Layout from "@/components/Layout";
-
-const legalBanner = {
-  background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E",
-  borderRadius: 8, padding: "10px 14px", fontWeight: 700, marginBottom: 16,
-};
 
 export default function PoliticaCampanas() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
       <h1 style={{ marginBottom: 4 }}>Política de Campañas</h1>
-      <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 31/08/2026</p>
-
-      <p style={legalBanner}>PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD.</p>
+      <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 01/09/2026</p>
 
       <section>
         <h2>Identificación del organizador</h2>

@@ -9,6 +9,9 @@
 // publicarse aquí — son detalle interno, no comunicación pública. La
 // mecánica real sigue intacta en el backend (fulfillmentTimeline.js,
 // fulfillmentCaseService.js); esta página solo describe su existencia.
+// STAGE 2 REPAIR — se retiró por completo la sección "Reputación
+// futura": no anunciamos públicamente una función que todavía no
+// existe (C6 sigue sin implementar, sin fecha, sin promesa pública).
 import Layout from "@/components/Layout";
 
 const badgeStyle = {
@@ -32,8 +35,7 @@ export default function Cumplimiento() {
         <h1 style={{ margin: "12px 0 8px" }}>Rifex Cumplimiento</h1>
         <p style={{ color: "#6B7280" }}>
           Rifex Cumplimiento incorpora controles de seguimiento, confirmación y revisión posterior para
-          determinadas iniciativas realizadas en la plataforma. La sección "Reputación futura" al final sigue
-          siendo, explícitamente, una función no implementada — se distingue del resto de esta página.
+          determinadas iniciativas realizadas en la plataforma.
         </p>
 
         <hr style={{ margin: "20px 0" }} />
@@ -61,10 +63,6 @@ export default function Cumplimiento() {
             y ninguna respuesta por sí sola genera una sanción automática — una discrepancia puede derivar en una
             revisión administrativa antes de cualquier decisión.
           </p>
-          <p style={{ color: "#6B7280", fontSize: 13.5 }}>
-            El detalle operativo de este seguimiento (plazos exactos, contenido de las comunicaciones, y el
-            registro interno de cada caso) es información interna de Rifex, no una comunicación pública.
-          </p>
         </section>
 
         <hr style={{ margin: "20px 0" }} />
@@ -81,23 +79,11 @@ export default function Cumplimiento() {
         <hr style={{ margin: "20px 0" }} />
 
         <section>
-          <h2>Reputación futura</h2>
+          <h2>Rifex Cumplimiento no es lo mismo que Seguridad</h2>
           <p>
-            Con el tiempo, un historial de compromisos confirmados podrá ayudar a mostrar señales de cumplimiento
-            de un creador. <strong>Hoy no existe ningún puntaje, estrellas, porcentaje ni penalización automática</strong> —
-            eso, si se implementa, será una decisión de producto separada y posterior.
-          </p>
-        </section>
-
-        <hr style={{ margin: "20px 0" }} />
-
-        <section>
-          <h2>Rifex Cumplimiento no es lo mismo que Seguridad / Trust</h2>
-          <p>
-            <strong>Seguridad de Rifex</strong> (ver <a href="/seguridad">nuestra página de Seguridad</a>) ayuda
-            a verificar quién es el creador antes de que pueda publicar. <strong>Rifex Cumplimiento</strong>{" "}
-            ayuda a registrar si un compromiso posterior a una iniciativa ya finalizada fue cumplido. Son dos
-            capas distintas, con datos y lógica separados.
+            <strong>Seguridad</strong> (ver <a href="/seguridad">nuestra página de Seguridad</a>) reúne controles
+            aplicables antes o durante determinadas operaciones. <strong>Rifex Cumplimiento</strong> incorpora
+            seguimiento posterior cuando corresponde. Son dos capas distintas, con datos y lógica separados.
           </p>
         </section>
 
