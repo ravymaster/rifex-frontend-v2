@@ -74,8 +74,9 @@ export default function PreguntasFrecuentes() {
         <section>
           <h2>¿Cómo se procesan los pagos?</h2>
           <p>
-            A través de Mercado Pago. Los fondos se acreditan directo en la cuenta del organizador conectada al
-            proveedor de pagos — Rifex nunca los intermedia. Más detalle en{" "}
+            Los pagos se procesan mediante Mercado Pago y los fondos se acreditan en la cuenta del organizador
+            conectada al proveedor de pagos. Rifex aplica su comisión de servicio mediante la integración con el
+            proveedor. Más detalle en{" "}
             <a href="/seguridad">Seguridad</a>.
           </p>
         </section>

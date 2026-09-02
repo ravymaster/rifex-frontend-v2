@@ -561,7 +561,7 @@ export default function RegistroContinuar() {
                 <div className={styles.checkboxRow}>
                   <input id="privacy" type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} />
                   <label className={styles.checkboxLabel} htmlFor="privacy">
-                    Acepto la <a href="/terminos#privacidad" target="_blank" rel="noreferrer">Política de Privacidad</a> de Rifex.
+                    Acepto la <a href="/privacidad" target="_blank" rel="noreferrer">Política de Privacidad</a> de Rifex.
                   </label>
                 </div>
               )}

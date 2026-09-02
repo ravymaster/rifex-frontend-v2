@@ -12,7 +12,7 @@ export default function Seguridad() {
       <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
         <h1 style={{ marginBottom: 8 }}>Seguridad y confianza en Rifex</h1>
         <p style={{ color: "#6B7280" }}>
-          Estas son las medidas reales que usamos hoy para proteger a compradores y creadores. Las iremos
+          Estas son las medidas reales que usamos hoy para proteger a usuarios y organizadores. Las iremos
           actualizando a medida que sigamos mejorando la plataforma.
         </p>
 

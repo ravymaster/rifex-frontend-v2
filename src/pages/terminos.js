@@ -86,7 +86,7 @@ export default function Terminos() {
           <ol>
             <li><strong>Del organizador.</strong> Describir con veracidad su evento o campaña, cumplir la normativa aplicable, y respetar las condiciones publicadas antes y después de recibir pagos.</li>
             <li><strong>Del usuario, comprador o aportante.</strong> Ser mayor de 18 años, proporcionar datos veraces, y no usar medios de pago ajenos sin autorización.</li>
-            <li><strong>De la plataforma.</strong> Rifex provee la infraestructura técnica; no es responsable por el contenido, la ejecución o el cumplimiento de cada evento o campaña individual más allá de los controles descritos en <a href="/seguridad">Seguridad</a> y <a href="/cumplimiento">Cumplimiento</a>. Sin responsabilidad por daños indirectos o lucro cesante; tope de responsabilidad: comisiones pagadas a Rifex en los últimos 3 meses, cuando legalmente aplique.</li>
+            <li><strong>De la plataforma.</strong> Rifex provee la infraestructura técnica; no es responsable por el contenido, la ejecución o el cumplimiento de cada evento o campaña individual más allá de los controles descritos en <a href="/seguridad">Seguridad</a> y <a href="/cumplimiento">Cumplimiento</a>. En la medida permitida por la normativa aplicable, Rifex no será responsable por daños indirectos o lucro cesante.</li>
           </ol>
         </section>
 
@@ -135,36 +135,6 @@ export default function Terminos() {
           </p>
         </section>
 
-        <hr style={{margin:"24px 0"}}/>
-
-        <section id="privacidad">
-          <h2>Política de Privacidad (resumen)</h2>
-          <ul>
-            <li><strong>Responsable:</strong> Rifex (rifex.pro).</li>
-            <li><strong>Datos:</strong> correo, nombre opcional, IP, logs, datos de compra, contenidos de iniciativas.</li>
-            <li><strong>Finalidades:</strong> gestionar iniciativas, pagos, comunicaciones, seguridad y soporte.</li>
-            <li><strong>Base legal:</strong> contrato, interés legítimo, cumplimiento legal y/o consentimiento.</li>
-            <li><strong>Terceros:</strong> pasarelas, hosting, email, analítica agregada.</li>
-            <li><strong>Conservación:</strong> mientras exista la cuenta o la iniciativa y por los plazos legales aplicables.</li>
-            <li><strong>Derechos:</strong> acceso, rectificación, cancelación, oposición, portabilidad y limitación.</li>
-          </ul>
-        </section>
-
-        <hr style={{margin:"24px 0"}}/>
-
-        <section id="cookies">
-          <h2>Política de Cookies (resumen)</h2>
-          <ul>
-            <li>Usamos cookies esenciales (sesión/seguridad) y analíticas/publicitarias opcionales.</li>
-            <li>La pasarela puede usar cookies/almacenamiento para completar pagos.</li>
-            <li>
-              Usamos Meta Pixel (Facebook) como tecnología de medición y publicidad para entender cómo se usa
-              Rifex. Solo se activa si aceptas el aviso de consentimiento que aparece al entrar al sitio — podés
-              rechazarlo, y tu elección se recuerda para tus próximas visitas.
-            </li>
-            <li>Puedes limitar cookies no esenciales desde tu navegador.</li>
-          </ul>
-        </section>
       </main>
     </>
   );
