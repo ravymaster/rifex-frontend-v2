@@ -4,6 +4,20 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX STAGE 2 — ÚLTIMO BLOQUEO PRE-PROD: /wizard (2026-09-01)
+
+`origin/develop` advanced `d4fd396` → `0244d7b`, DEV only — `main`/PROD confirmed untouched. The final human review of STAGE 2 FINAL found one real remaining public-identity blocker, already flagged as an unresolved finding in that mission's report rather than silently left unnoticed: `/wizard` ("Cómo funciona") still rendered a full public Rifas flow (`"Quiero crear una rifa"`, `"Así funciona una rifa en Rifex"`, número/sorteo/premio/ganador copy, CTA `"Crear mi rifa"` → `/crear-rifa`).
+
+**Fix**: `/wizard`'s public content rebuilt to represent exclusively Eventos + Campañas. The two selectable flows are now `"Quiero crear un evento"` (steps grounded in real existing capabilities: ticket types + cupos, QR issuance, scanner/check-in — CTA → the real `/crear-evento` route) and `"Quiero crear una campaña"` (CTA → the real `/crear-colecta` route). Metadata (`title`/`description`/`canonicalPath`) carried over from the earlier metadata-certification fix, description no longer mentions "rifa" in any form.
+
+**Rifas explicitly preserved**: nothing in Rifas' authenticated architecture was touched — `crear-rifa.jsx`, the Rifas panel, `/mis-iniciativas` (still lists Rifas/Campañas/Eventos), APIs, and data all remain exactly as they were. This mission only changed what the public, unauthenticated `/wizard` page renders.
+
+7 new tests in `tests/publicAudit.test.mjs` (123 total in that file, 550 in the full suite): wizard.js contains no rifa/rifas/sorteo/sorteos/premio/premios in rendered content (code comments explicitly excluded, same convention as the existing "C6"-in-comment exception), offers both real flows with CTAs to the real routes, metadata stays canonical-correct with no leaked terms, sitemap/robots unaffected, and `/mis-iniciativas` + `crear-rifa.jsx` confirmed intact. Full regression: 547/548 (same pre-existing XLSX `writeBuffer` timing flake, identical signature). `npm run build`: clean. Self-audit of the diff (2 files: `wizard.js`, `publicAudit.test.mjs`) found zero references to webhooks, Payment Engine, fee calculation, Trust backend logic, migrations, commission, or Argentina.
+
+**Status: STAGE 2 now has zero known public-identity blockers.** PROD (`main`) still not touched. Next step remains a controlled PROD promotion, pending Rodrigo/Doris's explicit GO.
+
+---
+
 ## RIFEX STAGE 2 FINAL — CIERRE ETAPA 2 / PRE-PROD (2026-09-01)
 
 `origin/develop` advanced `1cf81fb` → `e00da51` (3 commits: `0ece82e`, `42987a3`, `e00da51`), DEV only — `main`/PROD confirmed untouched throughout (`rifex.pro` still serves the pre-Stage2 `/terminos` content, e.g. "Términos del Comprador"). This closes out ETAPA 2 with the specific defects Rodrigo + Doris found in their human review of the prior two missions (ETAPA 2, STAGE 2 REPAIR) — not a new audit, not new scope.

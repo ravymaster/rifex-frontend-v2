@@ -1,7 +1,27 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-01 (actualización más reciente) — **RIFEX STAGE 2 FINAL:
+> 2026-09-01 (actualización más reciente) — **RIFEX STAGE 2: último
+> bloqueo público resuelto — CERO bloqueos de identidad pública
+> conocidos.** `origin/develop` en `0244d7b`. La revisión humana final
+> de STAGE 2 FINAL encontró que `/wizard` ("Cómo funciona") seguía
+> exponiendo públicamente el flujo completo de Rifas (crear rifa,
+> precio/cantidad de números, sorteo, premio, ganador, CTA "Crear mi
+> rifa"). Corregido: `/wizard` ahora representa exclusivamente Eventos
+> + Campañas — "Quiero crear un evento" (pasos reales: tipos de
+> entrada, QR, scanner/check-in, CTA → `/crear-evento`) y "Quiero crear
+> una campaña" (CTA → `/crear-colecta`); metadata sin ninguna mención
+> de rifa/sorteo/premio. **Rifas NO se eliminó del producto** —
+> `crear-rifa.jsx`, el panel de Rifas y `/mis-iniciativas` (que sigue
+> listando Rifas/Campañas/Eventos) quedaron intactos; el cambio es
+> exclusivamente de la superficie pública de `/wizard`. 550 tests (1
+> flake XLSX pre-existente, no relacionado), build limpio. **PROD
+> (`main`) sigue sin tocar**, en `a2d6a60`. **Siguiente paso: promoción
+> controlada a PROD, sujeta al GO explícito de Rodrigo/Doris —
+> todavía no autorizada.** Detalle completo en `docs/WOP.md`, "RIFEX
+> STAGE 2 — ÚLTIMO BLOQUEO PRE-PROD: /wizard (2026-09-01)".
+>
+> 2026-09-01 — **RIFEX STAGE 2 FINAL:
 > ETAPA 2 (identidad pública + políticas) queda funcionalmente
 > CERRADA en DEV**, `origin/develop` en `e00da51`. Revisión humana
 > (Rodrigo + Doris) completada sobre las misiones anteriores
