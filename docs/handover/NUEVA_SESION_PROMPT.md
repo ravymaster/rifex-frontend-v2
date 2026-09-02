@@ -1,6 +1,36 @@
-Repositorio: rifex-frontend-v2 (Rifex, plataforma de rifas/campañas/eventos).
+Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
+> 2026-09-01 (actualización más reciente) — **RIFEX STAGE 2 FINAL:
+> ETAPA 2 (identidad pública + políticas) queda funcionalmente
+> CERRADA en DEV**, `origin/develop` en `e00da51`. Revisión humana
+> (Rodrigo + Doris) completada sobre las misiones anteriores
+> (ETAPA 2, STAGE 2 REPAIR) y todos los defectos reales encontrados
+> fueron corregidos en esta sesión final: `/terminos` separado de las
+> condiciones históricas de Rifas (movidas verbatim a
+> `/terminos-rifas`, mismos anchors, sin romper ninguna aceptación
+> contractual real), sin resúmenes duplicados de Privacidad/Cookies,
+> sin tope de responsabilidad no revisado legalmente; `/seguridad` y
+> `/preguntas-frecuentes` con lenguaje neutral y consistente entre sí;
+> metadata pública certificada superficie por superficie (título,
+> description, canonical, robots, OG) — canonical siempre resuelve a
+> `https://rifex.pro` (nunca al dominio Vercel), ninguna description
+> filtra Rifas/sorteo/premio; se encontró y corrigió el mismo bug real
+> de colisión de `key` de Next 14.2.32 en `/planes` y `/wizard`
+> (tenían su propio `<Head>` en paralelo al de `Layout`); Blog
+> re-certificado como privado (noindex/nofollow/noarchive, fuera de
+> sitemap, fuera de toda navegación). 543 tests (1 flake XLSX
+> pre-existente, no relacionado), build limpio. **PROD (`main`) NO fue
+> tocado en ningún momento de esta sesión** — sigue en `a2d6a60`.
+> **Siguiente paso: promoción controlada a PROD, sujeta al GO
+> explícito de Rodrigo/Doris — todavía no autorizada.** Detalle
+> completo en `docs/WOP.md`, "RIFEX STAGE 2 FINAL — CIERRE ETAPA 2 /
+> PRE-PROD (2026-09-01)". Hallazgo pendiente sin resolver (fuera del
+> alcance de esta sesión, no tocado): el cuerpo de `/wizard` incluye
+> una guía paso a paso en modo "rifa" con terminología específica de
+> Rifas — solo se corrigió su metadata, el contenido del cuerpo queda
+> como riesgo a decidir por Rodrigo antes de promover a PROD.
+>
 > 2026-08-24: este prompt fue actualizado para el handoff Santiago → Antofagasta
 > tras EVENT-3. La rama activa de trabajo es `develop` (no `main` — `main` es
 > PROD, congelado respecto de Eventos). El texto verbatim de abajo es el mismo

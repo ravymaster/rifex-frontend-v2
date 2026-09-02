@@ -4,6 +4,34 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX STAGE 2 FINAL — CIERRE ETAPA 2 / PRE-PROD (2026-09-01)
+
+`origin/develop` advanced `1cf81fb` → `e00da51` (3 commits: `0ece82e`, `42987a3`, `e00da51`), DEV only — `main`/PROD confirmed untouched throughout (`rifex.pro` still serves the pre-Stage2 `/terminos` content, e.g. "Términos del Comprador"). This closes out ETAPA 2 with the specific defects Rodrigo + Doris found in their human review of the prior two missions (ETAPA 2, STAGE 2 REPAIR) — not a new audit, not new scope.
+
+**`/terminos` — two final corrections:**
+1. Removed the duplicated Privacidad/Cookies summary sections (`id="privacidad"`/`id="cookies"`) — the page now links to the real `/privacidad` and `/cookies` pages instead of maintaining a second, potentially-diverging legal summary inline. `ConsentBanner.jsx` and `registro/continuar.jsx`, which previously linked to `/terminos#cookies`/`/terminos#privacidad`, were repointed to the real pages directly.
+2. Removed the specific liability cap "comisiones pagadas a Rifex en los últimos 3 meses" — a specific monetary/time limit shouldn't be published without professional legal review. Replaced with the general, prudent formulation Rodrigo specified: "En la medida permitida por la normativa aplicable, Rifex no será responsable por daños indirectos o lucro cesante."
+
+**`/seguridad` microcopy**: "proteger a compradores y creadores" → "proteger a usuarios y organizadores" (transversal terminology, no logic change).
+
+**`/preguntas-frecuentes` payments alignment**: removed the absolute claim "Rifex nunca los intermedia," replaced with the same prudent operational description already used in `/seguridad`: "Rifex aplica su comisión de servicio mediante la integración con el proveedor."
+
+**Metadata/SEO certification** — audited every public Etapa 2 surface against the real code rather than assuming correctness, and found two real, previously-undetected defects:
+- `/planes` and `/wizard` each had their own `<Head>` rendered in parallel with Layout's (without `disableAutoMeta`) — the exact same real Next 14.2.32 key-collision bug already fixed elsewhere in this codebase (Layout's own `<Head>` renders first; on a shared `key`, Next keeps the first occurrence, not the last). Both migrated to Layout's `title`/`description`/`canonicalPath` props, the pattern already used by every other certified page.
+- `/wizard`'s meta description literally said "Crear una rifa o iniciar una campaña" — corrected to neutral corporate language. The page **body** (a step-by-step guide with a toggleable "rifa" mode using Rifas-specific terminology) was intentionally **not** touched — that's a content/redesign change outside today's metadata-certification scope, and is flagged below as an unresolved finding.
+- `/reglas-iniciativas-premio` (the Rifas-specific annex) was indexed and listed in the sitemap, with "(rifas)" literally in its meta description — given the same product-vs-corporate-identity boundary already established for `/terminos-rifas`, it received the same treatment: `noindex`, removed from `sitemap.xml`, description reworded without "(rifas)". Nothing was deleted — still reachable via direct link from `/terminos-rifas` and `/reembolsos`.
+- `index.js` and `eventos/index.jsx` gained explicit `canonicalPath` props for certainty and consistency (their implicit `asPath`-based fallback was already resolving correctly to `rifex.pro`, since `SITE_URL` in `publicMetadata.js` is centralized and hardcoded to `https://rifex.pro` — confirmed, not assumed).
+
+Confirmed live and via source: canonical always resolves to `https://rifex.pro` (never the Vercel DEV domain) across every certified page; no sitemap entry contradicts its own `noindex`; `robots.txt` doesn't contradict `sitemap.xml`; Blog re-certified as fully private (`noindex, nofollow, noarchive`, out of sitemap, out of every navigation surface).
+
+19 new tests in `tests/publicAudit.test.mjs` (116 total in that file, 543 in the full suite). Full regression: 542/543 (the same pre-existing, unrelated XLSX `writeBuffer` timing flake, identical signature). `npm run build`: clean (62/62 pages). Self-audit of the diff against `origin/develop` (12 files) found zero references to webhooks, Payment Engine, fee calculation, Trust backend logic, migrations, or Argentina. Deployed to DEV via the existing auto-deploy integration; live smoke confirmed every fix plus canonical correctness across all certified pages.
+
+**Unresolved finding, explicitly flagged rather than fixed (out of today's scope):** `/wizard`'s page body includes a "rifa" mode with a full step-by-step Rifa-creation walkthrough — this is real Rifas-specific content still reachable from the public, indexed "Cómo funciona" navbar link. Only its metadata was corrected today. Redesigning the wizard's content/toggle structure needs an explicit decision from Rodrigo before PROD promotion, not a silent fix bundled into a metadata pass. Also noted but not touched (not part of today's certification list, and their Head-collision-risk pattern doesn't affect indexing since neither is confirmed public/indexed): `chat/[raffleId].js` and `trust/verificar.jsx` share the same `<Head>`-in-parallel code smell as the two pages fixed today.
+
+**Status: ETAPA 2 functionally closed in DEV, human review completed, metadata certified. PROD not yet touched.** Next step: controlled promotion to PROD, pending Rodrigo/Doris's explicit GO — not yet authorized.
+
+---
+
 ## RIFEX STAGE 2 REPAIR (2026-09-01) — ETAPA 2 identity/policy defects fixed in DEV, technically repaired, still pending human review
 
 `origin/develop` advanced `f13cc90` → `74b0aff` (3 commits: `26d0c56`, `c2d9b0d`, `74b0aff`), DEV only — `main`/PROD confirmed untouched throughout (`rifex.pro` still serves the pre-repair copy, e.g. `/terminos` there still shows "Términos del Comprador"). This is a surgical repair mission following defects Rodrigo + Doris found in human review of the earlier ETAPA 2 work — not a new audit, not a new phase, purely copy/surface-separation/tests.
