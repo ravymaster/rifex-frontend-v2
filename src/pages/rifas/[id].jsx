@@ -691,7 +691,7 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
 
         <div className={styles.linksRow}>
           {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
-          <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
+          <a className={styles.linkMuted} href="/terminos-rifas" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
         </div>
 
         {/* Grid de números */}

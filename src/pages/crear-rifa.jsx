@@ -448,11 +448,11 @@ export default function CrearRifaPage() {
               <div className={styles.section}>
                 <label className={styles.checkRow}>
                   <input type="checkbox" checked={okBuyer} onChange={e=>setOkBuyer(e.target.checked)} />
-                  Acepto los <a href="/terminos#comprador" target="_blank" rel="noreferrer">Términos del comprador</a>
+                  Acepto los <a href="/terminos-rifas#comprador" target="_blank" rel="noreferrer">Términos del comprador</a>
                 </label>
                 <label className={styles.checkRow}>
                   <input type="checkbox" checked={okCreator} onChange={e=>setOkCreator(e.target.checked)} />
-                  Acepto los <a href="/terminos#creador" target="_blank" rel="noreferrer">Términos del creador</a> y las <a href="/terminos#rifex" target="_blank" rel="noreferrer">Condiciones de Rifex</a>
+                  Acepto los <a href="/terminos-rifas#creador" target="_blank" rel="noreferrer">Términos del creador</a> y las <a href="/terminos-rifas#rifex" target="_blank" rel="noreferrer">Condiciones de Rifex</a>
                 </label>
                 <label className={styles.checkRow}>
                   <input type="checkbox" checked={okAge} onChange={e=>setOkAge(e.target.checked)} />

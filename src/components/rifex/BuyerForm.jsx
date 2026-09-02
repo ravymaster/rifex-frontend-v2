@@ -77,7 +77,7 @@ export default function BuyerForm({
             />
             <span>
               Declaro que leí y acepto los{" "}
-              <a href="/terminos" target="_blank" rel="noreferrer">Términos de la rifa</a>.
+              <a href="/terminos-rifas" target="_blank" rel="noreferrer">Términos de la rifa</a>.
             </span>
           </label>
           <div className={styles.termsVersion}>Versión: {termsVersion}</div>
