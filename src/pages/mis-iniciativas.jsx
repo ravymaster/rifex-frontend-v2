@@ -7,6 +7,27 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+
+// AUTH UX 2026 — el `checking` de abajo ya evitaba que el shell interno
+// se rendereara en el HTML para anónimos (return null mientras checking),
+// pero seguía dependiendo exclusivamente de JS cliente. Este boundary
+// server-side hace la protección real; el useEffect/checking se conserva
+// para la UX de sesión ya iniciada (no requiere round-trip extra).
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: '/login?next=/mis-iniciativas', permanent: false } };
+  }
+  return { props: {} };
+}
 
 const INITIATIVES = [
   { key: 'rifas', title: 'Rifas', description: 'Crea rifas, vende números y sortea un ganador.', href: '/panel', cta: 'Ir a mis rifas' },

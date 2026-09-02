@@ -4,6 +4,22 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX AUTH UX 2026 + CRAWLER SURFACE CLEANUP — PROD PROMOTION (2026-09-02)
+
+`origin/main`/PROD advances from `15d7d35` (tag `v2.4-rifex-prod-public-trust`). Promotes exactly the certified DEV work at `origin/develop` @ `add98ec` ("RIFEX AUTH UX 2026 DEV CERTIFIED"), via the established surgical-reconstruction pattern: a fresh worktree from `origin/main`, files whose pre-mission baseline was byte-identical between `develop` and `main` checked out wholesale from `develop`'s HEAD, and files where DEV and PROD diverge at the baseline (`login.jsx`, `register.jsx`) manually reconstructed against `main`'s real content.
+
+**Files taken wholesale from `develop` (pre-mission baseline confirmed byte-identical to `main` first)**: `src/components/Layout.jsx`, `src/pages/crear-rifa.jsx`, `src/pages/crear-colecta.jsx`, `src/pages/crear-evento.jsx`, `src/pages/panel/index.js`, `src/pages/mis-iniciativas.jsx`, `src/components/auth/AuthShell.jsx` (new), `src/styles/authShell.module.css` (new), `src/styles/login.module.css`, `src/styles/register.module.css` (CSS-only, no captcha/RUT logic, safe wholesale).
+
+**Files manually reconstructed** (`login.jsx`, `register.jsx`, `src/pages/blog/index.js`): `main`'s `login.jsx`/`register.jsx` never had the D5-FINAL `captchaGate.js` dependency (correctly excluded from every prior PROD promotion) — `main` has always used its own real inline hCaptcha verification (`window.hcaptcha?.getResponse()` + `POST /api/verify-captcha`), and `register.jsx` has always required RUT unconditionally (no `isDevStage()`/`rutRequired` DEV relaxation). The AuthShell wrapper + copy changes were applied by hand onto `main`'s real files, preserving that real captcha/RUT logic exactly — confirmed via diff against `develop`'s version: the only differences are precisely the captcha mechanism and the RUT-relaxation branch, nothing else. `blog/index.js`: applied only the 1-line copy change ("cerraron su rifa" → "organizadores de nuestra comunidad") directly onto `main`'s file (its import order already differed harmlessly from `develop`'s, left untouched).
+
+**Test suite correction found during candidate validation**: 3 assertions in `tests/authUxCrawler.test.mjs` (written for the DEV context) asserted that `login.jsx`/`register.jsx` import `captchaGate.js` — true on `develop`, intentionally false on the PROD candidate. Rodrigo confirmed adjusting those 3 assertions in the promoted copy of the test to check the real PROD invariant instead (real inline hCaptcha present, `captchaGate.js` absent from the repo, RUT unconditionally required) — no product code was touched to satisfy this, only the test.
+
+**Validation on the exact PROD candidate**: `authUxCrawler.test.mjs` + `publicAudit.test.mjs` 142/142 PASS; full regression 582/583 (same pre-existing XLSX `writeBuffer` timing flake, identical signature); `npm run build` clean. Self-audit grep across the full candidate diff for `payment|webhook|marketplace_fee|RIFEX_FEE_RATE|argentina|migration|service_role|Trust writes|User-Agent|googlebot|facebookexternalhit|bytespider`: zero matches.
+
+**Live PROD smoke, deployment, tag, and final HEAD**: recorded at the end of this entry once each step completes.
+
+---
+
 ## RIFEX V4 PUBLIC TRUST (A1-A7) + STAGE 2 (PUBLIC IDENTITY + POLICIES) — PROD PROMOTION (2026-09-02)
 
 `origin/main`/PROD advances from `a2d6a60` via a surgical, file-exact promotion of 64 files (61 code files + `docs/WOP.md`/`docs/CURRENT_STATE.md`/`docs/handover/NUEVA_SESION_PROMPT.md`, the last three carrying targeted addenda rather than a wholesale copy). This closes a real gap found during pre-flight: PROD had never received the V4 Public Trust foundation (A1-A7) that Stage 2 (ETAPA 2 → STAGE 2 REPAIR → STAGE 2 FINAL → `/wizard` fix) was built on top of — promoting Stage 2 alone was not mechanically possible, since pages like `cookies.js`, `privacidad.js`, `uso-aceptable.js`, `politica-eventos.js`, `politica-campanas.js`, `reembolsos.js`, `reglas-iniciativas-premio.js`, and `terminos-rifas.js` did not exist on `main` at all, nor did `publicMetadata.js`, `robots.txt`, or `sitemap.xml`. Rodrigo explicitly authorized expanding the release to include both bodies of work together after this was demonstrated.

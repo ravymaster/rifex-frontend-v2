@@ -4,9 +4,31 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
 import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
 import { formatDrawAt, toZonedInputParts } from '@/lib/raffleTime';
+
+// AUTH UX 2026 — auth boundary real: el componente Panel() rendereaba su
+// shell completo (KPIs, "Crear rifa", "Rifas activas", etc.) en el HTML
+// inicial para cualquier anónimo o crawler antes de que el useEffect de
+// abajo pudiera correr. Esto solo cierra el acceso a la página; los datos
+// reales del panel siguen viniendo, como siempre, de endpoints
+// autenticados server-side.
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: '/login?next=/panel', permanent: false } };
+  }
+  return { props: {} };
+}
 
 // EXT-1: espejo informativo del MAX_EXTENSION_DAYS real, que vive en la RPC
 // extend_raffle_draw (migración 2026-08-22_draw1c_extension_max_days.sql).

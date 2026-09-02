@@ -1,7 +1,38 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-02 (actualización más reciente) — **RIFEX V4 PUBLIC TRUST (A1-A7)
+> 2026-09-02 (actualización más reciente) — **RIFEX AUTH UX 2026 +
+> CRAWLER CLEANUP PROD PROMOTION.** `origin/main`/PROD avanza desde
+> `15d7d35` (tag `v2.4-rifex-prod-public-trust`), promoviendo exactamente
+> el trabajo DEV certificado en `origin/develop` @ `add98ec`. Navbar: se
+> elimina "Crear una iniciativa", "Iniciar sesión" pasa a llamarse
+> "Ingresar" (desktop y móvil), el menú central ahora se centra contra el
+> viewport real (grid 1fr auto 1fr) en vez de solo el espacio libre.
+> Login/Register: rediseñados sobre un nuevo componente compartido
+> `AuthShell` (solo presentación, sin lógica de Auth) — título "Ingresar"
+> / "Crear cuenta", footer con enlace cruzado — sin tocar la lógica real:
+> `main` conserva su captcha real inline (`window.hcaptcha` +
+> `/api/verify-captcha`) y su exigencia incondicional de RUT; el bypass
+> DEV-only `captchaGate.js` (D5-FINAL) nunca se promovió. Se agregó
+> boundary de auth real server-side (`getServerSideProps` +
+> `getSupabaseServer`) en las 5 superficies que antes solo se protegían
+> client-side (`/crear-rifa`, `/crear-colecta`, `/crear-evento`, `/panel`,
+> `/mis-iniciativas`) — cierra una fuga real de contenido (formulario/
+> dashboard completo llegaba en el HTML a requests anónimos antes de que
+> el `useEffect` redirigiera); ahora un request anónimo recibe un 307 real
+> a `/login?next=<path>`. Blog: copy neutralizado ("cerraron su rifa" →
+> "organizadores de nuestra comunidad"), sigue privado/noindex, sin
+> cambios de fondo. 12 archivos tomados tal cual desde `develop`
+> (baseline pre-misión confirmado byte-idéntico contra `main` primero);
+> `login.jsx`/`register.jsx`/`blog/index.js` reconstruidos a mano sobre el
+> contenido real de `main` para preservar su captcha/RUT propios de PROD.
+> 142/142 tests del alcance, 582/583 regresión completa (mismo flake
+> conocido de XLSX), build limpio, self-audit grep sin coincidencias.
+> Detalle completo, HEAD exacto, deployment, evidencia de smoke y tag de
+> baseline nuevo: `docs/WOP.md`, "RIFEX AUTH UX 2026 + CRAWLER SURFACE
+> CLEANUP — PROD PROMOTION (2026-09-02)".
+>
+> 2026-09-02 — **RIFEX V4 PUBLIC TRUST (A1-A7)
 > + STAGE 2 PROD PROMOTION.** `origin/main`/PROD avanzó desde `a2d6a60`
 > mediante una promoción quirúrgica de 61 archivos de código exactos
 > (verificados byte-idénticos contra `origin/develop` antes del commit)

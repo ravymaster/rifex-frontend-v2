@@ -117,7 +117,7 @@ export default function Blog() {
             <h1>Blog de Rifex</h1>
             <span className={styles.badgeNew}>Comunidad</span>
           </div>
-          <p className={styles.pageSub}>Guías del equipo y, sobre todo, historias reales de creadores que ya cerraron su rifa.</p>
+          <p className={styles.pageSub}>Guías del equipo y, sobre todo, historias reales de organizadores de nuestra comunidad.</p>
 
           <div className={styles.filters}>
             {FILTERS.map((f) => (

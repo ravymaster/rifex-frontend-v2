@@ -198,8 +198,7 @@ export default function Layout({
               </div>
             ) : (
               <div className="rf-auth-actions rf-nav-desktop-only">
-                <Link href="/login" className="rf-btn-ghost">Iniciar sesión</Link>
-                <Link href="/mis-iniciativas" className="rf-btn-primary">Crear una iniciativa</Link>
+                <Link href="/login" className="rf-btn-primary">Ingresar</Link>
               </div>
             )}
 
@@ -247,10 +246,7 @@ export default function Layout({
                 </button>
               </>
             ) : (
-              <>
-                <Link href="/login" className="rf-mobile-link">Iniciar sesión</Link>
-                <Link href="/mis-iniciativas" className="rf-mobile-link">Crear una iniciativa</Link>
-              </>
+              <Link href="/login" className="rf-mobile-link">Ingresar</Link>
             )}
           </nav>
         </div>
@@ -399,6 +395,19 @@ export default function Layout({
           align-items: center;
           justify-content: space-between;
           gap: 16px;
+        }
+        /* AUTH UX 2026 — en desktop el menú central debe quedar centrado
+           respecto al viewport/contenedor real, no solo en el espacio que
+           sobra entre logo y acciones (que son de ancho distinto). Un
+           grid de 3 columnas con la del medio en auto logra eso sin tocar
+           el layout móvil, que sigue siendo el flex de arriba. */
+        @media (min-width: 901px) {
+          .rf-header-inner {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            justify-content: normal;
+          }
+          :global(.rf-header-actions) { justify-self: end; }
         }
         :global(.rf-logo) {
           display: inline-flex;

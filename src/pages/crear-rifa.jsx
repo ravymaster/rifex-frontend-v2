@@ -3,9 +3,32 @@ import { useState, useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 import { resolveTrustOnboardingRedirect } from "@/lib/trustOnboardingClient";
 import Layout from "@/components/Layout";
 import styles from "@/styles/crearRifa.module.css";
+
+// AUTH UX 2026 — auth boundary real: sin esto, el formulario completo de
+// creación (título, precio, cupos, premio, checkboxes legales) se
+// renderizaba en el HTML inicial para cualquier anónimo o crawler; el
+// único guardia era el useEffect de abajo, que solo actúa después de
+// hidratar en el navegador. La autoridad que bloquea la creación en sí
+// siempre fue server-side (POST /api/rifas) — esto cierra el acceso a la
+// página, no cambia esa lógica.
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: "/login?next=/crear-rifa", permanent: false } };
+  }
+  return { props: {} };
+}
 
 // RIFEX CLOSURE PASS (2026-08-29): la sección "Temática" se eliminó del
 // formulario — auditoría previa confirmó que theme persiste y se lee
