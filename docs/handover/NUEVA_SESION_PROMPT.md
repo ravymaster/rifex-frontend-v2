@@ -14,7 +14,7 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > de rifa/sorteo/premio. **Rifas NO se eliminó del producto** —
 > `crear-rifa.jsx`, el panel de Rifas y `/mis-iniciativas` (que sigue
 > listando Rifas/Campañas/Eventos) quedaron intactos; el cambio es
-> exclusivamente de la superficie pública de `/wizard`. 550 tests (1
+> exclusivamente de la superficie pública de `/wizard`. 548 tests (1
 > flake XLSX pre-existente, no relacionado), build limpio. **PROD
 > (`main`) sigue sin tocar**, en `a2d6a60`. **Siguiente paso: promoción
 > controlada a PROD, sujeta al GO explícito de Rodrigo/Doris —
