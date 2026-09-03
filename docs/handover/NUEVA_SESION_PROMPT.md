@@ -1,7 +1,51 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-02 (actualización más reciente) — **RIFEX AUTH UX 2026 +
+> 2026-09-03 (actualización más reciente) — **RIFEX PUBLIC SURFACE
+> FINAL CLEANUP, DEV only, misión autónoma.** `origin/develop` avanza
+> desde `add98ec`. `origin/main` (PROD) ya no está en `15d7d35` — fue
+> promovido por separado a `39b47f5` (tag `v2.5-rifex-prod-auth-crawler`),
+> confirmado sin cambios adicionales aquí. Cierra defectos públicos/
+> jurídicos/crawler reales tras una auditoría externa conservadora
+> (~84/100), sin intentar maximizar artificialmente ningún puntaje.
+> 3 defectos P0 confirmados: banner interno "PENDIENTE DE REVISIÓN POR
+> ABOGADO CHILENO ANTES DE PROD" visible en `/reglas-iniciativas-premio`
+> (corregido) y también en `/terminos-rifas` (encontrado pero **NO
+> corregido** — contradice dos tests certificados de STAGE2-REPAIR que
+> exigen deliberadamente conservarlo ahí; revertido a baseline, dejado
+> como blocker real para decisión explícita de Rodrigo); placeholder
+> "Identidad legal completa del operador: pendiente de confirmación."
+> en `/contacto` (página pública indexable) — eliminado sin inventar
+> identidad. `/rifas`: se mantuvo la decisión de producto ya certificada
+> (redirect a `/login`, no 410 — esa recomendación externa no estaba
+> preaprobada), pero se corrigió que el redirect era solo client-side;
+> ahora es un `getServerSideProps` real (307 verificado con curl sin JS).
+> `/campanas` (reportado 404 externamente): causa real era que
+> "Campañas" en el navbar apuntaba directo a `/crear-colecta` (auth
+> boundary) — un anónimo recibía un login wall sin contexto. Se
+> reutilizó el explicador de campañas ya certificado dentro de `/wizard`
+> (`?modo=colecta`) en vez de duplicar una landing nueva. Además: JSON-LD
+> Organization+WebSite nuevo en Home (solo hechos verificables, sin
+> aggregateRating/address/sameAs inventados), 4 headers de seguridad de
+> bajo riesgo en `next.config.mjs` (X-Content-Type-Options, Referrer-
+> Policy, X-Frame-Options, Permissions-Policy con camera/clipboard-write
+> explícitamente permitidos para el scanner QR y compartir colecta —
+> CSP explícitamente no tocada), lenguaje de Trust en `/confianza`
+> ajustado a la formulación cuidadosa ya aprobada de `/seguridad`, grafo
+> público de Rifas verificado correctamente acotado (un solo enlace
+> legítimo desde `/reembolsos`), clasificación robots/noindex/sitemap
+> completa sin regresiones, no-cloaking verificado en vivo (MD5 idéntico
+> Googlebot/Meta/TikTok/normal). 38 tests nuevos en
+> `publicSurfaceFinalCleanup.test.mjs` (180/180 junto con
+> authUxCrawler+publicAudit), regresión completa 606/607 (mismo flake
+> XLSX conocido), build limpio, self-audit sin coincidencias reales.
+> Deuda real pendiente: decisión de Rodrigo sobre el banner de
+> `/terminos-rifas`; el resto queda como deuda jurídica ya trackeada en
+> `docs/legal/`, no resuelta por esta misión. Detalle completo:
+> `docs/WOP.md`, "RIFEX PUBLIC SURFACE FINAL CLEANUP (2026-09-03) — DEV
+> only, autonomous mission".
+>
+> 2026-09-02 — **RIFEX AUTH UX 2026 +
 > CRAWLER SURFACE CLEANUP, DEV only.** `origin/develop` avanza desde
 > `9875ef0`. Modernización visual de Login/Register (copy neutral,
 > componente compartido `AuthShell` solo de presentación) + limpieza de

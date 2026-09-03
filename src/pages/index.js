@@ -11,10 +11,33 @@
 // eso este archivo NUNCA debe volver a agregar cards HTML duplicadas ni
 // una ilustración SVG propia encima: la foto ES el visual completo, no
 // solo un fondo decorativo.
+import Head from 'next/head';
 import Image from 'next/image';
 import Layout from '@/components/Layout';
 import styles from '@/styles/index.module.css';
 import heroPhoto from '../../public/images/hero/rifex-hero-events.png';
+import { SITE_URL } from '@/lib/publicMetadata';
+
+// PUBLIC SURFACE FINAL CLEANUP — JSON-LD mínimo, solo en Home (entidad
+// canónica, no se repite por página). Contiene únicamente hechos
+// verificables desde este repositorio (nombre, URL, logo real en
+// public/); nunca legalName no certificado, aggregateRating, review,
+// address, teléfono ni sameAs sin verificar — ver sección 12 de la
+// misión PUBLIC SURFACE FINAL CLEANUP.
+const ORGANIZATION_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Rifex',
+  url: SITE_URL,
+  logo: `${SITE_URL}/rifex-logo.png`,
+};
+
+const WEBSITE_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Rifex',
+  url: SITE_URL,
+};
 
 const TRUST_ITEMS = [
   { icon: '🪪', label: 'Titularidad contrastada' },
@@ -108,6 +131,18 @@ const CAPABILITIES = [
 export default function Home() {
   return (
     <div className={styles.page}>
+      <Head>
+        <script
+          key="ld-organization"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
+        />
+        <script
+          key="ld-website"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
+        />
+      </Head>
       {/* HERO */}
       <section className={styles.hero}>
         <div className="container">

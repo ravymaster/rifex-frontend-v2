@@ -82,9 +82,6 @@ export default function Contacto() {
                 <li>📄 <a href="/terminos">Términos y condiciones</a></li>
                 <li>🚩 <a href="/reportar">Reportar</a></li>
               </ul>
-              <p style={{ fontSize: 12, color: '#9CA3AF', marginTop: 12 }}>
-                Identidad legal completa del operador: pendiente de confirmación.
-              </p>
             </aside>
           </div>
         </div>

@@ -1,31 +1,20 @@
 // src/pages/reglas-iniciativas-premio.js
 // RIFEX V4 A5 — anexo específico de iniciativas con premio (rifas). Aquí sí
 // se permite la terminología específica, separada de la identidad
-// corporativa global. Legalidad general en Chile ya documentada como zona
-// gris (ver docs/trust/) — revisión jurídica chilena obligatoria.
+// corporativa global. Revisión jurídica chilena pendiente — seguimiento en
+// docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt (punto 6), nunca en esta
+// página pública.
 // STAGE 2 FINAL — mismo tratamiento que /terminos-rifas: noindex y fuera
 // del sitemap, porque es contenido específico de Rifas y Rifas ya no es
 // parte del catálogo público. Sigue accesible por enlace directo desde
 // /terminos-rifas y /reembolsos — nada se eliminó.
 import Layout from "@/components/Layout";
 
-const legalBanner = {
-  background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E",
-  borderRadius: 8, padding: "10px 14px", fontWeight: 700, marginBottom: 16,
-};
-
 export default function ReglasIniciativasPremio() {
   return (
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
       <h1 style={{ marginBottom: 4 }}>Anexo: iniciativas con premio (rifas)</h1>
       <p style={{ color: "#6B7280", marginBottom: 16 }}>Versión 1.0 · Publicada 31/08/2026</p>
-
-      <p style={legalBanner}>
-        PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD. La legalidad general de las rifas/colectas con
-        premio organizadas por personas naturales en Chile permanece en zona gris respecto de la Ley 10.262/1952
-        (ver investigación previa del equipo Trust) — esta página no resuelve esa cuestión, solo documenta las
-        reglas de producto aplicables a quien decide crear una.
-      </p>
 
       <section>
         <h2>Requisitos del organizador</h2>
