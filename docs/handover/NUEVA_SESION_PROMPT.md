@@ -1,7 +1,17 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-03 (actualización más reciente) — **RIFEX PUBLIC SURFACE
+> 2026-09-03 (actualización más reciente, follow-up) — **blocker
+> `/terminos-rifas` resuelto por decisión humana explícita de Rodrigo**:
+> se retiró también ahí el banner interno de revisión legal pendiente
+> (nunca se declaró revisión ni cumplimiento jurídico, condiciones
+> sustantivas intactas y verificadas, deuda real sigue en
+> `docs/legal/`). Los dos tests certificados que lo exigían se
+> actualizaron. Re-validado: 40/40 + 182/182 + regresión 608/609 (mismo
+> flake) + build limpio. Ya no queda ningún blocker abierto de esta
+> misión. Detalle: `docs/WOP.md`.
+>
+> 2026-09-03 — **RIFEX PUBLIC SURFACE
 > FINAL CLEANUP, DEV only, misión autónoma.** `origin/develop` avanza
 > desde `add98ec`. `origin/main` (PROD) ya no está en `15d7d35` — fue
 > promovido por separado a `39b47f5` (tag `v2.5-rifex-prod-auth-crawler`),

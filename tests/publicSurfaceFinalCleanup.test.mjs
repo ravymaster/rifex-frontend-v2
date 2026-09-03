@@ -35,12 +35,13 @@ const PUBLIC_PAGES = [
 ];
 
 // ---------- 1-3. Ausencia de warnings internos en superficies públicas ----------
-// terminos-rifas.js es la única excepción documentada y deliberada
-// (STAGE2-REPAIR): conserva el banner a propósito, con dos tests
-// certificados en publicAudit.test.mjs que exigen exactamente eso — no se
-// reabre esa decisión en esta misión (contradicción material detectada y
-// dejada intacta, ver informe final).
-for (const p of PUBLIC_PAGES) {
+// terminos-rifas.js: el blocker real detectado en la primera pasada de
+// esta misión (banner conservado deliberadamente por STAGE2-REPAIR,
+// contradiciendo dos tests certificados) fue resuelto por decisión
+// humana explícita de Rodrigo (2026-09-03): el banner se retira también
+// aquí, y publicAudit.test.mjs se actualizó en consecuencia. Se incluye
+// en este loop porque ya no es una excepción.
+for (const p of [...PUBLIC_PAGES, "src/pages/terminos-rifas.js"]) {
   test(`${p}: sin warning interno de revisión legal visible ("PENDIENTE DE REVISIÓN", "antes de PROD", "zona gris")`, () => {
     const src = read(p);
     assert.doesNotMatch(src, /PENDIENTE DE REVISI[ÓO]N POR ABOGADO/i);
@@ -48,6 +49,18 @@ for (const p of PUBLIC_PAGES) {
     assert.doesNotMatch(src, /zona gris/i);
   });
 }
+
+test("terminos-rifas.js: retiro del banner no declara revisión ni cumplimiento jurídico, y las condiciones sustantivas (comisión, entrega, fraude/chargebacks) siguen exactamente iguales", () => {
+  const src = read("src/pages/terminos-rifas.js");
+  assert.doesNotMatch(src, /revisado por (un )?abogado/i);
+  assert.doesNotMatch(src, /cumple jur[íi]dicamente|cumplimiento jur[íi]dico certificado/i);
+  assert.match(src, /Rifex cobra un 7% de comisión sobre cada número vendido/);
+  assert.match(src, /Fraude y chargebacks/);
+  assert.match(src, /Rifex no custodia los fondos de las ventas/);
+  assert.match(src, /id="comprador"/);
+  assert.match(src, /id="creador"/);
+  assert.match(src, /id="rifex"/);
+});
 
 test("reglas-iniciativas-premio.js: ya no expone el banner interno de revisión legal (defecto real P0 corregido)", () => {
   const src = read("src/pages/reglas-iniciativas-premio.js");

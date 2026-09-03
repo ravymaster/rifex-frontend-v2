@@ -51,8 +51,16 @@ entrega, fraude/chargebacks, consecuencias por incumplimiento). Movida
 verbatim desde terminos.js#creador a terminos-rifas.js en STAGE 2 REPAIR
 (mismo texto, mismo anchor) para separar la superficie corporativa
 pública de las condiciones específicas de Rifas — el contenido en sí no
-fue modificado, el banner de revisión pendiente sigue visible en la
-propia página, se documenta aquí solo para consolidar el seguimiento.
+fue modificado.
+
+Actualización (PUBLIC SURFACE FINAL CLEANUP, 2026-09-03): el banner
+visible "PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD" que
+antes se mantenía deliberadamente visible en esta página (decisión
+STAGE 2 REPAIR) fue retirado por decisión humana explícita de Rodrigo.
+Esto NO significa que este punto haya sido revisado ni aprobado por un
+abogado — el ítem sigue exactamente igual de pendiente que antes, solo
+que el seguimiento ahora vive únicamente aquí, no en la superficie
+pública.
 
 Estado: MODIFICAR
 Observación del abogado:

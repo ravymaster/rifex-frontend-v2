@@ -181,11 +181,14 @@ test("terminos.js ya no afirma que Rifex retiene fondos ni 'Depósito por Rifex'
   assert.doesNotMatch(src, /Depósito por Rifex/);
 });
 
-test("STAGE 2 REPAIR: /terminos (corporativo público) ya no muestra el aviso de revisión legal pendiente; /terminos-rifas sí lo conserva (nunca se declara aprobado sin revisión real)", () => {
+test("PUBLIC SURFACE FINAL CLEANUP: ni /terminos (corporativo público) ni /terminos-rifas muestran el aviso interno de revisión legal pendiente (decisión humana explícita, 2026-09-03) — la deuda real sigue trackeada en docs/legal/, nunca se declara revisión ni cumplimiento jurídico", () => {
   const publicSrc = read("src/pages/terminos.js");
   assert.doesNotMatch(publicSrc, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
   const rifasSrc = read("src/pages/terminos-rifas.js");
-  assert.match(rifasSrc, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  assert.doesNotMatch(rifasSrc, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  assert.doesNotMatch(rifasSrc, /antes de PROD/i);
+  assert.doesNotMatch(rifasSrc, /revisado por (un )?abogado/i);
+  assert.doesNotMatch(rifasSrc, /cumple jurídicamente|cumplimiento jurídico certificado/i);
 });
 
 test("cumplimiento.js no anuncia reputación pública, ni activa ni futura", () => {
@@ -316,12 +319,22 @@ test("terminos.js (corporativo público): sección Eventos/Campañas/plataforma 
   assert.doesNotMatch(src, /\bcuenta\/rifa\b/);
 });
 
-test("terminos-rifas.js: conserva verbatim las condiciones históricas de Rifas (Comprador/Creador/Rifex), noindex, y las referencias reales siguen apuntando ahí", () => {
+test("terminos-rifas.js: conserva verbatim las condiciones sustantivas históricas de Rifas (Comprador/Creador/Rifex), noindex, sin el aviso interno de revisión legal, y las referencias reales siguen apuntando ahí", () => {
   const src = read("src/pages/terminos-rifas.js");
   assert.match(src, /id="comprador"/);
   assert.match(src, /id="creador"/);
   assert.match(src, /id="rifex"/);
-  assert.match(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  // PUBLIC SURFACE FINAL CLEANUP (2026-09-03, decisión humana explícita):
+  // el aviso interno visible se retiró también de esta página; la deuda
+  // de revisión legal real sigue trackeada en docs/legal/, nunca se
+  // declara revisión ni cumplimiento jurídico.
+  assert.doesNotMatch(src, /PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD/);
+  // Condiciones sustantivas (comisión, entrega, fraude/chargebacks)
+  // deben seguir exactamente iguales — no se reescribió nada más.
+  assert.match(src, /comisión del 7%/);
+  assert.match(src, /Rifex cobra un 7% de comisión sobre cada número vendido/);
+  assert.match(src, /Fraude y chargebacks/);
+  assert.match(src, /Rifex no custodia los fondos de las ventas/);
   assert.match(src, /noindex/);
 
   const crearRifa = read("src/pages/crear-rifa.jsx");

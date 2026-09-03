@@ -9,6 +9,15 @@
 // BuyerForm.jsx para la aceptación contractual real — ninguna
 // referencia activa se rompe. NO indexada: no es superficie de
 // marketing, es documentación contractual del producto autenticado.
+// PUBLIC SURFACE FINAL CLEANUP (2026-09-03) — decisión humana explícita
+// de Rodrigo: se retira también de esta página el banner interno de
+// revisión legal pendiente que STAGE 2 REPAIR había dejado a propósito.
+// Esto NO declara que estos Términos del Creador fueron revisados por
+// un abogado ni que cumplen jurídicamente — la deuda de revisión sigue
+// íntegra y trackeada en docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt
+// (punto 3). Ninguna obligación sustantiva, condición financiera ni
+// regla de producto de esta página fue modificada — solo se eliminó el
+// aviso interno visible.
 import Layout from "@/components/Layout";
 
 export default function TerminosRifas() {
@@ -51,9 +60,6 @@ export default function TerminosRifas() {
 
         <section id="creador">
           <h2>Términos del Creador</h2>
-          <p style={{background:"#FEF3C7", border:"1px solid #FDE68A", color:"#92400E", borderRadius:8, padding:"10px 14px", fontWeight:700}}>
-            PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD.
-          </p>
           <ol>
             <li><strong>Responsabilidades.</strong> Describir claramente premio, precio, cupos, fechas, reglas y modalidad de entrega/pago; cumplir normativa; publicar evidencia de sorteo y entrega/pago. El creador es el único responsable de la veracidad de lo que declara y de que su iniciativa cumpla la ley chilena aplicable.</li>
             <li><strong>Existencia, propiedad y autorización del premio.</strong> El creador declara que el premio existe, que le pertenece o que cuenta con autorización expresa de su propietario para ofrecerlo, y que puede entregarlo en las condiciones anunciadas.</li>
