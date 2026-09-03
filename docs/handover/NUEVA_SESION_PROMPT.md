@@ -1,7 +1,32 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-02 (actualización más reciente) — **RIFEX AUTH UX 2026 +
+> 2026-09-03 (actualización más reciente) — **RIFEX PUBLIC SURFACE
+> FINAL CLEANUP PROD PROMOTION.** `origin/main`/PROD avanza desde
+> `39b47f5` (tag `v2.5-rifex-prod-auth-crawler`), promoviendo
+> exactamente el trabajo DEV certificado en `origin/develop` @
+> `4a363e7`. Elimina el banner interno de revisión legal pendiente que
+> llegaba público en `/reglas-iniciativas-premio` y `/terminos-rifas`
+> (sin declarar revisión ni cumplimiento jurídico, deuda real sigue en
+> `docs/legal/`), el placeholder de identidad legal en `/contacto`
+> (sin inventar datos), y convierte el redirect de `/rifas` a `/login`
+> de client-side a un `307` real server-side (misma decisión de
+> producto, mismo sanitizado de `next`). El navItem "Campañas" ahora
+> abre el explicador de campañas ya certificado en `/wizard?modo=colecta`
+> en vez de aterrizar a un anónimo directo en el auth-wall de
+> `/crear-colecta`. Suma JSON-LD Organization+WebSite en Home (solo
+> hechos verificables) y 4 headers de seguridad de bajo riesgo (CSP no
+> tocada). Los 9 archivos de código eran wholesale-safe; `authUxCrawler
+> .test.mjs` requirió reconstruir a mano un solo bloque de test sobre
+> las correcciones de captcha/RUT ya certificadas de `main`, preservadas
+> exactamente. `blogPrivateProd.test.mjs` (exclusivo de PROD) se
+> re-ejecutó completo y pasó — privacidad de Blog intacta. 196/196 tests
+> del alcance, 622/623 regresión completa (mismo flake XLSX conocido),
+> build limpio, self-audit sin coincidencias, no-cloaking verificado en
+> vivo (MD5 idéntico). Detalle completo: `docs/WOP.md`, "RIFEX PUBLIC
+> SURFACE FINAL CLEANUP — PROD PROMOTION (2026-09-03)".
+>
+> 2026-09-02 — **RIFEX AUTH UX 2026 +
 > CRAWLER CLEANUP PROD PROMOTION.** `origin/main`/PROD avanza desde
 > `15d7d35` (tag `v2.4-rifex-prod-public-trust`), promoviendo exactamente
 > el trabajo DEV certificado en `origin/develop` @ `add98ec`. Navbar: se

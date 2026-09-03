@@ -2,10 +2,18 @@
 // RIFEX V4 A4 — centro público de confianza. Solo navega hacia las páginas
 // reales ya construidas; no repite terminología de rifas como identidad
 // corporativa.
+// PUBLIC SURFACE FINAL CLEANUP — el copy usaba "Rifex verifica la
+// identidad..." / "validamos... contrastamos..." en presente afirmativo
+// incondicional, más fuerte que la formulación ya certificada y más
+// cuidadosa de /seguridad ("Rifex aplica controles de registro,
+// validación de identidad y titularidad de cuentas antes de habilitar
+// determinadas operaciones"). Se ajusta el lenguaje a esa misma
+// formulación — no cambia ningún control real, solo evita que esta
+// página afirme más de lo que /seguridad ya documenta con cuidado.
 import Layout from "@/components/Layout";
 
 const links = [
-  { href: "/seguridad", title: "Seguridad", text: "Cómo validamos al organizador y contrastamos su cuenta receptora." },
+  { href: "/seguridad", title: "Seguridad", text: "Los controles de registro, identidad y titularidad que aplicamos antes de habilitar determinadas operaciones." },
   { href: "/privacidad", title: "Privacidad", text: "Qué datos usamos, para qué y cómo ejercer tus derechos." },
   { href: "/uso-aceptable", title: "Uso aceptable", text: "Qué está prohibido en Rifex y qué medidas pueden aplicarse." },
   { href: "/reportar", title: "Reportar", text: "Reporta una iniciativa o un creador sin necesidad de iniciar sesión." },
@@ -18,8 +26,9 @@ export default function Confianza() {
     <main style={{ maxWidth: 900, margin: "0 auto", padding: "24px 16px" }}>
       <h1 style={{ marginBottom: 4 }}>Centro de confianza</h1>
       <p style={{ color: "#6B7280", marginBottom: 24 }}>
-        Rifex verifica la identidad del organizador, contrasta la titularidad de su cuenta de pago conectada y
-        procesa los pagos mediante ese proveedor. Estos son los controles y canales disponibles hoy.
+        Rifex aplica controles de registro, validación de identidad y titularidad de cuentas antes de habilitar
+        determinadas operaciones, y procesa los pagos mediante el proveedor conectado. Estos son los controles y
+        canales disponibles hoy.
       </p>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>

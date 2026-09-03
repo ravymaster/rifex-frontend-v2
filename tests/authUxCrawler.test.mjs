@@ -124,9 +124,10 @@ test("mis-iniciativas.js conserva Rifas, Campañas y Eventos; crear-rifa.jsx sig
 });
 
 // ---------- /rifas: redirect stub legítimo, no fuga ----------
-test("rifas.js: es un redirect a /login con noindex explícito (X-Robots-Tag), no un catálogo público — decisión de producto ya documentada", () => {
+test("rifas.js: es un redirect real server-side a /login (no solo client-side) con noindex explícito (X-Robots-Tag), no un catálogo público — decisión de producto ya documentada", () => {
   const src = read("src/pages/rifas.js");
-  assert.match(src, /router\.replace\(`\/login\?next=/);
+  assert.match(src, /export async function getServerSideProps/);
+  assert.match(src, /redirect:\s*\{\s*destination:\s*`\/login\?next=/);
   assert.match(src, /X-Robots-Tag['"],\s*['"]noindex,\s*nofollow['"]/);
 });
 

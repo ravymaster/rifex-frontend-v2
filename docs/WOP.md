@@ -4,7 +4,35 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
-## RIFEX AUTH UX 2026 + CRAWLER SURFACE CLEANUP — PROD PROMOTION (2026-09-02)
+## RIFEX PUBLIC SURFACE FINAL CLEANUP — PROD PROMOTION (2026-09-03)
+
+`origin/main`/PROD advances from `39b47f5` (tag `v2.5-rifex-prod-auth-crawler`). Promotes exactly the certified DEV work at `origin/develop` @ `4a363e7` ("RIFEX PUBLIC SURFACE FINAL CLEANUP DEV CERTIFIED", built across two commits: `41bf68e` the main mission, `4a363e7` the follow-up human-authorized removal of the `terminos-rifas.js` internal banner), via the same surgical-reconstruction pattern established across every prior promotion: a fresh worktree from `origin/main`, per-file pre-mission-baseline identity check against `origin/develop`'s parent commit (`add98ec`) to determine wholesale-safe vs. reconstruct-by-hand.
+
+**Classification result — all 9 code files WHOLESALE-SAFE**: `next.config.mjs`, `src/components/Layout.jsx`, `src/pages/confianza.js`, `src/pages/contacto.js`, `src/pages/index.js`, `src/pages/reglas-iniciativas-premio.js`, `src/pages/rifas.js`, `src/pages/wizard.js`, `src/pages/terminos-rifas.js`. Every one of these had a pre-mission baseline (`add98ec`) byte-identical to `main`'s current content — expected, since `add98ec` is itself the exact commit the prior AUTH UX 2026 + CRAWLER CLEANUP promotion (`39b47f5`) already brought to PROD. Checked out `4a363e7`'s version of each wholesale. `docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt` and `tests/publicAudit.test.mjs` were also WHOLESALE-SAFE by the same baseline check and checked out directly, as was the new file `tests/publicSurfaceFinalCleanup.test.mjs`.
+
+**RECONSTRUCT — `tests/authUxCrawler.test.mjs`**: `main`'s current version diverges from `develop`'s pre-mission baseline by exactly the 3 PROD-specific corrections applied during the prior AUTH UX 2026 promotion (real inline hCaptcha assertions instead of `verifyCaptchaOrDevBypass`/`captchaGate`, unconditional-RUT assertion, `captchaGate.js`-must-not-exist assertion) — a real, intentional PROD/DEV divergence that must be preserved, not overwritten. This mission's only actual change to this file across both DEV commits was a single test block (`rifas.js: es un redirect...`), updated to check the new `getServerSideProps`/`redirect` pattern instead of the old `router.replace` client-side pattern. Applied that exact same one-block delta by hand onto `main`'s real file content (confirmed identical wording/structure at a different line number due to the pre-existing captcha corrections above it) — diffed the result against `develop`'s `4a363e7` version afterward and confirmed the only remaining differences are precisely those 3 known, correct PROD divergences.
+
+**DO-NOT-PROMOTE**: none. Nothing in this mission's DEV delta touched Payment Engine, Trust backend, Events/Cumplimiento business logic, or anything requiring exclusion.
+
+**PROD divergences preserved, verified explicitly**:
+- `login.jsx`/`register.jsx` real inline hCaptcha + unconditional RUT — untouched by this mission's file set (neither file was part of the DEV delta), reconfirmed present via `tests/blogPrivateProd.test.mjs` and `authUxCrawler.test.mjs` passing on the candidate.
+- `tests/blogPrivateProd.test.mjs` (PROD-exclusive, does not exist on `develop`) — run against the candidate and passed in full: Blog remains absent from navbar/footer/sitemap, `noindex,nofollow,noarchive`, anonymous API calls rejected, no anonymous content leak.
+- 5 auth-boundary routes (`crear-rifa.jsx`, `crear-colecta.jsx`, `crear-evento.jsx`, `panel/index.js`, `mis-iniciativas.jsx`) — not part of this mission's file set, untouched; live-verified still returning real `307`s on the candidate.
+
+**Delta actually promoted**, matching the certified DEV mission:
+- `/reglas-iniciativas-premio` and `/terminos-rifas`: internal legal-review banner ("PENDIENTE DE REVISIÓN POR ABOGADO CHILENO ANTES DE PROD" / "zona gris") removed from both public pages. No legal review or compliance is declared — the debt stays tracked in `docs/legal/RIFEX_REVISION_LEGAL_PENDIENTE.txt`, promoted alongside with its own update noting the banner's removal without declaring the item resolved. Substantive terms (7% commission, prize delivery, fraud/chargebacks, comprador/creador/rifex anchors) verified byte-identical to before.
+- `/contacto`: public placeholder "Identidad legal completa del operador: pendiente de confirmación." removed — no identity invented.
+- `/rifas`: redirect to `/login` converted from client-side-only (`useEffect`) to a real `getServerSideProps` 307, same `next`-sanitization logic, same `X-Robots-Tag: noindex, nofollow`. Product decision (redirect, not 410) unchanged.
+- `Layout.jsx`/`wizard.js`: "Campañas" navItem now points to `/wizard?modo=colecta` (the already-certified campaign explainer, now deep-linkable) instead of straight into the `/crear-colecta` auth wall.
+- `confianza.js`: Trust-claim language tightened to match `/seguridad`'s already-certified hedged formulation.
+- `index.js`: `Organization` + `WebSite` JSON-LD added to Home, containing only verifiable facts already in the repo (name, url, logo).
+- `next.config.mjs`: 4 low-risk security headers added (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, `Permissions-Policy` with `camera`/`clipboard-write` explicitly kept available for the real scanner/share-link features). CSP intentionally not touched.
+
+**Validation on the exact PROD candidate**: `publicSurfaceFinalCleanup.test.mjs` + `authUxCrawler.test.mjs` + `publicAudit.test.mjs` + `tests/blogPrivateProd.test.mjs` → **196/196 PASS**. Full regression `node --test 'tests/*.test.mjs'` → **622/623** (the same pre-existing `eventAnalyticsWorkbook.test.mjs:93` XLSX `writeBuffer` timing flake, identical signature). `npm run build` → clean, zero errors, `/rifas` correctly listed as dynamic (`ƒ`). Self-audit grep across the full candidate diff for `payment|webhook|marketplace_fee|RIFEX_FEE_RATE|argentina|migration|service_role|Trust writes|googlebot|facebookexternalhit|bytespider`: zero matches.
+
+**Pre-push self-audit on the live candidate (local DEV server)**: Home/Login/Register copy and captcha correct; all 5 auth-boundary routes real `307`s; `/rifas` real `307` with `X-Robots-Tag`; zero legal-warning matches on `/reglas-iniciativas-premio`, `/terminos-rifas`, `/contacto`; Blog `noindex` meta present; `sitemap.xml` clean of protected/legacy/annex paths; `robots.txt` `Disallow` list unchanged; 2 JSON-LD blocks present on Home; all 4 new security headers present; homepage MD5-identical across default/Googlebot/Meta/TikTok user agents.
+
+**Live PROD smoke, deployment, tag, and final HEAD**: recorded at the end of this entry once each step completes.
 
 `origin/main`/PROD advances from `15d7d35` (tag `v2.4-rifex-prod-public-trust`). Promotes exactly the certified DEV work at `origin/develop` @ `add98ec` ("RIFEX AUTH UX 2026 DEV CERTIFIED"), via the established surgical-reconstruction pattern: a fresh worktree from `origin/main`, files whose pre-mission baseline was byte-identical between `develop` and `main` checked out wholesale from `develop`'s HEAD, and files where DEV and PROD diverge at the baseline (`login.jsx`, `register.jsx`) manually reconstructed against `main`'s real content.
 

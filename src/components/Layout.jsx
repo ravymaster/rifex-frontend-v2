@@ -44,9 +44,16 @@ export default function Layout({
   // Campañas / Cómo funciona, más cuenta/login. Precios, Seguridad y Ayuda
   // siguen existiendo y accesibles (footer, enlaces internos), solo dejan
   // de tener su propio ítem de primer nivel en la navegación pública.
+  // PUBLIC SURFACE FINAL CLEANUP — "Campañas" apuntaba directo a
+  // /crear-colecta (auth boundary real): un visitante anónimo recibía un
+  // login wall sin contexto, ya que no existe un catálogo público de
+  // campañas equivalente al de /eventos. Ahora apunta al explicador de
+  // campañas ya existente en /wizard (paso a paso + CTA real a
+  // /crear-colecta), igual que "Cómo funciona" pero preseleccionado en
+  // modo campaña.
   const navItems = [
     { label: 'Eventos',        href: '/eventos' },
-    { label: 'Campañas',       href: '/crear-colecta' },
+    { label: 'Campañas',       href: '/wizard?modo=colecta' },
     { label: 'Cómo funciona',  href: '/wizard' },
   ];
 

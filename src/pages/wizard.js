@@ -2,6 +2,14 @@
 // UX/CRO-1: guía pública "Cómo funciona" — reemplaza temporalmente el
 // enlace de /rifas en el nav. No introduce conceptos técnicos, solo el
 // paso a paso en lenguaje simple.
+// PUBLIC SURFACE FINAL CLEANUP — el navItem "Campañas" del navbar apuntaba
+// directo a /crear-colecta (auth boundary): un visitante anónimo que
+// exploraba el sitio recibía un login wall sin ninguna explicación, ya
+// que no existe (ni existió) un catálogo público de campañas equivalente
+// al de /eventos. Esta página ya contenía el explicador completo de
+// campañas (paso a paso + CTA real) — el navItem ahora apunta acá con
+// ?modo=colecta para preseleccionar esa vista, en vez de crear una
+// landing nueva que duplicaría este contenido ya certificado.
 // STAGE 2 FINAL — metadata migrada a las props de Layout (mismo patrón
 // que el resto de las páginas certificadas; evita el bug real de
 // colisión de key de Next 14.2.32 entre el <Head> propio de esta página
@@ -10,7 +18,8 @@
 // exclusivamente Eventos + Campañas (Rifas sigue existiendo como
 // producto autenticado vía Mis iniciativas/crear-rifa.jsx; esta página
 // nunca formó parte de esa arquitectura y no la modifica).
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import styles from '@/styles/wizard.module.css';
 
@@ -38,7 +47,13 @@ const COLECTA_STEPS = [
 ];
 
 export default function Wizard() {
+  const router = useRouter();
   const [mode, setMode] = useState(null); // null | 'evento' | 'colecta'
+
+  useEffect(() => {
+    const modo = (router.query?.modo || '').toString();
+    if (modo === 'evento' || modo === 'colecta') setMode(modo);
+  }, [router.query?.modo]);
 
   return (
     <>
