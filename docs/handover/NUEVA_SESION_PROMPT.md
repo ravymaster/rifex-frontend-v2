@@ -1,7 +1,40 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-03 (actualización más reciente, follow-up) — **blocker
+> 2026-09-03 (actualización más reciente) — **RIFEX PROGRESSIVE
+> ONBOARDING, DEV only, misión autónoma.** `origin/develop` avanza desde
+> `4a363e7`. Cierra la fuga real que quedaba entre "el usuario puede
+> navegar Rifex sin habilitación completa" (ya funcionaba) y "cualquier
+> intento de CREAR pasa por un criterio único de elegibilidad" (no
+> existía): `crear-rifa.jsx`/`crear-colecta.jsx`/`crear-evento.jsx`
+> rendereaban el formulario completo a cualquier autenticado sin
+> importar si ya era elegible — el único guardia era un `useEffect`
+> cliente-side fail-open que corría después de montar el formulario.
+> Auditoría previa confirmó que ya existían todas las piezas necesarias
+> (`assertCreatorEligible` como única autoridad TRUST-2,
+> `sanitizeNextPath` como único saneador de redirect interno, la cadena
+> `/registro/continuar` → `/panel/bancos` ya re-detectando qué falta en
+> cada visita) — cero pieza nueva de lógica de negocio, cero tabla
+> nueva, cero mega-wizard. Fix: nuevo `src/lib/creationGate.js`
+> (`resolveCreationGate(ctx, destinationPath)`), llamado desde
+> `getServerSideProps` de las 3 páginas de creación con un literal fijo
+> (nunca `ctx.query` — sin superficie de open-redirect), que verifica
+> sesión y luego `assertCreatorEligible`, mapeando cada `reason` real al
+> paso existente que lo resuelve. La protección autoritativa real en
+> `api/rifas`/`api/colectas`/`api/events` queda intacta (diff vacío
+> confirmado). 27 tests nuevos en `creationGate.test.mjs` cubriendo los
+> 20 escenarios adversariales requeridos; `authUxCrawler.test.mjs`
+> actualizado (no debilitado) para las 3 páginas ahora gateadas.
+> Validación: 268/268 tests específicos, regresión completa 635/636
+> (mismo flake XLSX histórico), build limpio, self-audit sin
+> coincidencias reales, auto-auditoría adversarial post-implementación
+> sin hallazgos. `origin/main` (PROD) no referenciado por esta rama.
+> Detalle completo: `docs/WOP.md`,
+> `docs/trust/PROGRESSIVE_ONBOARDING_GATE.md`. **Próximo paso:
+> eventual promoción controlada a PROD, sujeta a autorización explícita
+> — todavía no iniciada.**
+>
+> 2026-09-03 (follow-up) — **blocker
 > `/terminos-rifas` resuelto por decisión humana explícita de Rodrigo**:
 > se retiró también ahí el banner interno de revisión legal pendiente
 > (nunca se declaró revisión ni cumplimiento jurídico, condiciones

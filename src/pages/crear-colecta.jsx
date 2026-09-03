@@ -9,27 +9,18 @@ import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearColecta.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
-import { getSupabaseServer } from '@/lib/supabaseServer';
-import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
+import { resolveCreationGate } from '@/lib/creationGate';
 import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
 
 // AUTH UX 2026 — auth boundary real: esta página es el destino directo del
 // enlace público "Campañas" del navbar (Layout.jsx). Sin esto, el
 // formulario de creación completo se renderizaba en el HTML inicial para
 // cualquier anónimo o crawler que hiciera clic desde la portada.
+// PROGRESSIVE ONBOARDING — extiende ese boundary de "solo sesión" a
+// elegibilidad real de creador (assertCreatorEligible, vía
+// resolveCreationGate).
 export async function getServerSideProps(ctx) {
-  const s = getSupabaseServer(ctx.req, ctx.res);
-  let user = null;
-  try {
-    const { data } = await s.auth.getUser();
-    user = data?.user || null;
-  } catch (_) {
-    user = null;
-  }
-  if (!user) {
-    return { redirect: { destination: '/login?next=/crear-colecta', permanent: false } };
-  }
-  return { props: {} };
+  return resolveCreationGate(ctx, '/crear-colecta');
 }
 
 // Tope solo para que el navegador no se cuelgue decodificando algo absurdo.
@@ -146,6 +137,12 @@ export default function CrearColecta() {
     }
   }, []);
 
+  // PROGRESSIVE ONBOARDING — el chequeo de sesión + onboarding + Trust +
+  // Mercado Pago ahora ocurre server-side (ver getServerSideProps/
+  // resolveCreationGate arriba); este efecto solo sigue resolviendo el
+  // token para cargar "Mis campañas" — el fallback de sesión ausente
+  // queda como defensa adicional ante una sesión que expire justo entre
+  // el render SSR y la hidratación, nunca la autoridad real.
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
@@ -153,12 +150,6 @@ export default function CrearColecta() {
       if (!session) { router.push('/login?next=/crear-colecta'); return; }
       setToken(session.access_token);
       loadMine(session.access_token);
-      try {
-        const trustUrl = await resolveTrustOnboardingRedirect('/crear-colecta');
-        if (trustUrl) router.replace(trustUrl);
-      } catch (e) {
-        console.warn('trust onboarding check:', e?.message);
-      }
     })();
   }, [router, loadMine]);
 
