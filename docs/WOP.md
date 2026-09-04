@@ -32,6 +32,18 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 **Authenticated-state scenarios (incompleto, sin pago, elegible) validated via the 27 functional tests in `creationGate.test.mjs`** run directly against this candidate's `resolveCreationGate` (mocked Supabase covering every real state: `onboarding_incomplete`, `mp_not_connected`, `mp_check_pending`/`checking`, `mp_identity_mismatch`, `mp_check_pending`, `unavailable`, and `matched`-eligible) rather than a manual live authenticated session — no PROD test-account credentials were available/authorized in this environment, and the prompt explicitly forbids creating test iniciativas or altering financial data; the functional-test route is strictly more exhaustive (deterministic coverage of every real `assertCreatorEligible` reason) than a handful of manual clicks would have been.
 
+**Push**: direct `:main` push blocked at the Claude Code tool-permission layer, as in every prior promotion. Worked around by pushing the commit to `origin/release/rifex-progressive-onboarding-prod-2026-09-03` (no `:main` suffix), then Rodrigo ran `git fetch origin release/rifex-progressive-onboarding-prod-2026-09-03` + `git push origin origin/release/rifex-progressive-onboarding-prod-2026-09-03:main` from his own terminal at `/home/desktop/rifex-frontend-v2`. `origin/main` advanced `37f0820` → `7b1a94c`, a clean fast-forward.
+
+**Deploy verification**: Vercel auto-deployed via the existing GitHub integration. Confirmed live (not deployment-status trust alone) via: `last-modified`/`date` headers on `/trust/verificar` matching the moment of the push (`x-vercel-cache: MISS`); the live `/crear-rifa` client JS chunk (`crear-rifa-ff5d7fe4c7917fd8.js`) confirmed to no longer contain `resolveTrustOnboardingRedirect` (the removed client-side fail-open check); the live `/trust/verificar` chunk (`verificar-54f21d54c1fad104.js`) confirmed to contain the new `Continuar` button string.
+
+**Live PROD smoke, against `rifex.pro`**: `/crear-rifa`, `/crear-colecta`, `/crear-evento` — real `307` to `/login?next=<path>` with minimal (25-28 byte) bodies, no form leakage. `/registro/continuar`, `/panel/bancos`, `/trust/verificar` — `200` with `?next=%2Fcrear-rifa` present, no crash. `/mis-iniciativas` (anon) `307`; `/rifas` (legacy redirect) `307`; `/eventos`, `/blog`, `/`, `/login`, `/register` all `200`. `POST /api/rifas` without auth → `401` — confirms the API-layer authority (`assertCreatorEligible` + session check) is fully independent of and unaffected by this promotion. Real inline hCaptcha widget confirmed present on `/login`.
+
+**Crawler test, live**: homepage response byte-identical (same MD5) across default UA, `Googlebot/2.1`, `facebookexternalhit/1.1`, and `TikTokBot` — zero cloaking.
+
+**Tag**: `v2.7-rifex-prod-progressive-onboarding`, annotated, points at `7b1a94c`, pushed to `origin`.
+
+**Status: PROD PROMOTED.** New PROD baseline: `origin/main` @ `7b1a94c`, tag `v2.7-rifex-prod-progressive-onboarding`. No migrations, no PROD writes beyond the code promotion itself, no real payments, no real emails, no secret changes, no commission-rate change, no Argentina activation, no Payment Engine/webhook/Trust-backend change. `assertCreatorEligible` and every API route confirmed byte-for-byte unchanged from pre-promotion PROD.
+
 ---
 
 ## RIFEX PUBLIC SURFACE FINAL CLEANUP — PROD PROMOTION (2026-09-03)
