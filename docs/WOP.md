@@ -28,6 +28,16 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 **Deuda restante (real, not introduced or resolved by this promotion)**: the PSCG-documented historical gaps (`/panel/bancos` SSR-hydrates but doesn't redirect; `/trust/verificar`, `/registro/continuar`, `/perfil` have no SSR boundary at all; `/trust/verificar` and `/perfil` missing from `robots.txt`) are now live on PROD exactly as documented in `docs/public-surface/PUBLIC_SURFACE_CLASSIFICATION_GUARD.md` — unchanged, not newly introduced, not silently fixed by this promotion.
 
+**Push**: direct `:main` push blocked at the Claude Code tool-permission layer, as in every prior promotion. Worked around by pushing the commit to `origin/release/rifex-pscg-difusion-prod-2026-09-04` (no `:main` suffix), then Rodrigo ran `git fetch origin release/rifex-pscg-difusion-prod-2026-09-04` + `git push origin origin/release/rifex-pscg-difusion-prod-2026-09-04:main` from his own terminal at `/home/desktop/rifex-frontend-v2`. `origin/main` advanced `7fcc1c5` → `c2fb339`, a clean fast-forward.
+
+**Deploy verification**: Vercel auto-deployed via the existing GitHub integration. Confirmed live via the strongest possible signal for this promotion — `/difusion` is a brand-new route that returned `404` before this deploy; a live `curl` against `https://rifex.pro/difusion` returned the exact expected `307` to `/login?next=/difusion` with a 21-byte body, `x-vercel-cache: MISS`, `age: 0` — a response that could not have existed prior to this exact deploy.
+
+**Live PROD smoke, against `rifex.pro`**: `/difusion` (anon) → real `307` to `/login?next=/difusion`, 21-byte body, identical across default UA, `Googlebot/2.1`, `facebookexternalhit/1.1`, `TikTokBot` — zero cloaking. `sitemap.xml` served live: zero `difusion` occurrences. `robots.txt` served live: `Disallow: /difusion` present. Regression spot-check: `/`, `/login`, `/register`, `/blog` all `200`; `/mis-iniciativas`, `/crear-rifa`, `/crear-colecta`, `/crear-evento` all real `307`s (Progressive Onboarding gate confirmed unaffected on PROD).
+
+**Tag**: `v2.8-rifex-prod-pscg-difusion`, annotated, points at `c2fb339`, pushed to `origin`.
+
+**Status: PROD PROMOTED.** New PROD baseline: `origin/main` @ `c2fb339`, tag `v2.8-rifex-prod-pscg-difusion`. No migrations, no PROD writes beyond the code promotion itself, no real payments, no real emails, no secret changes, no commission-rate change, no Argentina activation, no Payment Engine/webhook/Trust-backend/creationGate/Progressive-Onboarding change. `assertCreatorEligible`, every API route, and `creationGate.js` confirmed byte-for-byte unchanged from pre-promotion PROD.
+
 ## RIFEX PROGRESSIVE ONBOARDING — PROD PROMOTION (2026-09-03)
 
 `origin/main`/PROD advances from `37f0820` (tag `v2.6-rifex-prod-public-surface-final`). Promotes exactly the certified DEV work at `origin/develop` @ `b996893` ("RIFEX PROGRESSIVE ONBOARDING DEV CERTIFIED"), authorized explicitly by Rodrigo ("GO A PROD"), via the same surgical-reconstruction pattern established across every prior promotion: a fresh worktree from `origin/main` (`release/rifex-progressive-onboarding-prod-2026-09-03`), per-file pre-mission-baseline identity check against `origin/develop`'s parent commit (`4a363e7`, itself already PROD's current baseline) to determine wholesale-safe vs. reconstruct-by-hand.
