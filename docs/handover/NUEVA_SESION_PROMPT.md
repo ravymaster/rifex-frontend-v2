@@ -1,7 +1,37 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-04 (actualización más reciente) — **RIFEX INSCRIPCIONES V1
+> 2026-09-04 (actualización más reciente) — **RIFEX INSCRIPCIONES V1 —
+> PRIVATE SSR AUTH BOUNDARY HARDENING, DEV only, misión quirúrgica de
+> corrección de blocker.** `origin/develop` avanza desde `5d17f8a`. La
+> misión anterior certificó Inscripciones V1 pero marcó un blocker real
+> antes de PROD: `/panel/inscripciones`, `/panel/inscripciones/[id]` y
+> `/panel/inscripciones/[id]/scanner` habían heredado el boundary
+> client-side histórico de `/panel/eventos` (redirect recién después de
+> servir el shell del panel). Corregidas las 3 a `getServerSideProps`
+> real (mismo patrón que `mis-iniciativas.jsx`), con `next` construido
+> desde un prefijo literal + `sanitizeNextPath` + `encodeURIComponent`
+> en las 2 rutas dinámicas — estructuralmente a prueba de open-redirect.
+> `/crear-inscripcion` ya cumplía, no se tocó. Evidencia adversarial en
+> vivo (servidor real, 5 user-agents incluidos Googlebot/Meta/TikTok):
+> `307` real, cero fuga de HTML privado, cero cloaking; `id=".."`
+> normalizado por el propio Next.js; `%2f%2fevil.com` nunca sale del
+> origen; inyección de cabecera `%0d%0a` rechazada por
+> `sanitizeNextPath`, sin `Set-Cookie` inyectado. Autorización
+> (ownership) intacta — sigue siendo autoridad exclusiva de cada
+> endpoint de `/api/inscripciones/[id]/*` y de
+> `check_in_registration_participant`. `/panel/eventos/*` conserva su
+> deuda histórica sin corregir, deliberadamente fuera de alcance. Diff:
+> 4 archivos + 1 test nuevo (23 tests). Regresión 788 tests, 787 PASS
+> (único fallo: el flake histórico de XLSX, firma idéntica). Build
+> limpio — las 3 páginas pasan de estáticas a dinámicas en el output.
+> `origin/main` no referenciado. Detalle completo: `docs/WOP.md`,
+> `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md` (Addendum),
+> `docs/public-surface/PUBLIC_SURFACE_CLASSIFICATION_GUARD.md`.
+> **Próximo paso: eventual promoción controlada a PROD, sujeta a
+> autorización explícita — todavía no iniciada.**
+>
+> 2026-09-04 — **RIFEX INSCRIPCIONES V1
 > FREE + FUTURE BILLING FOUNDATION, DEV only, misión autónoma.**
 > `origin/develop` avanza desde `4681770`. Nuevo vertical nativo,
 > independiente de Eventos/Rifas/Colectas: actividades **gratuitas**

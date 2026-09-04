@@ -1,15 +1,47 @@
 // src/pages/panel/inscripciones/[id].jsx
 // INSCRIPCIONES V1 — panel de administración de UNA actividad. PSCG:
-// PRIVATE_AUTHENTICATED. Owner-only real (verificado server-side en cada
-// endpoint) — este archivo solo refleja lo que la API ya protege.
-// Acciones sección 21 del mandato: ver página pública, copiar link, ver
-// inscritos, scanner, descargar Excel, editar, cerrar/archivar. Nunca
-// muestra métricas financieras (no aplica: Inscripciones no cobra).
+// PRIVATE_AUTHENTICATED, boundary ssr_redirect. Owner-only real
+// (verificado server-side en cada endpoint) — este archivo solo refleja
+// lo que la API ya protege. Acciones sección 21 del mandato: ver página
+// pública, copiar link, ver inscritos, scanner, descargar Excel, editar,
+// cerrar/archivar. Nunca muestra métricas financieras (no aplica:
+// Inscripciones no cobra).
+//
+// SSR AUTH HARDENING (2026-09-04): getServerSideProps ahora demuestra
+// SESIÓN antes de renderizar (redirect 307 real para anónimos, next
+// construido a partir de un literal fijo + el propio id de ruta,
+// saneado con sanitizeNextPath como defensa en profundidad — nunca
+// puede convertirse en una URL externa, ya que el prefijo
+// "/panel/inscripciones/" es siempre literal). Esto es AUTENTICACIÓN,
+// no AUTORIZACIÓN: la SSR solo confirma que hay una sesión válida —
+// quién es el dueño real de la actividad lo sigue decidiendo,
+// exclusivamente, cada endpoint de /api/inscripciones/[id]/* (comparando
+// organizer_id server-side) — este boundary nunca reemplaza esa
+// verificación, ni intenta resolverla aquí.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+import { sanitizeNextPath } from '@/lib/countryPolicy';
+
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  const id = String(ctx.params?.id || '');
+  const next = sanitizeNextPath(`/panel/inscripciones/${id}`, '/panel/inscripciones');
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: `/login?next=${encodeURIComponent(next)}`, permanent: false } };
+  }
+  return { props: {} };
+}
 
 const STATUS_LABEL = { draft: 'Borrador', active: 'Activa', closed: 'Cerrada', archived: 'Archivada' };
 

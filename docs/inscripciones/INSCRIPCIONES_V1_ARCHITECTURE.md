@@ -54,11 +54,21 @@ Las tres funciones: `revoke execute ... from public, anon, authenticated; grant 
 | `/inscripcion/[id]` | `PUBLIC_NOINDEX` | — (noindex, fuera de sitemap, no Disallow'd) |
 | `/i/[token]` | `PUBLIC_NOINDEX` | — |
 | `/crear-inscripcion` | `PRIVATE_AUTHENTICATED` | `ssr_redirect` (gate propio: sesión + `assertOnboardingComplete`, nunca `resolveCreationGate`) |
-| `/panel/inscripciones` | `PRIVATE_AUTHENTICATED` | `client_redirect` (mismo patrón que `/panel/eventos`) |
-| `/panel/inscripciones/[id]` | `PRIVATE_AUTHENTICATED` | `client_redirect` |
-| `/panel/inscripciones/[id]/scanner` | `PRIVATE_AUTHENTICATED` | `client_redirect` |
+| `/panel/inscripciones` | `PRIVATE_AUTHENTICATED` | `ssr_redirect` |
+| `/panel/inscripciones/[id]` | `PRIVATE_AUTHENTICATED` | `ssr_redirect` |
+| `/panel/inscripciones/[id]/scanner` | `PRIVATE_AUTHENTICATED` | `ssr_redirect` |
 
 Registrado en `src/lib/publicSurfaceClassification.js`. `robots.txt`: `Disallow: /crear-inscripcion` (añadido); `/panel/inscripciones/*` ya cubierto por el prefijo `Disallow: /panel`. `sitemap.xml`: `/inscripciones` añadida.
+
+### Addendum (2026-09-04) — PRIVATE SSR AUTH BOUNDARY HARDENING
+
+Las tres superficies `/panel/inscripciones`, `/panel/inscripciones/[id]` y `/panel/inscripciones/[id]/scanner` nacieron con el mismo boundary client-side histórico de `/panel/eventos` (un `useEffect` que revisaba la sesión y redirigía DESPUÉS de que Next.js ya había enviado el shell del panel al navegador). Como Inscripciones es un módulo nuevo clasificado `PRIVATE_AUTHENTICATED` desde su primer commit, esa deuda no debía propagarse — se corrigió en una misión quirúrgica dedicada, sin ampliar el diff hacia Eventos (que conserva la deuda histórica, documentada, no corregida).
+
+Las tres páginas ahora exportan `getServerSideProps` con el mismo patrón exacto ya certificado en `mis-iniciativas.jsx`/`crear-inscripcion.jsx`: `getSupabaseServer(ctx.req, ctx.res)` + `s.auth.getUser()`, `{ redirect: { destination: '/login?next=...' } }` si no hay sesión — **antes** de que el componente de la página se ejecute. Para las dos rutas dinámicas (`[id]`, `[id]/scanner`), `next` se construye siempre a partir de un prefijo literal fijo (`/panel/inscripciones/`) + el `id` de la ruta, pasado por `sanitizeNextPath` (`src/lib/countryPolicy.js`, la misma sanitización real basada en `URL()`/comparación de origin ya usada en el resto del repo) y `encodeURIComponent` antes de ir a la URL de login — el prefijo literal hace estructuralmente imposible que un `id` adversarial produzca un redirect fuera del origen.
+
+**Evidencia adversarial real** (servidor Next.js real corriendo en este worktree, `curl` con múltiples User-Agents): las 3 rutas (+ `/crear-inscripcion` como regresión) devuelven `307` real, body de 30-85 bytes, **cero** marcadores privados (`Scanner`, `Descargar Excel`, `Asistieron`, `Pendientes`, `Editar`, `Inscritos`), idéntico byte a byte entre navegador, `Googlebot`, `facebookexternalhit` y `TikTokBot` — cero cloaking. Casos adversariales de `next` probados en vivo: `id=".."` es normalizado por el propio Next.js antes de llegar a la página (redirect a `/panel`, nunca ejecuta el `getServerSideProps` de Inscripciones); `id` con `%2f%2fevil.com` produce un `Location` que sigue empezando literalmente con `/panel/inscripciones/` (nunca sale del origen); `id` con secuencia `%0d%0a` (intento de inyección de cabecera/`Set-Cookie`) es rechazado por el chequeo de caracteres de control de `sanitizeNextPath`, cayendo al fallback `/panel/inscripciones` — sin ningún `Set-Cookie` inyectado en la respuesta real.
+
+**Autenticación vs autorización**: este boundary SSR únicamente demuestra sesión. La autoridad real de ownership (quién es dueño de la actividad) sigue viviendo exclusivamente en cada endpoint de `/api/inscripciones/[id]/*` (comparación server-side de `organizer_id`) y, para el check-in, en la RPC `check_in_registration_participant` — ninguna de las dos capas fue tocada ni debilitada por esta misión.
 
 ## Capacidad futura — Plus/Gold (documentado, no implementado)
 

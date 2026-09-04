@@ -6,15 +6,45 @@
 // documenta scannerController.js. GET /api/inscripciones/[id]/check-in
 // solo decide si se muestra la UI; la autoridad real vive en la RPC
 // check_in_registration_participant, invocada vía POST al mismo
-// endpoint. V1 es owner-only (sección 20 del mandato).
+// endpoint. V1 es owner-only (sección 20 del mandato) — decidido y
+// aplicado exclusivamente server-side, en la RPC, nunca acá.
+//
+// SSR AUTH HARDENING (2026-09-04): getServerSideProps demuestra SESIÓN
+// antes de renderizar (307 real para anónimos) — nunca se envía el
+// shell del scanner (cámara, botón manual, controlador) a un cliente
+// sin sesión. Autenticado-pero-no-dueño sigue siendo rechazado
+// exactamente igual que antes: el ping GET/`check-in` (fase
+// "unauthorized") y, de forma real e inescapable, la propia RPC
+// check_in_registration_participant (`not_authorized`) — este boundary
+// SSR es autenticación, nunca autorización, y no reemplaza ninguna de
+// esas dos capas existentes.
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import jsQR from 'jsqr';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+import { sanitizeNextPath } from '@/lib/countryPolicy';
 import { parseRegistrationQrPayload } from '@/lib/parseRegistrationQr';
 import { createScannerController } from '@/lib/scannerController';
+
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  const id = String(ctx.params?.id || '');
+  const next = sanitizeNextPath(`/panel/inscripciones/${id}/scanner`, '/panel/inscripciones');
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: `/login?next=${encodeURIComponent(next)}`, permanent: false } };
+  }
+  return { props: {} };
+}
 
 const REJECT_LABEL = {
   invalid_token: 'QR no válido.',

@@ -1,11 +1,39 @@
 // src/pages/panel/inscripciones/index.jsx
 // INSCRIPCIONES V1 — panel: lista de actividades del organizador. PSCG:
-// PRIVATE_AUTHENTICATED. Mismo patrón que panel/eventos/index.jsx.
+// PRIVATE_AUTHENTICATED, boundary ssr_redirect.
+//
+// SSR AUTH HARDENING (2026-09-04): originalmente copiaba el patrón
+// client-side histórico de panel/eventos/index.jsx (deuda documentada,
+// fuera del alcance de esta misión) — un anónimo recibía 200 con el
+// shell completo del panel (título, botón "+ Crear inscripción",
+// "Cargando…") y solo se redirigía después de hidratar. Como
+// Inscripciones es un módulo NUEVO clasificado PRIVATE_AUTHENTICATED
+// desde su primer commit, esa deuda no debe propagarse acá. Ahora usa
+// el mismo boundary real que mis-iniciativas.jsx/crear-inscripcion.jsx:
+// getServerSideProps resuelve la sesión vía getSupabaseServer y
+// redirige (307) ANTES de que el componente se renderice — un request
+// anónimo nunca recibe el HTML del panel.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: '/login?next=/panel/inscripciones', permanent: false } };
+  }
+  return { props: {} };
+}
 
 const STATUS_LABEL = { draft: 'Borrador', active: 'Activa', closed: 'Cerrada', archived: 'Archivada' };
 const STATUS_COLOR = {

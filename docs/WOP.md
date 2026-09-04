@@ -4,6 +4,20 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX INSCRIPCIONES V1 — PRIVATE SSR AUTH BOUNDARY HARDENING (2026-09-04) — DEV only, surgical blocker fix
+
+`origin/develop` advances from `5d17f8a` ("RIFEX INSCRIPCIONES V1 FREE + FUTURE BILLING FOUNDATION"). The prior mission's final report flagged one real blocker before PROD authorization: `/panel/inscripciones`, `/panel/inscripciones/[id]`, and `/panel/inscripciones/[id]/scanner` — all three classified `PRIVATE_AUTHENTICATED` — inherited the client-side-only auth boundary pattern from `/panel/eventos` (a `useEffect` that redirects anonymous users only *after* Next.js already served the private panel shell). Since Inscripciones is a brand-new module classified `PRIVATE_AUTHENTICATED` from its first commit, that historical debt should never have propagated into it.
+
+**Fix**: all three pages now export `getServerSideProps` using the exact pattern already certified in `mis-iniciativas.jsx`/`crear-inscripcion.jsx` — `getSupabaseServer` + `s.auth.getUser()`, returning `{ redirect }` to `/login?next=...` for anonymous requests before the component ever renders. The two dynamic routes build `next` from a fixed literal prefix (`/panel/inscripciones/`) plus the route's `id`, run through `sanitizeNextPath` (`src/lib/countryPolicy.js`, the existing URL-based/origin-comparison sanitizer) and `encodeURIComponent` — structurally incapable of producing an off-origin redirect regardless of what `id` contains. `/crear-inscripcion` already had the correct boundary (session + `assertOnboardingComplete`, never `assertCreatorEligible`/`resolveCreationGate`) and was left untouched.
+
+**Live adversarial evidence** (real Next.js dev server, `curl` with 5 User-Agents: default, browser, Googlebot, `facebookexternalhit`, TikTokBot): all 4 pages return a real `307`, 30–85 byte body, zero private markers (`Scanner`, `Descargar Excel`, `Asistieron`, `Pendientes`, `Editar`, `Inscritos`), byte-identical across every User-Agent — zero cloaking. Adversarial `id` values tested live: `..` gets normalized by Next.js's own router before reaching the page (redirects to `/panel`, the Inscripciones `getServerSideProps` never runs); a double-encoded `%2f%2fevil.com` still resolves to a `Location` starting literally with `/panel/inscripciones/` (never leaves the origin); a `%0d%0a` header-injection attempt is stripped by `sanitizeNextPath`'s existing control-character check, falling back to `/panel/inscripciones` with no `Set-Cookie` injected anywhere in the real response.
+
+Authorization was never touched: ownership of an activity is still decided exclusively, server-side, by each `/api/inscripciones/[id]/*` endpoint (`organizer_id` comparison) and by `check_in_registration_participant` for check-in — this SSR boundary only proves a session exists. `/panel/eventos/*` deliberately kept its historical `client_redirect` pattern — out of scope for this mission by explicit instruction, documented, not fixed.
+
+Diff is 4 files (103 insertions, 13 deletions) + 1 new test file (23 tests, all pass). Full regression: 788 tests, 787 pass; the sole failure is the same pre-existing XLSX stress-test timing flake, identical signature. Clean build — the 3 fixed pages flip from static (`○`) to dynamic (`ƒ`) in the build output, the compiler-level proof that `getServerSideProps` is now real. `origin/main` (PROD) not referenced. Full detail: `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md` ("Addendum — PRIVATE SSR AUTH BOUNDARY HARDENING"), `docs/public-surface/PUBLIC_SURFACE_CLASSIFICATION_GUARD.md`. **Next step**: eventual controlled PROD promotion, subject to explicit authorization — not yet started.
+
+---
+
 ## RIFEX INSCRIPCIONES V1 FREE + FUTURE BILLING FOUNDATION (2026-09-04) — DEV only, autonomous mission
 
 `origin/develop` advances from `4681770` ("RIFEX DIFUSIÓN V1.1 MULTIPRODUCTO", PROD `origin/main` unaffected). New native vertical, independent of Events/Rifas/Colectas: free-only activities (workshops, courses, community sessions) with public registration, individual QR confirmation, check-in scanner, organizer panel, and Excel export.
