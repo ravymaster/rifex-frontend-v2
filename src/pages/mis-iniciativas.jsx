@@ -33,6 +33,7 @@ const INITIATIVES = [
   { key: 'rifas', title: 'Rifas', description: 'Crea rifas, vende números y sortea un ganador.', href: '/panel', cta: 'Ir a mis rifas' },
   { key: 'campanas', title: 'Campañas', description: 'Recauda aportes para una causa o proyecto.', href: '/crear-colecta', cta: 'Ir a mis campañas' },
   { key: 'eventos', title: 'Eventos', description: 'Crea eventos, configura entradas y publícalas.', href: '/panel/eventos', cta: 'Ir a mis eventos' },
+  { key: 'inscripciones', title: 'Inscripciones', description: 'Recibe inscripciones gratis, controla el acceso con QR y descarga tu lista de asistentes.', href: '/panel/inscripciones', cta: 'Ir a mis inscripciones' },
 ];
 
 export default function MisIniciativas() {

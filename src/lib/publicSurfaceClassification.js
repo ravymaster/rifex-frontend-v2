@@ -61,6 +61,12 @@ export const PSCG_REGISTRY = [
   // ---------- PUBLIC_INDEXABLE (idéntico a sitemap.xml) ----------
   { path: "/", file: "src/pages/index.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/eventos", file: "src/pages/eventos/index.jsx", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
+  {
+    path: "/inscripciones",
+    file: "src/pages/inscripciones.jsx",
+    category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
+    notes: "INSCRIPCIONES V1 — landing comercial estático. Nunca un directorio de actividades de usuarios (eso es /inscripcion/[id], PUBLIC_NOINDEX). No muestra Plus/Gold/precios futuros.",
+  },
   { path: "/wizard", file: "src/pages/wizard.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/planes", file: "src/pages/planes.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/seguridad", file: "src/pages/seguridad.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
@@ -107,6 +113,20 @@ export const PSCG_REGISTRY = [
     robotsDisallow: true,
     notes: "Mismo caso que /login.",
   },
+  {
+    path: "/inscripcion/[id]",
+    file: "src/pages/inscripcion/[id].jsx",
+    category: PSCG_CATEGORY.PUBLIC_NOINDEX,
+    robotsDisallow: false,
+    notes: "INSCRIPCIONES V1 — página pública de UNA actividad, compartible por link, sin login para el participante. noindex+nofollow (Layout noindex prop), fuera de sitemap, no Disallow'd (misma guía que /reglas-iniciativas-premio: no combinar Disallow con noindex cuando la señal real es noindex).",
+  },
+  {
+    path: "/i/[token]",
+    file: "src/pages/i/[token].jsx",
+    category: PSCG_CATEGORY.PUBLIC_NOINDEX,
+    robotsDisallow: false,
+    notes: "INSCRIPCIONES V1 — resolución pública del QR de un participante, hermano de /t/[token] (Eventos). GET puro, nunca consume/modifica la inscripción. noindex, no Disallow'd, mismo criterio que /inscripcion/[id].",
+  },
 
   // ---------- PRIVATE_AUTHENTICATED ----------
   {
@@ -129,6 +149,38 @@ export const PSCG_REGISTRY = [
     category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
     boundary: PSCG_BOUNDARY.SSR_GATE_REDIRECT,
     robotsDisallow: true,
+  },
+  {
+    path: "/crear-inscripcion",
+    file: "src/pages/crear-inscripcion.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "INSCRIPCIONES V1 — gate propio (sesión + assertOnboardingComplete), deliberadamente NO resolveCreationGate/assertCreatorEligible (sección 4 del mandato: Inscripciones no exige MP/Trust financiero).",
+  },
+  {
+    path: "/panel/inscripciones",
+    file: "src/pages/panel/inscripciones/index.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. SSR AUTH HARDENING (2026-09-04): boundary corregido de client_redirect a ssr_redirect — un anónimo ya no recibe el shell del panel antes de redirigir. Deliberadamente NO se corrigió /panel/eventos (mismo patrón client-side histórico) — deuda documentada, fuera del alcance de esa misión.",
+  },
+  {
+    path: "/panel/inscripciones/[id]",
+    file: "src/pages/panel/inscripciones/[id].jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. SSR AUTH HARDENING (2026-09-04): boundary corregido a ssr_redirect (next construido desde un literal fijo + el id de ruta, saneado con sanitizeNextPath). Autenticación únicamente — ownership real sigue siendo autoridad exclusiva de cada endpoint de /api/inscripciones/[id]/*, nunca de este boundary.",
+  },
+  {
+    path: "/panel/inscripciones/[id]/scanner",
+    file: "src/pages/panel/inscripciones/[id]/scanner.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. SSR AUTH HARDENING (2026-09-04): boundary corregido a ssr_redirect. V1 owner-only (sección 20 del mandato) — autorización real sigue viviendo en check_in_registration_participant (RPC) y en el ping GET/check-in; este SSR boundary solo demuestra sesión, nunca reemplaza esa autoridad.",
   },
   {
     path: "/panel",

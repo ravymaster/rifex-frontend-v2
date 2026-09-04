@@ -4,10 +4,10 @@
 // nueva — es solo la estructura de datos mínima para evitar duplicar el
 // markup de la página 4 veces (una por producto).
 //
-// "registration" (Inscripciones) todavía no es un producto real de
-// Rifex — available:false marca esto explícitamente, y difusion.jsx no
-// le muestra un botón "Copiar ejemplo" funcional (solo vista previa),
-// para no simular una funcionalidad que no existe.
+// INSCRIPCIONES V1 — "registration" pasó de available:false a
+// available:true: ya es un producto real y funcional de Rifex (ver
+// docs/inscripciones/INSCRIPCIONES_V1_PRODUCT.md). Único cambio de esta
+// misión en este archivo — Rifas/Campañas/Eventos quedan intactos.
 export const DIFFUSION_PRODUCTS = [
   { key: "raffle", label: "Rifas" },
   { key: "campaign", label: "Campañas" },
@@ -125,22 +125,36 @@ Organiza: [nombre del organizador]`,
   registration: {
     key: "registration",
     label: "Inscripciones",
-    tagline: "Próximamente",
-    available: false,
-    previewText:
-      "Cuando Inscripciones esté disponible, podrás compartir actividades gratuitas como talleres, cursos, capacitaciones y actividades comunitarias.",
+    tagline: "Guía de difusión",
+    available: true,
+    intro: [],
+    doList: [
+      "Nombre de la actividad.",
+      "Fecha.",
+      "Hora.",
+      "Lugar o modalidad.",
+      "Cupos disponibles.",
+      "Información relevante.",
+      "Enlace oficial.",
+    ],
+    avoidList: ["Evita información falsa.", "No prometas cosas que la actividad no ofrece."],
+    extraNote: "Es una actividad gratuita — puedes mencionar el código QR de acceso cuando corresponda.",
     example: `📝 Inscripciones abiertas
 
 [Nombre de la actividad]
 
 📅 [fecha]
+🕒 [hora]
+📍 [lugar o modalidad]
 👥 Cupos: [cantidad]
 
-Inscríbete aquí:
+Inscríbete gratis aquí:
 
-[enlace]
+[enlace de la actividad]
 
 Organiza: [nombre del organizador]`,
+    exampleNote: "Adapta este ejemplo a tu actividad con información real y verificable.",
+    adNote: "Cada plataforma mantiene sus propias políticas publicitarias — revísalas antes de contratar un anuncio.",
   },
 };
 
