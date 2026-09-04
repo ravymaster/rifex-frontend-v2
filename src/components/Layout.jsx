@@ -15,6 +15,13 @@ export default function Layout({
   // NUNCA reemplaza auth/RLS — es solo una señal para rastreadores.
   canonicalPath = null,
   noindex = false,
+  // PSCG — algunas superficies PRIVATE_AUTHENTICATED requieren la tríada
+  // completa noindex/nofollow/noarchive (ver
+  // docs/public-surface/PUBLIC_SURFACE_CLASSIFICATION_GUARD.md). Sin
+  // efecto si noindex es false. Compatible hacia atrás: los llamadores
+  // existentes que solo pasan noindex siguen obteniendo exactamente
+  // "noindex, nofollow", sin cambio.
+  noarchive = false,
   ogType = 'website',
   ogImage = DEFAULT_OG_IMAGE,
   // RIFEX V4 A6 fix — Next 14's next/head keeps the FIRST occurrence of a
@@ -65,8 +72,12 @@ export default function Layout({
   // card Campañas que ya vive dentro de /mis-iniciativas, el único punto
   // de entrada a los productos del usuario. La ruta /crear-colecta y su
   // panel siguen intactos, solo dejan de tener su propio ítem acá.
+  // PSCG + DIFUSIÓN V1 — "Difusión" es PRIVATE_AUTHENTICATED (ver
+  // src/lib/publicSurfaceClassification.js): solo vive en este menú
+  // interno, nunca en navItems (navbar pública) ni en el footer.
   const accountItems = [
     { label: 'Mis iniciativas', href: '/mis-iniciativas' },
+    { label: 'Difusión',        href: '/difusion' },
     { label: 'Bancos & Pagos',  href: '/panel/bancos' },
     { label: 'Perfil',          href: '/perfil' },
   ];
@@ -135,7 +146,9 @@ export default function Layout({
           <meta key="description" name="description" content={description} />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
           <link key="canonical" rel="canonical" href={canonical} />
-          {noindex && <meta key="robots" name="robots" content="noindex, nofollow" />}
+          {noindex && (
+            <meta key="robots" name="robots" content={`noindex, nofollow${noarchive ? ', noarchive' : ''}`} />
+          )}
           <meta key="og:title" property="og:title" content={title} />
           <meta key="og:description" property="og:description" content={description} />
           <meta key="og:url" property="og:url" content={canonical} />

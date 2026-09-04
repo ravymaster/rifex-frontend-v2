@@ -1,7 +1,37 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-03 (actualización más reciente) — **RIFEX PROGRESSIVE
+> 2026-09-04 (actualización más reciente) — **RIFEX PSCG + DIFUSIÓN
+> V1.1 MULTIPRODUCTO PROD PROMOTION.** `origin/main`/PROD avanza desde
+> `7fcc1c5` (tag `v2.7-rifex-prod-progressive-onboarding`), promoviendo
+> exactamente el trabajo DEV certificado en `origin/develop` @
+> `4681770` (dos commits fuente: `8ec5787` "PSCG + Difusión V1" y
+> `4681770` "Difusión V1.1 Multiproducto"). **PSCG** es ahora la regla
+> vigente en PROD: toda ruta se clasifica explícitamente en
+> `PUBLIC_INDEXABLE`/`PUBLIC_NOINDEX`/`PRIVATE_AUTHENTICATED`/
+> `LEGACY_REMOVED` vía el nuevo `src/lib/publicSurfaceClassification.js`
+> — sin framework nuevo, reutiliza toda la infraestructura existente.
+> La deuda histórica real encontrada en la auditoría (`/panel/bancos`
+> sin redirect SSR real; `/trust/verificar`/`/registro/continuar`/
+> `/perfil` sin boundary SSR; las dos últimas fuera de `robots.txt`)
+> queda documentada, no corregida por esta promoción. **`/difusion`**
+> pasa a ser multiproducto — Rifas, Campañas, Eventos, Inscripciones
+> ("Próximamente", sin backend) — clasificada `PRIVATE_AUTHENTICATED`
+> con boundary `ssr_redirect` real, solo visible en el menú autenticado.
+> Los 9 archivos de código/test fueron wholesale-safe. Un problema de
+> entorno no relacionado (`@supabase/supabase-js` con instalación
+> corrupta) se encontró y corrigió antes de poder validar
+> `creationGate.test.mjs` limpio. 312/312 tests específicos
+> (pscg+difusion+authUxCrawler+publicAudit+publicSurfaceFinalCleanup+
+> blogPrivateProd+creationGate), regresión completa 738/739 (mismo
+> flake XLSX histórico), build limpio, smoke en vivo confirmando
+> 307/21 bytes en `/difusion` (idéntico en 4 user-agents), Progressive
+> Onboarding y la capa de API confirmadas sin regresión. Detalle
+> completo: `docs/WOP.md`,
+> `docs/public-surface/PUBLIC_SURFACE_CLASSIFICATION_GUARD.md`,
+> `docs/difusion/DIFUSION_V1.md`.
+>
+> 2026-09-03 — **RIFEX PROGRESSIVE
 > ONBOARDING PROD PROMOTION.** `origin/main`/PROD avanza desde
 > `37f0820` (tag `v2.6-rifex-prod-public-surface-final`), promoviendo
 > exactamente el trabajo DEV certificado en `origin/develop` @
