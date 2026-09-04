@@ -220,8 +220,8 @@ export default function Difusion() {
 
       <div role="tabpanel">
         {guide.key === 'raffle' && <RaffleGuide guide={guide} />}
-        {(guide.key === 'campaign' || guide.key === 'event') && <CampaignOrEventGuide guide={guide} />}
-        {guide.key === 'registration' && <RegistrationGuide guide={guide} />}
+        {guide.available && (guide.key === 'campaign' || guide.key === 'event' || guide.key === 'registration') && <CampaignOrEventGuide guide={guide} />}
+        {!guide.available && guide.key === 'registration' && <RegistrationGuide guide={guide} />}
 
         <ExampleBlock
           sectionLabel={guide.available ? 'Ejemplo de publicación' : 'Ejemplo (vista previa)'}

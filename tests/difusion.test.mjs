@@ -35,13 +35,16 @@ test("Inscripciones presente con label 'Inscripciones'", () => {
   assert.equal(DIFFUSION_GUIDES.registration.label, "Inscripciones");
 });
 
-// ---------- 6. Inscripciones = Próximamente, sin CTA funcional ----------
-test("Inscripciones: available=false, tagline 'Próximamente', sin ejemplo copiable funcional", () => {
+// ---------- 6. INSCRIPCIONES V1 — ya es un producto real: available=true,
+// mismo tratamiento funcional que Campañas/Eventos (sección 31 del
+// mandato INSCRIPCIONES V1: actualizar EXCLUSIVAMENTE esta guía para
+// dejar de decir "Próximamente") ----------
+test("Inscripciones: available=true, tagline 'Guía de difusión', ejemplo copiable funcional", () => {
   const reg = DIFFUSION_GUIDES.registration;
-  assert.equal(reg.available, false);
-  assert.equal(reg.tagline, "Próximamente");
-  assert.ok(reg.previewText);
-  assert.ok(reg.example, "debe tener el ejemplo futuro preparado, aunque no sea copiable");
+  assert.equal(reg.available, true);
+  assert.equal(reg.tagline, "Guía de difusión");
+  assert.ok(reg.example, "debe tener un ejemplo real y copiable, igual que Campañas/Eventos");
+  assert.ok(Array.isArray(reg.doList) && reg.doList.length > 0);
 });
 
 test("difusion.jsx: el selector muestra la etiqueta 'Próximamente' junto a Inscripciones", () => {
@@ -53,8 +56,7 @@ test("difusion.jsx: ExampleBlock no renderiza el botón 'Copiar ejemplo' cuando 
   assert.match(pageSrc, /copyable=\{guide\.available\}/);
 });
 
-test("difusion.jsx: no hay ruta ni componente nuevo dedicado a Inscripciones — sigue siendo la misma /difusion", () => {
-  assert.ok(!fs.existsSync(path.join(ROOT, "src/pages/inscripciones.jsx")));
+test("difusion.jsx: no hay ruta ni componente nuevo DE DIFUSIÓN dedicado a Inscripciones — sigue siendo la misma /difusion (src/pages/inscripciones.jsx es la landing del producto Inscripciones, no una ruta de Difusión)", () => {
   assert.ok(!fs.existsSync(path.join(ROOT, "src/pages/difusion")));
 });
 

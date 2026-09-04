@@ -116,6 +116,9 @@ PSCG no reemplaza ninguno de los tres mecanismos reales — los orquesta y los h
 |---|---|
 | `/` | PUBLIC_INDEXABLE |
 | `/eventos` | PUBLIC_INDEXABLE |
+| `/inscripciones` | PUBLIC_INDEXABLE |
+| `/inscripcion/[id]`, `/i/[token]` | PUBLIC_NOINDEX |
+| `/crear-inscripcion`, `/panel/inscripciones*` | PRIVATE_AUTHENTICATED |
 | `/reglas-iniciativas-premio` | PUBLIC_NOINDEX |
 | `/login`, `/register` | PUBLIC_NOINDEX |
 | `/difusion` | PRIVATE_AUTHENTICATED |

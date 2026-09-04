@@ -288,6 +288,7 @@ export default function Layout({
               <span className="rf-foot__colTitle">Producto</span>
               <Link href="/crear-evento">Crear evento</Link>
               <Link href="/crear-colecta">Crear campaña</Link>
+              <Link href="/crear-inscripcion">Crear inscripción</Link>
               <Link href="/planes">Comisión</Link>
               <Link href="/register" className="rf-foot__community">Conoce más productos de Rifex siendo parte de la comunidad</Link>
             </div>

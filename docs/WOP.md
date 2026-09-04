@@ -4,6 +4,28 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX INSCRIPCIONES V1 FREE + FUTURE BILLING FOUNDATION (2026-09-04) — DEV only, autonomous mission
+
+`origin/develop` advances from `4681770` ("RIFEX DIFUSIÓN V1.1 MULTIPRODUCTO", PROD `origin/main` unaffected). New native vertical, independent of Events/Rifas/Colectas: free-only activities (workshops, courses, community sessions) with public registration, individual QR confirmation, check-in scanner, organizer panel, and Excel export.
+
+**Categorical product rule**: Inscripciones never charges the participant — never uses the organizer's Mercado Pago, `marketplace_fee`, commission, or Payment Engine. A case needing to charge a participant belongs to Eventos, never a paid variant of this.
+
+**Critical onboarding rule**: lives outside progressive financial onboarding — uses only `assertOnboardingComplete` (TRUST-1), never `assertCreatorEligible`/`resolveCreationGate` (which require RUT/MP). Verified live against `rifex-dev`: an organizer with no Mercado Pago connected can create and operate an activity.
+
+**Events-reuse audit completed before implementing**: QR generation/scanner/rate-limit/mailer/XLSX helpers classified REUSE DIRECT or ADAPT; Country Gate, `event_staff`, and ticket-type capacity triggers classified DO NOT REUSE, each with a documented reason (see `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md`).
+
+**Schema**: `registration_activities`/`registration_participants`/`registration_checkins`/`registration_free_usage`, three atomic RPCs (`create_free_registration_activity` never accepts `plan`/`capacity` as parameters — hardcoded `'free'`/`50`; `register_for_activity` uses `for update` as the capacity-race authority; `check_in_registration_participant` is owner-only in V1). Monthly FREE quota (1 per calendar month per account, never rolling-30-days) enforced by an insert-only ledger whose `UNIQUE(organizer_id, period_key)` constraint is itself the concurrency authority.
+
+**Live adversarial proof against `rifex-dev`** (not simulated): two simultaneous FREE-activity creations for the same organizer+month → exactly one succeeds; two simultaneous registrations for the last open slot of a `capacity=1` activity → exactly one succeeds, never overbooking; duplicate email (case-insensitive), nonexistent/draft activity, QR `UNIQUE` constraint, valid check-in, double check-in, cross-activity QR, and non-owner check-in attempt all verified against the real RPCs. All test fixtures created and cleaned up in the same session — zero residue confirmed.
+
+**PLUS/GOLD (200/2000 capacity)** modeled in `src/lib/registrationPlans.js` but structurally impossible to activate — no endpoint reads `plan`/`capacity` from a client body, and the only activity-creating RPC has no such parameters in its signature. Documented without implementing in `docs/inscripciones/INSCRIPCIONES_FUTURE_BILLING.md`.
+
+**PSCG**: `/inscripciones` → `PUBLIC_INDEXABLE`; `/inscripcion/[id]`, `/i/[token]` → `PUBLIC_NOINDEX`; `/crear-inscripcion`, `/panel/inscripciones/*` → `PRIVATE_AUTHENTICATED`. Difusión V1.1 updated: Inscripciones stops saying "Próximamente" (the only line of that mission touched here).
+
+**Validation**: 26 new committed unit tests + the live adversarial battery above. Full regression suite: 762 tests, 759 pass directly; 2 failures were stale Difusión expectations (updated to match the now-real product, 22/22 after fix); 1 is the pre-existing XLSX stress-test timing flake, reproduced in isolation with the identical signature, unrelated to this mission. Clean `npm run build`. Migration applied only to `rifex-dev` (`nwxrvwbzqbhznscyirbq`) via `scripts/dev-supabase.sh`; `origin/main` (PROD) never referenced. Full detail: `docs/inscripciones/INSCRIPCIONES_V1_PRODUCT.md`, `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md`, `docs/inscripciones/INSCRIPCIONES_FUTURE_BILLING.md`. **Next step**: eventual controlled PROD promotion, subject to explicit authorization — not yet started.
+
+---
+
 ## RIFEX DIFUSIÓN V1.1 MULTIPRODUCTO (2026-09-04) — DEV only, autonomous mission
 
 `origin/develop` advances from `8ec5787` ("RIFEX PSCG + DIFUSION V1 DEV CERTIFIED", PROD `origin/main` unaffected). Fully autonomous DEV-only mission converting `/difusion` from a Rifas-oriented guide into a multiproduct guide covering Rifas, Campañas, Eventos, and Inscripciones (the last marked "Próximamente" — not a real product yet) — without touching PSCG architecture, auth boundary, classification, or metadata, all of which were already certified in the prior mission and remain explicitly frozen here.

@@ -1,7 +1,62 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-04 (actualización más reciente) — **RIFEX DIFUSIÓN V1.1
+> 2026-09-04 (actualización más reciente) — **RIFEX INSCRIPCIONES V1
+> FREE + FUTURE BILLING FOUNDATION, DEV only, misión autónoma.**
+> `origin/develop` avanza desde `4681770`. Nuevo vertical nativo,
+> independiente de Eventos/Rifas/Colectas: actividades **gratuitas**
+> (talleres, cursos, capacitaciones) con inscripción pública, QR
+> individual, scanner de check-in, panel y export Excel. Regla de
+> producto categórica: Inscripciones nunca cobra al participante —
+> nunca usa Mercado Pago del organizador, `marketplace_fee`, comisión,
+> ni Payment Engine; un caso que necesite cobrar es Eventos, no una
+> variante de esto. Regla crítica de onboarding: vive fuera del
+> onboarding financiero progresivo — usa exclusivamente
+> `assertOnboardingComplete` (TRUST-1), nunca `assertCreatorEligible`
+> ni `resolveCreationGate` (que exigen RUT/MP) — demostrado en vivo
+> contra `rifex-dev` que un organizador sin Mercado Pago conectado
+> puede crear y operar una actividad. Auditoría de reuso de Eventos
+> completa antes de implementar (QR/scanner/rate-limit/mailer/XLSX
+> REUSE DIRECT o ADAPT; Country Gate/`event_staff`/tipos de entrada DO
+> NOT REUSE, con justificación). Esquema nuevo
+> (`registration_activities`/`registration_participants`/
+> `registration_checkins`/`registration_free_usage`) con 3 RPCs
+> atómicas — `create_free_registration_activity` (nunca acepta
+> `plan`/`capacity` como parámetro, los hardcodea a `'free'`/`50`),
+> `register_for_activity` (`for update` como autoridad de aforo),
+> `check_in_registration_participant` (owner-only V1). Cupo mensual
+> FREE (1 por mes calendario por cuenta, nunca rolling-30-días) vía
+> ledger insert-only con `UNIQUE(organizer_id, period_key)` como
+> autoridad de concurrencia — demostrado en vivo: dos creaciones
+> simultáneas mismo organizador+mes → exactamente una gana; dos
+> inscripciones simultáneas para el último cupo de una actividad
+> `capacity=1` → exactamente una gana, nunca overbooking. PLUS/GOLD
+> (200/2000) modelados en `registrationPlans.js` pero estructuralmente
+> imposibles de activar (ningún endpoint acepta `plan`/`capacity` del
+> cliente) — documentado sin implementar en
+> `INSCRIPCIONES_FUTURE_BILLING.md`. PSCG: `/inscripciones`
+> `PUBLIC_INDEXABLE`, `/inscripcion/[id]`+`/i/[token]`
+> `PUBLIC_NOINDEX`, `/crear-inscripcion`+`/panel/inscripciones/*`
+> `PRIVATE_AUTHENTICATED`. Difusión V1.1 actualizada: Inscripciones deja
+> de decir "Próximamente" (única línea de producto tocada en esa
+> misión). 26 tests unitarios nuevos + batería adversarial en vivo
+> contra `rifex-dev` (creación FREE, doble intento mismo mes, mes
+> siguiente permitido, duplicado de email, actividad inexistente/en
+> borrador, `UNIQUE` de QR, check-in válido/doble/cross-activity/sin
+> autorización, las dos concurrencias reales) — fixtures creados y
+> limpiados en la misma sesión, cero residuo verificado. Regresión
+> completa 762 tests (759 PASS directo + 2 corregidos por expectativas
+> obsoletas de Difusión + 1 flake XLSX histórico idéntico, no tocado),
+> build limpio. Migración aplicada solo a `rifex-dev`
+> (`nwxrvwbzqbhznscyirbq`) vía `scripts/dev-supabase.sh`; `origin/main`
+> (PROD) no referenciado. Detalle completo:
+> `docs/inscripciones/INSCRIPCIONES_V1_PRODUCT.md`,
+> `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md`,
+> `docs/inscripciones/INSCRIPCIONES_FUTURE_BILLING.md`. **Próximo paso:
+> eventual promoción controlada a PROD, sujeta a autorización explícita
+> — todavía no iniciada.**
+>
+> 2026-09-04 — **RIFEX DIFUSIÓN V1.1
 > MULTIPRODUCTO, DEV only, misión autónoma.** `origin/develop` avanza
 > desde `8ec5787`. Convierte `/difusion` de una guía orientada casi
 > exclusivamente a Rifas en una guía multiproducto con selector de 4
