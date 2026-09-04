@@ -88,15 +88,15 @@ test("login.jsx y register.jsx en PROD conservan su captcha real (inline, /api/v
 });
 
 // ---------- AUTH BOUNDARY server-side real ----------
-const PROTECTED_PAGES = [
-  ["src/pages/crear-rifa.jsx", "/crear-rifa"],
-  ["src/pages/crear-colecta.jsx", "/crear-colecta"],
-  ["src/pages/crear-evento.jsx", "/crear-evento"],
+// panel/index.js y mis-iniciativas.jsx: boundary directo (getSupabaseServer
+// + s.auth.getUser() inline en la propia página), sin cambios desde AUTH
+// UX 2026 — se siguen certificando con el patrón literal exacto.
+const DIRECT_BOUNDARY_PAGES = [
   ["src/pages/panel/index.js", "/panel"],
   ["src/pages/mis-iniciativas.jsx", "/mis-iniciativas"],
 ];
 
-for (const [file, path_] of PROTECTED_PAGES) {
+for (const [file, path_] of DIRECT_BOUNDARY_PAGES) {
   test(`${file}: boundary real vía getServerSideProps + getSupabaseServer, redirige a /login?next=${path_} si no hay sesión (no depende solo de useEffect)`, () => {
     const src = read(file);
     assert.match(src, /export async function getServerSideProps/);
@@ -106,6 +106,30 @@ for (const [file, path_] of PROTECTED_PAGES) {
       `redirect:\\s*\\{\\s*destination:\\s*['"]\\/login\\?next=${path_.replace('/', '\\/')}['"]`
     );
     assert.match(src, redirectRe);
+  });
+}
+
+// crear-rifa.jsx/crear-colecta.jsx/crear-evento.jsx (PROGRESSIVE ONBOARDING):
+// el boundary de solo-sesión se extendió a elegibilidad real de creador vía
+// resolveCreationGate (src/lib/creationGate.js) — el chequeo de sesión +
+// login redirect sigue siendo real y server-side, ahora dentro de esa
+// función compartida en vez de repetido en cada página; ver
+// tests/creationGate.test.mjs para la certificación funcional completa
+// (con Supabase mockeado) del comportamiento real, no solo el patrón de
+// código acá.
+const GATED_CREATION_PAGES = [
+  ["src/pages/crear-rifa.jsx", "/crear-rifa"],
+  ["src/pages/crear-colecta.jsx", "/crear-colecta"],
+  ["src/pages/crear-evento.jsx", "/crear-evento"],
+];
+
+for (const [file, path_] of GATED_CREATION_PAGES) {
+  test(`${file}: boundary real vía getServerSideProps + resolveCreationGate (sesión + elegibilidad de creador), nunca depende solo de useEffect`, () => {
+    const src = read(file);
+    assert.match(src, /export async function getServerSideProps/);
+    assert.match(src, /import \{ resolveCreationGate \} from ['"]@\/lib\/creationGate['"]/);
+    const callRe = new RegExp(`resolveCreationGate\\(ctx,\\s*['"]${path_.replace('/', '\\/')}['"]\\)`);
+    assert.match(src, callRe);
   });
 }
 

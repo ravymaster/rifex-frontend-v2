@@ -1,7 +1,36 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-03 (actualización más reciente) — **RIFEX PUBLIC SURFACE
+> 2026-09-03 (actualización más reciente) — **RIFEX PROGRESSIVE
+> ONBOARDING PROD PROMOTION.** `origin/main`/PROD avanza desde
+> `37f0820` (tag `v2.6-rifex-prod-public-surface-final`), promoviendo
+> exactamente el trabajo DEV certificado en `origin/develop` @
+> `b996893` ("RIFEX PROGRESSIVE ONBOARDING DEV CERTIFIED"), autorizado
+> explícitamente por Rodrigo ("GO A PROD"). Cierra la única fuga real:
+> `/crear-rifa`, `/crear-colecta`, `/crear-evento` ahora verifican
+> elegibilidad real de creador (`assertCreatorEligible`, TRUST-2)
+> server-side antes de enviar el formulario, vía el nuevo
+> `src/lib/creationGate.js` — antes solo se verificaba sesión. Un
+> usuario autenticado pero no elegible es enrutado exactamente al paso
+> existente que resuelve lo que falta (`/registro/continuar`,
+> `/panel/bancos`, o `/trust/verificar` de forma estructural — TRUST-3A
+> sigue dormant), con el destino original preservado vía `next` y sin
+> superficie de open-redirect (el destino pasado al gate siempre es un
+> literal fijo, nunca `ctx.query`). Un usuario ya elegible no nota
+> ningún cambio. Los 4 archivos de contenido (`crear-rifa.jsx`,
+> `crear-colecta.jsx`, `crear-evento.jsx`, `trust/verificar.jsx`) más
+> los 2 archivos nuevos (`creationGate.js`, `creationGate.test.mjs`)
+> fueron wholesale-safe; `tests/authUxCrawler.test.mjs` requirió aplicar
+> a mano el diff exacto de la misión sobre las correcciones de
+> captcha/RUT ya certificadas de PROD (confirmado con `git apply
+> --check` antes de aplicar). La protección autoritativa real
+> (`assertCreatorEligible` dentro de `api/rifas`/`api/colectas`/
+> `api/events`) no formaba parte del set de archivos de esta misión y
+> queda completamente intacta — el nuevo gate es solo UX. 344/344 tests
+> específicos. Detalle completo: `docs/WOP.md`,
+> `docs/trust/PROGRESSIVE_ONBOARDING_GATE.md`.
+>
+> 2026-09-03 — **RIFEX PUBLIC SURFACE
 > FINAL CLEANUP PROD PROMOTION.** `origin/main`/PROD avanza desde
 > `39b47f5` (tag `v2.5-rifex-prod-auth-crawler`), promoviendo
 > exactamente el trabajo DEV certificado en `origin/develop` @

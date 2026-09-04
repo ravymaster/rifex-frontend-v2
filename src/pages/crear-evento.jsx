@@ -9,25 +9,16 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearEvento.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
-import { getSupabaseServer } from '@/lib/supabaseServer';
-import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
+import { resolveCreationGate } from '@/lib/creationGate';
 
 // AUTH UX 2026 — auth boundary real, mismo patrón que crear-rifa.jsx y
 // crear-colecta.jsx: sin esto, el formulario completo se renderizaba en
 // el HTML inicial para cualquier anónimo o crawler.
+// PROGRESSIVE ONBOARDING — extiende ese boundary de "solo sesión" a
+// elegibilidad real de creador (assertCreatorEligible, vía
+// resolveCreationGate).
 export async function getServerSideProps(ctx) {
-  const s = getSupabaseServer(ctx.req, ctx.res);
-  let user = null;
-  try {
-    const { data } = await s.auth.getUser();
-    user = data?.user || null;
-  } catch (_) {
-    user = null;
-  }
-  if (!user) {
-    return { redirect: { destination: '/login?next=/crear-evento', permanent: false } };
-  }
-  return { props: {} };
+  return resolveCreationGate(ctx, '/crear-evento');
 }
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
@@ -113,18 +104,19 @@ export default function CrearEvento() {
   const [err, setErr] = useState(null);
   const [notice, setNotice] = useState(null);
 
+  // PROGRESSIVE ONBOARDING — el chequeo de sesión + onboarding + Trust +
+  // Mercado Pago ahora ocurre server-side (ver getServerSideProps/
+  // resolveCreationGate arriba); este efecto solo sigue resolviendo el
+  // token para las llamadas autenticadas del formulario — el fallback de
+  // sesión ausente queda como defensa adicional ante una sesión que
+  // expire justo entre el render SSR y la hidratación, nunca la
+  // autoridad real.
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
       const session = data?.session;
       if (!session) { router.push('/login?next=/crear-evento'); return; }
       setToken(session.access_token);
-      try {
-        const trustUrl = await resolveTrustOnboardingRedirect('/crear-evento');
-        if (trustUrl) router.replace(trustUrl);
-      } catch (e) {
-        console.warn('trust onboarding check:', e?.message);
-      }
     })();
   }, [router]);
 

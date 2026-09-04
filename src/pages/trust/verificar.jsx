@@ -11,6 +11,7 @@ import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import styles from '@/styles/onboarding.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { sanitizeNextPath } from '@/lib/countryPolicy';
 
 const CORRECTION_MESSAGES = {
   image_unreadable: 'La imagen no se ve con claridad. Vuelve a fotografiarla con buena luz, sin reflejos.',
@@ -42,6 +43,20 @@ function fileToBase64(file) {
 
 export default function TrustVerificar() {
   const router = useRouter();
+
+  // PROGRESSIVE ONBOARDING — mismo patrón de `next` ya usado en
+  // /registro/continuar y /panel/bancos (sanitizeNextPath, la única
+  // implementación de saneo de redirect interno del repo): permite
+  // volver al destino de creación original una vez aprobado. Esta rama
+  // (TRUST-3A) permanece inalcanzable hoy en la práctica —
+  // isIdentityVerificationRequiredForCreators() sigue en `false` — se
+  // agrega igual por completitud, para no dejar un `next` roto si esa
+  // política se activa en el futuro.
+  const nextPath = sanitizeNextPath(
+    router.isReady ? router.query?.next?.toString() : '',
+    '/panel'
+  );
+
   const [ready, setReady] = useState(false);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,11 +85,12 @@ export default function TrustVerificar() {
   }
 
   useEffect(() => {
+    if (!router.isReady) return;
     (async () => {
       const { data } = await supabase.auth.getSession();
       const session = data?.session;
       if (!session) {
-        router.replace(`/login?next=${encodeURIComponent('/trust/verificar')}`);
+        router.replace(`/login?next=${encodeURIComponent(router.asPath || '/trust/verificar')}`);
         return;
       }
       setToken(session.access_token);
@@ -86,7 +102,7 @@ export default function TrustVerificar() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router.isReady]);
 
   async function handleStart() {
     setBusy(true);
@@ -253,9 +269,21 @@ export default function TrustVerificar() {
                 )}
 
                 {status === 'approved' && (
-                  <span className={styles.statusBadgeGood} style={{ display: 'block' }}>
-                    Identidad verificada{expiresAt ? ` (vigente hasta ${new Date(expiresAt).toLocaleDateString('es-CL')})` : ''}.
-                  </span>
+                  <>
+                    <span className={styles.statusBadgeGood} style={{ display: 'block' }}>
+                      Identidad verificada{expiresAt ? ` (vigente hasta ${new Date(expiresAt).toLocaleDateString('es-CL')})` : ''}.
+                    </span>
+                    {nextPath && (
+                      <button
+                        type="button"
+                        className="btn btn-primary btnPrimary"
+                        style={{ marginTop: 12 }}
+                        onClick={() => router.replace(nextPath)}
+                      >
+                        Continuar
+                      </button>
+                    )}
+                  </>
                 )}
 
                 {status === 'rejected' && (

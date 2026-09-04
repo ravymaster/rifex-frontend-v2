@@ -1,33 +1,26 @@
 // src/pages/crear-rifa.jsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
-import { getSupabaseServer } from "@/lib/supabaseServer";
-import { resolveTrustOnboardingRedirect } from "@/lib/trustOnboardingClient";
+import { resolveCreationGate } from "@/lib/creationGate";
 import Layout from "@/components/Layout";
 import styles from "@/styles/crearRifa.module.css";
 
 // AUTH UX 2026 — auth boundary real: sin esto, el formulario completo de
 // creación (título, precio, cupos, premio, checkboxes legales) se
-// renderizaba en el HTML inicial para cualquier anónimo o crawler; el
-// único guardia era el useEffect de abajo, que solo actúa después de
-// hidratar en el navegador. La autoridad que bloquea la creación en sí
-// siempre fue server-side (POST /api/rifas) — esto cierra el acceso a la
-// página, no cambia esa lógica.
+// renderizaba en el HTML inicial para cualquier anónimo o crawler.
+// PROGRESSIVE ONBOARDING — extiende ese boundary de "solo sesión" a
+// elegibilidad real de creador (assertCreatorEligible, vía
+// resolveCreationGate): antes, un usuario con sesión pero sin
+// onboarding/RUT/Mercado Pago igual veía el formulario completo montado
+// en el navegador durante una fracción de segundo, hasta que el
+// useEffect de abajo (ahora eliminado) resolvía el chequeo y redirigía.
+// La autoridad que bloquea la creación en sí siempre fue server-side
+// (POST /api/rifas) — esto cierra el acceso a la página, no cambia esa
+// lógica.
 export async function getServerSideProps(ctx) {
-  const s = getSupabaseServer(ctx.req, ctx.res);
-  let user = null;
-  try {
-    const { data } = await s.auth.getUser();
-    user = data?.user || null;
-  } catch (_) {
-    user = null;
-  }
-  if (!user) {
-    return { redirect: { destination: "/login?next=/crear-rifa", permanent: false } };
-  }
-  return { props: {} };
+  return resolveCreationGate(ctx, "/crear-rifa");
 }
 
 // RIFEX CLOSURE PASS (2026-08-29): la sección "Temática" se eliminó del
@@ -94,24 +87,12 @@ async function uploadPrizePhotos(files, token) {
 export default function CrearRifaPage() {
   const router = useRouter();
 
-  // TRUST-1: chequeo de sesión + onboarding universal al montar — esta
-  // página antes solo verificaba sesión recién al enviar el formulario
-  // (dejaba llenar todo primero). La autoridad real que bloquea la
-  // creación sigue siendo server-side (POST /api/rifas), esto es
-  // solo UX temprana.
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data?.session) { router.push('/login?next=/crear-rifa'); return; }
-      try {
-        const trustUrl = await resolveTrustOnboardingRedirect('/crear-rifa');
-        if (trustUrl) router.replace(trustUrl);
-      } catch (e) {
-        console.warn('trust onboarding check:', e?.message);
-      }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // PROGRESSIVE ONBOARDING — el chequeo de sesión + onboarding + Trust +
+  // Mercado Pago ahora ocurre server-side, antes de que este componente
+  // exista siquiera (ver getServerSideProps/resolveCreationGate arriba).
+  // El useEffect que antes hacía este mismo chequeo client-side (después
+  // de que el formulario ya estaba montado) se eliminó — quedaba
+  // estrictamente subsumido por el gate real.
 
   // Básicos
   const [title, setTitle] = useState("");
