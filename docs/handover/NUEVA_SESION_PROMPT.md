@@ -1,7 +1,40 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-03 (actualización más reciente) — **RIFEX PROGRESSIVE
+> 2026-09-04 (actualización más reciente) — **RIFEX PUBLIC SURFACE
+> CLASSIFICATION GUARD (PSCG) + DIFUSIÓN V1, DEV only, misión autónoma.**
+> `origin/develop` avanza desde `b996893`. Establece PSCG como regla
+> transversal (toda ruta nueva se clasifica en `PUBLIC_INDEXABLE`,
+> `PUBLIC_NOINDEX`, `PRIVATE_AUTHENTICATED` o `LEGACY_REMOVED` antes de
+> mergear) vía un registro delgado nuevo,
+> `src/lib/publicSurfaceClassification.js`, que reutiliza toda la
+> infraestructura existente (`Layout`, `robots.txt`, `sitemap.xml`,
+> `getSupabaseServer`) sin crear ningún framework. La auditoría real
+> encontró y documentó (sin corregir) deuda histórica: `/panel/bancos`
+> tiene SSR pero no redirige ahí; `/trust/verificar`,
+> `/registro/continuar` y `/perfil` no tienen boundary SSR (solo
+> client-side, sin fuga real); `/trust/verificar` y `/perfil` faltan en
+> `robots.txt`. `Layout.jsx` ganó un prop `noarchive` opcional
+> (compatible hacia atrás). Implementa **Difusión V1** (`/difusion`) —
+> guía educativa privada sobre cómo compartir iniciativas en redes
+> sociales sin prometer resultados ni enseñar evasión de políticas —
+> clasificada `PRIVATE_AUTHENTICATED` con el boundary más fuerte
+> (`ssr_redirect`, redirect real en `getServerSideProps`, nunca solo un
+> hook client-side). V1 explícitamente sin IA, sin APIs sociales, sin
+> publicación automática. "Difusión" solo en el menú de cuenta
+> autenticado, nunca en navegación pública. 81+13 tests nuevos
+> (`pscg.test.mjs`+`difusion.test.mjs`), 263/263 junto con
+> authUxCrawler+publicAudit+publicSurfaceFinalCleanup, regresión completa
+> 716/717 (mismo flake XLSX histórico), build limpio, smoke en vivo
+> confirmando 307 real de 21 bytes en `/difusion` (idéntico en 4
+> user-agents, cero cloaking). `origin/main` no referenciado. Detalle
+> completo: `docs/WOP.md`,
+> `docs/public-surface/PUBLIC_SURFACE_CLASSIFICATION_GUARD.md`,
+> `docs/difusion/DIFUSION_V1.md`. **Próximo paso: eventual promoción
+> controlada a PROD, sujeta a autorización explícita — todavía no
+> iniciada.**
+>
+> 2026-09-03 — **RIFEX PROGRESSIVE
 > ONBOARDING, DEV only, misión autónoma.** `origin/develop` avanza desde
 > `4a363e7`. Cierra la fuga real que quedaba entre "el usuario puede
 > navegar Rifex sin habilitación completa" (ya funcionaba) y "cualquier
