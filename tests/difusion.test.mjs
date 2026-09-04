@@ -1,140 +1,191 @@
-// DIFUSIÓN V1 — certificación específica de /difusion (docs/difusion/DIFUSION_V1.md).
-// Cubre exactamente los invariantes exigidos por la misión que introdujo
-// PSCG + Difusión V1. Complementa (no duplica) tests/pscg.test.mjs, que
-// certifica el registro de clasificación en general.
+// DIFUSIÓN V1.1 — MULTIPRODUCTO. Certifica el selector de 4 productos
+// (Rifas/Campañas/Eventos/Inscripciones) y el contenido por guía, sin
+// tocar la clasificación PSCG de /difusion (PRIVATE_AUTHENTICATED,
+// boundary ssr_redirect — certificada en tests/pscg.test.mjs, no
+// duplicada acá). docs/difusion/DIFUSION_V1.md documenta el detalle.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { DIFFUSION_PRODUCTS, DIFFUSION_GUIDES, DIFFUSION_COMMON_AD_NOTE } from "../src/lib/difusionGuides.js";
 
 const ROOT = path.join(process.cwd());
 const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
-const src = read("src/pages/difusion.jsx");
-const layoutSrc = read("src/components/Layout.jsx");
-const sitemap = read("public/sitemap.xml");
-const robots = read("public/robots.txt");
+const pageSrc = read("src/pages/difusion.jsx");
+const guidesSrc = read("src/lib/difusionGuides.js");
 
-// ---------- auth boundary: anónimo 307, next correcto ----------
-test("difusion.jsx: getServerSideProps real, redirige a /login?next=/difusion si no hay sesión", () => {
-  assert.match(src, /export async function getServerSideProps/);
-  assert.match(src, /getSupabaseServer/);
-  assert.match(src, /s\.auth\.getUser\(\)/);
-  assert.match(src, /redirect:\s*\{\s*destination:\s*'\/login\?next=\/difusion'/);
+// ---------- 1. existen 4 categorías ----------
+test("DIFFUSION_PRODUCTS: exactamente 4 productos (raffle, campaign, event, registration)", () => {
+  assert.equal(DIFFUSION_PRODUCTS.length, 4);
+  const keys = DIFFUSION_PRODUCTS.map((p) => p.key).sort();
+  assert.deepEqual(keys, ["campaign", "event", "raffle", "registration"]);
 });
 
-test("difusion.jsx: no depende únicamente de un useEffect — el redirect vive en getServerSideProps, no en un hook client-side", () => {
-  // La única lógica de "si no hay usuario" del archivo debe estar dentro
-  // de getServerSideProps; el componente no debe tener su propio
-  // useEffect de verificación de sesión (ese patrón es el que PSCG marca
-  // como boundary más débil para páginas nuevas).
-  assert.doesNotMatch(src, /useEffect/);
+// ---------- 2-5. cada producto presente ----------
+test("Rifas presente con label 'Rifas'", () => {
+  assert.equal(DIFFUSION_GUIDES.raffle.label, "Rifas");
+});
+test("Campañas presente con label 'Campañas'", () => {
+  assert.equal(DIFFUSION_GUIDES.campaign.label, "Campañas");
+});
+test("Eventos presente con label 'Eventos'", () => {
+  assert.equal(DIFFUSION_GUIDES.event.label, "Eventos");
+});
+test("Inscripciones presente con label 'Inscripciones'", () => {
+  assert.equal(DIFFUSION_GUIDES.registration.label, "Inscripciones");
 });
 
-// ---------- metadata: noindex, nofollow, noarchive ----------
-test("difusion.jsx: pasa noindex y noarchive a Layout — title/description exactos de la misión", () => {
-  assert.match(src, /title="Difusión — Rifex"/);
-  assert.match(
-    src,
-    /description="Guía para compartir tus iniciativas de Rifex en redes sociales de forma clara y responsable\."/
-  );
-  assert.match(src, /noindex/);
-  assert.match(src, /noarchive/);
+// ---------- 6. Inscripciones = Próximamente, sin CTA funcional ----------
+test("Inscripciones: available=false, tagline 'Próximamente', sin ejemplo copiable funcional", () => {
+  const reg = DIFFUSION_GUIDES.registration;
+  assert.equal(reg.available, false);
+  assert.equal(reg.tagline, "Próximamente");
+  assert.ok(reg.previewText);
+  assert.ok(reg.example, "debe tener el ejemplo futuro preparado, aunque no sea copiable");
 });
 
-test("Layout.jsx: el prop noarchive agrega noarchive al robots meta solo cuando noindex está activo, compatible hacia atrás", () => {
-  assert.match(layoutSrc, /noarchive = false/);
-  assert.match(layoutSrc, /noindex, nofollow\$\{noarchive \? ', noarchive' : ''\}/);
+test("difusion.jsx: el selector muestra la etiqueta 'Próximamente' junto a Inscripciones", () => {
+  assert.match(pageSrc, /Próximamente/);
 });
 
-// ---------- fuera de sitemap ----------
-test("difusion.jsx: /difusion está fuera de sitemap.xml", () => {
-  assert.doesNotMatch(sitemap, /<loc>https:\/\/rifex\.pro\/difusion<\/loc>/);
+test("difusion.jsx: ExampleBlock no renderiza el botón 'Copiar ejemplo' cuando copyable=false (Inscripciones)", () => {
+  assert.match(pageSrc, /copyable\s*\?/);
+  assert.match(pageSrc, /copyable=\{guide\.available\}/);
 });
 
-// ---------- robots.txt Disallow ----------
-test("robots.txt: Disallow: /difusion presente, mismo patrón que el resto de rutas PRIVATE_AUTHENTICATED con boundary ssr_redirect/ssr_gate_redirect", () => {
-  assert.match(robots, /Disallow: \/difusion/);
+test("difusion.jsx: no hay ruta ni componente nuevo dedicado a Inscripciones — sigue siendo la misma /difusion", () => {
+  assert.ok(!fs.existsSync(path.join(ROOT, "src/pages/inscripciones.jsx")));
+  assert.ok(!fs.existsSync(path.join(ROOT, "src/pages/difusion")));
 });
 
-// ---------- fuera de navbar pública / footer, presente en menú autenticado ----------
-test("Layout.jsx: 'Difusión' NO está en navItems (navbar pública) ni en el footer público", () => {
-  const navItemsBlock = layoutSrc.match(/const navItems = \[[\s\S]*?\];/)[0];
-  assert.doesNotMatch(navItemsBlock, /Difusión/);
-  const footerBlock = layoutSrc.match(/<footer[\s\S]*?<\/footer>/)[0];
-  assert.doesNotMatch(footerBlock, /Difusión/);
+// ---------- 7/11. cada producto implementado tiene ejemplo propio y distinto ----------
+test("Rifas, Campañas y Eventos tienen ejemplos de texto distintos entre sí", () => {
+  const examples = [DIFFUSION_GUIDES.raffle.example, DIFFUSION_GUIDES.campaign.example, DIFFUSION_GUIDES.event.example];
+  assert.equal(new Set(examples).size, 3, "los 3 ejemplos deben ser textos distintos");
 });
 
-test("Layout.jsx: 'Difusión' SÍ está en accountItems (menú de cuenta autenticado), entre Mis iniciativas y Bancos & Pagos", () => {
-  const accountItemsBlock = layoutSrc.match(/const accountItems = \[[\s\S]*?\];/)[0];
-  assert.match(accountItemsBlock, /label:\s*'Difusión',\s*href:\s*'\/difusion'/);
-  const misIdx = accountItemsBlock.indexOf("Mis iniciativas");
-  const difusionIdx = accountItemsBlock.indexOf("Difusión");
-  const bancosIdx = accountItemsBlock.indexOf("Bancos & Pagos");
-  assert.ok(misIdx < difusionIdx && difusionIdx < bancosIdx, "el orden del menú debe ser Mis iniciativas, Difusión, Bancos & Pagos");
+test("cada guía muestra contenido introductorio/recomendaciones distinto (no texto compartido copiado literal)", () => {
+  const raffleText = JSON.stringify(DIFFUSION_GUIDES.raffle);
+  const campaignText = JSON.stringify(DIFFUSION_GUIDES.campaign);
+  const eventText = JSON.stringify(DIFFUSION_GUIDES.event);
+  assert.notEqual(raffleText, campaignText);
+  assert.notEqual(campaignText, eventText);
+  assert.notEqual(raffleText, eventText);
 });
 
-// ---------- contenido educativo, ejemplo, botón copiar ----------
-test("difusion.jsx: contiene el bloque 'Qué debes saber' con el texto exacto de la misión", () => {
-  assert.match(src, /Qué debes saber/);
-  assert.match(src, /pueden aplicar restricciones a publicaciones y anuncios relacionados con rifas/);
-  assert.doesNotMatch(src, /siempre (serán?|será) (sancionad|eliminad|rechazad)/i);
+// ---------- 8. Rifas: precauciones especiales ----------
+test("Rifas: tagline 'Precauciones especiales', explica orgánico vs pagado y que cambiar palabras no cambia la política", () => {
+  const raffle = DIFFUSION_GUIDES.raffle;
+  assert.equal(raffle.tagline, "Precauciones especiales");
+  const all = JSON.stringify(raffle);
+  assert.match(all, /org[aá]nica.*pagado|pagado.*org[aá]nica/i);
+  assert.match(all, /Cambiar palabras no convierte una actividad restringida/);
+  assert.match(all, /revisar políticas vigentes|Revisa siempre las políticas vigentes/i);
 });
 
-test("difusion.jsx: contiene las 7 recomendaciones de 'Antes de publicar'", () => {
-  assert.match(src, /Antes de publicar/);
-  for (const rec of [
-    "Describe con claridad",
-    "Identifica al organizador",
-    "información verdadera y verificable",
-    "Evita promesas de ganancias",
-    "Evita mensajes engañosos",
-    "enlace oficial de tu iniciativa",
-    "políticas de la red",
-  ]) {
-    assert.match(src, new RegExp(rec));
-  }
-});
-
-test("difusion.jsx: sección 'Palabras sensibles' no enseña bypass/evasión/cloaking", () => {
-  assert.match(src, /Palabras sensibles/);
-  assert.match(src, /pueden activar revisiones adicionales/);
+test("Rifas: no enseña bypass, evasión, engaño de algoritmo, cloaking ni sustitución deliberada", () => {
+  const all = JSON.stringify(DIFFUSION_GUIDES.raffle).toLowerCase() + pageSrc.toLowerCase();
   for (const forbidden of ["bypass", "evasi[oó]n", "enga[ñn]ar al algoritmo", "cloaking", "sustituci[oó]n deliberada"]) {
-    assert.doesNotMatch(src, new RegExp(forbidden, "i"));
+    assert.doesNotMatch(all, new RegExp(forbidden));
   }
 });
 
-test("difusion.jsx: ejemplo copiable presente con placeholders y botón 'Copiar ejemplo' vía clipboard local, sin API", () => {
-  assert.match(src, /Ejemplo de publicación/);
-  assert.match(src, /\[motivo o causa\]/);
-  assert.match(src, /\[enlace de tu iniciativa\]/);
-  assert.match(src, /\[nombre del organizador\]/);
-  assert.match(src, /Copiar ejemplo/);
-  assert.match(src, /navigator\.clipboard\.writeText/);
-  assert.doesNotMatch(src, /fetch\(['"`]\/api\//);
+// ---------- 9. Campañas: recomendaciones específicas ----------
+test("Campañas: recomienda explicar motivo, identificar organizador, describir uso de aportes, evitar garantías/dinero fácil", () => {
+  const all = JSON.stringify(DIFFUSION_GUIDES.campaign);
+  assert.match(all, /motivo de la campaña/);
+  assert.match(all, /Identifica al organizador/);
+  assert.match(all, /para qué se utilizarán los aportes/);
+  assert.match(all, /garantías de resultados/);
+  assert.match(all, /dinero fácil/);
 });
 
-test("difusion.jsx: sección 'Publicidad pagada' presente, sin inventar enlaces externos", () => {
-  assert.match(src, /Publicidad pagada/);
-  assert.match(src, /Meta, TikTok y otras plataformas/);
-  assert.doesNotMatch(src, /https?:\/\/(?!rifex\.pro)/);
+// ---------- 10. Eventos: guía de difusión ----------
+test("Eventos: tagline 'Guía de difusión', no promete aprobación de plataformas, cubre fecha/hora/lugar/entradas", () => {
+  const event = DIFFUSION_GUIDES.event;
+  assert.equal(event.tagline, "Guía de difusión");
+  const all = JSON.stringify(event);
+  for (const term of ["Fecha.", "Hora.", "Lugar.", "Disponibilidad de entradas."]) {
+    assert.match(all, new RegExp(term.replace(".", "\\.")));
+  }
+  for (const forbidden of ["permitido por Meta", "garantizado", "sin riesgo"]) {
+    assert.doesNotMatch(all, new RegExp(forbidden, "i"));
+  }
 });
 
-// ---------- V1 explícitamente limitada: cero IA, cero API social, cero Payment/Trust/comisión ----------
-test("difusion.jsx: cero IA, cero Warp AI, cero APIs sociales, cero Payment Engine, cero Trust backend, cero comisión", () => {
+// ---------- 12. botón Copiar ejemplo corresponde al texto activo de cada guía ----------
+test("difusion.jsx: el botón Copiar ejemplo copia guide.example de la guía activa (vía ExampleBlock, prop text)", () => {
+  assert.match(pageSrc, /navigator\.clipboard\.writeText\(text\)/);
+  assert.match(pageSrc, /text=\{guide\.example\}/);
+  assert.match(pageSrc, /const guide = DIFFUSION_GUIDES\[active\]/);
+});
+
+// ---------- 13-15. cero APIs sociales, cero Warp AI, cero generación automática ----------
+test("difusion.jsx / difusionGuides.js: cero APIs sociales, cero Warp AI/IA, cero generación automática de contenido", () => {
+  const combined = (pageSrc + guidesSrc).toLowerCase();
   const forbidden = [
     "openai",
     "warp",
     "gpt",
     "oauth",
-    "meta.*graph.*api",
+    "graph.facebook",
+    "graph\\.instagram",
     "tiktok.*api",
-    "marketplace_fee",
-    "RIFEX_FEE_RATE",
-    "assertCreatorEligible",
-    "webhook",
-    "payment",
+    "generatecopy",
+    "auto.?generat",
+    "scheduler",
+    "analytics",
   ];
   for (const term of forbidden) {
-    assert.doesNotMatch(src.toLowerCase(), new RegExp(term.toLowerCase()));
+    assert.doesNotMatch(combined, new RegExp(term));
   }
+});
+
+// ---------- 16-17. sin rutas nuevas por producto, sin backend nuevo ----------
+test("sin rutas nuevas por producto (una sola página /difusion) y sin API nueva", () => {
+  for (const bad of [
+    "src/pages/difusion-rifas.jsx",
+    "src/pages/difusion-campanas.jsx",
+    "src/pages/difusion-eventos.jsx",
+    "src/pages/difusion-inscripciones.jsx",
+    "src/pages/api/difusion",
+    "src/pages/api/difusion.js",
+  ]) {
+    assert.ok(!fs.existsSync(path.join(ROOT, bad)), `no debe existir: ${bad}`);
+  }
+});
+
+// ---------- selector UX: no navega, no pierde sesión ----------
+test("difusion.jsx: el selector cambia estado local (useState), nunca navega a otra página", () => {
+  assert.match(pageSrc, /useState\('event'\)/);
+  assert.match(pageSrc, /onClick=\{\(\) => setActive\(p\.key\)\}/);
+  assert.doesNotMatch(pageSrc, /router\.push|router\.replace|window\.location/);
+});
+
+// ---------- nota común de publicidad ----------
+test("DIFFUSION_COMMON_AD_NOTE: bloque común presente y renderizado", () => {
+  assert.match(DIFFUSION_COMMON_AD_NOTE, /Las políticas de las plataformas pueden cambiar/);
+  assert.match(pageSrc, /DIFFUSION_COMMON_AD_NOTE/);
+});
+
+// ---------- metadata sigue neutral (sin cambios respecto a V1) ----------
+test("difusion.jsx: metadata (title/description) exacta, sin palabras sensibles, robots noindex/nofollow/noarchive intactos", () => {
+  assert.match(pageSrc, /title="Difusión — Rifex"/);
+  assert.match(
+    pageSrc,
+    /description="Guía para compartir tus iniciativas de Rifex en redes sociales de forma clara y responsable\."/
+  );
+  assert.match(pageSrc, /noindex/);
+  assert.match(pageSrc, /noarchive/);
+  const layoutPropsBlock = pageSrc.match(/Difusion\.getLayout[\s\S]*$/)[0];
+  for (const w of ["rifa", "rifas", "sorteo", "sorteos", "premio", "premios", "azar"]) {
+    assert.doesNotMatch(layoutPropsBlock.split("noindex")[0], new RegExp(`\\b${w}\\b`, "i"));
+  }
+});
+
+// ---------- boundary PSCG sin cambios (verificación puntual, no duplica pscg.test.mjs) ----------
+test("difusion.jsx: getServerSideProps sigue siendo ssr_redirect, sin cambios respecto a V1", () => {
+  assert.match(pageSrc, /export async function getServerSideProps/);
+  assert.match(pageSrc, /getSupabaseServer/);
+  assert.match(pageSrc, /redirect:\s*\{\s*destination:\s*'\/login\?next=\/difusion'/);
 });

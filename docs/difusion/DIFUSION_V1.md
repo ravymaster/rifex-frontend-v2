@@ -2,6 +2,8 @@
 
 **Ruta**: `/difusion` — **Clasificación PSCG**: `PRIVATE_AUTHENTICATED`, boundary `ssr_redirect`.
 
+> **Actualización V1.1 (2026-09-04) — MULTIPRODUCTO**: ver la sección [V1.1 — Multiproducto](#v11--multiproducto-2026-09-04) al final de este documento. El contenido original de esta página (todo lo que sigue hasta esa sección) describía V1 cuando la guía cubría exclusivamente Rifas — se mantiene como registro histórico de esa fase, no como el estado actual de la página. La clasificación PSCG (`PRIVATE_AUTHENTICATED`, boundary `ssr_redirect`), la ruta única `/difusion`, el auth boundary y la metadata **no cambiaron** en V1.1 — solo el contenido dentro de la página.
+
 ## Qué es
 
 Una guía educativa estática, visible solo con sesión, que explica a un creador cómo compartir su iniciativa de Rifex en redes sociales sin prometer resultados y sin intentar evadir las políticas de las plataformas. Es contenido — no una herramienta, no una integración, no un flujo con estado propio más allá de un botón "Copiar".
@@ -53,3 +55,35 @@ Confirmado que crear Difusión no introduce "rifa"/"rifas"/"sorteo"/"sorteos"/"p
 ## Tests
 
 `tests/difusion.test.mjs` certifica: anónimo recibe `307` con `next` correcto; robots `noindex, nofollow, noarchive`; ausente de `sitemap.xml`; ausente de `navItems` (navbar pública) y del footer de `Layout.jsx`; presente en `accountItems` (menú autenticado); contenido educativo, ejemplo copiable y botón "Copiar" presentes en el código fuente; cero referencias a IA/Warp/APIs sociales/Payment Engine/Trust backend/comisión en el archivo de la página.
+
+---
+
+## V1.1 — Multiproducto (2026-09-04)
+
+**Objetivo**: V1 estaba orientada casi exclusivamente a Rifas ("Palabras sensibles" hablaba de "rifa"/"sorteo"/"premio"/"azar" como si fuera la única superficie de riesgo). Rifex ya tiene Rifas, Campañas y Eventos como productos reales — V1.1 hace que Difusión sirva a los tres, más Inscripciones (marcada explícitamente "Próximamente", ya que no es un producto real todavía).
+
+**Qué NO cambió**: la clasificación PSCG (`PRIVATE_AUTHENTICATED`), el boundary (`ssr_redirect` — el mismo `getServerSideProps` byte-idéntico de V1), la ruta (sigue siendo únicamente `/difusion`, no se crearon rutas por producto), la metadata (`title`/`description`/`robots` idénticos), la ubicación en navegación (solo `accountItems`, nunca pública), ni `robots.txt`/`sitemap.xml` (ya cubiertos por V1, sin cambios adicionales).
+
+**Qué sí cambió**: el contenido dentro de la página. Nuevo `src/lib/difusionGuides.js` — estructura de datos pura (sin JSX, sin llamadas de red, sin IA) con `DIFFUSION_PRODUCTS` (los 4 productos) y `DIFFUSION_GUIDES` (el contenido completo de cada uno). `src/pages/difusion.jsx` reescrito para renderizar un selector (`role="tablist"`, 4 botones tipo segmented-control, coherente con el sistema visual inline-styled ya usado en esta página) y el contenido de la guía activa (`useState`, cambio 100% client-side, sin navegación, sin round-trip, sin pérdida de sesión).
+
+**Selector — decisión de default**: "Eventos" queda seleccionado por defecto al entrar. La misión pedía explícitamente no asumir un default sin justificarlo — se eligió Eventos por ser la identidad pública actual de Rifex (primer ítem del navbar público, catálogo principal en `/eventos`), la opción más neutral entre los 3 productos implementados; ninguna documentación del repo indica una preferencia por Rifas.
+
+**Rifas — "Precauciones especiales"**: mantiene (y expande) el contenido de V1 — restricciones por plataforma, la distinción entre publicación orgánica y anuncio pagado, que cambiar palabras no cambia la política real, y la nota de "palabras sensibles" (ahora específica de Rifas, ya que las otras tres guías no giran en torno a esas palabras). Sin enseñar bypass, evasión, engaño de algoritmo, cloaking ni sustitución deliberada — verificado con un test dedicado.
+
+**Campañas — "Comparte tu causa con claridad"**: contenido nuevo, distinto del de Rifas — explicar el motivo, identificar al organizador, describir el uso de los aportes, evitar promesas exageradas/garantías de resultado/"dinero fácil"/presión engañosa/contraprestaciones no contempladas.
+
+**Eventos — "Guía de difusión"**: contenido nuevo — nombre, fecha, hora, lugar, tipo de actividad, disponibilidad de entradas, mención de entradas digitales/QR cuando corresponda. Deliberadamente sin lenguaje de "permitido por Meta"/"garantizado"/"sin riesgo" — es una guía de difusión normal, no una certificación de políticas.
+
+**Inscripciones — "Próximamente"**: `available: false` en el registro. Muestra un texto de vista previa informativa y el ejemplo de publicación futuro ya redactado, pero **sin** botón "Copiar ejemplo" funcional (`ExampleBlock` renderiza un badge "Vista previa" en su lugar cuando `copyable` es `false`) — no se simula funcionalidad de un producto que no existe. Sin ruta nueva, sin backend, sin formulario, sin tabla.
+
+**Ejemplos copiables**: cada guía implementada (Rifas/Campañas/Eventos) tiene su propio texto — verificado que los 3 son distintos entre sí. El botón "Copiar ejemplo" sigue usando exclusivamente `navigator.clipboard.writeText`, ahora parametrizado por el texto de la guía activa (`ExampleBlock`, prop `text={guide.example}`) — mismo mecanismo, sin API nueva.
+
+**Redes mencionadas conceptualmente**: una única línea bajo el subtítulo menciona Facebook, Instagram, TikTok, X y WhatsApp — sin guías independientes por red, sin OAuth, sin API, sin publicación automática, sin scheduler, sin analítica, tal como exige la misión.
+
+**Publicidad pagada**: cada guía implementada tiene su propia nota (Rifas: advertencia fuerte reutilizando el texto de V1; Campañas: evitar claims engañosos/resultados garantizados; Eventos: cada plataforma mantiene sus propias políticas). Un bloque común (`DIFFUSION_COMMON_AD_NOTE`) cierra cada guía con la nota genérica de que las políticas pueden cambiar.
+
+**Componentización**: `difusionGuides.js` es solo datos — ningún framework, ninguna API, ninguna base de datos, ningún CMS. `difusion.jsx` importa el registro y renderiza según `guide.key`, con 3 componentes de presentación pequeños (`RaffleGuide`, `CampaignOrEventGuide`, `RegistrationGuide`) más un `ExampleBlock` compartido para el bloque de ejemplo/copiar — evita duplicar el markup 4 veces sin introducir ninguna abstracción nueva de infraestructura.
+
+**Tests**: `tests/difusion.test.mjs` reescrito completo para V1.1 (22 tests) — certifica los 4 productos, Inscripciones marcada "Próximamente" sin CTA funcional, contenido distinto por producto, precauciones especiales de Rifas sin enseñar evasión, recomendaciones específicas de Campañas, guía de Eventos sin lenguaje de "aprobación garantizada", ejemplos distintos y correctamente vinculados al botón "Copiar", cero rutas/backend nuevos por producto, cero APIs sociales/generación automática, selector sin navegación ni pérdida de sesión, y que el boundary PSCG sigue intacto. `tests/pscg.test.mjs` no requirió ningún cambio — la entrada de `/difusion` en el registro sigue siendo válida sin modificación.
+
+**V2/V3 (documentado, no implementado)**: V2 seleccionaría una iniciativa real del usuario y rellenaría automáticamente nombre/fecha/enlace/organizador. V3 (con generación asistida por IA) agregaría adaptación por plataforma, revisión inteligente y recomendaciones dinámicas. Ambas quedan fuera del alcance de V1.1 — ninguna pieza de infraestructura para ellas fue introducida en este commit.

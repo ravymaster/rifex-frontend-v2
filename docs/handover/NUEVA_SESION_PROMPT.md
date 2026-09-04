@@ -1,7 +1,34 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-04 (actualización más reciente) — **RIFEX PUBLIC SURFACE
+> 2026-09-04 (actualización más reciente) — **RIFEX DIFUSIÓN V1.1
+> MULTIPRODUCTO, DEV only, misión autónoma.** `origin/develop` avanza
+> desde `8ec5787`. Convierte `/difusion` de una guía orientada casi
+> exclusivamente a Rifas en una guía multiproducto con selector de 4
+> categorías — Rifas, Campañas, Eventos, Inscripciones (esta última
+> "Próximamente", sin ser un producto real todavía) — sin tocar PSCG:
+> misma clasificación (`PRIVATE_AUTHENTICATED`), mismo boundary
+> (`ssr_redirect`, `getServerSideProps` byte-idéntico a V1), misma ruta
+> única, misma metadata, mismo `robots.txt`/`sitemap.xml`. Nuevo
+> `src/lib/difusionGuides.js` (datos puros, sin JSX/red/IA) con el
+> contenido de cada producto; `difusion.jsx` reescrito con un selector
+> tipo segmented-control (`useState`, sin navegación, sin pérdida de
+> sesión). Default "Eventos" (opción más neutral, justificada). Rifas
+> conserva sus precauciones especiales; Campañas y Eventos reciben
+> contenido nuevo y distinto; Inscripciones muestra vista previa sin
+> botón "Copiar" funcional — no simula un producto inexistente. 22 tests
+> nuevos en `difusion.test.mjs` (reescrito completo); `pscg.test.mjs` sin
+> cambios (81, sigue válido). 271/271 junto con
+> authUxCrawler+publicAudit+publicSurfaceFinalCleanup, regresión completa
+> 724/725 (mismo flake XLSX histórico), build limpio, smoke en vivo
+> confirmando 307 real de 21 bytes en `/difusion` y **cero** palabras del
+> contenido multiproducto filtradas al HTML anónimo. `origin/main` no
+> referenciado. Detalle completo: `docs/WOP.md`,
+> `docs/difusion/DIFUSION_V1.md` (sección "V1.1 — Multiproducto").
+> **Próximo paso: eventual promoción controlada a PROD, sujeta a
+> autorización explícita — todavía no iniciada.**
+>
+> 2026-09-04 — **RIFEX PUBLIC SURFACE
 > CLASSIFICATION GUARD (PSCG) + DIFUSIÓN V1, DEV only, misión autónoma.**
 > `origin/develop` avanza desde `b996893`. Establece PSCG como regla
 > transversal (toda ruta nueva se clasifica en `PUBLIC_INDEXABLE`,

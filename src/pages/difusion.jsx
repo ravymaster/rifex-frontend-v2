@@ -1,18 +1,23 @@
 // src/pages/difusion.jsx
-// DIFUSIÓN V1 — PSCG: PRIVATE_AUTHENTICATED, boundary ssr_redirect (ver
-// src/lib/publicSurfaceClassification.js). Guía educativa, estática, para
-// que un creador entienda cómo compartir su iniciativa en redes sociales
-// sin prometer resultados y sin intentar evadir revisiones de plataforma.
-// V1 explícitamente NO incluye IA, APIs sociales, publicación automática
-// ni analítica — solo texto + un botón "Copiar" que usa el clipboard
-// local del navegador.
+// DIFUSIÓN V1.1 — MULTIPRODUCTO. PSCG: PRIVATE_AUTHENTICATED, boundary
+// ssr_redirect (ver src/lib/publicSurfaceClassification.js) — sin
+// cambios respecto a V1. Esta versión reemplaza la guía única (orientada
+// a Rifas) por un selector de 4 productos (Rifas/Campañas/Eventos/
+// Inscripciones), cada uno con su propia introducción, recomendaciones,
+// ejemplo copiable y nota de publicidad — sin salir de esta página, sin
+// perder sesión. Inscripciones todavía no es un producto real de Rifex:
+// se muestra marcada "Próximamente", sin botón de copiar funcional y sin
+// ningún CTA hacia un producto inexistente.
+// V1.1 sigue sin generación automática por IA, sin APIs sociales, sin
+// publicación automática, sin analítica — solo texto + clipboard local.
 import { useState } from 'react';
 import Layout from '@/components/Layout';
 import { getSupabaseServer } from '@/lib/supabaseServer';
+import { DIFFUSION_PRODUCTS, DIFFUSION_GUIDES, DIFFUSION_COMMON_AD_NOTE } from '@/lib/difusionGuides';
 
-// Mismo patrón real que mis-iniciativas.jsx/panel/index.js: el redirect
-// ocurre en el propio getServerSideProps, antes de que se envíe cualquier
-// HTML del módulo — no depende únicamente de un hook client-side.
+// Boundary sin cambios respecto a V1 — el redirect ocurre en el propio
+// getServerSideProps, antes de que se envíe cualquier HTML del módulo,
+// nunca depende únicamente de un hook client-side.
 export async function getServerSideProps(ctx) {
   const s = getSupabaseServer(ctx.req, ctx.res);
   let user = null;
@@ -28,89 +33,40 @@ export async function getServerSideProps(ctx) {
   return { props: {} };
 }
 
-const EXAMPLE_TEXT = `Estamos organizando una iniciativa para apoyar [motivo o causa].
+const H2 = { fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 10 };
+const P = { color: '#334155', fontSize: 14.5, lineHeight: 1.7, marginBottom: 10 };
+const UL = { color: '#334155', fontSize: 14.5, lineHeight: 1.9, paddingLeft: 20, marginBottom: 10 };
 
-Puedes conocer todos los detalles, condiciones y formas de participar en el siguiente enlace:
-
-[enlace de tu iniciativa]
-
-Organiza: [nombre del organizador]`;
-
-export default function Difusion() {
+function ExampleBlock({ text, note, copyable, sectionLabel }) {
   const [copied, setCopied] = useState(false);
 
   async function copyExample() {
     try {
-      await navigator.clipboard.writeText(EXAMPLE_TEXT);
+      await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch (_) {}
   }
 
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Difusión</h1>
-      <p style={{ color: '#64748b', fontSize: 14.5, marginBottom: 28 }}>
-        Cómo compartir tus iniciativas en redes sociales
-      </p>
-
-      <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Qué debes saber</h2>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7, marginBottom: 10 }}>
-          Las redes sociales pueden aplicar restricciones a publicaciones y anuncios relacionados con rifas,
-          sorteos, premios o actividades asociadas al azar.
-        </p>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7, marginBottom: 10 }}>
-          Esto significa que una publicación puede ser limitada, rechazada o eliminada según el contenido, la
-          forma de presentación y las políticas de cada plataforma.
-        </p>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7 }}>
-          Los anuncios pagados pueden estar sujetos a controles adicionales y, en algunos casos, a requisitos
-          especiales.
-        </p>
-      </section>
-
-      <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Antes de publicar</h2>
-        <ul style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.9, paddingLeft: 20 }}>
-          <li>Describe con claridad qué estás organizando.</li>
-          <li>Identifica al organizador.</li>
-          <li>Usa información verdadera y verificable.</li>
-          <li>Evita promesas de ganancias o resultados asegurados.</li>
-          <li>Evita mensajes engañosos o exagerados.</li>
-          <li>Dirige a las personas al enlace oficial de tu iniciativa en Rifex.</li>
-          <li>Revisa siempre las políticas de la red donde publicarás.</li>
-        </ul>
-      </section>
-
-      <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Palabras sensibles</h2>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7, marginBottom: 10 }}>
-          Palabras como &quot;rifa&quot;, &quot;sorteo&quot;, &quot;premio&quot; o expresiones relacionadas con
-          azar pueden activar revisiones adicionales en algunas plataformas.
-        </p>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7 }}>
-          Usa un texto claro, natural y no engañoso.
-        </p>
-      </section>
-
-      <section style={{ marginBottom: 28 }}>
-        <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Ejemplo de publicación</h2>
-        <div
-          style={{
-            background: '#f8fafc',
-            border: '1px solid #e5e7eb',
-            borderRadius: 12,
-            padding: 16,
-            fontSize: 14,
-            color: '#334155',
-            lineHeight: 1.7,
-            whiteSpace: 'pre-wrap',
-            marginBottom: 12,
-          }}
-        >
-          {EXAMPLE_TEXT}
-        </div>
+    <section style={{ marginBottom: 28 }}>
+      <h2 style={H2}>{sectionLabel}</h2>
+      <div
+        style={{
+          background: '#f8fafc',
+          border: '1px solid #e5e7eb',
+          borderRadius: 12,
+          padding: 16,
+          fontSize: 14,
+          color: '#334155',
+          lineHeight: 1.7,
+          whiteSpace: 'pre-wrap',
+          marginBottom: 12,
+        }}
+      >
+        {text}
+      </div>
+      {copyable ? (
         <button
           type="button"
           onClick={copyExample}
@@ -127,28 +83,159 @@ export default function Difusion() {
         >
           {copied ? 'Copiado' : 'Copiar ejemplo'}
         </button>
-        <p style={{ color: '#64748b', fontSize: 13, marginTop: 10, lineHeight: 1.6 }}>
-          Adapta este ejemplo a tu iniciativa. No publiques información falsa ni ocultes deliberadamente la
-          naturaleza de lo que estás ofreciendo.
-        </p>
-      </section>
+      ) : (
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: 0.4 }}>
+          Vista previa
+        </span>
+      )}
+      {note && (
+        <p style={{ color: '#64748b', fontSize: 13, marginTop: 10, lineHeight: 1.6 }}>{note}</p>
+      )}
+    </section>
+  );
+}
 
-      <section>
-        <h2 style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', marginBottom: 10 }}>Publicidad pagada</h2>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7, marginBottom: 10 }}>
-          Los anuncios pagados pueden estar sujetos a políticas adicionales.
-        </p>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7, marginBottom: 10 }}>
-          Meta, TikTok y otras plataformas pueden aplicar restricciones especiales a determinadas actividades
-          relacionadas con premios, sorteos o azar.
-        </p>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7, marginBottom: 10 }}>
-          Un cambio de redacción no convierte una actividad restringida en una actividad permitida.
-        </p>
-        <p style={{ color: '#334155', fontSize: 14.5, lineHeight: 1.7 }}>
-          Antes de invertir dinero en publicidad, revisa las políticas vigentes de la plataforma correspondiente.
-        </p>
-      </section>
+function RaffleGuide({ guide }) {
+  return (
+    <>
+      <h2 style={H2}>{guide.tagline}</h2>
+      {guide.intro.map((t, i) => (
+        <p key={i} style={P}>{t}</p>
+      ))}
+      <ul style={UL}>
+        {guide.clarifications.map((t, i) => (
+          <li key={i}>{t}</li>
+        ))}
+      </ul>
+      <p style={P}>{guide.sensitiveWordsNote}</p>
+      <h2 style={{ ...H2, marginTop: 20 }}>Qué sí puedes hacer</h2>
+      <ul style={UL}>
+        {guide.doList.map((t, i) => (
+          <li key={i}>{t}</li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
+function CampaignOrEventGuide({ guide }) {
+  return (
+    <>
+      <h2 style={H2}>{guide.tagline}</h2>
+      {guide.intro.map((t, i) => (
+        <p key={i} style={P}>{t}</p>
+      ))}
+      <ul style={UL}>
+        {guide.doList.map((t, i) => (
+          <li key={i}>{t}</li>
+        ))}
+      </ul>
+      {guide.avoidList && (
+        <ul style={UL}>
+          {guide.avoidList.map((t, i) => (
+            <li key={i}>{t}</li>
+          ))}
+        </ul>
+      )}
+      {guide.extraNote && <p style={P}>{guide.extraNote}</p>}
+    </>
+  );
+}
+
+function RegistrationGuide({ guide }) {
+  return (
+    <>
+      <h2 style={H2}>{guide.tagline}</h2>
+      <p style={P}>{guide.previewText}</p>
+    </>
+  );
+}
+
+export default function Difusion() {
+  // EVENTOS por defecto: es la identidad pública actual de Rifex
+  // (primer ítem del navbar, catálogo público principal), la opción más
+  // neutral entre los 3 productos implementados — no hay una preferencia
+  // documentada por Rifas en ningún lugar del repo.
+  const [active, setActive] = useState('event');
+  const guide = DIFFUSION_GUIDES[active];
+
+  return (
+    <div style={{ maxWidth: 760, margin: '0 auto' }}>
+      <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', marginBottom: 4 }}>Difusión</h1>
+      <p style={{ color: '#64748b', fontSize: 14.5, marginBottom: 16 }}>
+        Cómo compartir tus iniciativas en redes sociales
+      </p>
+      <p style={{ color: '#94a3b8', fontSize: 13, marginBottom: 24 }}>
+        Aplica para publicaciones y anuncios en Facebook, Instagram, TikTok, X y WhatsApp.
+      </p>
+
+      <div
+        role="tablist"
+        aria-label="Producto"
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 28 }}
+      >
+        {DIFFUSION_PRODUCTS.map((p) => {
+          const isActive = p.key === active;
+          const g = DIFFUSION_GUIDES[p.key];
+          return (
+            <button
+              key={p.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActive(p.key)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 14px',
+                borderRadius: 999,
+                border: isActive ? '1px solid #0f172a' : '1px solid #e5e7eb',
+                background: isActive ? '#0f172a' : '#fff',
+                color: isActive ? '#fff' : '#334155',
+                fontSize: 13.5,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {p.label}
+              {!g.available && (
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 999,
+                    background: isActive ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+                    color: isActive ? '#fff' : '#64748b',
+                  }}
+                >
+                  Próximamente
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div role="tabpanel">
+        {guide.key === 'raffle' && <RaffleGuide guide={guide} />}
+        {(guide.key === 'campaign' || guide.key === 'event') && <CampaignOrEventGuide guide={guide} />}
+        {guide.key === 'registration' && <RegistrationGuide guide={guide} />}
+
+        <ExampleBlock
+          sectionLabel={guide.available ? 'Ejemplo de publicación' : 'Ejemplo (vista previa)'}
+          text={guide.example}
+          note={guide.exampleNote}
+          copyable={guide.available}
+        />
+
+        <section>
+          <h2 style={H2}>Publicidad pagada</h2>
+          {guide.adNote && <p style={P}>{guide.adNote}</p>}
+          <p style={P}>{DIFFUSION_COMMON_AD_NOTE}</p>
+        </section>
+      </div>
     </div>
   );
 }

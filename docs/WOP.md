@@ -4,6 +4,36 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX DIFUSIÓN V1.1 MULTIPRODUCTO (2026-09-04) — DEV only, autonomous mission
+
+`origin/develop` advances from `8ec5787` ("RIFEX PSCG + DIFUSION V1 DEV CERTIFIED", PROD `origin/main` unaffected). Fully autonomous DEV-only mission converting `/difusion` from a Rifas-oriented guide into a multiproduct guide covering Rifas, Campañas, Eventos, and Inscripciones (the last marked "Próximamente" — not a real product yet) — without touching PSCG architecture, auth boundary, classification, or metadata, all of which were already certified in the prior mission and remain explicitly frozen here.
+
+**What did not change (verified, not assumed)**: `/difusion`'s PSCG classification (`PRIVATE_AUTHENTICATED`), its boundary (`ssr_redirect` — the `getServerSideProps` block is byte-identical to V1), its route (still the single `/difusion`, no per-product routes created), its `title`/`description`/`robots` metadata, its presence only in `Layout.jsx`'s `accountItems` (never public nav/footer), and `robots.txt`/`sitemap.xml` (already correct from V1, no further changes needed). `tests/pscg.test.mjs` required zero modification — its `/difusion` registry entry stayed valid unchanged.
+
+**What changed — content only**: new `src/lib/difusionGuides.js`, pure data (no JSX, no network, no AI) exporting `DIFFUSION_PRODUCTS` (the 4 products) and `DIFFUSION_GUIDES` (full per-product content: intro, do/avoid lists, a copyable example, an ad note). `src/pages/difusion.jsx` rewritten to render a segmented-control selector (`role="tablist"`, 4 buttons, inline-styled consistent with the page's existing convention) plus the active guide's content — `useState`-driven, 100% client-side product switching, no navigation, no round-trip, no session loss.
+
+**Selector default**: "Eventos" is selected on load. The mission explicitly required not assuming a default without justification — Eventos was chosen as the most neutral option among the 3 implemented products (it's the current public identity of Rifex: first navbar item, main public catalog at `/eventos`); no documentation anywhere in the repo indicates a preference for Rifas.
+
+**Rifas — "Precauciones especiales"**: keeps and reorganizes V1's content — platform restrictions, the organic-vs-paid distinction, "changing words doesn't change the policy," and the sensitive-words note (now Rifas-specific, since the other 3 guides don't revolve around those words). Verified via a dedicated test to teach zero bypass/evasion/algorithm-gaming/cloaking/deliberate-substitution.
+
+**Campañas — "Comparte tu causa con claridad"**: new content — explain the cause, identify the organizer, describe fund use, avoid exaggerated promises/guaranteed-results/"easy money"/deceptive pressure/unoffered considerations.
+
+**Eventos — "Guía de difusión"**: new content — name/date/time/place/activity type/ticket availability, optional mention of digital tickets/QR. Deliberately avoids "approved by Meta"/"guaranteed"/"risk-free" language — a normal diffusion guide, not a policy certification.
+
+**Inscripciones — "Próximamente"**: `available: false` in the registry. Shows an informational preview and the future example text, but the "Copiar ejemplo" button is not rendered — `ExampleBlock` shows a "Vista previa" badge instead when `copyable` is false — so no functionality is simulated for a product that doesn't exist yet. No new route, no backend, no form, no table.
+
+**Tests**: `tests/difusion.test.mjs` fully rewritten for V1.1 (22 tests) — the 4 products present with correct labels, Inscripciones marked "Próximamente" without a functional CTA, per-product content genuinely distinct (JSON-diffed), Rifas' special-caution content free of evasion-teaching language, Campañas' specific recommendations, Eventos' guide free of approval-guarantee language, each implemented product's example text distinct and correctly wired to its own copy button, zero new per-product routes/backend, zero social APIs/auto-generation, selector confirmed state-only (no `router.push`/`window.location`), and the PSCG boundary confirmed unchanged. One self-inflicted false positive found during validation (an explanatory comment in `difusion.jsx` used the literal word the "no AI/auto-generation" test asserts absent) — reworded, same pattern as prior missions' self-audit false positives.
+
+**Validation**: `difusion.test.mjs` (22) + `pscg.test.mjs` (81, unmodified) + `authUxCrawler.test.mjs` + `publicAudit.test.mjs` + `publicSurfaceFinalCleanup.test.mjs` → 271/271. Full regression `node --test 'tests/*.test.mjs'` → **724/725** (the same pre-existing `eventAnalyticsWorkbook.test.mjs:93` XLSX `writeBuffer` timing flake, identical signature — ~49.0s against a 20s budget, reproduced, not new). `npm run build` → clean, zero errors; `/difusion` confirmed `ƒ` (dynamic) in the manifest.
+
+**Self-audit grep** across the full diff for `User-Agent|Googlebot|facebookexternalhit|TikTokBot|bypass|dangerously|payment|webhook|marketplace_fee|argentina|service_role|migration|Trust write|openai|warp|gpt|oauth`: zero real matches.
+
+**Live pre-certification smoke** (built app, local `next start`, port 3054): anonymous `GET /difusion` → real `307` to `/login?next=/difusion`, body **21 bytes**. The anonymous response body was grepped for `rifa|sorteo|premio|campaña|evento|TikTok|Facebook|"ejemplo de publicaci"` — **zero matches**, confirming the private multiproduct content (which does contain those words in the source) never reaches an unauthenticated request. Multi-UA check identical across default/Googlebot/Meta/TikTok (307/21 bytes each). `sitemap.xml` served live: zero `difusion` occurrences. `robots.txt` served live: `Disallow: /difusion` present, unchanged from V1. Public regression spot-check: `/`, `/eventos`, `/wizard`, `/planes`, `/preguntas-frecuentes`, `/terminos`, `/seguridad`, `/confianza`, `/contacto` all `200`; "Difusión" confirmed absent from Home's rendered HTML.
+
+**Status: DEV ONLY.** No PROD, no `main`, no migrations, no Supabase changes, no Payment Engine, no Trust backend, no AI/auto-generation, no social APIs/OAuth, no new backend routes. `origin/main` never referenced.
+
+---
+
 ## RIFEX PUBLIC SURFACE CLASSIFICATION GUARD (PSCG) + DIFUSIÓN V1 (2026-09-04) — DEV only, autonomous mission
 
 `origin/develop` advances from `b996893` (PROD `origin/main` unaffected — this mission never touches `main`). Fully autonomous DEV-only mission establishing PSCG as a transversal rule for how every route in Rifex declares its public exposure, then implementing Difusión V1 as the first feature built under that rule from its first commit.
