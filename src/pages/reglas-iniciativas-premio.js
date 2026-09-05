@@ -6,9 +6,34 @@
 // página pública.
 // STAGE 2 FINAL — mismo tratamiento que /terminos-rifas: noindex y fuera
 // del sitemap, porque es contenido específico de Rifas y Rifas ya no es
-// parte del catálogo público. Sigue accesible por enlace directo desde
-// /terminos-rifas y /reembolsos — nada se eliminó.
+// parte del catálogo público.
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — decisión de Rodrigo:
+// retirar esta página de la superficie pública (era accesible anónima,
+// solo noindex). Pasa a PRIVATE_AUTHENTICATED con el boundary ssr_redirect
+// certificado (getServerSideProps, sesión real antes de cualquier HTML,
+// mismo patrón que mis-iniciativas.jsx/difusion.jsx). El contenido legal
+// NO se borra — sigue existiendo íntegro para cualquier usuario
+// autenticado. El enlace público que existía en /reembolsos fue
+// reemplazado por copy neutral sin link privado (ver ese archivo);
+// /terminos-rifas conserva su propio enlace interno sin cambios (fuera
+// de alcance de esta misión, contenido histórico ya certificado).
+import { getSupabaseServer } from "@/lib/supabaseServer";
 import Layout from "@/components/Layout";
+
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: "/login?next=/reglas-iniciativas-premio", permanent: false } };
+  }
+  return { props: {} };
+}
 
 export default function ReglasIniciativasPremio() {
   return (
@@ -69,6 +94,7 @@ ReglasIniciativasPremio.getLayout = (page) => (
     title="Reglas de iniciativas con premio — Rifex"
     description="Condiciones específicas aplicables a iniciativas con premio en Rifex."
     noindex
+    noarchive
   >
     {page}
   </Layout>

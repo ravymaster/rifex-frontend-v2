@@ -13,14 +13,18 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), "utf8");
 const norm = (s) => s.replace(/\s+/g, " ");
 
 // ---------- NAVBAR ----------
-test("Layout.jsx: navbar público desktop tiene Eventos/Campañas/Cómo funciona + Ingresar, sin 'Crear una iniciativa'", () => {
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) superó esta aserción:
+// "Cómo funciona" se retiró del navbar (las 3 landings propias cubren
+// su función); "Inscripciones" ocupa su lugar como cuarto ítem real.
+test("Layout.jsx: navbar público desktop tiene Eventos/Campañas/Inscripciones + Ingresar, sin 'Crear una iniciativa' ni 'Cómo funciona'", () => {
   const src = read("src/components/Layout.jsx");
   assert.match(src, /label:\s*'Eventos'/);
   assert.match(src, /label:\s*'Campañas'/);
-  assert.match(src, /label:\s*'Cómo funciona'/);
+  assert.match(src, /label:\s*'Inscripciones'/);
   assert.match(src, />Ingresar</);
   assert.doesNotMatch(src, /Crear una iniciativa/);
   assert.doesNotMatch(src, />Iniciar sesión</);
+  assert.doesNotMatch(src, /label:\s*'Cómo funciona'/);
 });
 
 test("Layout.jsx: menú móvil también usa 'Ingresar' y no ofrece 'Crear una iniciativa'", () => {

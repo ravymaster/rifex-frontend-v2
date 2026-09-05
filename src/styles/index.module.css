@@ -282,6 +282,11 @@
   overflow: hidden;
   box-shadow: 0 18px 40px rgba(11, 19, 48, 0.16);
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  /* RIFEX FINAL PUBLIC SURFACE CLOSURE — el card de Inscripciones se
+     renderiza como <a> (next/link) en vez de <div>; sin esto heredaría
+     el subrayado/color azul de enlace por defecto del navegador. */
+  text-decoration: none;
+  color: inherit;
 }
 .capCard::before {
   /* borde superior — el accent diferenciador de cada capacidad */

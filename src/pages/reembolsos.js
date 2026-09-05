@@ -60,8 +60,8 @@ export default function Reembolsos() {
       <section>
         <h2>Iniciativas con premio</h2>
         <p>
-          Ver el <a href="/reglas-iniciativas-premio">anexo de iniciativas con premio</a> para las condiciones
-          específicas de esa modalidad.
+          Las iniciativas con premio tienen condiciones específicas adicionales, disponibles para el organizador
+          dentro de su cuenta.
         </p>
       </section>
     </main>

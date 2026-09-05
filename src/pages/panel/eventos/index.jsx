@@ -1,11 +1,36 @@
 // src/pages/panel/eventos/index.jsx
 // EVENT-1 (Fase 13) — panel mínimo: lista de eventos del organizador.
 // Sin analytics/ventas/check-ins/export (eso llega en EVENT-5).
+//
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — SSR AUTH HARDENING:
+// deuda histórica documentada desde PSCG (client_redirect) corregida
+// acá con el mismo boundary real ya certificado en
+// panel/inscripciones/index.jsx: getServerSideProps resuelve la sesión
+// vía getSupabaseServer y redirige (307) ANTES de renderizar — un
+// anónimo ya no recibe el shell del panel. Ownership/lógica de negocio
+// de Eventos, la carga real de datos (fetch a /api/events/mine con
+// Bearer) y todo lo demás quedan exactamente igual, sin tocar.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: '/login?next=/panel/eventos', permanent: false } };
+  }
+  return { props: {} };
+}
 
 const STATUS_LABEL = { draft: 'Borrador', published: 'Publicado', cancelled: 'Cancelado' };
 

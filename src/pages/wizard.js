@@ -18,6 +18,22 @@
 // exclusivamente Eventos + Campañas (Rifas sigue existiendo como
 // producto autenticado vía Mis iniciativas/crear-rifa.jsx; esta página
 // nunca formó parte de esa arquitectura y no la modifica).
+// RIFEX PRODUCT LANDINGS V1 — se agrega un tercer modo, Inscripciones,
+// ya que dejó de ser "Próximamente" desde INSCRIPCIONES V1. Rifas
+// deliberadamente NO se agrega — sigue siendo PRIVATE_AUTHENTICATED,
+// nunca parte de la superficie pública de "Cómo funciona".
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — decisión de Rodrigo:
+// esta página se retira del navbar (src/components/Layout.jsx ya no la
+// enlaza) porque Eventos/Campañas/Inscripciones tienen ahora sus propias
+// landings completas (Product Landings V1) que cumplen esta misma
+// función. Auditado antes de decidir: el único enlace interno real que
+// quedaba apuntando acá era exactamente ese ítem de navbar (grep
+// completo de src/ y docs/, sin otros inbound links vivos). La página NO
+// se elimina ni se redirige — sigue existiendo y accesible por URL
+// directa por si algún enlace externo/marketing antiguo la referencia —
+// pero pasa a PUBLIC_NOINDEX (noindex, fuera de sitemap.xml, con
+// Disallow en robots.txt) para no competir en SEO con las 3 landings
+// reales que ahora cubren su contenido.
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
@@ -46,13 +62,23 @@ const COLECTA_STEPS = [
   'Los pagos se procesan mediante el proveedor conectado y se acreditan en la cuenta del organizador.',
 ];
 
+const INSCRIPCION_STEPS = [
+  'Crea tu cuenta.',
+  'Crea tu actividad gratuita — no necesitas conectar Mercado Pago.',
+  'Define fecha, lugar o modalidad, y cupos (hasta 50 en el plan gratuito).',
+  'Publica y comparte el link público de tu actividad.',
+  'Las personas se inscriben y reciben su código QR de confirmación.',
+  'El día de tu actividad, controla el acceso escaneando cada QR.',
+  'Descarga tu lista de asistentes en Excel cuando quieras.',
+];
+
 export default function Wizard() {
   const router = useRouter();
-  const [mode, setMode] = useState(null); // null | 'evento' | 'colecta'
+  const [mode, setMode] = useState(null); // null | 'evento' | 'colecta' | 'inscripcion'
 
   useEffect(() => {
     const modo = (router.query?.modo || '').toString();
-    if (modo === 'evento' || modo === 'colecta') setMode(modo);
+    if (modo === 'evento' || modo === 'colecta' || modo === 'inscripcion') setMode(modo);
   }, [router.query?.modo]);
 
   return (
@@ -62,7 +88,7 @@ export default function Wizard() {
           <header className={styles.header}>
             <h1 className={styles.title}>Cómo funciona Rifex</h1>
             <p className={styles.sub}>
-              Crea un evento o inicia una campaña de forma simple.
+              Crea un evento, inicia una campaña o recibe inscripciones gratuitas de forma simple.
             </p>
           </header>
 
@@ -84,6 +110,15 @@ export default function Wizard() {
             >
               <span className={styles.selectorIcon} aria-hidden="true">🤝</span>
               Quiero crear una campaña
+            </button>
+            <button
+              type="button"
+              className={`${styles.selectorBtn} ${mode === 'inscripcion' ? styles.selectorBtnActive : ''}`}
+              onClick={() => setMode('inscripcion')}
+              aria-pressed={mode === 'inscripcion'}
+            >
+              <span className={styles.selectorIcon} aria-hidden="true">📋</span>
+              Quiero recibir inscripciones
             </button>
           </div>
 
@@ -107,6 +142,16 @@ export default function Wizard() {
             </div>
           )}
 
+          {mode === 'inscripcion' && (
+            <div className={styles.flow}>
+              <h2 className={styles.flowTitle}>Así funciona Inscripciones en Rifex</h2>
+              <ol className={styles.steps}>
+                {INSCRIPCION_STEPS.map((s, i) => <li key={i}>{s}</li>)}
+              </ol>
+              <a href="/crear-inscripcion" className={styles.cta}>Crear mi actividad</a>
+            </div>
+          )}
+
           {!mode && (
             <p className={styles.hint}>Elige una opción arriba para ver el paso a paso.</p>
           )}
@@ -121,6 +166,7 @@ Wizard.getLayout = (page) => (
     title="Cómo funciona Rifex"
     description="Crea un evento con entradas digitales o inicia una campaña de recaudación en Rifex de forma simple."
     canonicalPath="/wizard"
+    noindex
   >
     {page}
   </Layout>

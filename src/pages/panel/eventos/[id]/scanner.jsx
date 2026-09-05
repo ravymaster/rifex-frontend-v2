@@ -21,8 +21,33 @@ import Link from 'next/link';
 import jsQR from 'jsqr';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+import { sanitizeNextPath } from '@/lib/countryPolicy';
 import { parseEventQrPayload } from '@/lib/parseEventQr';
 import { createScannerController } from '@/lib/scannerController';
+
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — SSR AUTH HARDENING:
+// mismo boundary real certificado en panel/inscripciones/[id]/scanner.jsx.
+// Autenticación únicamente — la autorización real para operar el
+// scanner de este evento (dueño u organizador con event_staff activo)
+// sigue viviendo exclusivamente en el ping GET/check-in de
+// /api/events/[id]/check-in, sin cambios.
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  const id = String(ctx.params?.id || '');
+  const next = sanitizeNextPath(`/panel/eventos/${id}/scanner`, '/panel/eventos');
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: `/login?next=${encodeURIComponent(next)}`, permanent: false } };
+  }
+  return { props: {} };
+}
 
 const REJECT_LABEL = {
   invalid_token: 'QR no válido.',
