@@ -4,6 +4,8 @@
 
 **Addendum (2026-09-05) — RIFEX PRODUCT LANDINGS V1**: nuevas entradas `PUBLIC_INDEXABLE` para `/soluciones/eventos` y `/campanas` (landings comerciales, distintas del catálogo real `/eventos`); `/inscripciones` evolucionó su contenido sin cambiar de categoría; nueva entrada `PRIVATE_AUTHENTICATED` para `/soluciones/rifas` (boundary `ssr_redirect` desde el primer commit, distinta de `/rifas` `LEGACY_REMOVED`). Detalle completo: `docs/public-surface/PRODUCT_LANDINGS_V1.md`.
 
+**Addendum (2026-09-05) — RIFEX FINAL PUBLIC SURFACE CLOSURE (misión posterior, mismo día)**: consolida `/eventos` como la única URL de Eventos — absorbe el contenido de la landing (`/soluciones/eventos`), que pasa de `PUBLIC_INDEXABLE` a **`LEGACY_REMOVED`** (redirect `308` permanente, no `307`, porque a diferencia de `/rifas` sí existe un reemplazo de contenido 1:1 real). `/wizard` pasa de `PUBLIC_INDEXABLE` a `PUBLIC_NOINDEX` (deja de estar en la navbar, sigue vivo por tener enlaces internos legítimos). `/reglas-iniciativas-premio` pasa de `PUBLIC_NOINDEX` a **`PRIVATE_AUTHENTICATED`** (`ssr_redirect`) — el único caso del registro donde una ruta sube de categoría en vez de bajar. Nuevas entradas `PRIVATE_AUTHENTICATED`/`ssr_redirect`: `/admin` (autorización, no solo autenticación — reusa `user.app_metadata?.role==='admin'`, la misma autoridad de `resolveAdmin`, nunca un segundo sistema de roles), `/panel/eventos`, `/panel/eventos/[id]`, `/panel/eventos/[id]/scanner` (cerraba la deuda histórica de boundary `client_redirect` documentada desde PSCG original y desde el addendum de INSCRIPCIONES SSR HARDENING). Detalle completo: `docs/public-surface/FINAL_PUBLIC_SURFACE_CLOSURE.md`.
+
 ## Propósito
 
 Antes de PSCG, cada ruta pública/privada de Rifex decidía por su cuenta (y de forma implícita) su exposición, indexabilidad, metadata, boundary de auth y presencia en sitemap/robots — reconstruido caso a caso, misión a misión (AUTH UX 2026, PUBLIC SURFACE FINAL CLEANUP, PROGRESSIVE ONBOARDING). Eso funcionó, pero dejó la clasificación real dispersa entre código, docs y memoria de sesión.
@@ -54,7 +56,9 @@ Obligaciones:
 
 **Deuda real encontrada al introducir PSCG** (no inventada, no corregida en esta misión salvo donde se indica): `/panel/bancos` tiene `getServerSideProps` pero no redirige ahí — hidrata la sesión y deja el redirect al cliente (`ssr_hydrate_client_gate`). `/trust/verificar`, `/registro/continuar` y `/perfil` no tienen ningún `getServerSideProps` — dependen enteramente de un `useEffect` client-side que no renderiza el contenido real hasta confirmar sesión (`client_redirect`). `/blog` tampoco tiene SSR, pero su protección real está en que las APIs de lectura exigen Bearer token (`client_redirect_api_auth`, certificado en `tests/blogPrivateProd.test.mjs`). `/trust/verificar` y `/perfil` además carecen de entrada propia en `robots.txt`. Ninguno de estos hallazgos se corrige en esta misión — quedan documentados en `PSCG_REGISTRY` (campo `boundary` y `notes`) para que la próxima vez que se toque alguna de esas páginas, el gap ya esté identificado y no haya que re-descubrirlo.
 
-**Addendum (2026-09-04) — INSCRIPCIONES PRIVATE SSR AUTH BOUNDARY HARDENING**: `/panel/inscripciones`, `/panel/inscripciones/[id]` y `/panel/inscripciones/[id]/scanner` nacieron con el mismo boundary `client_redirect` histórico de `/panel/eventos` — deuda que, al tratarse de un módulo nuevo, no debía quedar sin corregir. Misión quirúrgica dedicada las convirtió a `ssr_redirect` (mismo patrón que `mis-iniciativas.jsx`), con evidencia adversarial en vivo (307 real, sin fuga de HTML privado, idéntico en 4 user-agents incluidos Googlebot/Meta/TikTok, `next` a prueba de open-redirect e inyección de cabeceras). `/panel/eventos/*` conserva deliberadamente el mismo patrón `client_redirect` sin corregir — fuera del alcance de esa misión. Detalle completo: `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md`, sección "Addendum — PRIVATE SSR AUTH BOUNDARY HARDENING".
+**Addendum (2026-09-04) — INSCRIPCIONES PRIVATE SSR AUTH BOUNDARY HARDENING**: `/panel/inscripciones`, `/panel/inscripciones/[id]` y `/panel/inscripciones/[id]/scanner` nacieron con el mismo boundary `client_redirect` histórico de `/panel/eventos` — deuda que, al tratarse de un módulo nuevo, no debía quedar sin corregir. Misión quirúrgica dedicada las convirtió a `ssr_redirect` (mismo patrón que `mis-iniciativas.jsx`), con evidencia adversarial en vivo (307 real, sin fuga de HTML privado, idéntico en 4 user-agents incluidos Googlebot/Meta/TikTok, `next` a prueba de open-redirect e inyección de cabeceras). `/panel/eventos/*` conservó deliberadamente el mismo patrón `client_redirect` sin corregir en ese momento — fuera del alcance de esa misión (deuda cerrada después, ver addendum siguiente). Detalle completo: `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md`, sección "Addendum — PRIVATE SSR AUTH BOUNDARY HARDENING".
+
+**Addendum (2026-09-05) — `/panel/eventos/*` SSR AUTH HARDENING (RIFEX FINAL PUBLIC SURFACE CLOSURE)**: la deuda de arriba quedó cerrada — `/panel/eventos`, `/panel/eventos/[id]` y `/panel/eventos/[id]/scanner` ahora usan el mismo patrón `ssr_redirect` certificado, verificado en vivo con los mismos 5 User-Agents (307 real, cero fuga de HTML privado, `next` construido con `sanitizeNextPath`+`encodeURIComponent` en las rutas dinámicas). El código de negocio de Events (check-in, QR, staff, analytics) no se tocó — solo se agregó el `getServerSideProps` encima. Detalle completo: `docs/public-surface/FINAL_PUBLIC_SURFACE_CLOSURE.md`.
 
 ### D. LEGACY_REMOVED
 
@@ -67,7 +71,12 @@ Obligaciones:
 - Fuera de `sitemap.xml`.
 - Sin referencias públicas nuevas (navbar, footer, Home no deben enlazarla).
 
-Hoy el único caso real es `/rifas` (antiguo catálogo público de Rifas): redirige (307, real, server-side) a `/login` preservando `next`, con `X-Robots-Tag: noindex, nofollow`. Esto es una decisión de producto ya certificada (Rodrigo, 2026-08-31) — el redirect no pretende ser "un reemplazo equivalente de contenido", sirve como aterrizaje para bookmarks/backlinks antiguos. Documentado así en el registro, no como una excepción silenciosa a la regla.
+Dos casos reales hoy, deliberadamente distintos entre sí:
+
+- `/rifas` (antiguo catálogo público de Rifas): redirige (`307`, real, server-side) a `/login` preservando `next`, con `X-Robots-Tag: noindex, nofollow`. Decisión de producto ya certificada (Rodrigo, 2026-08-31) — el redirect no pretende ser "un reemplazo equivalente de contenido", sirve como aterrizaje para bookmarks/backlinks antiguos.
+- `/soluciones/eventos` (antigua landing comercial de Eventos, RIFEX PRODUCT LANDINGS V1): redirige (`308` permanente, real, server-side) a `/eventos`, con `X-Robots-Tag: noindex, nofollow`. Aquí `308` en vez de `307` es intencional: a diferencia de `/rifas`, sí existe un reemplazo de contenido genuinamente equivalente 1:1 — `/eventos` absorbió exactamente ese contenido (RIFEX FINAL PUBLIC SURFACE CLOSURE, 2026-09-05).
+
+Ambos documentados así en el registro, no como excepciones silenciosas a la regla.
 
 ## Cómo clasificar una ruta nueva
 
@@ -119,20 +128,21 @@ PSCG no reemplaza ninguno de los tres mecanismos reales — los orquesta y los h
 | Ruta | Categoría |
 |---|---|
 | `/` | PUBLIC_INDEXABLE |
-| `/eventos` | PUBLIC_INDEXABLE |
-| `/soluciones/eventos` | PUBLIC_INDEXABLE |
+| `/eventos` | PUBLIC_INDEXABLE (URL única y definitiva de Eventos desde 2026-09-05) |
 | `/campanas` | PUBLIC_INDEXABLE |
 | `/inscripciones` | PUBLIC_INDEXABLE |
 | `/soluciones/rifas` | PRIVATE_AUTHENTICATED |
 | `/inscripcion/[id]`, `/i/[token]` | PUBLIC_NOINDEX |
 | `/crear-inscripcion`, `/panel/inscripciones*` | PRIVATE_AUTHENTICATED |
-| `/reglas-iniciativas-premio` | PUBLIC_NOINDEX |
+| `/reglas-iniciativas-premio` | PRIVATE_AUTHENTICATED (subió de categoría 2026-09-05, antes PUBLIC_NOINDEX) |
 | `/login`, `/register` | PUBLIC_NOINDEX |
+| `/wizard` | PUBLIC_NOINDEX (bajó de categoría 2026-09-05, ya no está en la navbar) |
 | `/difusion` | PRIVATE_AUTHENTICATED |
 | `/crear-rifa`, `/crear-colecta`, `/crear-evento` | PRIVATE_AUTHENTICATED |
 | `/mis-iniciativas`, `/panel` | PRIVATE_AUTHENTICATED |
+| `/admin`, `/panel/eventos*` | PRIVATE_AUTHENTICATED (`ssr_redirect` desde 2026-09-05, antes deuda `client_redirect`) |
 | `/blog` | PRIVATE_AUTHENTICATED |
-| `/rifas` | LEGACY_REMOVED |
+| `/rifas`, `/soluciones/eventos` | LEGACY_REMOVED |
 
 Lista completa, con `file`/`boundary`/`notes` reales: `src/lib/publicSurfaceClassification.js`.
 

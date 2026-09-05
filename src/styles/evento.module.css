@@ -25,16 +25,3 @@
   border-radius: 999px; background: #e2e8f0; color: #64748b;
   font-weight: 700; font-size: 14.5px; cursor: not-allowed;
 }
-
-.listGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
-.listCard {
-  border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden;
-  text-decoration: none; color: inherit; display: block;
-  transition: box-shadow 0.15s ease;
-}
-.listCard:hover { box-shadow: 0 6px 20px rgba(15,23,42,0.08); }
-.listCover { width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #f1f5f9; }
-.listBody { padding: 14px; }
-.listTitle { font-weight: 700; font-size: 15px; color: #0f172a; margin: 0 0 6px; }
-.listMeta { font-size: 13px; color: #64748b; }
-.empty { text-align: center; color: #94a3b8; padding: 60px 20px; }

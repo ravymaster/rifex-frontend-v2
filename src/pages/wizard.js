@@ -22,6 +22,18 @@
 // ya que dejó de ser "Próximamente" desde INSCRIPCIONES V1. Rifas
 // deliberadamente NO se agrega — sigue siendo PRIVATE_AUTHENTICATED,
 // nunca parte de la superficie pública de "Cómo funciona".
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — decisión de Rodrigo:
+// esta página se retira del navbar (src/components/Layout.jsx ya no la
+// enlaza) porque Eventos/Campañas/Inscripciones tienen ahora sus propias
+// landings completas (Product Landings V1) que cumplen esta misma
+// función. Auditado antes de decidir: el único enlace interno real que
+// quedaba apuntando acá era exactamente ese ítem de navbar (grep
+// completo de src/ y docs/, sin otros inbound links vivos). La página NO
+// se elimina ni se redirige — sigue existiendo y accesible por URL
+// directa por si algún enlace externo/marketing antiguo la referencia —
+// pero pasa a PUBLIC_NOINDEX (noindex, fuera de sitemap.xml, con
+// Disallow en robots.txt) para no competir en SEO con las 3 landings
+// reales que ahora cubren su contenido.
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
@@ -154,6 +166,7 @@ Wizard.getLayout = (page) => (
     title="Cómo funciona Rifex"
     description="Crea un evento con entradas digitales o inicia una campaña de recaudación en Rifex de forma simple."
     canonicalPath="/wizard"
+    noindex
   >
     {page}
   </Layout>

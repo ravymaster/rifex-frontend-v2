@@ -24,8 +24,14 @@ const exists = (p) => fs.existsSync(path.join(ROOT, p));
 const sitemap = read("public/sitemap.xml");
 const robots = read("public/robots.txt");
 
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) superó /soluciones/eventos
+// como landing independiente: /eventos ahora ES la landing consolidada
+// (Product Landings V1 content + catálogo real), y /soluciones/eventos
+// quedó como redirect permanente (LEGACY_REMOVED, cubierto por
+// tests/pscg.test.mjs de forma genérica). Se actualiza esta lista para
+// apuntar a la ruta y archivo reales.
 const PUBLIC_LANDINGS = [
-  { path: "/soluciones/eventos", file: "src/pages/soluciones/eventos.jsx" },
+  { path: "/eventos", file: "src/pages/eventos/index.jsx" },
   { path: "/campanas", file: "src/pages/campanas.jsx" },
   { path: "/inscripciones", file: "src/pages/inscripciones.jsx" },
 ];
@@ -164,27 +170,33 @@ test("/soluciones/rifas: sin JSON-LD comercial público (PRIVATE_AUTHENTICATED n
 });
 
 // ---------- 14-15. Footer ----------
-test("footer público: enlaza las 3 landings públicas bajo 'Soluciones'", () => {
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) superó estas 3
+// aserciones: /soluciones/eventos quedó como redirect permanente hacia
+// /eventos (que ahora ES la landing consolidada), así que el footer
+// apunta directo a /eventos; y Rifas se movió del menú de cuenta
+// superior al footer autenticado. Se actualizan para reflejar el estado
+// real e intencional, no el histórico.
+test("footer público: enlaza las landings públicas bajo 'Soluciones' (Eventos -> /eventos, consolidado)", () => {
   const src = read("src/components/Layout.jsx");
   assert.match(src, />Soluciones</);
-  assert.match(src, /href="\/soluciones\/eventos"/);
+  assert.match(src, /href="\/eventos"/);
   assert.match(src, /href="\/campanas"/);
   assert.match(src, /href="\/inscripciones"/);
 });
 
-test("footer público: NUNCA enlaza /soluciones/rifas", () => {
+test("footer público: 'Cómo funcionan las Rifas' solo se renderiza cuando hay sesión (user truthy)", () => {
   const src = read("src/components/Layout.jsx");
   const footerBlock = src.match(/<footer[\s\S]*?<\/footer>/);
   assert.ok(footerBlock, "no se encontró el bloque <footer>");
-  assert.doesNotMatch(footerBlock[0], /\/soluciones\/rifas/);
+  assert.match(footerBlock[0], /\{user\s*&&\s*<Link href="\/soluciones\/rifas">/);
 });
 
-// ---------- 16. Navegación autenticada llega a Rifas ----------
-test("accountItems (menú de cuenta autenticado): incluye 'Rifas' -> /soluciones/rifas", () => {
+// ---------- 16. Rifas se retiró del menú de cuenta superior ----------
+test("accountItems (menú de cuenta autenticado): YA NO incluye 'Rifas' (movida al footer autenticado)", () => {
   const src = read("src/components/Layout.jsx");
   const match = src.match(/const accountItems = \[[\s\S]*?\];/);
   assert.ok(match, "no se encontró el bloque accountItems");
-  assert.match(match[0], /label:\s*'Rifas',\s*href:\s*'\/soluciones\/rifas'/);
+  assert.doesNotMatch(match[0], /label:\s*'Rifas'/);
 });
 
 // ---------- 17-18. Wizard ----------

@@ -1,8 +1,13 @@
 // src/pages/index.js
 // PUBLIC HOME V1 — identidad pública: Eventos / Entradas digitales /
 // Campañas de recaudación. Nunca promociona Rifas acá (Rifas sigue
-// intacto dentro del área autenticada — ver Layout.jsx accountItems y
-// /mis-iniciativas).
+// intacto dentro del área autenticada — ver Layout.jsx footer
+// autenticado y /mis-iniciativas).
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — Inscripciones se
+// suma a la identidad pública de Home (eyebrow del hero + card propio en
+// CAPABILITIES con link real a /inscripciones): hasta esta misión no
+// tenía peso visible acá pese a ser un producto público real desde
+// INSCRIPCIONES V1.
 //
 // AJUSTE VISUAL (photo hero): el visual del hero es ahora
 // public/images/hero/rifex-hero-events.png — una fotografía real que ya
@@ -13,6 +18,7 @@
 // solo un fondo decorativo.
 import Head from 'next/head';
 import Image from 'next/image';
+import Link from 'next/link';
 import Layout from '@/components/Layout';
 import styles from '@/styles/index.module.css';
 import heroPhoto from '../../public/images/hero/rifex-hero-events.png';
@@ -64,6 +70,15 @@ function DeviceCheckIcon() {
     <svg {...ICON_PROPS} aria-hidden="true">
       <rect x="5" y="3" width="14" height="18" rx="2.5" />
       <path d="M9 12l2.2 2.2L15.5 9.5" />
+    </svg>
+  );
+}
+function ClipboardCheckIcon() {
+  return (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <rect x="6" y="4" width="12" height="17" rx="2" />
+      <path d="M9 3.5h6a1 1 0 0 1 1 1V6H8V4.5a1 1 0 0 1 1-1Z" />
+      <path d="M9 13l2 2 4-4.5" />
     </svg>
   );
 }
@@ -126,6 +141,21 @@ const CAPABILITIES = [
     accentSoft: 'rgba(79, 142, 247, 0.16)',
     accentBorder: 'rgba(79, 142, 247, 0.4)',
   },
+  // RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — Inscripciones
+  // todavía no figuraba en Home con peso propio. Único card de esta
+  // grilla con `href` (las otras son informativas, sin link) — lleva a
+  // la landing real /inscripciones (Product Landings V1).
+  {
+    key: 'inscripciones',
+    icon: <ClipboardCheckIcon />,
+    title: 'Inscripciones y cupos',
+    text: 'Gestiona talleres, cursos y actividades gratuitas con QR y lista de asistentes.',
+    detail: 'Gratis · QR',
+    href: '/inscripciones',
+    accent: '#1E3A8A',
+    accentSoft: 'rgba(30, 58, 138, 0.16)',
+    accentBorder: 'rgba(30, 58, 138, 0.4)',
+  },
 ];
 
 export default function Home() {
@@ -148,7 +178,7 @@ export default function Home() {
         <div className="container">
           <div className={styles.heroContent}>
             <span className={styles.eyebrow}>
-              <span>●</span> Eventos · Entradas digitales · Campañas de recaudación
+              <span>●</span> Eventos · Entradas digitales · Campañas · Inscripciones
             </span>
             <h1 className={styles.heroTitle}>
               Crea eventos.<br />
@@ -204,18 +234,20 @@ export default function Home() {
             <p className={styles.sectionSub}>Desde vender la primera entrada hasta revisar el último reporte.</p>
           </div>
           <div className={styles.capGrid}>
-            {CAPABILITIES.map((c) => (
-              <div
-                key={c.key}
-                className={styles.capCard}
-                style={{ '--accent': c.accent, '--accentSoft': c.accentSoft, '--accentBorder': c.accentBorder }}
-              >
-                <div className={styles.capIconBox}>{c.icon}</div>
-                <h3 className={styles.capTitle}>{c.title}</h3>
-                <p className={styles.capText}>{c.text}</p>
-                {c.detail && <span className={styles.capDetail}>{c.detail}</span>}
-              </div>
-            ))}
+            {CAPABILITIES.map((c) => {
+              const CardTag = c.href ? Link : 'div';
+              const cardProps = c.href
+                ? { href: c.href, className: styles.capCard, style: { '--accent': c.accent, '--accentSoft': c.accentSoft, '--accentBorder': c.accentBorder } }
+                : { className: styles.capCard, style: { '--accent': c.accent, '--accentSoft': c.accentSoft, '--accentBorder': c.accentBorder } };
+              return (
+                <CardTag key={c.key} {...cardProps}>
+                  <div className={styles.capIconBox}>{c.icon}</div>
+                  <h3 className={styles.capTitle}>{c.title}</h3>
+                  <p className={styles.capText}>{c.text}</p>
+                  {c.detail && <span className={styles.capDetail}>{c.detail}</span>}
+                </CardTag>
+              );
+            })}
           </div>
         </div>
       </section>

@@ -110,15 +110,17 @@ test("scanner.jsx: createScannerController, parseRegistrationQrPayload y el fluj
   assert.match(src, /\/api\/inscripciones\/\$\{id\}\/check-in/);
 });
 
-// ---------- 11. no se tocó Eventos ----------
-test("panel/eventos/* NO fue modificado por esta misión (deuda histórica documentada, fuera de alcance)", () => {
+// ---------- 11. no se tocó Eventos (cierto para ESTA misión, SSR-HARDEN Inscripciones 2026-09-04) ----------
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — una misión POSTERIOR
+// y distinta sí completó ese hardening pendiente sobre /panel/eventos/*
+// (mismo patrón ssr_redirect ya certificado acá para Inscripciones). La
+// afirmación original — "esta misión [SSR-HARDEN Inscripciones] no tocó
+// Eventos" — sigue siendo históricamente cierta; se reformula para no
+// perpetuar una prohibición que ya no aplica a misiones futuras.
+test("panel/eventos/* no fue modificado por LA MISIÓN SSR-HARDEN INSCRIPCIONES (2026-09-04) — deuda histórica documentada en su momento, cerrada después por FINAL PUBLIC SURFACE CLOSURE (2026-09-05)", () => {
   const eventsEntry = PSCG_REGISTRY.find((e) => e.path === "/panel/eventos");
-  // Si algún día se agrega /panel/eventos al registro, no debe quedar
-  // marcado ssr_redirect como efecto colateral de esta misión — hoy
-  // simplemente no está en el registro, lo cual también es válido.
-  if (eventsEntry) {
-    assert.notEqual(eventsEntry.boundary, PSCG_BOUNDARY.SSR_REDIRECT, "esta misión no debía convertir Eventos a SSR");
-  }
+  assert.ok(eventsEntry, "/panel/eventos debe estar en el registro (agregado por FINAL PUBLIC SURFACE CLOSURE)");
+  assert.equal(eventsEntry.boundary, PSCG_BOUNDARY.SSR_REDIRECT, "el hardening pendiente se completó en una misión posterior");
 });
 
 // ---------- páginas públicas de Inscripciones siguen públicas ----------

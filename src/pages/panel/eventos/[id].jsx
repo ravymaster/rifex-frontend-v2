@@ -2,11 +2,38 @@
 // EVENT-1 (Fase 13) — gestión mínima: datos, tipos de entrada, publicar,
 // cancelar. EVENT-5 (analytics + export XLSX) agregado como sección nueva,
 // sin reemplazar el resumen EVENT-2/EVENT-4 ya existente arriba.
+//
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — SSR AUTH HARDENING:
+// mismo boundary real certificado en panel/inscripciones/[id].jsx.
+// `next` se construye desde un prefijo literal fijo + el `id` de la
+// ruta, saneado con sanitizeNextPath — nunca desde ctx.query, así que un
+// id adversarial no puede producir una redirección fuera del origen.
+// Autenticación únicamente: ownership real de este evento sigue siendo
+// autoridad exclusiva de cada endpoint /api/events/[id]/*, sin cambios.
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+import { sanitizeNextPath } from '@/lib/countryPolicy';
+
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  const id = String(ctx.params?.id || '');
+  const next = sanitizeNextPath(`/panel/eventos/${id}`, '/panel/eventos');
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: `/login?next=${encodeURIComponent(next)}`, permanent: false } };
+  }
+  return { props: {} };
+}
 
 const STATUS_LABEL = { draft: 'Borrador', published: 'Publicado', cancelled: 'Cancelado' };
 

@@ -2,6 +2,8 @@
 
 **Estado**: DEV only, `origin/develop`. No promovido a PROD.
 
+**Superseded parcialmente (2026-09-05, misma fecha, misión posterior) — RIFEX FINAL PUBLIC SURFACE CLOSURE**: `/soluciones/eventos`, la ruta nueva descrita en este documento para la landing de Eventos, dejó de existir como página independiente — su contenido se movió tal cual a `/eventos` (que absorbe landing + identidad única de Eventos), y `/soluciones/eventos` pasó a ser un redirect `308` permanente hacia `/eventos`. Todo lo que este documento describe sobre el **contenido** de la landing de Eventos (features, pasos, FAQ, JSON-LD) sigue siendo exacto — solo cambió la URL donde vive. Las secciones de abajo se dejan sin reescribir para preservar el registro histórico de la decisión original; ver `docs/public-surface/FINAL_PUBLIC_SURFACE_CLOSURE.md` para el estado final real de cada ruta.
+
 ## Objetivo
 
 Cuatro landings de producto con el mismo lenguaje visual (2026, limpio, premium, cards blancas, bordes suaves, sombras discretas, pasos numerados, CTA visible, mobile-first): Eventos, Campañas, Inscripciones (públicas) y Rifas (privada, autenticada).

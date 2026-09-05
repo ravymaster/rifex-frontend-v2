@@ -1,7 +1,43 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-05 (actualización más reciente) — **RIFEX PRODUCT
+> 2026-09-05 (actualización más reciente) — **RIFEX FINAL PUBLIC
+> SURFACE CLOSURE, DEV only, misión autónoma.** `origin/develop` avanza
+> desde la misión RIFEX PRODUCT LANDINGS V1 (mismo día). `/eventos`
+> consolida el contenido íntegro de la landing que vivía en
+> `/soluciones/eventos` (ahora redirect `308` permanente,
+> `LEGACY_REMOVED`). **Rodrigo pidió explícitamente, en vivo durante la
+> misión, retirar el catálogo real de eventos publicados** que iba a
+> vivir debajo de la landing con un empty-state — razón: no hay eventos
+> publicados todavía, el empty-state no aporta valor hoy; queda para
+> más adelante. `/api/events` y su lógica intactos, solo esta página
+> deja de consumirlos. Rifas retirada del menú de cuenta
+> (`accountItems`), reemplazada por un enlace condicional en el footer
+> autenticado solamente. Navbar final: `Eventos · Campañas ·
+> Inscripciones`, sin "Cómo funciona". `/wizard` auditado con evidencia
+> real (único enlace vivo era el propio navItem) — se mantiene vivo,
+> pasa a `PUBLIC_NOINDEX`, fuera de navbar/sitemap.
+> `/reglas-iniciativas-premio` privatizado (`ssr_redirect`), contenido
+> preservado para autenticados. `/admin` gana autorización SSR real
+> (mismo campo de autoridad que `resolveAdmin`, nunca un segundo sistema
+> de roles). `/panel/eventos/*` cierra la deuda histórica
+> `client_redirect` documentada desde PSCG original — ahora
+> `ssr_redirect` certificado, sin tocar lógica de negocio de Events.
+> Home gana Inscripciones en el eyebrow + 5ª tarjeta de capacidad.
+> Footer gana 4 íconos sociales reales (Facebook/Instagram/TikTok/
+> WhatsApp, `src/lib/socialLinks.js`) — YouTube/X preparados sin
+> renderizar. Multi-UA no-cloaking verificado en vivo en las 3 públicas
+> + todos los redirects/privadas tocadas — cero fuga, cero cloaking.
+> 28 tests nuevos + 5 archivos preexistentes actualizados. Regresión
+> completa (mismo flake histórico de XLSX), build limpio, QA visual
+> 320/375/768/desktop sin overflow. `origin/main` no referenciado. CSP
+> y performance deliberadamente no tocados. Detalle completo:
+> `docs/WOP.md`, `docs/public-surface/FINAL_PUBLIC_SURFACE_CLOSURE.md`.
+> **Próximo paso: eventual promoción controlada a PROD, sujeta a
+> autorización explícita — todavía no iniciada. Certificado en DEV para
+> revisión visual de Rodrigo.**
+>
+> 2026-09-05 — **RIFEX PRODUCT
 > LANDINGS V1, DEV only, misión autónoma.** `origin/develop` avanza desde
 > `4a30814`. Cuatro landings de producto con el mismo lenguaje visual —
 > Eventos (`/soluciones/eventos`, nueva), Campañas (`/campanas`, nueva),

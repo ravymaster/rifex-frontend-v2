@@ -84,19 +84,24 @@ test("sitemap.xml: solo lista superficies PUBLIC_INDEXABLE reales, ninguna prote
   }
 });
 
-test("robots.txt: Disallow explícito de superficies auth-boundary, sin bloquear el anexo PUBLIC_NOINDEX", () => {
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) superó la mitad de esta
+// aserción: /reglas-iniciativas-premio dejó de ser PUBLIC_NOINDEX y pasó
+// a PRIVATE_AUTHENTICATED (ssr_redirect) — ahora SÍ debe tener Disallow,
+// siguiendo la misma convención que el resto de las rutas privadas
+// (/crear-rifa, /panel, etc.). /terminos-rifas no se tocó y conserva su
+// tratamiento PUBLIC_NOINDEX original (noindex crawlable, sin Disallow).
+test("robots.txt: Disallow explícito de superficies auth-boundary (incluida /reglas-iniciativas-premio, ahora privada), sin bloquear el anexo PUBLIC_NOINDEX restante", () => {
   const robots = read("public/robots.txt");
-  for (const p of ["/crear-rifa", "/crear-evento", "/crear-colecta", "/mis-iniciativas", "/panel", "/login", "/register"]) {
+  for (const p of ["/crear-rifa", "/crear-evento", "/crear-colecta", "/mis-iniciativas", "/panel", "/login", "/register", "/reglas-iniciativas-premio"]) {
     assert.match(robots, new RegExp(`Disallow:\\s*${p.replace("/", "\\/")}`));
   }
-  // reglas-iniciativas-premio y terminos-rifas usan noindex crawlable
-  // (Google debe poder ver el noindex), no Disallow — evita la
-  // contradicción robots/noindex que Google desaconseja.
-  assert.doesNotMatch(robots, /Disallow:\s*\/reglas-iniciativas-premio/);
+  // terminos-rifas sigue usando noindex crawlable (Google debe poder ver
+  // el noindex), no Disallow — evita la contradicción robots/noindex que
+  // Google desaconseja.
   assert.doesNotMatch(robots, /Disallow:\s*\/terminos-rifas/);
 });
 
-test("reglas-iniciativas-premio.js y terminos-rifas.js: noindex declarado, fuera de sitemap, no bloqueados por robots (patrón PUBLIC_NOINDEX correcto)", () => {
+test("reglas-iniciativas-premio.js (ahora privada) y terminos-rifas.js (sigue PUBLIC_NOINDEX): ambas declaran noindex, ambas fuera de sitemap", () => {
   for (const p of ["src/pages/reglas-iniciativas-premio.js", "src/pages/terminos-rifas.js"]) {
     const src = read(p);
     assert.match(src, /noindex/);
@@ -152,15 +157,20 @@ test("blog/index.js: noindex,nofollow,noarchive declarado, sin fetch anónimo de
 });
 
 // ---------- 14. Grafo público sin enlaces accidentales a Rifas ----------
-test("Home, navbar, footer, wizard.js y terminos.js no enlazan directamente a /reglas-iniciativas-premio ni /terminos-rifas (solo /reembolsos y el propio /terminos-rifas lo hacen, ya certificado)", () => {
-  const files = ["src/pages/index.js", "src/components/Layout.jsx", "src/pages/wizard.js", "src/pages/terminos.js"];
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) superó la última parte
+// de esta aserción: /reglas-iniciativas-premio pasó a ser
+// PRIVATE_AUTHENTICATED, así que el enlace público que /reembolsos.js
+// tenía hacia ahí fue reemplazado por copy neutral sin link privado (la
+// mission section 10 exige explícitamente "eliminar o adaptar" ese
+// enlace). /terminos-rifas conserva su propio enlace interno sin
+// cambios, fuera de alcance de esta misión.
+test("Home, navbar, footer, wizard.js, terminos.js y reembolsos.js no enlazan directamente a /reglas-iniciativas-premio (ahora privada); /terminos-rifas conserva su propio enlace interno sin cambios", () => {
+  const files = ["src/pages/index.js", "src/components/Layout.jsx", "src/pages/wizard.js", "src/pages/terminos.js", "src/pages/reembolsos.js"];
   for (const f of files) {
     const src = read(f);
-    assert.doesNotMatch(src, /href="\/reglas-iniciativas-premio"/, `${f} no debe enlazar directo al anexo`);
+    assert.doesNotMatch(src, /href="\/reglas-iniciativas-premio"/, `${f} no debe enlazar directo al anexo, ahora privado`);
     assert.doesNotMatch(src, /href="\/terminos-rifas"/, `${f} no debe enlazar directo a los términos de Rifas`);
   }
-  const reembolsos = read("src/pages/reembolsos.js");
-  assert.match(reembolsos, /href="\/reglas-iniciativas-premio"/, "reembolsos.js sí debe conservar el enlace legítimo ya auditado");
 });
 
 // ---------- 15. Trust claims dentro de lo implementado ----------

@@ -11,8 +11,47 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "@/components/Layout";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
+import { getSupabaseServer } from "@/lib/supabaseServer";
 import { COUNTRY_CODES, COUNTRY_POLICY } from "@/lib/countryPolicy";
 import { FEATURE_FLAGS } from "@/lib/featureFlags";
+
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — /admin tenía cero
+// boundary SSR: la protección era 100% client-side (useEffect abajo,
+// estado "checking" -> "Verificando acceso…"), así que un request
+// anónimo sin JS recibía el shell completo de la página (sin datos
+// privados, pero sí el bundle/markup del panel admin). Este
+// getServerSideProps agrega el boundary real, ANTES de cualquier render.
+//
+// Autenticación != autorización (sección 11 del mandato): no basta con
+// que exista sesión. La autoridad real de "quién es admin" es
+// `user.app_metadata.role === 'admin'` — el mismo campo exacto que
+// src/lib/adminAuth.js#resolveAdmin ya usa para cada endpoint
+// /api/admin/*. No se crea un segundo sistema de roles: resolveAdmin
+// valida esa autoridad vía Bearer token (llamadas fetch del cliente,
+// after hydration), mientras que este gate SSR la valida vía la sesión
+// de cookies que getSupabaseServer ya expone en todo boundary de página
+// (mismo mecanismo que mis-iniciativas.jsx/panel/inscripciones/*) — dos
+// formas de leer la MISMA autoridad, no dos autoridades distintas. La
+// autorización real y definitiva de cada acción sigue viviendo
+// exclusivamente en cada endpoint /api/admin/* vía resolveAdmin, sin
+// cambios.
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: "/login?next=/admin", permanent: false } };
+  }
+  if (user.app_metadata?.role !== "admin") {
+    return { redirect: { destination: "/", permanent: false } };
+  }
+  return { props: {} };
+}
 
 function clp(cents) {
   if (cents == null) return "—";
@@ -506,4 +545,4 @@ export default function AdminHome() {
   );
 }
 
-AdminHome.getLayout = (page) => <Layout noindex>{page}</Layout>;
+AdminHome.getLayout = (page) => <Layout noindex noarchive>{page}</Layout>;

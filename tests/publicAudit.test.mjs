@@ -273,15 +273,20 @@ test("funcionalidad Blog no fue eliminada — páginas y APIs siguen existiendo"
 
 // RIFEX ETAPA 2 — IDENTIDAD PÚBLICA + POLÍTICAS
 
-test("navbar pública: exactamente Eventos / Campañas / Cómo funciona (sin Blog/Rifas/Precios/Seguridad/Ayuda)", () => {
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) superó esta aserción:
+// Rodrigo decidió retirar "Cómo funciona" (/wizard) del navbar — las 3
+// landings propias (Eventos/Campañas/Inscripciones, Product Landings V1)
+// ya cumplen esa función. Se actualiza para reflejar el estado real e
+// intencional, agregando "Cómo funciona" a la lista de ausentes.
+test("navbar pública: exactamente Eventos / Campañas / Inscripciones (sin Blog/Rifas/Precios/Seguridad/Ayuda/Cómo funciona)", () => {
   const src = read("src/components/Layout.jsx");
   const match = src.match(/const navItems = \[[\s\S]*?\];/);
   assert.ok(match, "no se encontró el bloque navItems");
   const block = match[0];
   assert.match(block, /Eventos/);
   assert.match(block, /Campañas/);
-  assert.match(block, /Cómo funciona/);
-  for (const label of ["Blog", "Rifas", "Precios", "Seguridad", "Ayuda"]) {
+  assert.match(block, /Inscripciones/);
+  for (const label of ["Blog", "Rifas", "Precios", "Seguridad", "Ayuda", "Cómo funciona"]) {
     assert.doesNotMatch(block, new RegExp(`label:\\s*['"\`]${label}`), `navItems no debe incluir "${label}"`);
   }
 });
@@ -635,20 +640,24 @@ test("wizard.js ofrece los flujos de Eventos y Campañas con sus CTAs a las ruta
   assert.match(wizard, /href="\/crear-colecta"/);
 });
 
-test("wizard.js: metadata pública coherente (canonical rifex.pro, index/follow, sin rifa/sorteo/premio en description)", () => {
+// RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) superó estas 2
+// aserciones: /wizard ahora es PUBLIC_NOINDEX (retirada del navbar,
+// las 3 landings propias cubren su función) — pasa noindex a Layout,
+// sale de sitemap.xml, y gana Disallow en robots.txt. Actualizadas para
+// reflejar el estado real e intencional.
+test("wizard.js: metadata pública coherente (canonical rifex.pro, sin rifa/sorteo/premio en description), ahora PUBLIC_NOINDEX", () => {
   const wizard = read("src/pages/wizard.js");
   assert.match(wizard, /canonicalPath="\/wizard"/);
   const descMatch = wizard.match(/description="([^"]*)"/);
   assert.ok(descMatch, "wizard.js debe declarar description");
   assert.doesNotMatch(descMatch[1], /\brifas?\b|\bsorteos?\b|\bpremios?\b/i);
-  // wizard.js no pasa noindex a Layout -> queda index,follow (comportamiento por defecto)
-  assert.doesNotMatch(wizard, /\bnoindex\b/);
+  assert.match(wizard, /\bnoindex\b/);
 });
 
-test("sitemap/robots sin regresión tras el cambio de wizard.js", () => {
-  assert.match(read("public/sitemap.xml"), /https:\/\/rifex\.pro\/wizard/);
+test("sitemap/robots reflejan el retiro de /wizard del navbar (PUBLIC_NOINDEX)", () => {
+  assert.doesNotMatch(read("public/sitemap.xml"), /https:\/\/rifex\.pro\/wizard/);
   const robots = read("public/robots.txt");
-  assert.doesNotMatch(robots, /Disallow:\s*\/wizard/);
+  assert.match(robots, /Disallow:\s*\/wizard/);
 });
 
 test("mis-iniciativas.js conserva Rifas, Campañas y Eventos; la creación autenticada de Rifas sigue intacta", () => {

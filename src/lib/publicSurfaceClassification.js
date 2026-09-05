@@ -60,12 +60,11 @@ export const PSCG_BOUNDARY = Object.freeze({
 export const PSCG_REGISTRY = [
   // ---------- PUBLIC_INDEXABLE (idéntico a sitemap.xml) ----------
   { path: "/", file: "src/pages/index.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
-  { path: "/eventos", file: "src/pages/eventos/index.jsx", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   {
-    path: "/soluciones/eventos",
-    file: "src/pages/soluciones/eventos.jsx",
+    path: "/eventos",
+    file: "src/pages/eventos/index.jsx",
     category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
-    notes: "RIFEX PRODUCT LANDINGS V1 — landing comercial de Eventos. Distinta de /eventos (catálogo real de eventos publicados, sin tocar): esta página nunca lista eventos de usuarios, solo explica el producto. Service+FAQPage JSON-LD.",
+    notes: "RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — URL única y definitiva de Eventos: la landing comercial (antes en /soluciones/eventos) vive acá. El catálogo real de eventos publicados (EVENT-1, GET /api/events) se retiró de esta página por decisión explícita de Rodrigo durante la misión — todavía no hay eventos publicados y un empty-state no aportaba valor hoy; queda documentado para integrarse más adelante cuando exista contenido real, sin eliminar el endpoint ni su lógica de datos. Service+FAQPage JSON-LD.",
   },
   {
     path: "/campanas",
@@ -79,7 +78,6 @@ export const PSCG_REGISTRY = [
     category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
     notes: "INSCRIPCIONES V1 — landing comercial estático. Nunca un directorio de actividades de usuarios (eso es /inscripcion/[id], PUBLIC_NOINDEX). No muestra Plus/Gold/precios futuros. RIFEX PRODUCT LANDINGS V1: evolucionada a la misma anatomía (hero/features/pasos/casos de uso/bloque operacional/confianza/FAQ/CTA) de Eventos/Campañas, misma ruta y categoría sin cambio. Service+FAQPage JSON-LD agregado.",
   },
-  { path: "/wizard", file: "src/pages/wizard.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/planes", file: "src/pages/planes.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/seguridad", file: "src/pages/seguridad.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/confianza", file: "src/pages/confianza.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
@@ -97,12 +95,11 @@ export const PSCG_REGISTRY = [
 
   // ---------- PUBLIC_NOINDEX ----------
   {
-    path: "/reglas-iniciativas-premio",
-    file: "src/pages/reglas-iniciativas-premio.js",
+    path: "/wizard",
+    file: "src/pages/wizard.js",
     category: PSCG_CATEGORY.PUBLIC_NOINDEX,
-    robotsDisallow: false,
-    notes:
-      "Anexo legal de Rifas, accesible por link legítimo desde /reembolsos. noindex + fuera de sitemap, pero deliberadamente NO Disallow'd — sigue la guía de Google de no combinar Disallow con noindex cuando la señal real es noindex.",
+    robotsDisallow: true,
+    notes: "RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — retirada del navbar (Layout.jsx ya no la enlaza): las 3 landings de Eventos/Campañas/Inscripciones (Product Landings V1) cubren ahora la misma función. Página NO eliminada ni redirigida — sigue accesible por URL directa, solo deja de indexarse/promocionarse para no competir en SEO con las landings reales. Único inbound link vivo que tenía era exactamente ese ítem de navbar (auditado por grep completo antes de decidir).",
   },
   {
     path: "/terminos-rifas",
@@ -141,6 +138,46 @@ export const PSCG_REGISTRY = [
   },
 
   // ---------- PRIVATE_AUTHENTICATED ----------
+  {
+    path: "/reglas-iniciativas-premio",
+    file: "src/pages/reglas-iniciativas-premio.js",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — antes PUBLIC_NOINDEX (accesible anónimo). Rodrigo decidió retirarla de la superficie pública; pasa a ssr_redirect (mismo patrón certificado). El contenido legal no se borra, sigue íntegro para cualquier autenticado. El enlace público que existía en /reembolsos fue reemplazado por copy neutral sin link privado; /terminos-rifas conserva su propio enlace interno sin cambios (contenido histórico ya certificado, fuera de alcance de esta misión).",
+  },
+  {
+    path: "/admin",
+    file: "src/pages/admin/index.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — antes 100% client-side ('Verificando acceso…', useEffect). Ahora getServerSideProps: sesión ausente -> /login; sesión sin user.app_metadata.role==='admin' -> redirect a Home. Autenticación != autorización: lee la MISMA autoridad que src/lib/adminAuth.js#resolveAdmin (app_metadata.role), vía sesión de cookies (getSupabaseServer) en vez de Bearer token — no es un segundo sistema de roles. La autorización real y definitiva de cada acción admin sigue viviendo exclusivamente en cada endpoint /api/admin/* vía resolveAdmin, sin cambios.",
+  },
+  {
+    path: "/panel/eventos",
+    file: "src/pages/panel/eventos/index.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — deuda histórica documentada desde la introducción de PSCG (client_redirect) corregida al mismo boundary ya certificado en panel/inscripciones/index.jsx. Carga real de datos (fetch a /api/events/mine con Bearer) sin cambios.",
+  },
+  {
+    path: "/panel/eventos/[id]",
+    file: "src/pages/panel/eventos/[id].jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — mismo boundary certificado en panel/inscripciones/[id].jsx (next desde prefijo literal + id, saneado con sanitizeNextPath). Autenticación únicamente — ownership real sigue siendo autoridad exclusiva de cada endpoint /api/events/[id]/*.",
+  },
+  {
+    path: "/panel/eventos/[id]/scanner",
+    file: "src/pages/panel/eventos/[id]/scanner.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — mismo boundary certificado en panel/inscripciones/[id]/scanner.jsx. Autenticación únicamente — la autorización real para operar el scanner (dueño u organizador con event_staff activo) sigue viviendo en el ping GET/check-in de /api/events/[id]/check-in, sin cambios.",
+  },
   {
     path: "/crear-rifa",
     file: "src/pages/crear-rifa.jsx",
@@ -262,7 +299,7 @@ export const PSCG_REGISTRY = [
     category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
     boundary: PSCG_BOUNDARY.SSR_REDIRECT,
     robotsDisallow: true,
-    notes: "RIFEX PRODUCT LANDINGS V1 — ruta nueva y distinta de /rifas (LEGACY_REMOVED, sin tocar). Landing explicativa de Rifas para usuarios ya autenticados: ssr_redirect desde el primer commit (mismo patrón que mis-iniciativas.jsx/difusion.jsx, destino literal fijo, nunca ctx.query). noindex+nofollow+noarchive, fuera de sitemap, nunca en navItems/footer público/wizard — solo en el menú de cuenta autenticado (accountItems).",
+    notes: "RIFEX PRODUCT LANDINGS V1 — ruta nueva y distinta de /rifas (LEGACY_REMOVED, sin tocar). Landing explicativa de Rifas para usuarios ya autenticados: ssr_redirect desde el primer commit (mismo patrón que mis-iniciativas.jsx/difusion.jsx, destino literal fijo, nunca ctx.query). noindex+nofollow+noarchive, fuera de sitemap, nunca en navItems/navbar público. RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05): Rodrigo decidió retirarla también del menú de cuenta superior (accountItems) — ahora se enlaza únicamente desde el footer, y solo cuando hay sesión (mismo estado `user` client-side ya usado para accountItems); el boundary SSR real de esta página es la protección de fondo, no la visibilidad del link.",
   },
 
   // ---------- LEGACY_REMOVED ----------
@@ -272,6 +309,13 @@ export const PSCG_REGISTRY = [
     category: PSCG_CATEGORY.LEGACY_REMOVED,
     notes:
       "Antiguo catálogo público de Rifas, retirado. Redirect real (getServerSideProps, 307) a /login preservando next — decisión de producto ya certificada (no un 410) porque sirve como aterrizaje de bookmarks/backlinks antiguos, no porque /login sea un reemplazo de contenido equivalente. X-Robots-Tag: noindex, nofollow. Fuera de sitemap. Distinto de /soluciones/rifas (PRIVATE_AUTHENTICATED, nueva en RIFEX PRODUCT LANDINGS V1) — esta ruta sigue sin tocar.",
+  },
+  {
+    path: "/soluciones/eventos",
+    file: "src/pages/soluciones/eventos.jsx",
+    category: PSCG_CATEGORY.LEGACY_REMOVED,
+    notes:
+      "RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — landing creada en Product Landings V1, retirada como página independiente: /eventos pasa a ser la URL única y definitiva de Eventos (landing + catálogo). Redirect real (getServerSideProps, 308 permanente) a /eventos — a diferencia de /rifas, acá SÍ hay un reemplazo de contenido realmente equivalente (1:1), por eso 308 en vez de 307. X-Robots-Tag: noindex, nofollow. Fuera de sitemap.",
   },
 ];
 
