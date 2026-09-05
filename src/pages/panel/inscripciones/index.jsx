@@ -13,12 +13,20 @@
 // getServerSideProps resuelve la sesión vía getSupabaseServer y
 // redirige (307) ANTES de que el componente se renderice — un request
 // anónimo nunca recibe el HTML del panel.
+//
+// RIFEX PANEL SCALABILITY (2026-09-05) — paginación tradicional real
+// del lado del servidor, con botones "Anterior/Siguiente" (nunca carga
+// continua al hacer scroll): `page` es estado local del componente, se
+// envía como `?page=` a /api/inscripciones/mine, que ya devuelve solo
+// esa página + `pagination.total/totalPages` reales. El control de
+// paginación se oculta solo si totalPages <= 1.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { getSupabaseServer } from '@/lib/supabaseServer';
+import PaginationControls from '@/components/panel/PaginationControls';
 
 export async function getServerSideProps(ctx) {
   const s = getSupabaseServer(ctx.req, ctx.res);
@@ -53,23 +61,44 @@ export default function PanelInscripciones() {
   const router = useRouter();
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingPage, setLoadingPage] = useState(false);
+  const tokenRef = useRef(null);
+
+  const load = useCallback(async (accessToken, targetPage) => {
+    setLoadingPage(true);
+    try {
+      const res = await fetch(`/api/inscripciones/mine?page=${targetPage}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || 'No se pudieron cargar tus inscripciones');
+      setItems(body.items || []);
+      setPage(body.pagination?.page || 1);
+      setTotalPages(body.pagination?.totalPages || 1);
+      setError(null);
+    } catch (e) {
+      setError(e.message || 'No se pudieron cargar tus inscripciones');
+      setItems([]);
+    } finally {
+      setLoadingPage(false);
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
       const session = data?.session;
       if (!session) { router.push('/login?next=/panel/inscripciones'); return; }
-      try {
-        const res = await fetch('/api/inscripciones/mine', { headers: { Authorization: `Bearer ${session.access_token}` } });
-        const body = await res.json();
-        if (!res.ok || !body.ok) throw new Error(body.error || 'No se pudieron cargar tus inscripciones');
-        setItems(body.items || []);
-      } catch (e) {
-        setError(e.message || 'No se pudieron cargar tus inscripciones');
-        setItems([]);
-      }
+      tokenRef.current = session.access_token;
+      await load(session.access_token, 1);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
+
+  function goToPage(nextPage) {
+    if (!tokenRef.current || nextPage < 1 || nextPage > totalPages || nextPage === page) return;
+    load(tokenRef.current, nextPage);
+  }
 
   return (
     <Layout noindex title="Mis inscripciones — Rifex">
@@ -110,6 +139,8 @@ export default function PanelInscripciones() {
             );
           })}
         </div>
+
+        <PaginationControls page={page} totalPages={totalPages} onChange={goToPage} busy={loadingPage} />
       </div>
     </Layout>
   );

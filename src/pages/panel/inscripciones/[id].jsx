@@ -18,6 +18,16 @@
 // exclusivamente, cada endpoint de /api/inscripciones/[id]/* (comparando
 // organizer_id server-side) — este boundary nunca reemplaza esa
 // verificación, ni intenta resolverla aquí.
+//
+// RIFEX PANEL SCALABILITY (2026-09-05) — la tabla de participantes
+// ahora es paginada server-side (25 por página, vía
+// /api/inscripciones/[id]/participants?page=). "Asistieron"/
+// "Pendientes" ya NO se calculan filtrando el array de participantes
+// visible (eso se rompería con paginación real) — vienen de
+// `summary.checked_in`/`summary.pending`, contadores exactos que la
+// API calcula sobre la tabla completa, independientes de qué página se
+// esté viendo. "Descargar Excel" sigue llamando a export.js, un
+// endpoint separado que nunca tuvo límite — no se toca.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useCallback } from 'react';
@@ -25,6 +35,7 @@ import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { getSupabaseServer } from '@/lib/supabaseServer';
 import { sanitizeNextPath } from '@/lib/countryPolicy';
+import PaginationControls from '@/components/panel/PaginationControls';
 
 export async function getServerSideProps(ctx) {
   const s = getSupabaseServer(ctx.req, ctx.res);
@@ -58,6 +69,10 @@ export default function PanelInscripcionDetalle() {
 
   const [activity, setActivity] = useState(null);
   const [participants, setParticipants] = useState(null);
+  const [participantsSummary, setParticipantsSummary] = useState(null);
+  const [partPage, setPartPage] = useState(1);
+  const [partTotalPages, setPartTotalPages] = useState(1);
+  const [partLoading, setPartLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -71,12 +86,25 @@ export default function PanelInscripcionDetalle() {
   const [editInstructions, setEditInstructions] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
 
+  const loadParticipants = useCallback(async (accessToken, targetPage) => {
+    setPartLoading(true);
+    try {
+      const partRes = await fetch(`/api/inscripciones/${id}/participants?page=${targetPage}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const partData = await partRes.json();
+      if (partRes.ok && partData.ok) {
+        setParticipants(partData.items || []);
+        setParticipantsSummary(partData.summary || null);
+        setPartPage(partData.pagination?.page || 1);
+        setPartTotalPages(partData.pagination?.totalPages || 1);
+      }
+    } finally {
+      setPartLoading(false);
+    }
+  }, [id]);
+
   const load = useCallback(async (accessToken) => {
     try {
-      const [actRes, partRes] = await Promise.all([
-        fetch(`/api/inscripciones/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } }),
-        fetch(`/api/inscripciones/${id}/participants`, { headers: { Authorization: `Bearer ${accessToken}` } }),
-      ]);
+      const actRes = await fetch(`/api/inscripciones/${id}`, { headers: { Authorization: `Bearer ${accessToken}` } });
       const actData = await actRes.json();
       if (!actRes.ok || !actData.ok) throw new Error('No se pudo cargar la actividad');
       setActivity(actData.activity);
@@ -85,14 +113,13 @@ export default function PanelInscripcionDetalle() {
       setEditVenueName(actData.activity.venue_name || '');
       setEditAddress(actData.activity.address || '');
       setEditInstructions(actData.activity.instructions || '');
-      const partData = await partRes.json();
-      if (partRes.ok && partData.ok) setParticipants(partData.items || []);
+      await loadParticipants(accessToken, 1);
     } catch (e) {
       setError(e.message || 'No se pudo cargar la actividad');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, loadParticipants]);
 
   useEffect(() => {
     if (!id) return;
@@ -104,6 +131,11 @@ export default function PanelInscripcionDetalle() {
       await load(session.access_token);
     })();
   }, [id, load, router]);
+
+  function goToParticipantsPage(nextPage) {
+    if (!token || nextPage < 1 || nextPage > partTotalPages || nextPage === partPage) return;
+    loadParticipants(token, nextPage);
+  }
 
   async function changeStatus(nextStatus) {
     setBusy(true);
@@ -179,8 +211,12 @@ export default function PanelInscripcionDetalle() {
   if (error && !activity) return <Layout noindex title="Inscripción — Rifex"><p style={{ textAlign: 'center', marginTop: 48, color: '#b91c1c' }}>{error}</p></Layout>;
   if (!activity) return null;
 
-  const checkedInCount = (participants || []).filter((p) => p.checked_in_at).length;
-  const pendingCount = (participants || []).length - checkedInCount;
+  // RIFEX PANEL SCALABILITY (2026-09-05): ya no se filtra el array
+  // `participants` (solo la página actual, 25 filas) — estos 3 números
+  // vienen del `summary` que la API calcula sobre la tabla completa.
+  const registeredCount = participantsSummary?.registered ?? activity.registered_count ?? 0;
+  const checkedInCount = participantsSummary?.checked_in ?? 0;
+  const pendingCount = participantsSummary?.pending ?? 0;
 
   return (
     <Layout noindex title={`${activity.title} — Panel Rifex`}>
@@ -201,7 +237,7 @@ export default function PanelInscripcionDetalle() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
           <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>{activity.registered_count ?? (participants || []).length}/{activity.capacity}</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a' }}>{registeredCount}/{activity.capacity}</div>
             <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Inscritos</div>
           </div>
           <div style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
@@ -314,6 +350,8 @@ export default function PanelInscripcionDetalle() {
             </table>
           </div>
         )}
+
+        <PaginationControls page={partPage} totalPages={partTotalPages} onChange={goToParticipantsPage} busy={partLoading} />
       </div>
     </Layout>
   );

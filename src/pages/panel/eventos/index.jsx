@@ -10,12 +10,16 @@
 // anónimo ya no recibe el shell del panel. Ownership/lógica de negocio
 // de Eventos, la carga real de datos (fetch a /api/events/mine con
 // Bearer) y todo lo demás quedan exactamente igual, sin tocar.
+//
+// RIFEX PANEL SCALABILITY (2026-09-05) — mismo patrón de paginación
+// tradicional server-side ya aplicado a panel/inscripciones/index.jsx.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { getSupabaseServer } from '@/lib/supabaseServer';
+import PaginationControls from '@/components/panel/PaginationControls';
 
 export async function getServerSideProps(ctx) {
   const s = getSupabaseServer(ctx.req, ctx.res);
@@ -44,23 +48,44 @@ export default function PanelEventos() {
   const router = useRouter();
   const [items, setItems] = useState(null);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingPage, setLoadingPage] = useState(false);
+  const tokenRef = useRef(null);
+
+  const load = useCallback(async (accessToken, targetPage) => {
+    setLoadingPage(true);
+    try {
+      const res = await fetch(`/api/events/mine?page=${targetPage}`, { headers: { Authorization: `Bearer ${accessToken}` } });
+      const body = await res.json();
+      if (!res.ok || !body.ok) throw new Error(body.error || 'No se pudieron cargar tus eventos');
+      setItems(body.items || []);
+      setPage(body.pagination?.page || 1);
+      setTotalPages(body.pagination?.totalPages || 1);
+      setError(null);
+    } catch (e) {
+      setError(e.message || 'No se pudieron cargar tus eventos');
+      setItems([]);
+    } finally {
+      setLoadingPage(false);
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
       const session = data?.session;
       if (!session) { router.push('/login?next=/panel/eventos'); return; }
-      try {
-        const res = await fetch('/api/events/mine', { headers: { Authorization: `Bearer ${session.access_token}` } });
-        const body = await res.json();
-        if (!res.ok || !body.ok) throw new Error(body.error || 'No se pudieron cargar tus eventos');
-        setItems(body.items || []);
-      } catch (e) {
-        setError(e.message || 'No se pudieron cargar tus eventos');
-        setItems([]);
-      }
+      tokenRef.current = session.access_token;
+      await load(session.access_token, 1);
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
+
+  function goToPage(nextPage) {
+    if (!tokenRef.current || nextPage < 1 || nextPage > totalPages || nextPage === page) return;
+    load(tokenRef.current, nextPage);
+  }
 
   return (
     <Layout noindex title="Mis eventos — Rifex">
@@ -96,6 +121,8 @@ export default function PanelEventos() {
             </Link>
           ))}
         </div>
+
+        <PaginationControls page={page} totalPages={totalPages} onChange={goToPage} busy={loadingPage} />
       </div>
     </Layout>
   );
