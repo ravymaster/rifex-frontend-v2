@@ -4,6 +4,28 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX INSCRIPCIONES V1 FREE + FUTURE BILLING FOUNDATION — PROD PROMOTION (2026-09-04)
+
+`origin/main`/PROD advances from `c66909d` (tag `v2.8-rifex-prod-pscg-difusion`) to `6f24bab`. Promotes the certified DEV work at `origin/develop` @ `b22cf8a` (two source commits: `5d17f8a` "Inscripciones V1 FREE + future billing foundation" and `b22cf8a` "private SSR auth boundary hardening"), authorized explicitly by Rodrigo ("GO A PROD"), via the same surgical-reconstruction pattern established across every prior promotion: a fresh worktree from `origin/main` (`release/inscripciones-v1`), promoting the final combined state as of `b22cf8a`.
+
+All 8 shared files (`robots.txt`, `sitemap.xml`, `Layout.jsx`, `difusionGuides.js`, `publicSurfaceClassification.js`, `difusion.jsx`, `mis-iniciativas.jsx`, `tests/difusion.test.mjs`) confirmed byte-identical between PROD's pre-promotion content and DEV's pre-mission baseline (`4681770`) before applying the certified diff — wholesale-safe. The remaining 28 files (API routes, pages, lib modules, tests) and the DB migration were new, with zero PROD divergence possible (confirmed: none of these paths existed on `origin/main` before this commit).
+
+New native vertical for FREE-only activities (workshops, courses, community sessions): public registration, individual QR confirmation, owner-only check-in scanner, organizer panel, XLSX export — entirely independent of Events/Rifas/Colectas. Never charges the participant, never touches the organizer's Mercado Pago, `marketplace_fee`, commission, or Payment Engine. Lives outside progressive financial onboarding (`assertOnboardingComplete` only, never `assertCreatorEligible`/`resolveCreationGate`) — confirmed live in PROD: Rodrigo created and operated a real test activity without Mercado Pago connected.
+
+Schema: `registration_activities`/`participants`/`checkins`/`free_usage`, three atomic RPCs (`create_free_registration_activity` never accepts `plan`/`capacity` as parameters — hardcoded `'free'`/`50`). Monthly FREE quota via an insert-only ledger with `UNIQUE(organizer_id, period_key)`. All three `/panel/inscripciones*` routes ship with a real SSR auth boundary (`getServerSideProps`, `307` before rendering) from day one — the SSR hardening mission (see the DEV-only entry above) was folded into this same PROD promotion rather than promoted separately, since it landed before "GO A PROD" was given.
+
+**PROD DB migration**: `db/migrations/2026-09-04_inscripciones1_foundation.sql` applied manually by Rodrigo via the Supabase SQL Editor for the PROD project (`wrdkdfuiwlujfxxijpao`) — no automated agent has write (or even read) access to PROD Supabase; this is the same human-in-the-loop mechanism used for every prior PROD schema change in this project. Pre-check (zero pre-existing `registration_*` tables/functions) and post-apply certification (4 tables, 3 RPCs, RLS enabled on all 4, grants exactly matching the DEV-certified model) both executed by Rodrigo and confirmed clean.
+
+**Deploy**: Vercel auto-deployed from the push to `main` (`dpl_HQYUgVeYT9CmA3TqiSeRoLKHw4HJ`, target `production`, aliased to `rifex.pro`/`www.rifex.pro`), confirmed `Ready`.
+
+**Live smoke** (Claude Code, read-only/anonymous requests against `rifex.pro`): `/inscripciones` content/metadata/canonical/OG all correct, zero Plus/Gold/pricing language; `robots.txt`/`sitemap.xml` correct; `/crear-inscripcion` and all 3 `/panel/inscripciones*` routes return a real `307`, 30-85 byte body, byte-identical across default/browser/Googlebot/`facebookexternalhit`/TikTokBot User-Agents — zero cloaking, zero private HTML leak; anti-enumeration confirmed (`not_found` for nonexistent activity/token, both from the page's `noindex` meta and the underlying API).
+
+**Live functional smoke** (executed by Rodrigo, real account `rodrigo0878`/`rodrigo00787@hotmail.com`, no Mercado Pago connected): created and published a real test activity; registered 2 participants with distinct emails; confirmation QR visible immediately in-browser (email delivery confirmed too, though flagged as spam by one provider — a deliverability observation, not a defect); check-in tested via the manual-code-entry path (same RPC as camera scanning) — first check-in returned PASS; panel counters and XLSX export both visually confirmed correct (exact columns, frozen header, no `qr_token` leakage). This consumed the real monthly FREE quota for that account — expected, not reverted.
+
+Full regression on the release candidate: 802 tests, 801 pass (sole failure: the pre-existing XLSX stress-test timing flake, identical signature). Clean build — the 3 SSR-hardened pages flip from static to dynamic in the build output. New baseline tag: `v2.9-rifex-prod-inscripciones-v1`.
+
+---
+
 ## RIFEX PSCG + DIFUSIÓN V1.1 MULTIPRODUCTO — PROD PROMOTION (2026-09-04)
 
 `origin/main`/PROD advances from `7fcc1c5` (tag `v2.7-rifex-prod-progressive-onboarding`). Promotes exactly the certified DEV work at `origin/develop` @ `4681770`, spanning two source commits — `8ec5787` ("RIFEX PSCG + DIFUSION V1 DEV CERTIFIED") and `4681770` ("RIFEX DIFUSION V1.1 MULTIPRODUCT DEV CERTIFIED") — authorized explicitly by Rodrigo ("GO A PROD"), via the same surgical-reconstruction pattern established across every prior promotion: a fresh worktree from `origin/main` (`release/rifex-pscg-difusion-prod-2026-09-04`), promoting the **final combined state** of every touched file as of `4681770` (not each commit separately, since `4681770` rewrites `difusion.jsx`/`tests/difusion.test.mjs`/`docs/difusion/DIFUSION_V1.md` on top of `8ec5787`).

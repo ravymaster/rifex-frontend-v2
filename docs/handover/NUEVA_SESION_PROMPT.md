@@ -1,7 +1,30 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-04 (actualización más reciente) — **RIFEX PSCG + DIFUSIÓN
+> 2026-09-04 (actualización más reciente) — **RIFEX INSCRIPCIONES V1
+> FREE + FUTURE BILLING FOUNDATION — PROD PROMOTION.** `origin/main`
+> avanza de `c66909d` (tag `v2.8-rifex-prod-pscg-difusion`) a `6f24bab`,
+> promoviendo `origin/develop` @ `b22cf8a` (foundation + SSR auth
+> hardening), autorizado por Rodrigo ("GO A PROD"). Nuevo vertical
+> gratuito — inscripción pública, QR, scanner, panel, Excel — sin
+> Mercado Pago del organizador, sin cobro al participante, fuera del
+> onboarding financiero progresivo. Migración PROD aplicada
+> manualmente por Rodrigo en el SQL Editor de Supabase
+> (`wrdkdfuiwlujfxxijpao`) — pre-check y certificación post-apply
+> confirmados limpios (4 tablas, 3 RPCs, RLS, grants exactos). Deploy
+> Vercel `Ready`, alias real `rifex.pro`. Smoke en vivo: `/inscripciones`
+> correcta, 4 rutas privadas (`/crear-inscripcion` +
+> `/panel/inscripciones` × 3) con `307` real idéntico en 5 user-agents
+> (incluidos Googlebot/Meta/TikTok), cero fuga de HTML privado.
+> **Prueba funcional completa en PROD real ejecutada por Rodrigo**:
+> actividad de prueba sin MP, 2 participantes, QR funcional, check-in
+> PASA, Excel verificado visualmente — consumió el cupo FREE real del
+> mes, como se esperaba. Regresión 802 tests, 801 PASS (mismo flake
+> XLSX histórico), build limpio. Tag: `v2.9-rifex-prod-inscripciones-v1`.
+> Detalle completo: `docs/WOP.md`, "RIFEX INSCRIPCIONES V1 FREE +
+> FUTURE BILLING FOUNDATION — PROD PROMOTION (2026-09-04)".
+>
+> 2026-09-04 — **RIFEX PSCG + DIFUSIÓN
 > V1.1 MULTIPRODUCTO PROD PROMOTION.** `origin/main`/PROD avanza desde
 > `7fcc1c5` (tag `v2.7-rifex-prod-progressive-onboarding`), promoviendo
 > exactamente el trabajo DEV certificado en `origin/develop` @

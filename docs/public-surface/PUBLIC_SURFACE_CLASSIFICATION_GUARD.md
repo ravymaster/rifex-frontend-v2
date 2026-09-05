@@ -4,6 +4,9 @@
 
 **Estado**: regla transversal, vigente desde 2026-09-04. Aplica a toda ruta nueva o modificada de Rifex a partir de este punto.
 
+> **2026-09-04 — INSCRIPCIONES V1 promovida a PROD.** Nuevas rutas clasificadas: `/inscripciones` (PUBLIC_INDEXABLE), `/inscripcion/[id]` y `/i/[token]` (PUBLIC_NOINDEX), `/crear-inscripcion` y `/panel/inscripciones`/`/panel/inscripciones/[id]`/`/panel/inscripciones/[id]/scanner` (PRIVATE_AUTHENTICATED, boundary `ssr_redirect` real desde el primer commit del módulo — nunca el patrón client-side histórico de `/panel/eventos`). Confirmado en vivo contra `rifex.pro`: `307` real, idéntico entre navegador/Googlebot/Meta/TikTok, cero fuga de HTML privado. Ver `docs/inscripciones/INSCRIPCIONES_V1_ARCHITECTURE.md`.
+
+
 ## Propósito
 
 Antes de PSCG, cada ruta pública/privada de Rifex decidía por su cuenta (y de forma implícita) su exposición, indexabilidad, metadata, boundary de auth y presencia en sitemap/robots — reconstruido caso a caso, misión a misión (AUTH UX 2026, PUBLIC SURFACE FINAL CLEANUP, PROGRESSIVE ONBOARDING). Eso funcionó, pero dejó la clasificación real dispersa entre código, docs y memoria de sesión.
