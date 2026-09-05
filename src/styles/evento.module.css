@@ -1,0 +1,27 @@
+.wrap { max-width: 860px; margin: 0 auto; }
+.cover { width: 100%; aspect-ratio: 16/7; object-fit: cover; border-radius: 16px; background: #f1f5f9; margin-bottom: 20px; }
+.title { font-size: 28px; font-weight: 800; color: #0f172a; margin: 0 0 10px; }
+.metaRow { display: flex; flex-wrap: wrap; gap: 18px; color: #475569; font-size: 14.5px; margin-bottom: 20px; }
+.metaItem { display: flex; align-items: center; gap: 6px; }
+.description { color: #334155; line-height: 1.7; font-size: 15px; margin-bottom: 28px; white-space: pre-wrap; }
+
+.sectionTitle { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 14px; }
+.ticketTypes { display: grid; gap: 12px; margin-bottom: 24px; }
+.ticketCard {
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1px solid #e5e7eb; border-radius: 14px; padding: 16px 18px;
+}
+.ticketName { font-weight: 700; color: #0f172a; font-size: 15px; }
+.ticketAvail { font-size: 13px; color: #64748b; margin-top: 2px; }
+.ticketPrice { font-weight: 800; color: #0f172a; font-size: 16px; }
+
+.ctaBox {
+  border: 1px solid #e5e7eb; border-radius: 16px; padding: 20px;
+  text-align: center; background: #f8fafc;
+}
+.ctaText { color: #64748b; font-size: 14.5px; margin: 0; }
+.ctaBtn {
+  display: inline-block; margin-top: 10px; padding: 12px 24px;
+  border-radius: 999px; background: #e2e8f0; color: #64748b;
+  font-weight: 700; font-size: 14.5px; cursor: not-allowed;
+}

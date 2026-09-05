@@ -1,103 +1,151 @@
 // pages/terminos.js
-import Head from "next/head";
+// STAGE 2 REPAIR — /terminos es ahora exclusivamente el documento
+// corporativo público de Rifex (Eventos, entradas digitales, Campañas,
+// plataforma). Las condiciones históricas/específicas de Rifas
+// (Comprador, Creador, Condiciones de Rifex-Rifas) se movieron
+// verbatim a /terminos-rifas — mismo texto, mismos anchors — para que
+// crear-rifa.jsx, rifas/[id].jsx y BuyerForm.jsx sigan apuntando a la
+// aceptación contractual real sin ninguna referencia rota. #privacidad
+// y #cookies se conservan aquí sin cambios porque ConsentBanner.jsx y
+// registro/continuar.jsx dependen de esos anchors exactos.
+import Layout from "@/components/Layout";
 
 export default function Terminos() {
   return (
     <>
-      <Head><title>Términos y Condiciones — Rifex</title></Head>
       <main style={{maxWidth:900, margin:"0 auto", padding:"24px 16px"}}>
         <h1 style={{marginBottom:8}}>Términos y Condiciones</h1>
-        <p style={{color:"#6B7280"}}>Última actualización: 10/09/2025</p>
+        <p style={{color:"#6B7280"}}>Última actualización: 01/09/2026</p>
 
         <hr style={{margin:"16px 0"}}/>
 
         <nav style={{margin:"12px 0 24px"}}>
-          <a href="#comprador">Comprador</a>{" · "}
-          <a href="#creador">Creador</a>{" · "}
-          <a href="#rifex">Condiciones de Rifex</a>{" · "}
-          <a href="#privacidad">Privacidad</a>{" · "}
-          <a href="#cookies">Cookies</a>
+          <a href="#rifex">Qué es Rifex</a>{" · "}
+          <a href="#cuentas">Cuentas</a>{" · "}
+          <a href="#plataforma">Eventos y Campañas</a>{" · "}
+          <a href="#pagos">Pagos y comisión</a>{" · "}
+          <a href="#responsabilidades">Responsabilidades</a>{" · "}
+          <a href="#reembolsos">Reembolsos</a>{" · "}
+          <a href="/uso-aceptable">Uso aceptable</a>{" · "}
+          <a href="/seguridad">Seguridad</a>{" · "}
+          <a href="/cumplimiento">Cumplimiento</a>{" · "}
+          <a href="/privacidad">Privacidad</a>{" · "}
+          <a href="/cookies">Cookies</a>{" · "}
+          <a href="#suspension">Suspensión</a>{" · "}
+          <a href="#contacto">Contacto</a>{" · "}
+          <a href="#cambios">Modificaciones</a>
         </nav>
 
-        <section id="comprador">
-          <h2>Términos del Comprador</h2>
-          <ol>
-            <li><strong>Qué es Rifex.</strong> Rifex (rifex.pro) conecta a <em>creadores</em> con <em>compradores</em> para rifas. Salvo indicación expresa, Rifex no es propietario del premio ni el organizador.</li>
-            <li><strong>Requisitos.</strong> Mayor de 18 años; datos veraces; no usar medios de pago ajenos sin autorización.</li>
-            <li><strong>Estados de números.</strong> Disponible, Reservado, Vendido. Si hay colisión, prevalece el pago aprobado primero por la pasarela.</li>
-            <li><strong>Pagos.</strong> Se procesan con pasarelas (p. ej., Mercado Pago) y aplican sus comisiones/condiciones. Rifex puede cobrar cargo de servicio según plan del creador.</li>
-            <li><strong>Premio y sorteo.</strong> Definidos por el creador y visibles en la ficha; debe publicar evidencia del sorteo. En “Depósito por Rifex”, Rifex transfiere el premio en dinero en el plazo informado.</li>
-            <li><strong>Entrega del premio.</strong> Dinero: transferencia. Físico: a convenir / retiro / envío pagado / envío incluido (según rifa).</li>
-            <li><strong>Reembolsos y disputas.</strong> Cargo duplicado o error: gestionar con pasarela y notificar a Rifex. Incumplimiento del creador: abre ticket con evidencia; Rifex puede sancionar al creador, sin garantizar reembolso fuera de lo exigido por ley/pasarela.</li>
-            <li><strong>Limitaciones.</strong> Participar en rifas implica aleatoriedad. Rifex no garantiza resultados ni cumplimiento de terceros, salvo en rifas marcadas como depósito por Rifex.</li>
-            <li><strong>Datos personales.</strong> Se usan para confirmar compras, notificaciones y gestión, según la <a href="#privacidad">Política de Privacidad</a>.</li>
-            <li><strong>Contacto.</strong> <a href="mailto:contacto@rifex.pro">contacto@rifex.pro</a></li>
-          </ol>
-        </section>
-
-        <hr style={{margin:"24px 0"}}/>
-
-        <section id="creador">
-          <h2>Términos del Creador</h2>
-          <ol>
-            <li><strong>Responsabilidades.</strong> Describir claramente premio, precio, cupos, fechas, reglas y modalidad de entrega/pago; cumplir normativa; publicar evidencia de sorteo y entrega/pago.</li>
-            <li><strong>Planes y flujo.</strong>
-              <ul>
-                <li><strong>Gratis:</strong> Rifex cobra y deposita en 3–5 días hábiles; 7% Rifex + pasarela (3–5,5%); 1 rifa limitada.</li>
-                <li><strong>Básico:</strong> 3% Rifex + pasarela; 2–3 rifas/mes; transferencias en 48 h hábiles.</li>
-                <li><strong>Pro:</strong> 0% Rifex (solo pasarela); rifas ilimitadas; pagos directos en ~24 h según pasarela.</li>
-              </ul>
-            </li>
-            <li><strong>Prohibiciones.</strong> Premios ilícitos/restringidos, publicidad engañosa, infracción de marcas/copyright, manipulación del sorteo.</li>
-            <li><strong>Auditoría.</strong> Rifex puede solicitar comprobantes; la falta puede implicar suspensión.</li>
-            <li><strong>Fraude y chargebacks.</strong> Rifex puede pausar, retener fondos, cancelar transacciones y bloquear cuentas.</li>
-            <li><strong>Datos de compradores.</strong> Usar solo para gestionar la rifa; prohibido spam o cesión sin base legal.</li>
-            <li><strong>Impuestos.</strong> A cargo del creador.</li>
-          </ol>
-        </section>
-
-        <hr style={{margin:"24px 0"}}/>
-
         <section id="rifex">
-          <h2>Condiciones de Uso de Rifex</h2>
+          <h2>Qué es Rifex</h2>
+          <p>
+            Rifex (rifex.pro) es una plataforma tecnológica que permite a organizadores publicar eventos con
+            entradas digitales y campañas de recaudación, y a usuarios comprar entradas o realizar aportes. Rifex
+            no es organizador de los eventos ni beneficiario de las campañas — esa responsabilidad es de cada
+            organizador.
+          </p>
+        </section>
+
+        <hr style={{margin:"24px 0"}}/>
+
+        <section id="cuentas">
+          <h2>Cuentas y usuarios</h2>
           <ol>
-            <li><strong>Cuenta y acceso.</strong> Mantén credenciales seguras; Rifex puede suspender ante violaciones.</li>
-            <li><strong>Servicio.</strong> Infraestructura técnica para rifas, pagos, paneles y comunicaciones; puede cambiar o interrumpirse por mantenimiento o fuerza mayor.</li>
-            <li><strong>Tarifas vigentes.</strong> Ver sección de planes en estos términos (Gratis/Básico/Pro). Pueden actualizarse con aviso razonable.</li>
-            <li><strong>Propiedad intelectual.</strong> Software y marcas de Rifex; contenido de rifas pertenece al creador; Rifex obtiene licencia para mostrarlo en la plataforma.</li>
-            <li><strong>Limitación de responsabilidad.</strong> Sin responsabilidad por daños indirectos o lucro cesante; tope: comisiones pagadas a Rifex en los últimos 3 meses, cuando legalmente aplique.</li>
-            <li><strong>Ley y jurisdicción.</strong> Chile; tribunales del domicilio de Rifex, salvo normas imperativas de consumo.</li>
-            <li><strong>Cambios.</strong> Publicaremos fecha de actualización y avisos relevantes.</li>
-            <li><strong>Contacto.</strong> <a href="mailto:contacto@rifex.pro">contacto@rifex.pro</a></li>
+            <li><strong>Registro.</strong> Para crear una iniciativa es necesario completar un registro: nombre (persona natural o empresa/organización), RUT válido, teléfono de contacto, declaración de ser mayor de 18 años, y la aceptación de estos Términos y de la Política de Privacidad.</li>
+            <li><strong>Cuenta y acceso.</strong> Mantén tus credenciales seguras; Rifex puede suspender el acceso ante una violación de estas condiciones.</li>
+            <li><strong>Veracidad de los datos.</strong> Eres responsable de que los datos que declares sean veraces y estén actualizados.</li>
           </ol>
         </section>
 
         <hr style={{margin:"24px 0"}}/>
 
-        <section id="privacidad">
-          <h2>Política de Privacidad (resumen)</h2>
-          <ul>
-            <li><strong>Responsable:</strong> Rifex (rifex.pro).</li>
-            <li><strong>Datos:</strong> correo, nombre opcional, IP, logs, datos de compra, contenidos de rifas.</li>
-            <li><strong>Finalidades:</strong> gestionar rifas, pagos, comunicaciones, seguridad/fraude y soporte.</li>
-            <li><strong>Base legal:</strong> contrato, interés legítimo, cumplimiento legal y/o consentimiento.</li>
-            <li><strong>Terceros:</strong> pasarelas, hosting, email, analítica agregada.</li>
-            <li><strong>Conservación:</strong> mientras exista la cuenta/rifa y plazos legales.</li>
-            <li><strong>Derechos:</strong> acceso, rectificación, cancelación, oposición, portabilidad y limitación.</li>
-          </ul>
+        <section id="plataforma">
+          <h2>Eventos, entradas digitales y Campañas de recaudación</h2>
+          <ol>
+            <li><strong>Qué es un Evento en Rifex.</strong> Un organizador publica un evento con uno o más tipos de entrada digital, cada una con su propio cupo. Cada entrada se emite como un código QR de un solo uso para el control de acceso.</li>
+            <li><strong>Qué es una Campaña en Rifex.</strong> Un organizador publica una campaña de recaudación y quienes aportan reciben confirmación de su aporte; el detalle operativo está en la <a href="/politica-campanas">Política de Campañas</a>.</li>
+            <li><strong>Más detalle por producto.</strong> <a href="/politica-eventos">Política de Eventos</a> y <a href="/politica-campanas">Política de Campañas</a>.</li>
+          </ol>
         </section>
 
         <hr style={{margin:"24px 0"}}/>
 
-        <section id="cookies">
-          <h2>Política de Cookies (resumen)</h2>
-          <ul>
-            <li>Usamos cookies esenciales (sesión/seguridad) y analíticas opcionales.</li>
-            <li>La pasarela puede usar cookies/almacenamiento para completar pagos.</li>
-            <li>Puedes limitar cookies no esenciales desde tu navegador.</li>
-          </ul>
+        <section id="pagos">
+          <h2>Pagos y comisión</h2>
+          <ol>
+            <li><strong>Procesamiento.</strong> Los pagos se procesan mediante el proveedor de pagos conectado por el organizador (Mercado Pago). Los fondos se acreditan directo en la cuenta del organizador, descontada la comisión de Rifex.</li>
+            <li><strong>Comisión.</strong> Rifex cobra una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por el proveedor de pagos al momento del pago. No hay planes, suscripciones ni cobro por publicar — ver <a href="/planes">Comisión</a>.</li>
+            <li><strong>Tarifas del proveedor.</strong> El proveedor de pagos puede aplicar sus propias tarifas de procesamiento o retiro, independientes de la comisión de Rifex.</li>
+          </ol>
         </section>
+
+        <hr style={{margin:"24px 0"}}/>
+
+        <section id="responsabilidades">
+          <h2>Responsabilidades</h2>
+          <ol>
+            <li><strong>Del organizador.</strong> Describir con veracidad su evento o campaña, cumplir la normativa aplicable, y respetar las condiciones publicadas antes y después de recibir pagos.</li>
+            <li><strong>Del usuario, comprador o aportante.</strong> Ser mayor de 18 años, proporcionar datos veraces, y no usar medios de pago ajenos sin autorización.</li>
+            <li><strong>De la plataforma.</strong> Rifex provee la infraestructura técnica; no es responsable por el contenido, la ejecución o el cumplimiento de cada evento o campaña individual más allá de los controles descritos en <a href="/seguridad">Seguridad</a> y <a href="/cumplimiento">Cumplimiento</a>. En la medida permitida por la normativa aplicable, Rifex no será responsable por daños indirectos o lucro cesante.</li>
+          </ol>
+        </section>
+
+        <hr style={{margin:"24px 0"}}/>
+
+        <section id="reembolsos">
+          <h2>Cancelaciones, reembolsos y disputas</h2>
+          <p>
+            Ver la <a href="/reembolsos">Política de Reembolsos</a> para el detalle real de qué es posible hoy en
+            la plataforma — Rifex no inventa mecanismos que el sistema no soporta. Ante un cargo duplicado o un
+            error de cobro, contacta primero al proveedor de pagos y notifica a Rifex. Ante un incumplimiento de un
+            organizador, puedes <a href="/reportar">reportarlo</a>.
+          </p>
+        </section>
+
+        <hr style={{margin:"24px 0"}}/>
+
+        <section id="suspension">
+          <h2>Suspensión</h2>
+          <p>
+            Un incumplimiento verificado de estos Términos, de la <a href="/uso-aceptable">Política de Uso
+            Aceptable</a> o de la normativa aplicable puede derivar en la suspensión de una cuenta y el bloqueo
+            para crear nuevas iniciativas, de forma proporcional a la gravedad. Rifex no determina por sí sola si
+            un incumplimiento constituye un delito — eso corresponde exclusivamente a la autoridad competente.
+          </p>
+        </section>
+
+        <hr style={{margin:"24px 0"}}/>
+
+        <section id="contacto">
+          <h2>Contacto</h2>
+          <p>
+            <a href="mailto:contacto@rifex.pro">contacto@rifex.pro</a> — también puedes escribirnos desde{" "}
+            <a href="/contacto">Contacto</a>.
+          </p>
+        </section>
+
+        <hr style={{margin:"24px 0"}}/>
+
+        <section id="cambios">
+          <h2>Modificaciones de las condiciones</h2>
+          <p>
+            Rifex puede actualizar estos Términos para reflejar cambios en la plataforma, sus proveedores y los
+            requisitos aplicables en los países donde se encuentre disponible. La fecha de la versión vigente se
+            indica al comienzo de esta página.
+          </p>
+        </section>
+
       </main>
     </>
   );
 }
+
+Terminos.getLayout = (page) => (
+  <Layout
+    title="Términos y Condiciones — Rifex"
+    description="Conoce las condiciones de uso de Rifex para organizadores y usuarios de eventos, entradas digitales y campañas de recaudación en línea."
+    canonicalPath="/terminos"
+  >
+    {page}
+  </Layout>
+);

@@ -5,15 +5,62 @@ import { useEffect, useMemo, useState } from "react";
 import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
 import { getIconByNumber } from "../../hooks/useIconsMap";
+import Layout from "../../components/Layout";
+import TrustBadge from "../../components/TrustBadge";
+import TrustPopup from "../../components/TrustPopup";
+import { canonicalUrl, DEFAULT_OG_IMAGE } from "../../lib/publicMetadata";
 
 import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
+import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 
 const TERMS_VERSION = "v1.0";
+const TZ_LABELS = {
+  "America/Santiago": "Hora de Chile",
+  "America/Argentina/Buenos_Aires": "Hora de Argentina",
+};
 const BANNER_AUTO_HIDE_MS = 15000; // 15s
 const MODAL_AUTO_HIDE_MS  = 12000; // 12s
 
-export default function RifaDetalle() {
+// RIFEX CLOSURE PASS (2026-08-29) — etiquetas neutras de entrega, incluye
+// el valor legado 'a_convenir' (rifas históricas, ya no ofrecible para
+// rifas nuevas desde crear-rifa.jsx, pero deben seguir mostrándose bien).
+const DELIVERY_METHOD_LABELS = {
+  retira_en_tienda: "Retiro / entrega presencial",
+  envio_incluido: "Envío incluido por el creador",
+  envio_pagado: "Envío a cargo del ganador",
+  a_convenir: "A convenir con el creador",
+};
+
+// RIFEX V4 A6 fix — esta página siempre fue client-fetch puro (raffle
+// llega recién tras el useEffect) y tiene un return temprano de "cargando"
+// antes de llegar al <Head> de abajo. Eso significa que un rastreador que
+// no ejecuta JS (Facebook, WhatsApp, X) nunca veía el <title>/canonical/OG
+// reales — solo el shell vacío. getServerSideProps resuelve exclusivamente
+// lo mínimo para metadata (title, creator_trust_level, vía el mismo
+// endpoint que ya usa el fetch client-side, sin duplicar su lógica) — el
+// resto de la página sigue funcionando exactamente igual que antes, con su
+// propio fetch client-side para la UI interactiva real.
+export async function getServerSideProps({ params, req }) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const base = `${proto}://${req.headers.host}`;
+  try {
+    const r = await fetch(`${base}/api/rifas/${params.id}`);
+    if (!r.ok) return { props: { metaTitle: null, metaTrustLevel: null } };
+    const j = await r.json();
+    const raffle = j?.data;
+    return {
+      props: {
+        metaTitle: raffle?.titulo || raffle?.title || null,
+        metaTrustLevel: raffle?.creator_trust_level ?? null,
+      },
+    };
+  } catch {
+    return { props: { metaTitle: null, metaTrustLevel: null } };
+  }
+}
+
+export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
   const router = useRouter();
   const { id } = router.query;
 
@@ -191,6 +238,7 @@ export default function RifaDetalle() {
       end_date: r.termino ?? r.end_date ?? null,
       start_date: r.inicio ?? r.start_date ?? null,
       creator_id: r.creador_id ?? r.creator_id ?? null,
+      creator_trust_level: r.creator_trust_level ?? null,
       created_at: r.created_at,
     };
   }
@@ -269,9 +317,87 @@ export default function RifaDetalle() {
     return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
   }, [raffle?.prize_amount_cents]);
 
+  // RIFEX CLOSURE PASS (2026-08-29) — "Información del premio" pública:
+  // un único bloque, solo con lo que aplica. Nunca inventa información
+  // sobre rifas históricas — requires_transfer_procedures=false en una
+  // rifa vieja significa "no declaró trámites bajo este contrato", nunca
+  // "transferencia incluida" (ver migración de la columna).
+  const premioInfo = useMemo(() => {
+    if (!raffle || raffle.prize_type !== "physical") return null;
+    const rows = [];
+
+    if (raffle.delivery_method) {
+      const label = DELIVERY_METHOD_LABELS[raffle.delivery_method] || raffle.delivery_method;
+      if (raffle.delivery_method === "envio_pagado") {
+        rows.push({
+          tone: "amber",
+          title: "Importante sobre el premio",
+          lines: ["Este es un premio físico.", "El costo de envío será asumido por el ganador."],
+        });
+      } else if (raffle.delivery_method === "envio_incluido") {
+        rows.push({
+          tone: "green",
+          title: "Envío incluido",
+          lines: ["El costo de envío será asumido por el creador."],
+        });
+      } else {
+        rows.push({ tone: "neutral", title: "Entrega del premio", lines: [label] });
+      }
+    }
+
+    if (raffle.requires_transfer_procedures) {
+      if (raffle.transfer_expenses_owner === "winner") {
+        rows.push({
+          tone: "amber",
+          title: "Importante sobre el premio",
+          lines: [
+            "Este premio requiere transferencia o trámites.",
+            "Los gastos asociados serán asumidos por el ganador.",
+            "Revisa las condiciones antes de participar.",
+          ],
+          conditions: raffle.transfer_conditions,
+        });
+      } else if (raffle.transfer_expenses_owner === "creator") {
+        rows.push({
+          tone: "green",
+          title: "Transferencia incluida",
+          lines: ["Los gastos y trámites informados serán asumidos por el creador."],
+          conditions: raffle.transfer_conditions,
+        });
+      }
+    }
+
+    return rows.length ? rows : null;
+  }, [raffle]);
+
+  // RIFEX CLOSURE PASS (2026-08-29) — resumen MUY compacto para el punto
+  // natural inmediatamente anterior al pago (BuyerForm): solo lo que
+  // implica un costo adicional a cargo del ganador, nunca los casos
+  // positivos (esos ya se ven arriba en "Información del premio").
+  const extraCostNotices = useMemo(() => {
+    if (!raffle || raffle.prize_type !== "physical") return [];
+    const notices = [];
+    if (raffle.delivery_method === "envio_pagado") notices.push("Envío a cargo del ganador.");
+    if (raffle.requires_transfer_procedures && raffle.transfer_expenses_owner === "winner") {
+      notices.push("Transferencia/trámites a cargo del ganador.");
+    }
+    return notices;
+  }, [raffle]);
+
+  const selectedTotalCLP = useMemo(() => {
+    const n = (Number(raffle?.price_cents || 0) / 100) * selected.length;
+    return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+  }, [raffle?.price_cents, selected.length]);
+
+  // DRAW-1: gate de tiempo — solo si la rifa configuró sales_end_at. Rifas
+  // V1 (sales_end_at=NULL) nunca quedan bloqueadas acá.
+  const salesClosed = !!(raffle?.sales_end_at && Date.now() >= new Date(raffle.sales_end_at).getTime());
+  const drawInfo = raffle?.draw_at && raffle?.timezone ? formatDrawAt(raffle.draw_at, raffle.timezone) : null;
+  const tzLabel = raffle?.timezone ? (TZ_LABELS[raffle.timezone] || raffle.timezone) : null;
+
   function isSelected(n) { return selected.includes(n); }
   function toggleNumber(n, isFree) {
-    if (!isFree) return;
+    if (!isFree || salesClosed) return;
     setSelected((prev) => prev.includes(n) ? prev.filter((x) => x !== n) : [...prev, n]);
   }
 
@@ -310,16 +436,55 @@ export default function RifaDetalle() {
     }
   }
 
+  // RIFEX V4 A6 fix — esta página tenía returns tempranos (cargando/error/no
+  // encontrada) que corrían ANTES de llegar al <Head> más abajo. Como toda
+  // la data llega por fetch client-side, la primera pasada SSR (la que ve
+  // un rastreador sin JS) siempre caía en el branch "Cargando…" sin
+  // title/canonical/OG reales. metaTitle/metaTrustLevel (de
+  // getServerSideProps) permiten construir el Head correcto ANTES de
+  // saber si `raffle` ya cargó en el cliente, y se renderiza en los tres
+  // branches de abajo además del branch principal.
+  const effectiveTitle = titleCap || metaTitle || "Rifa";
+  const effectiveTrustLevel = raffle?.creator_trust_level ?? metaTrustLevel ?? null;
+  const metaHead = (
+    <Head>
+      <title key="title">{`${effectiveTitle} — Información y condiciones | Rifex`}</title>
+      <meta
+        key="description"
+        name="description"
+        content="Consulta organizador, finalidad, premio, fecha, condiciones y estado de confianza de esta iniciativa en Rifex."
+      />
+      {/* RIFEX V4 A6 — landing individual con premio: fuera de catálogo/sitemap,
+          noindex pero follow (así Facebook/WhatsApp/X pueden seguir generando
+          la vista previa aunque no se indexe en buscadores), canonical propia.
+          key="robots" pisa el <meta robots> que Layout agregaría solo si se le
+          pasara noindex — acá se define directamente el valor exacto de V4. */}
+      <meta key="robots" name="robots" content="noindex, follow, noarchive" />
+      <link key="canonical" rel="canonical" href={canonicalUrl(`/rifas/${id || ""}`)} />
+      <meta key="og:title" property="og:title" content={`${effectiveTitle} — Información de la iniciativa`} />
+      <meta
+        key="og:description"
+        property="og:description"
+        content="Consulta organizador, finalidad, fecha, condiciones y estado de confianza en Rifex."
+      />
+      <meta key="og:url" property="og:url" content={canonicalUrl(`/rifas/${id || ""}`)} />
+      <meta key="og:type" property="og:type" content="website" />
+      <meta key="og:image" property="og:image" content={DEFAULT_OG_IMAGE} />
+      <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+    </Head>
+  );
+
   if (loading) {
-    return (<div className={styles.page}><div className={styles.loading}>Cargando rifa…</div></div>);
+    return (<div className={styles.page}>{metaHead}<div className={styles.loading}>Cargando rifa…</div></div>);
   }
   if (error) {
-    return (<div className={styles.page}><div className={styles.error}>{error}</div></div>);
+    return (<div className={styles.page}>{metaHead}<div className={styles.error}>{error}</div></div>);
   }
   // Fallback visible (evita pantalla en blanco)
   if (!raffle) {
     return (
       <div className={styles.page} style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        {metaHead}
         <div className={styles.error}>
           No encontramos esta rifa. Revisa el enlace o vuelve al <a href="/panel">panel</a>.
         </div>
@@ -329,9 +494,22 @@ export default function RifaDetalle() {
 
   const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
 
+  // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA
+  const hasAnyModalOrOverlay =
+    !!showIntro || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
+
   // —— FIX de superposición / stacking contexts ——
-  // Aislamos el contenedor de página para controlar las capas
-  const pageIsolated = { position: "relative", isolation: "isolate" };
+  // Aislamos el contenedor de página para controlar las capas.
+  // Cuando hay un overlay de pantalla completa (spinner de MP, modal de
+  // confirmación), subimos el z-index del propio contenedor por encima del
+  // header sticky del sitio: "isolation: isolate" atrapa hasta los elementos
+  // position:fixed dentro de este contexto, así que sin esto el header
+  // quedaría visualmente encima del overlay durante el flujo de pago.
+  const pageIsolated = {
+    position: "relative",
+    isolation: "isolate",
+    zIndex: hasAnyModalOrOverlay ? 3500 : "auto",
+  };
 
   const bannerStyle = (kind) => ({
     margin: "8px 0 12px",
@@ -339,7 +517,7 @@ export default function RifaDetalle() {
     borderRadius: 10,
     fontWeight: 700,
     position: "relative",
-    zIndex: 200, // <- por encima de la grilla
+    zIndex: 200, // <- por encima de la grilla/CTA
     ...(kind === "success"
       ? { background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }
       : kind === "error"
@@ -375,7 +553,8 @@ export default function RifaDetalle() {
 
   return (
     <div className={styles.page} style={pageIsolated}>
-      <Head><title>{titleCap || "Rifa"} — Rifex</title></Head>
+      {metaHead}
+      <TrustPopup trustLevel={effectiveTrustLevel} />
 
       {/* Overlay spinner durante la redirección a MP */}
       {redirecting && (
@@ -433,13 +612,14 @@ export default function RifaDetalle() {
 
         {/* Encabezado */}
         <div className={styles.head}>
+          <span className={styles.statusPill}>● {raffle.status || "activa"}</span>
           <h1 className={styles.title}>{titleCap}</h1>
           <p className={styles.sub}>{raffle.description || ""}</p>
         </div>
 
         {/* Info top */}
         <div className={styles.topInfo}>
-          <div className={styles.infoItem}>
+          <div className={`${styles.infoItem} ${styles.infoItemHi}`}>
             <div className={styles.infoLabel}>Premio</div>
             <div className={styles.infoValue}>{prizeCLP}</div>
             <div className={styles.infoSub}>{raffle.prize_description || "—"}</div>
@@ -451,19 +631,78 @@ export default function RifaDetalle() {
           </div>
           <div className={styles.infoItem}>
             <div className={styles.infoLabel}>Termina</div>
-            <div className={styles.infoValue}>{raffle.end_date ? new Date(raffle.end_date).toLocaleDateString("es-CL") : "—"}</div>
-            <div className={styles.infoSub}>Estado: <b>{raffle.status || "activa"}</b></div>
+            <div className={styles.infoValue}>{raffle.end_date ? (formatDateOnly(raffle.end_date) ?? "—") : "—"}</div>
+            <div className={styles.infoSub}>{" "}</div>
           </div>
-          <div className={styles.linksCol}>
-            {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>Ver perfil del creador</a>}
-            <a className={styles.linkSecondary} href={`/rifas/${id}/chat`}>Ir al chat de esta rifa</a>
-            <a className={styles.linkMuted} href="/terminos" target="_blank" rel="noreferrer">Términos de la rifa</a>
+        </div>
+
+        {/* DRAW-1: estado público del lifecycle temporal (sin copy técnico) */}
+        {(drawInfo || (raffle?.extension_limit ?? 0) > 0) && !winner && (
+          <div style={{ margin: "4px 0 12px", padding: "12px 14px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#f8fafc", color: "#0f172a", fontSize: 14, lineHeight: 1.6 }}>
+            <div style={{ fontWeight: 700 }}>{salesClosed ? "Ventas cerradas" : "Ventas abiertas"}</div>
+            {drawInfo && (
+              <div>Sorteo: {drawInfo.date} · {drawInfo.time}{tzLabel ? ` · ${tzLabel}` : ""}</div>
+            )}
+            {drawInfo && (
+              <div style={{ color: "#94a3b8", fontSize: 12 }}>
+                Sorteo automático: puede ejecutarse hasta 5 minutos después de la hora indicada.
+              </div>
+            )}
+            {drawInfo && <div style={{ color: "#64748b" }}>Ventas cierran 5 minutos antes del sorteo.</div>}
+            {(raffle?.extension_limit ?? 0) > 0 && (
+              <div style={{ color: "#64748b" }}>
+                {(raffle?.extensions_used ?? 0) > 0
+                  ? `Fecha de sorteo modificada · ${raffle.extensions_used} de ${raffle.extension_limit} extensiones utilizadas.`
+                  : `Esta rifa puede extender su fecha de sorteo hasta ${raffle.extension_limit} ${raffle.extension_limit === 1 ? "vez" : "veces"}. Cualquier cambio será informado a los participantes.`}
+              </div>
+            )}
           </div>
+        )}
+
+        {/* RIFEX CLOSURE PASS (2026-08-29): un único bloque público con las
+            condiciones económicas del premio físico — visible ANTES de
+            participar, nunca escondido en Términos. Ámbar = costo a cargo
+            del ganador, verde = incluido por el creador, neutro = sin
+            alerta económica (ej. retiro presencial). */}
+        {premioInfo && (
+          <div style={{ margin: "4px 0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: ".03em" }}>
+              Información del premio
+            </div>
+            {premioInfo.map((row, idx) => (
+              <div
+                key={idx}
+                className={row.tone === "amber" ? styles.alertAmber : row.tone === "green" ? styles.alertGreen : styles.alertNeutral}
+              >
+                {row.title && <div style={{ fontWeight: 700, marginBottom: 4 }}>{row.title}</div>}
+                {row.lines.map((line, i) => <div key={i}>{line}</div>)}
+                {row.conditions && (
+                  <>
+                    <div style={{ fontWeight: 700, marginTop: 8 }}>Condiciones de transferencia</div>
+                    <div>{row.conditions}</div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <TrustBadge level={raffle?.creator_trust_level ?? null} />
+
+        <div className={styles.linksRow}>
+          {creatorId && <a className={styles.linkPrimary} href={`/perfil/${creatorId}`}>👤 Ver perfil del creador</a>}
+          <a className={styles.linkMuted} href="/terminos-rifas" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
         </div>
 
         {/* Grid de números */}
         <div className={styles.numbersWrap} style={{ position: "relative", zIndex: 1 }}>
-          <h3 className={styles.numbersTitle}>Números disponibles</h3>
+          <div className={styles.numbersHead}>
+            <h3 className={styles.numbersTitle}>Números disponibles</h3>
+            <div className={styles.legend}>
+              <span className={styles.legendItem}><span className={styles.legendDot} style={{ background: "#23B6C6" }} />Disponible</span>
+              <span className={styles.legendItem}><span className={styles.legendDot} style={{ background: "#94a3b8" }} />Vendido</span>
+            </div>
+          </div>
           <div className={styles.numbersBlock}>
             <div className={styles.numsGrid}>
               {tickets.map((t) => {
@@ -584,16 +823,25 @@ export default function RifaDetalle() {
           </div>
         </div>
 
-        {/* CTA abajo — se oculta mientras el modal BuyerForm o el modal de pago estén abiertos */}
-        {!showBuyer && !paymentResult && (
-          <div className={styles.bottomCta} style={{ position: "relative", zIndex: 50 }}>
+        {/* CTA abajo — oculto cuando hay banner/intro/modales/redirect */}
+        {!hasAnyModalOrOverlay && (
+          <div
+            className={styles.bottomCta}
+            style={{ position: "relative", zIndex: 10, marginTop: 12 }}
+            aria-hidden={hasAnyModalOrOverlay}
+          >
             <button
               type="button"
               className={styles.cta}
-              disabled={selected.length === 0}
+              disabled={salesClosed || selected.length === 0}
               onClick={() => setShowBuyer(true)}
+              style={{ position: "relative", zIndex: 1 }}
             >
-              {selected.length === 0 ? "Comprar (selecciona)" : `Comprar (${selected.length})`}
+              {salesClosed
+                ? "Ventas cerradas"
+                : selected.length === 0
+                ? "Selecciona un número para comprar"
+                : `Comprar ${selected.length} ${selected.length === 1 ? "número" : "números"} — ${selectedTotalCLP}`}
             </button>
           </div>
         )}
@@ -631,6 +879,10 @@ export default function RifaDetalle() {
         onSubmit={async (buyer) => { setShowBuyer(false); await comprar(buyer); }}
         // fuerza al modal/overlay a estar arriba
         modalZIndex={2100}
+        // RIFEX CLOSURE PASS (2026-08-29): disclosure MUY compacta de
+        // costos adicionales, en el resumen inmediatamente anterior al
+        // pago — nunca escondida en Términos.
+        extraCostNotices={extraCostNotices}
       />
 
       {/* Animaciones */}
@@ -648,3 +900,6 @@ export default function RifaDetalle() {
     </div>
   );
 }
+
+RifaDetalle.getLayout = (page) => <Layout disableAutoMeta>{page}</Layout>;
+

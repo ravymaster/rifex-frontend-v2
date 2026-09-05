@@ -59,6 +59,9 @@
 .status[data-state="off"]{
   color:#6b7280; background:rgba(107,114,128,.10); border-color:rgba(107,114,128,.35);
 }
+.status[data-state="pending"]{
+  color:#92400e; background:rgba(217,119,6,.10); border-color:rgba(217,119,6,.35);
+}
 
 .providerActions{
   margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;
@@ -78,3 +81,23 @@
   display:inline-flex; align-items:center; justify-content:center;
   padding:10px 14px; border-radius:10px; font-weight:800; color:#b91c1c; background:#fff; border:1px solid #fecaca;
 }
+
+.statsGrid{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:14px;
+}
+@media (max-width:560px){ .statsGrid{ grid-template-columns:1fr; } }
+.statTile{
+  background:var(--fondo); border-radius:12px; padding:12px;
+}
+.statLabel{ font-size:12px; color:var(--gris); margin-bottom:4px; }
+.statValue{ font-size:20px; font-weight:800; color:var(--oscuro); }
+.statValue[data-tone="accent"]{ color:var(--trebol); }
+
+.earningsList{ display:flex; flex-direction:column; gap:8px; }
+.earningsRow{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:10px 12px; border:1px solid var(--borde); border-radius:10px; font-size:13px;
+}
+.earningsRowTitle{ font-weight:700; color:var(--oscuro); }
+.earningsRowSub{ color:var(--gris); font-size:12px; }
+.earningsRowNet{ font-weight:800; color:var(--trebol); white-space:nowrap; }

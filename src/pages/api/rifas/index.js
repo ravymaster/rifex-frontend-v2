@@ -1,5 +1,11 @@
 // src/pages/api/rifas/index.js
 import { createClient } from '@supabase/supabase-js';
+import { assertCountryGate } from '@/lib/countryGate';
+import { assertCreatorEligible } from '@/lib/trustIdentityGate';
+import { COUNTRY_POLICY } from '@/lib/countryPolicy';
+import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
+import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
+import { enforceRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,8 +28,25 @@ const ALLOWED_CREATE_FIELDS = new Set([
   'prize_photos',
   'start_date',
   'end_date',
-  'status'
+  'status',
+  'extension_limit',
+  'requires_transfer_procedures',
+  'transfer_expenses_owner',
+  'transfer_conditions',
 ]);
+
+const MAX_EXTENSION_LIMIT = 3;
+// DRAW-1B: anticipación mínima — con T-5, esto deja al menos 5 minutos
+// reales de venta antes de que sales_end_at cierre las compras.
+const MIN_LEAD_MINUTES = 10;
+
+// RIFEX CLOSURE PASS (2026-08-29): "a_convenir" sigue siendo un valor
+// válido en la DB (rifas históricas), pero ninguna rifa NUEVA puede
+// crearse con él — las condiciones económicas de entrega deben conocerse
+// antes de participar.
+const DELIVERY_METHODS_FOR_NEW_RAFFLES = new Set(['retira_en_tienda', 'envio_incluido', 'envio_pagado']);
+const TRANSFER_EXPENSES_OWNERS = new Set(['creator', 'winner']);
+const MAX_TRANSFER_CONDITIONS_LENGTH = 500;
 
 export default async function handler(req, res) {
   try {
@@ -38,7 +61,10 @@ export default async function handler(req, res) {
       if (status && status !== 'all') {
         query = query.eq('status', status);
       } else {
-        query = query.neq('status', 'deleted');
+        // Listado público real: solo lo que efectivamente está activo o
+        // cerrado (con página pública visitable) — nunca draft ni ningún
+        // otro estado intermedio, aunque no sea 'deleted'.
+        query = query.in('status', ['active', 'closed']);
       }
 
       if (q && String(q).trim()) {
@@ -53,9 +79,44 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       const body = req.body || {};
-      // Datos del usuario (desde el navegador agregaremos estos headers)
-      const creator_email = (req.headers['x-user-email'] || '').toString().trim() || null;
-      const creator_id = (req.headers['x-user-id'] || '').toString().trim() || null;
+
+      // Identidad real del creador: se verifica el token contra Supabase,
+      // no se confía en headers que el cliente podría falsificar.
+      const authz = req.headers.authorization || '';
+      const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+      if (!token) return res.status(401).json({ ok: false, error: 'missing_auth' });
+
+      const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+      if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+
+      const creator_id = ures.user.id;
+      const creator_email = (ures.user.email || '').toLowerCase() || null;
+
+      // PRE-LAUNCH-FIX-1 (P1-3): identidad ya resuelta acá — se limita por
+      // user_id, nunca por IP, para que un usuario no consuma cupo de otro
+      // detrás del mismo NAT/proxy.
+      if (await enforceRateLimit(req, res, { key: `rifas-create:${creator_id}`, maxHits: 10, windowSeconds: 60 })) return;
+
+      // Country Gate (G2): país operativo del creador, autoridad única =
+      // users_profile.country_code server-side.
+      const gate = await assertCountryGate(creator_id, 'raffles');
+      if (!gate.ok) return res.status(403).json({ ok: false, error: gate.reason, message: gate.message });
+
+      // TRUST-1/TRUST-2: onboarding universal + identidad básica (18+,
+      // RUT para Chile) obligatorios antes de crear — igual criterio
+      // que el Country Gate, autoridad única server-side, nunca
+      // confiado a que el cliente ya haya pasado por /registro/continuar.
+      const eligibility = await assertCreatorEligible(creator_id);
+      if (!eligibility.ok) return res.status(403).json({ ok: false, error: eligibility.reason, message: eligibility.message });
+
+      // DRAW-1: declaraciones obligatorias — 18+ y propiedad del premio.
+      // Server-side siempre (nunca confiar solo en el checkbox del cliente).
+      if (body.age_confirmed !== true) {
+        return res.status(400).json({ ok: false, error: 'age_confirmation_required' });
+      }
+      if (body.prize_declaration_confirmed !== true) {
+        return res.status(400).json({ ok: false, error: 'prize_declaration_required' });
+      }
 
       // Sanitizar payload
       const row = {};
@@ -71,17 +132,100 @@ export default async function handler(req, res) {
       }
       if (!row.status) row.status = 'active';
 
+      row.extension_limit = Math.max(0, Math.min(MAX_EXTENSION_LIMIT, Math.round(Number(row.extension_limit || 0))));
+
+      // RIFEX CLOSURE PASS (2026-08-29): transparencia de entrega/
+      // transferencia — nunca confiar en lo que mande el cliente más allá
+      // de lo que la forma del premio realmente permite. Cada rama fuerza
+      // explícitamente los campos que NO aplican a null/false, en vez de
+      // solo validar los que sí — así un payload adversarial no puede
+      // colar transfer_expenses_owner en una rifa de dinero, por ejemplo.
+      if (row.prize_type === 'money') {
+        row.delivery_method = null;
+        row.requires_transfer_procedures = false;
+        row.transfer_expenses_owner = null;
+        row.transfer_conditions = null;
+      } else if (row.prize_type === 'physical') {
+        if (!DELIVERY_METHODS_FOR_NEW_RAFFLES.has(row.delivery_method)) {
+          return res.status(400).json({ ok: false, error: 'invalid_delivery_method' });
+        }
+        const requiresTransfer = row.requires_transfer_procedures === true;
+        row.requires_transfer_procedures = requiresTransfer;
+        if (!requiresTransfer) {
+          row.transfer_expenses_owner = null;
+          row.transfer_conditions = null;
+        } else {
+          const owner = row.transfer_expenses_owner;
+          if (!TRANSFER_EXPENSES_OWNERS.has(owner)) {
+            return res.status(400).json({ ok: false, error: 'invalid_transfer_expenses_owner' });
+          }
+          const conditions = typeof row.transfer_conditions === 'string' ? row.transfer_conditions.trim() : '';
+          if (!conditions) {
+            return res.status(400).json({ ok: false, error: 'missing_transfer_conditions' });
+          }
+          if (conditions.length > MAX_TRANSFER_CONDITIONS_LENGTH) {
+            return res.status(400).json({ ok: false, error: 'transfer_conditions_too_long' });
+          }
+          row.transfer_expenses_owner = owner;
+          row.transfer_conditions = conditions;
+        }
+      } else {
+        return res.status(400).json({ ok: false, error: 'invalid_prize_type' });
+      }
+
       // Asignar creador si viene (evitamos depender del trigger)
       if (creator_email) row.creator_email = creator_email;
       if (creator_id) row.creator_id = creator_id;
 
-      // Crear rifa
-      const { data: created, error: insErr } = await supabase
-        .from('raffles')
-        .insert(row)
-        .select('*')
-        .single();
-      if (insErr) throw insErr;
+      // DRAW-UX-FINAL: fecha/hora de sorteo — OBLIGATORIA para toda rifa
+      // nueva (ninguna rifa nueva puede quedar con draw_at=NULL). Las rifas
+      // legacy ya existentes no se tocan — este requisito solo aplica al
+      // camino de creación. El creador solo entrega fecha/hora "de pared";
+      // la zona horaria SIEMPRE se resuelve server-side desde el país real
+      // del creador (users_profile.country_code), nunca desde un valor que
+      // mande el cliente — mismo criterio que el Country Gate.
+      const { draw_date, draw_time } = body || {};
+      if (!draw_date || !draw_time) {
+        return res.status(400).json({ ok: false, error: 'missing_draw_datetime', message: 'La fecha y hora del sorteo son obligatorias.' });
+      }
+      {
+        const { data: profile } = await supabase
+          .from('users_profile')
+          .select('country_code')
+          .eq('user_id', creator_id)
+          .maybeSingle();
+        const countryCode = profile?.country_code || null;
+        const timeZone = COUNTRY_POLICY[countryCode]?.defaultTimezone || null;
+        if (!timeZone) {
+          return res.status(400).json({ ok: false, error: 'country_timezone_unavailable' });
+        }
+        const drawAtIso = zonedTimeToUtcISOString(draw_date, draw_time, timeZone);
+        if (!drawAtIso) {
+          return res.status(400).json({ ok: false, error: 'invalid_draw_datetime' });
+        }
+        if (new Date(drawAtIso).getTime() < Date.now() + MIN_LEAD_MINUTES * 60_000) {
+          return res.status(400).json({ ok: false, error: 'draw_at_too_soon', message: `El sorteo debe ser al menos ${MIN_LEAD_MINUTES} minutos en el futuro.` });
+        }
+        row.draw_at = drawAtIso;
+        row.sales_end_at = computeSalesEndAt(drawAtIso);
+        row.timezone = timeZone;
+        // DRAW-UX-FINAL: end_date se deriva SIEMPRE de draw_date (fecha "de
+        // pared" ya en términos del creador, sin conversión adicional) para
+        // que la compatibilidad V1 (listados, panel, perfil público) no
+        // dependa de que el cliente la mande por su cuenta.
+        row.end_date = draw_date;
+      }
+
+      // DRAW-1B: crear rifa + declaraciones legales en una sola transacción
+      // (RPC atómica) — si el registro de 18+/premio falla, la rifa
+      // tampoco queda creada. Nunca dejar una rifa sin evidencia de
+      // aceptación (fail-closed).
+      const { data: created, error: rpcErr } = await supabase.rpc('create_raffle_with_declarations', {
+        p_raffle: row,
+        p_user_id: creator_id,
+        p_declaration_types: [DECLARATION_TYPES.AGE_18, DECLARATION_TYPES.PRIZE_OWNERSHIP],
+      });
+      if (rpcErr) throw rpcErr;
 
       // Crear tickets 1..N
       const tickets = Array.from({ length: created.total_numbers }, (_, i) => ({

@@ -182,6 +182,114 @@
     var(--fondo);
 }
 
+/* Secciones dentro del formCard */
+.section {
+  padding: 20px 0;
+  border-top: 1px solid var(--borde);
+}
+.section:first-child { border-top: none; padding-top: 0; }
+.sectionTitle {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--oscuro);
+  margin: 0 0 12px;
+}
+.fieldGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 560px) {
+  .fieldGrid { grid-template-columns: 1fr; }
+}
+.field { display: flex; flex-direction: column; gap: 6px; }
+.fieldLabel { font-size: 13px; font-weight: 600; color: var(--oscuro); }
+
+/* RIFEX CLOSURE PASS (2026-08-29) — segmented control moderno para
+   selecciones de una sola opción (entrega, transferencia, dueño de
+   gastos). Reemplaza los <select> planos en los puntos donde las
+   opciones deben ser visibles de inmediato, sin desplegar un menú. */
+.radioGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.radioOption {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--borde);
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--oscuro);
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.radioOption:hover { border-color: var(--ultramar); }
+.radioOption input {
+  accent-color: var(--ultramar);
+  margin: 0;
+}
+.radioOption[data-active="true"] {
+  border-color: var(--ultramar);
+  background: rgba(30,58,138,0.06);
+  box-shadow: 0 0 0 3px rgba(30,58,138,.10);
+}
+
+/* Texto de ayuda breve bajo un campo (ej. transferencia) */
+.fieldHelp {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--gris);
+}
+
+/* Cajas de alerta compactas — reusadas en el bloque público de
+   Información del premio (rifas/[id].jsx) y, si aplica, en Crear Rifa. */
+.alertAmber {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alertGreen {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #14532D;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alertNeutral {
+  background: #F8FAFC;
+  border: 1px solid var(--borde);
+  color: var(--oscuro);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+/* Checkbox de términos */
+.checkRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  font-size: 14px;
+  color: var(--oscuro);
+  line-height: 1.5;
+}
+.checkRow input { margin-top: 3px; flex-shrink: 0; }
+.checkRow a { color: var(--ultramar); }
+
 /* styles/crearRifa.module.css */
 .btnCreate {
   cursor: pointer;                /* ← manito */

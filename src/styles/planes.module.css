@@ -20,10 +20,21 @@
   border-color: rgba(24,169,87,.35);
   box-shadow:0 14px 34px rgba(24,169,87,.20);
 }
+/* Desktop: badge flotante en la esquina, como siempre. */
 .badge{
   position:absolute; top:12px; right:12px;
   font-size:12px; font-weight:800; padding:4px 8px; border-radius:999px;
   color:#0a7f4f; background:rgba(24,169,87,.12); border:1px solid rgba(24,169,87,.35);
+  display:inline-block;
+}
+/* Mobile: fila propia, en flujo normal — nunca puede superponerse al
+   título sin importar cuánto ocupe (mismo breakpoint que .grid). */
+@media (max-width:899px){
+  .badge{
+    position:static;
+    display:inline-block;
+    margin-bottom:10px;
+  }
 }
 
 .planName{ margin:0 0 4px; font-weight:800; color:#0f172a; }
@@ -35,4 +46,19 @@
   padding:10px 14px; border-radius:12px; font-weight:800; color:#fff; text-decoration:none;
   background: linear-gradient(135deg, var(--ultramar), var(--trebol)); border:none;
   box-shadow:0 6px 14px rgba(24,169,87,.22);
+}
+
+.explainGrid{
+  display:grid; gap:16px; grid-template-columns:1fr;
+  max-width:920px; margin:28px auto 0;
+}
+@media (min-width:900px){ .explainGrid{ grid-template-columns:1fr 1fr; } }
+
+.explain{
+  background:#fff; border:1px solid var(--borde); border-radius:16px; padding:18px;
+}
+.explainTitle{ margin:0 0 8px; font-weight:800; color:#0f172a; font-size:16px; }
+.explainText{ margin:0; color:var(--gris); line-height:1.6; }
+.explainHighlight{
+  margin:10px 0 0; font-weight:700; color:var(--ultramar);
 }

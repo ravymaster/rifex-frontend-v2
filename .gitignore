@@ -20,6 +20,7 @@ docs/dotenv.example
 *.zip
 *.tar
 *.tgz
+db_cluster-*.backup.gz
 
 # SO / editor
 .DS_Store
@@ -49,3 +50,6 @@ coverage/
 
 # env
 .env*
+.env.local
+.env
+.vercel

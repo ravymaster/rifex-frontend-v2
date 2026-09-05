@@ -1,77 +1,23 @@
-
-
-
-/* Página */
-.page{
-  min-height: calc(100vh - 64px);
-  display:flex; align-items:center; justify-content:center;
-  padding:20px 14px;
-  background: var(--fondo);
-}
-
-/* Tarjeta con gradiente Rifex (compacta) */
-.shell{
-  width:100%; max-width:980px;
-  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
-  border-radius: 22px;
-  padding: 12px;
-  box-shadow: 0 16px 36px rgba(0,0,0,.10);
-}
-
-/* Grid interno */
-.inner{
-  display:grid; gap:12px;
-  grid-template-columns: 1fr;
-}
-@media (min-width: 900px){
-  .inner{ grid-template-columns: 1.05fr 0.95fr; }
-}
-
-/* Panel de marca (compactado) */
-.brandPanel{
-  background: rgba(255,255,255,0.10);
-  border-radius: 16px;
-  display:flex; align-items:center; justify-content:center;
-  padding: 16px;
-  color: #fff;
-  text-align: center;
-}
-.brandBox{ max-width: 360px; }
-.logo{ width: 48px; height: 48px; object-fit: contain; margin-bottom: 8px; }
-.brandTitle{ margin:0 0 6px; font-weight: 800; font-size: 22px; letter-spacing:-0.2px; }
-.brandText{ margin:0 auto 12px; max-width: 320px; opacity:.95; }
-
-/* Dots */
-.dots{ display:flex; gap:8px; justify-content:center; }
-.dot{ width: 8px; height: 8px; border-radius: 999px; background: #fff; opacity:.9; }
-.dot[data-variant="blue"]{ background: var(--ultramar); }
-.dot[data-variant="teal"]{ background: #23B6C6; }
-.dot[data-variant="green"]{ background: var(--trebol); }
-
-/* Panel del formulario */
-.formPanel{
-  background:#fff; color:var(--oscuro);
-  border-radius: 16px; border: 1px solid rgba(255,255,255,0.20);
-  padding: 16px;
-  box-shadow: 0 10px 22px rgba(0,0,0,.06);
-}
+/* AUTH UX 2026 — el shell (page/brand panel/tarjeta) vive ahora en
+   authShell.module.css, compartido con /register. Este módulo solo
+   tiene los estilos internos del formulario de login. */
 
 /* Títulos form */
 .formTitle{
-  margin:0 0 4px; font-weight: 800; color: var(--ultramar);
-  letter-spacing: -0.2px; font-size: 22px; line-height: 1.20;
+  margin:0 0 6px; font-weight: 800; color: var(--ultramar);
+  letter-spacing: -0.3px; font-size: 26px; line-height: 1.15;
 }
-.formSub{ margin:0 0 12px; color: var(--gris); }
+.formSub{ margin:0 0 20px; color: var(--gris); font-size: 15px; }
 
 /* Inputs (compactos) */
-.formPanel :global(.input){
+.form :global(.input){
   border-radius: 10px;
   border: 1px solid var(--borde);
   background: #fff;
   padding: 9px 11px;
   box-shadow: 0 1px 6px rgba(0,0,0,.03);
 }
-.formPanel :global(.input:focus){
+.form :global(.input:focus){
   outline: none;
   box-shadow: 0 0 0 3px rgba(30,58,138,.14);
 }
@@ -82,7 +28,7 @@
 
 /* Acciones */
 .actions{
-  margin-top: 14px;
+  margin-top: 16px;
   display: grid;
   gap: 8px;
 }
@@ -109,11 +55,17 @@
   border:1.5px solid var(--ultramar);
 }
 
-/* hCaptcha */
-.captchaWrap{ margin: 12px 0 4px; }
+/* hCaptcha — el widget tiene ~302px de ancho fijo; en mobile angosto no
+   entra completo, así que se lo deja hacer scroll horizontal SOLO dentro
+   de esta franja en vez de forzar ancha a toda la tarjeta. */
+.captchaWrap{
+  margin: 14px 0 4px;
+  max-width: 100%;
+  overflow-x: auto;
+}
 
 /* OAuth separator */
-.oauthArea{ margin-top: 12px; }
+.oauthArea{ margin-top: 16px; }
 .hr{ display:flex; align-items:center; gap:10px; margin:8px 0 10px; }
 .hr::before, .hr::after{ content:""; flex:1; height:1px; background:#e5e7eb; }
 .hr span{ color:#64748b; font-size:12px; }
@@ -121,8 +73,20 @@
 .oauthBtn{
   cursor: pointer;
   transition: box-shadow .2s, transform .06s;
+  width: 100%;
 }
 .oauthBtn:hover{ box-shadow: 0 6px 16px rgba(16,24,40,.12); }
 .oauthBtn:active{ transform: translateY(1px); }
 
+/* Pie: link a Register */
+.footerLink{ margin-top: 18px; text-align: center; font-size: 14px; color: var(--gris); }
+.footerLink a{ color: var(--ultramar); font-weight: 700; text-decoration: none; }
+.footerLink a:hover{ text-decoration: underline; }
 
+/* Fila etiqueta + enlace olvidar */
+.row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.link{
+  font-size: 13px; color: var(--ultramar);
+  text-decoration: underline; cursor: pointer;
+}
+.link:hover{ opacity: .9; }

@@ -1,7 +1,14 @@
 import Link from 'next/link';
+import Head from 'next/head';
+import Layout from '@/components/Layout';
 
 export default function NotFound() {
   return (
+    <>
+    <Head>
+      <title>Página no encontrada — Rifex</title>
+      <meta name="robots" content="noindex, nofollow" />
+    </Head>
     <section style={{
       minHeight:'calc(100vh - 64px)', display:'grid', placeItems:'center',
       background:'linear-gradient(135deg, rgba(30,58,138,.08), rgba(24,169,87,.08)) #F7F8FA'
@@ -15,5 +22,8 @@ export default function NotFound() {
         <Link href="/" className="btn btn-primary">Volver al inicio</Link>
       </div>
     </section>
+    </>
   );
 }
+
+NotFound.getLayout = (page) => <Layout noindex>{page}</Layout>;
