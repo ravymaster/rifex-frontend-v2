@@ -1,7 +1,38 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-05 (actualización más reciente) — **RIFEX FINAL PUBLIC
+> 2026-09-05 (actualización más reciente) — **RIFEX v3.0 PLATFORM
+> BASELINE PROD CERTIFIED.** `origin/main` avanza de `4a30814` (tag
+> `v2.9`) a `0c72ccf`, tag `v3.0-rifex-prod-platform`. Promoción
+> controlada a PROD de Product Landings V1 + Final Public Surface
+> Closure. Auditoría previa encontró 219 commits de diferencia
+> `main..develop` — un merge directo habría sido inseguro; `main`
+> tiene su propia historia de promoción quirúrgica para trabajo previo.
+> El diff real de archivos fue de 31, con 8 excluidos por no
+> pertenecer a esta promoción (`DevBanner.jsx`/`captchaGate.js` de
+> D5/D5-FINAL — tooling exclusivo de DEV — y su wiring en
+> `_app.js`/`login.jsx`/`register.jsx`; 2 reordenamientos triviales de
+> Blog sin relación). Release candidate: 29 archivos reconstruidos
+> archivo por archivo (nunca merge) sobre `origin/main`. Verificado
+> antes del push: 367/367 tests específicos, regresión 882/883 (mismo
+> flake histórico de XLSX), build limpio, smoke en vivo. El push
+> directo a `main` quedó bloqueado por la capa de permisos de la
+> sesión (como en toda misión anterior) — se entregó el comando exacto
+> a Rodrigo, quien lo ejecutó (fast-forward limpio). **Verificación en
+> vivo post-push contra `rifex.pro` real**: deployment Vercel `●
+> Ready` confirmado; multi-UA en las 4 públicas → `200` MD5-idéntico;
+> `/soluciones/eventos` → `308` idéntico; rutas privadas → `307`
+> idéntico a `/login?next=...`, cero fuga de HTML; `www.rifex.pro`
+> alias confirmado; `robots.txt`/`sitemap.xml` en vivo correctos; 4
+> enlaces sociales reales confirmados, cero YouTube/X; cero
+> rifa/sorteo/premio en superficie pública anónima. Rodrigo revisó
+> visualmente producción y autorizó el tag antes de crearlo. Cero
+> cambios a Payment Engine/Mercado Pago/webhooks/comisión/RLS/
+> Supabase/migraciones/lógica de negocio. Detalle completo:
+> `docs/WOP.md`, "RIFEX v3.0 PLATFORM BASELINE PROD CERTIFIED
+> (2026-09-05)".
+>
+> 2026-09-05 — **RIFEX FINAL PUBLIC
 > SURFACE CLOSURE, DEV only, misión autónoma.** `origin/develop` avanza
 > desde la misión RIFEX PRODUCT LANDINGS V1 (mismo día). `/eventos`
 > consolida el contenido íntegro de la landing que vivía en
