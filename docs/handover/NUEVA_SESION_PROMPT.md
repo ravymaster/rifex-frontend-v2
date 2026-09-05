@@ -1,7 +1,38 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-05 (actualización más reciente) — **RIFEX v3.0 PLATFORM
+> 2026-09-05 (actualización más reciente) — **RIFEX PANEL
+> SCALABILITY — SERVER-SIDE PAGINATION, DEV only, misión quirúrgica.**
+> `origin/develop` avanza desde el commit de v3.0 PROD. Corrige
+> escalabilidad real en los paneles privados de Eventos e Inscripciones
+> — sin producto nuevo. Auditoría real: "Mis inscripciones"/"Mis
+> eventos" cargaban todas las iniciativas sin límite; el detalle de una
+> inscripción cargaba todos los participantes sin límite y calculaba
+> "Asistieron"/"Pendientes" filtrando ese array en el cliente. El
+> detalle de un evento **no tiene** una tabla de compradores/asistentes
+> por fila hoy — hallazgo real, no se inventó una. Implementación:
+> `src/lib/panelPagination.js` (parseo seguro de página, cálculo de
+> rango, clamp a la última página real); los 3 endpoints tocados usan
+> ahora un count exacto real + `.range()` — cero filas descargadas solo
+> para contar. PAGE_SIZE=12 (listados), PAGE_SIZE=25 (participantes).
+> Los contadores de Inscripciones dejan de descargar todos los
+> participantes de todas las actividades — ahora 2 counts exactos por
+> cada una de las ≤12 actividades de la página actual. Los totales de
+> asistencia vienen de counts exactos sobre la tabla completa, ya no
+> del array visible. Nuevo componente compartido de paginación
+> tradicional (nunca infinite scroll). El Excel no se tocó — sigue
+> exportando el dataset completo, verificado en vivo. Prueba en vivo
+> real contra `rifex-dev` con un fixture disposable (organizador +
+> actividad + 30 participantes) confirmó totales reales, paginación
+> sin huecos ni duplicados, página inválida cayendo a 1 sin error,
+> Excel completo, e IDOR intacto — fixture eliminado y verificado en
+> cero después. 23 tests nuevos, regresión completa (mismo flake
+> histórico de XLSX), build limpio. Cero cambios a Payment
+> Engine/Mercado Pago/webhooks/comisión/Trust/RLS/Supabase/
+> migraciones/semántica QR-scanner-check-in. Detalle completo:
+> `docs/WOP.md`, `docs/panel/PANEL_PAGINATION.md`.
+>
+> 2026-09-05 — **RIFEX v3.0 PLATFORM
 > BASELINE PROD CERTIFIED.** `origin/main` avanza de `4a30814` (tag
 > `v2.9`) a `0c72ccf`, tag `v3.0-rifex-prod-platform`. Promoción
 > controlada a PROD de Product Landings V1 + Final Public Surface
