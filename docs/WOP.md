@@ -4,6 +4,34 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX v3.0.1 PANEL PAGINATION HARDENING — PROD PROMOTION (2026-09-05)
+
+`origin/main`/PROD advances from `0c72ccf` (tag `v3.0-rifex-prod-platform`) a `4b01348`. Promueve exclusivamente el hardening de paginación server-side de paneles privados certificado en `origin/develop` @ `7506890` ("RIFEX PANEL SERVER-SIDE PAGINATION DEV CERTIFIED"), autorizado explícitamente por Rodrigo, vía el mismo patrón de reconstrucción quirúrgica establecido en cada promoción previa: worktree aislado desde `origin/main` (`release/v3.0-panel-pagination-prod-2026-09-05`), sin merge/rebase de la historia completa de `develop`.
+
+**Distinción importante**: esta es una promoción de **hardening puntual**, no un nuevo baseline de plataforma — el baseline `v3.0-rifex-prod-platform` (tag en `0c72ccf`) sigue representando el estado de plataforma certificado; este tag `v3.0.1-rifex-prod-panel-pagination` documenta únicamente el incremento de esta misión.
+
+**Clasificación de archivos**: 4 nuevos y aislados (`src/lib/panelPagination.js`, `src/components/panel/PaginationControls.jsx`, `docs/panel/PANEL_PAGINATION.md`, `tests/panelPagination.test.mjs`) copiados completos desde el commit certificado — sin riesgo de divergencia PROD (rutas inexistentes en `main` antes de esta promoción, sin referencias a tooling exclusivo de DEV). 6 archivos de API/páginas (`api/inscripciones/mine.js`, `api/events/mine.js`, `api/inscripciones/[id]/participants.js`, `panel/inscripciones/index.jsx`, `panel/eventos/index.jsx`, `panel/inscripciones/[id].jsx`) confirmados **byte-idénticos** entre el estado pre-promoción de `origin/main` y el padre del commit DEV certificado — copia limpia sin reconstrucción manual necesaria. Ningún archivo cayó en las categorías C/D/E del framework de clasificación de esta misión.
+
+**Cambio funcional**: Mis Inscripciones y Mis Eventos dejan de cargar listados sin límite (`PAGE_SIZE=12`, count exacto real vía `count:'exact', head:true` + `.range()`); el detalle de una inscripción deja de descargar todos los participantes solo para calcular sus contadores (`PAGE_SIZE=25`, `summary.registered/checked_in/pending` vienen de counts exactos independientes de la página visible, no de `items.length`). Excel (`export.js`) sin cambios — sigue exportando el dataset completo del organizador. Auditoría confirmó que `/panel/eventos/[id]` no tiene hoy una tabla de compradores/asistentes por fila — no se inventó producto nuevo para esta promoción (deuda documentada, no resuelta).
+
+**Validación en el release candidate**: 144/144 tests específicos (`panelPagination.test.mjs` + SSR auth boundary + PSCG + scanner), 905/906 regresión completa (mismo flake histórico de `eventAnalyticsWorkbook.test.mjs`, misma firma exacta reconfirmada en aislamiento), build limpio. **Prueba en vivo real** (no simulada) contra `rifex-dev` ejecutada sobre este release candidate exacto: 27/27 checks — totales reales independientes de la página visible, paginación sin huecos ni duplicados entre página 1/2, fuzzing de `?page=` (`-1`/`abc`/`1.5`/overflow) con clamp seguro y determinista (nunca 400, nunca crash), Excel completo (30/30 filas), IDOR intacto (403 `not_your_activity` tras paginar) — fixture disposable eliminado y verificado en cero al final. Self-audit grep del diff completo contra `origin/main` (`mercadopago|marketplace_fee|webhook|commission|trust|warp|captchaGate|DevBanner|migration|RLS|argentina|oauth|billing|scanner|check-?in|qr_token`) → 3 coincidencias, las 3 menciones documentales/contexto preexistente sin cambio funcional real.
+
+**Push**: `:main` directo bloqueado en la capa de permisos de Claude Code, como en toda promoción previa. Rodrigo ejecutó `git push origin release/v3.0-panel-pagination-prod-2026-09-05:main` desde su propio terminal — fast-forward limpio `0c72ccf..4b01348`.
+
+**Deploy**: Vercel auto-desplegó vía la integración GitHub existente (`dpl_8ud8ygipW4kLiKF4suw5LecS9fpw`, target `production`, alias `rifex.pro`/`www.rifex.pro`), confirmado `Ready` ~6 minutos después del push.
+
+**Live smoke** (Claude Code, requests anónimas contra `rifex.pro`): `/panel/inscripciones` y `/panel/eventos` devuelven `307` real hacia `/login?next=...`, idéntico (32 bytes) entre default/Googlebot/Meta/TikTok — cero cloaking, cero fuga de HTML privado. `/`, `/login`, `/eventos` → `200`. `robots.txt`/`sitemap.xml` → `200`. `POST /api/rifas` sin auth → `401` (autoridad de API independiente e intacta).
+
+**Confirmación visual humana**: Rodrigo revisó `rifex.pro` real con su cuenta autenticada — Mis Inscripciones, detalle de una inscripción, y Mis Eventos — confirmó que todo funciona correctamente, con la paginación activándose según corresponde. Esta confirmación es la que autoriza el cierre definitivo de la misión.
+
+**Tag**: `v3.0.1-rifex-prod-panel-pagination`, anotado, apunta a `4b01348`, pushed a `origin`. El tag `v3.0-rifex-prod-platform` permanece intacto en `0c72ccf` — no fue movido ni reemplazado.
+
+**Deuda restante (real, no introducida ni resuelta por esta promoción)**: (1) búsqueda por nombre/email/teléfono en listados/participantes — punto de extensión documentado, no implementado; (2) `orders-summary.js` sigue sumando en JS sobre el dataset completo de un evento — endpoint agregado, nunca envía filas individuales, fuera del alcance de esta misión; (3) no existe hoy una tabla de compradores/asistentes por fila para Eventos — si se construye a futuro, debe nacer paginada con `panelPagination.js`/`PaginationControls`.
+
+**Status: PROD PROMOTED Y CERTIFICADO.** Nuevo baseline incremental: `origin/main` @ `4b01348`, tag `v3.0.1-rifex-prod-panel-pagination`. Cero cambios a Payment Engine, Mercado Pago, webhooks, comisión, Trust, Warp AI, RLS, migraciones, billing Plus/Gold, emails, semántica de QR/scanner/check-in.
+
+---
+
 ## RIFEX INSCRIPCIONES V1 FREE + FUTURE BILLING FOUNDATION — PROD PROMOTION (2026-09-04)
 
 `origin/main`/PROD advances from `c66909d` (tag `v2.8-rifex-prod-pscg-difusion`) to `6f24bab`. Promotes the certified DEV work at `origin/develop` @ `b22cf8a` (two source commits: `5d17f8a` "Inscripciones V1 FREE + future billing foundation" and `b22cf8a` "private SSR auth boundary hardening"), authorized explicitly by Rodrigo ("GO A PROD"), via the same surgical-reconstruction pattern established across every prior promotion: a fresh worktree from `origin/main` (`release/inscripciones-v1`), promoting the final combined state as of `b22cf8a`.

@@ -1,7 +1,36 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-04 (actualización más reciente) — **RIFEX INSCRIPCIONES V1
+> 2026-09-05 (actualización más reciente) — **RIFEX v3.0.1 PANEL
+> PAGINATION HARDENING — PROD PROMOTION.** `origin/main` avanza de
+> `0c72ccf` (tag `v3.0-rifex-prod-platform`) a `4b01348`, promoviendo
+> exclusivamente el hardening de paginación server-side de
+> Inscripciones/Eventos certificado en `origin/develop` @ `7506890`,
+> autorizado por Rodrigo. **No es un baseline nuevo de plataforma** —
+> es un incremento puntual con su propio tag
+> `v3.0.1-rifex-prod-panel-pagination`; el tag `v3.0-rifex-prod-platform`
+> permanece intacto en `0c72ccf`. Mis Inscripciones y Mis Eventos dejan
+> de cargar listados sin límite (PAGE_SIZE=12, count exacto real); el
+> detalle de una inscripción deja de descargar todos los participantes
+> para calcular sus contadores (PAGE_SIZE=25, totales reales
+> independientes de la página visible). Excel sin cambios. Auditoría
+> confirmó que `/panel/eventos/[id]` no tiene hoy tabla de
+> compradores/asistentes por fila — no se inventó producto nuevo.
+> Clasificación: 4 archivos nuevos y aislados copiados completos, 6
+> archivos de API/páginas byte-idénticos entre `origin/main`
+> pre-promoción y el padre del commit DEV certificado — copia limpia.
+> 144/144 tests específicos, 905/906 regresión completa (mismo flake
+> histórico de XLSX), build limpio. Prueba en vivo real contra
+> `rifex-dev` sobre el release candidate exacto: 27/27 checks — fixture
+> eliminado y verificado en cero. Deploy Vercel `Ready`, alias real
+> `rifex.pro`. Smoke anónimo en vivo: `307` idéntico en 4 user-agents
+> sobre las rutas privadas, cero fuga de HTML. **Confirmación visual
+> humana**: Rodrigo revisó `rifex.pro` real con su cuenta — Mis
+> Inscripciones, detalle de inscripción, Mis Eventos — confirmó
+> funcionamiento correcto. Detalle completo: `docs/WOP.md`,
+> `docs/panel/PANEL_PAGINATION.md`.
+>
+> 2026-09-04 — **RIFEX INSCRIPCIONES V1
 > FREE + FUTURE BILLING FOUNDATION — PROD PROMOTION.** `origin/main`
 > avanza de `c66909d` (tag `v2.8-rifex-prod-pscg-difusion`) a `6f24bab`,
 > promoviendo `origin/develop` @ `b22cf8a` (foundation + SSR auth
