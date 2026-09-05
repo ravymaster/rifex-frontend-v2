@@ -2,6 +2,8 @@
 
 **Estado**: regla transversal, vigente desde 2026-09-04. Aplica a toda ruta nueva o modificada de Rifex a partir de este punto.
 
+**Addendum (2026-09-05) — RIFEX PRODUCT LANDINGS V1**: nuevas entradas `PUBLIC_INDEXABLE` para `/soluciones/eventos` y `/campanas` (landings comerciales, distintas del catálogo real `/eventos`); `/inscripciones` evolucionó su contenido sin cambiar de categoría; nueva entrada `PRIVATE_AUTHENTICATED` para `/soluciones/rifas` (boundary `ssr_redirect` desde el primer commit, distinta de `/rifas` `LEGACY_REMOVED`). Detalle completo: `docs/public-surface/PRODUCT_LANDINGS_V1.md`.
+
 ## Propósito
 
 Antes de PSCG, cada ruta pública/privada de Rifex decidía por su cuenta (y de forma implícita) su exposición, indexabilidad, metadata, boundary de auth y presencia en sitemap/robots — reconstruido caso a caso, misión a misión (AUTH UX 2026, PUBLIC SURFACE FINAL CLEANUP, PROGRESSIVE ONBOARDING). Eso funcionó, pero dejó la clasificación real dispersa entre código, docs y memoria de sesión.
@@ -118,7 +120,10 @@ PSCG no reemplaza ninguno de los tres mecanismos reales — los orquesta y los h
 |---|---|
 | `/` | PUBLIC_INDEXABLE |
 | `/eventos` | PUBLIC_INDEXABLE |
+| `/soluciones/eventos` | PUBLIC_INDEXABLE |
+| `/campanas` | PUBLIC_INDEXABLE |
 | `/inscripciones` | PUBLIC_INDEXABLE |
+| `/soluciones/rifas` | PRIVATE_AUTHENTICATED |
 | `/inscripcion/[id]`, `/i/[token]` | PUBLIC_NOINDEX |
 | `/crear-inscripcion`, `/panel/inscripciones*` | PRIVATE_AUTHENTICATED |
 | `/reglas-iniciativas-premio` | PUBLIC_NOINDEX |

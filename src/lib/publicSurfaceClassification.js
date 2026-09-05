@@ -62,10 +62,22 @@ export const PSCG_REGISTRY = [
   { path: "/", file: "src/pages/index.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/eventos", file: "src/pages/eventos/index.jsx", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   {
+    path: "/soluciones/eventos",
+    file: "src/pages/soluciones/eventos.jsx",
+    category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
+    notes: "RIFEX PRODUCT LANDINGS V1 — landing comercial de Eventos. Distinta de /eventos (catálogo real de eventos publicados, sin tocar): esta página nunca lista eventos de usuarios, solo explica el producto. Service+FAQPage JSON-LD.",
+  },
+  {
+    path: "/campanas",
+    file: "src/pages/campanas.jsx",
+    category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
+    notes: "RIFEX PRODUCT LANDINGS V1 — ruta nueva (no existía antes de esta misión, verificado). Landing comercial de Campañas/Colectas. Reemplaza el destino del navItem 'Campañas', que antes apuntaba a /wizard?modo=colecta. Service+FAQPage JSON-LD.",
+  },
+  {
     path: "/inscripciones",
     file: "src/pages/inscripciones.jsx",
     category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
-    notes: "INSCRIPCIONES V1 — landing comercial estático. Nunca un directorio de actividades de usuarios (eso es /inscripcion/[id], PUBLIC_NOINDEX). No muestra Plus/Gold/precios futuros.",
+    notes: "INSCRIPCIONES V1 — landing comercial estático. Nunca un directorio de actividades de usuarios (eso es /inscripcion/[id], PUBLIC_NOINDEX). No muestra Plus/Gold/precios futuros. RIFEX PRODUCT LANDINGS V1: evolucionada a la misma anatomía (hero/features/pasos/casos de uso/bloque operacional/confianza/FAQ/CTA) de Eventos/Campañas, misma ruta y categoría sin cambio. Service+FAQPage JSON-LD agregado.",
   },
   { path: "/wizard", file: "src/pages/wizard.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/planes", file: "src/pages/planes.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
@@ -244,6 +256,14 @@ export const PSCG_REGISTRY = [
     robotsDisallow: true,
     notes: "DIFUSIÓN V1 — nueva en esta misión. Usa el boundary más fuerte (ssr_redirect) desde su primer commit, siguiendo PSCG.",
   },
+  {
+    path: "/soluciones/rifas",
+    file: "src/pages/soluciones/rifas.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "RIFEX PRODUCT LANDINGS V1 — ruta nueva y distinta de /rifas (LEGACY_REMOVED, sin tocar). Landing explicativa de Rifas para usuarios ya autenticados: ssr_redirect desde el primer commit (mismo patrón que mis-iniciativas.jsx/difusion.jsx, destino literal fijo, nunca ctx.query). noindex+nofollow+noarchive, fuera de sitemap, nunca en navItems/footer público/wizard — solo en el menú de cuenta autenticado (accountItems).",
+  },
 
   // ---------- LEGACY_REMOVED ----------
   {
@@ -251,7 +271,7 @@ export const PSCG_REGISTRY = [
     file: "src/pages/rifas.js",
     category: PSCG_CATEGORY.LEGACY_REMOVED,
     notes:
-      "Antiguo catálogo público de Rifas, retirado. Redirect real (getServerSideProps, 307) a /login preservando next — decisión de producto ya certificada (no un 410) porque sirve como aterrizaje de bookmarks/backlinks antiguos, no porque /login sea un reemplazo de contenido equivalente. X-Robots-Tag: noindex, nofollow. Fuera de sitemap.",
+      "Antiguo catálogo público de Rifas, retirado. Redirect real (getServerSideProps, 307) a /login preservando next — decisión de producto ya certificada (no un 410) porque sirve como aterrizaje de bookmarks/backlinks antiguos, no porque /login sea un reemplazo de contenido equivalente. X-Robots-Tag: noindex, nofollow. Fuera de sitemap. Distinto de /soluciones/rifas (PRIVATE_AUTHENTICATED, nueva en RIFEX PRODUCT LANDINGS V1) — esta ruta sigue sin tocar.",
   },
 ];
 

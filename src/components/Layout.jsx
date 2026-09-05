@@ -51,16 +51,19 @@ export default function Layout({
   // Campañas / Cómo funciona, más cuenta/login. Precios, Seguridad y Ayuda
   // siguen existiendo y accesibles (footer, enlaces internos), solo dejan
   // de tener su propio ítem de primer nivel en la navegación pública.
-  // PUBLIC SURFACE FINAL CLEANUP — "Campañas" apuntaba directo a
-  // /crear-colecta (auth boundary real): un visitante anónimo recibía un
-  // login wall sin contexto, ya que no existe un catálogo público de
-  // campañas equivalente al de /eventos. Ahora apunta al explicador de
-  // campañas ya existente en /wizard (paso a paso + CTA real a
-  // /crear-colecta), igual que "Cómo funciona" pero preseleccionado en
-  // modo campaña.
+  // RIFEX PRODUCT LANDINGS V1 — "Campañas" ahora tiene su propia landing
+  // real (/campanas, PUBLIC_INDEXABLE) y deja de apuntar al explicador
+  // compartido de /wizard. Se agrega "Inscripciones" (/inscripciones, ya
+  // PUBLIC_INDEXABLE desde INSCRIPCIONES V1) como cuarto ítem — hasta esta
+  // misión no tenía presencia propia en la navbar pública. "Eventos" se
+  // mantiene apuntando al catálogo real (/eventos, sigue siendo la
+  // función correcta) — su landing comercial nueva vive en
+  // /soluciones/eventos, enlazada desde el footer y desde /wizard, no
+  // desde acá, para no duplicar el destino de un mismo ítem de nav.
   const navItems = [
     { label: 'Eventos',        href: '/eventos' },
-    { label: 'Campañas',       href: '/wizard?modo=colecta' },
+    { label: 'Campañas',       href: '/campanas' },
+    { label: 'Inscripciones',  href: '/inscripciones' },
     { label: 'Cómo funciona',  href: '/wizard' },
   ];
 
@@ -75,8 +78,16 @@ export default function Layout({
   // PSCG + DIFUSIÓN V1 — "Difusión" es PRIVATE_AUTHENTICATED (ver
   // src/lib/publicSurfaceClassification.js): solo vive en este menú
   // interno, nunca en navItems (navbar pública) ni en el footer.
+  // RIFEX PRODUCT LANDINGS V1 — "Rifas" (/soluciones/rifas) es la nueva
+  // landing privada del producto, también PRIVATE_AUTHENTICATED con
+  // boundary ssr_redirect: solo vive acá, nunca en navItems/footer
+  // público/wizard/sitemap. Rifas como producto (crear/panel) ya se
+  // alcanza desde "Mis iniciativas"; este ítem es la explicación
+  // detallada del flujo, análoga a lo que las 3 landings públicas son
+  // para Eventos/Campañas/Inscripciones.
   const accountItems = [
     { label: 'Mis iniciativas', href: '/mis-iniciativas' },
+    { label: 'Rifas',           href: '/soluciones/rifas' },
     { label: 'Difusión',        href: '/difusion' },
     { label: 'Bancos & Pagos',  href: '/panel/bancos' },
     { label: 'Perfil',          href: '/perfil' },
@@ -285,10 +296,15 @@ export default function Layout({
           </div>
           <div className="rf-foot__cols">
             <div className="rf-foot__col">
-              <span className="rf-foot__colTitle">Producto</span>
-              <Link href="/crear-evento">Crear evento</Link>
-              <Link href="/crear-colecta">Crear campaña</Link>
-              <Link href="/crear-inscripcion">Crear inscripción</Link>
+              {/* RIFEX PRODUCT LANDINGS V1 — enlaces a las 3 landings
+                  públicas (PUBLIC_INDEXABLE), no a los formularios de
+                  creación directamente (esos viven dentro de cada
+                  landing como CTA). Rifas nunca aparece acá — es
+                  PRIVATE_AUTHENTICATED, solo en el menú de cuenta. */}
+              <span className="rf-foot__colTitle">Soluciones</span>
+              <Link href="/soluciones/eventos">Cómo funciona Eventos</Link>
+              <Link href="/campanas">Cómo funcionan las Campañas</Link>
+              <Link href="/inscripciones">Cómo funcionan las Inscripciones</Link>
               <Link href="/planes">Comisión</Link>
               <Link href="/register" className="rf-foot__community">Conoce más productos de Rifex siendo parte de la comunidad</Link>
             </div>

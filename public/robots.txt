@@ -16,4 +16,5 @@ Disallow: /onboarding
 Disallow: /auth
 Disallow: /registro
 Disallow: /difusion
+Disallow: /soluciones/rifas
 Sitemap: https://rifex.pro/sitemap.xml

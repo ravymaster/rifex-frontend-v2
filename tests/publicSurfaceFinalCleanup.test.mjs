@@ -228,15 +228,21 @@ test("Permissions-Policy permite explícitamente camera y clipboard-write (usado
   assert.match(policy[1], /geolocation=\(\)/);
 });
 
-// ---------- 19. /campanas: navItem apunta al explicador real, sin landing duplicada ----------
-test("Layout.jsx: navItem 'Campañas' apunta a /wizard?modo=colecta (explicador real ya certificado), no directo a /crear-colecta", () => {
+// ---------- 19. /campanas: navItem apuntaba al explicador real, sin landing duplicada ----------
+// RIFEX PRODUCT LANDINGS V1 (2026-09-04) superó esta decisión: /campanas
+// ahora es una landing comercial real y propia (PSCG PUBLIC_INDEXABLE,
+// ver src/pages/campanas.jsx), así que el navItem "Campañas" pasa a
+// apuntar ahí en vez de al explicador compartido de /wizard. Se
+// actualiza la aserción para reflejar el estado real e intencional del
+// producto, no el histórico.
+test("Layout.jsx: navItem 'Campañas' apunta a /campanas (landing propia, RIFEX PRODUCT LANDINGS V1), no a /wizard ni a /crear-colecta", () => {
   const src = read("src/components/Layout.jsx");
   const campaniasItem = src.match(/\{\s*label:\s*'Campañas',\s*href:\s*'([^']*)'/);
   assert.ok(campaniasItem, "no se encontró el navItem 'Campañas'");
-  assert.equal(campaniasItem[1], "/wizard?modo=colecta");
+  assert.equal(campaniasItem[1], "/campanas");
 });
 
-test("wizard.js: preselecciona el modo (evento/colecta) desde ?modo=, para que el navItem 'Campañas' abra directo el explicador de campañas", () => {
+test("wizard.js: sigue preseleccionando el modo (evento/colecta/inscripcion) desde ?modo=, deep-link directo aunque el navItem 'Campañas' ya no dependa de esto", () => {
   const src = read("src/pages/wizard.js");
   assert.match(src, /router\.query\?\.modo/);
   assert.match(src, /modo === 'colecta'/);

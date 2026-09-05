@@ -1,6 +1,32 @@
-Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
+Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
+> 2026-09-05 (actualización más reciente) — **RIFEX PRODUCT
+> LANDINGS V1, DEV only, misión autónoma.** `origin/develop` avanza desde
+> `4a30814`. Cuatro landings de producto con el mismo lenguaje visual —
+> Eventos (`/soluciones/eventos`, nueva), Campañas (`/campanas`, nueva),
+> Inscripciones (`/inscripciones`, evolucionada en el mismo lugar) todas
+> `PUBLIC_INDEXABLE`, y Rifas (`/soluciones/rifas`, nueva, privada,
+> `PRIVATE_AUTHENTICATED` con `ssr_redirect` desde el primer commit).
+> Auditoría de rutas previa confirmó `/eventos` (catálogo real) y
+> `/rifas` (redirect `LEGACY_REMOVED` histórico) sin tocar. Arquitectura
+> visual compartida nueva: `src/styles/productLanding.module.css` +
+> `src/components/product/ProductSections.jsx` (8 componentes puros) +
+> `src/lib/productJsonLd.js`. Todo el contenido se auditó contra el
+> código real de cada producto antes de escribir copy — cero funciones
+> inventadas. Verificado en vivo con 5 user-agents: las 3 públicas
+> devuelven `200` idéntico; Rifas devuelve `307` idéntico de 29 bytes sin
+> fuga de HTML privado. Bug real de overflow móvil encontrado y corregido
+> en QA (`heroVisual` grid, `minmax(140px,1fr)` → `minmax(96px,1fr)`).
+> Navegación actualizada: nav gana "Inscripciones", "Campañas" apunta a
+> su landing propia (antes `/wizard?modo=colecta`), footer "Producto" →
+> "Soluciones", menú de cuenta gana "Rifas", wizard gana modo
+> Inscripciones. 41 tests nuevos + regresión completa 834/835 (mismo
+> flake histórico de XLSX), build limpio. `origin/main` no referenciado.
+> Detalle completo: `docs/WOP.md`, `docs/public-surface/PRODUCT_LANDINGS_V1.md`.
+> **Próximo paso: eventual promoción controlada a PROD, sujeta a
+> autorización explícita — todavía no iniciada.**
+>
 > 2026-09-04 (actualización más reciente) — **RIFEX INSCRIPCIONES V1 —
 > PRIVATE SSR AUTH BOUNDARY HARDENING, DEV only, misión quirúrgica de
 > corrección de blocker.** `origin/develop` avanza desde `5d17f8a`. La
