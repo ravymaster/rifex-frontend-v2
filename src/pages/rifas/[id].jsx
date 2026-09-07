@@ -9,7 +9,6 @@ import TrustBadge from "../../components/TrustBadge";
 import TrustPopup from "../../components/TrustPopup";
 import { canonicalUrl, DEFAULT_OG_IMAGE } from "../../lib/publicMetadata";
 
-import RaffleIntroModal from "../../components/rifex/RaffleIntroModal";
 import BuyerForm from "../../components/rifex/BuyerForm";
 import QuantitySelector from "../../components/rifex/QuantitySelector";
 import PrizeGallery from "../../components/rifex/PrizeGallery";
@@ -105,7 +104,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
 
   const [showQty, setShowQty] = useState(false);
   const [quantity, setQuantity] = useState(0);
-  const [showIntro, setShowIntro] = useState(false);
   const [showBuyer, setShowBuyer] = useState(false);
 
   const [payBanner, setPayBanner] = useState(null);       // {kind,text}
@@ -129,30 +127,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
     // real de la rifa, para no consultar /api/raffles/winner con un slug.
     loadData(id);
   }, [id]);
-
-  // Mostrar/ocultar intro según ganador / preferencia del usuario / query
-  useEffect(() => {
-    if (!id) return;
-
-    // si ya hay ganador, nunca mostrar intro
-    if (winner) {
-      setShowIntro(false);
-      return;
-    }
-    // override por query (?noIntro=1)
-    const qNoIntro = (router.query?.noIntro || router.query?.nointro) === "1";
-    if (qNoIntro) {
-      setShowIntro(false);
-      return;
-    }
-    // sólo si no lo cerró antes
-    try {
-      const dismissed = localStorage.getItem(`rifex.intro.dismissed:${id}`) === "1";
-      setShowIntro(!dismissed);
-    } catch {
-      setShowIntro(true);
-    }
-  }, [id, winner, router.query]);
 
   // helpers ganador
   async function loadWinner(rid) {
@@ -195,7 +169,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
 
     if (!flag && !cstat && !cid) return;
 
-    setShowIntro(false);
     scrollTop();
     setPayBanner({ kind: "success", text: "Confirmando pago…" });
 
@@ -570,7 +543,7 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
 
   // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA
   const hasAnyModalOrOverlay =
-    !!showIntro || !!showQty || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
+    !!showQty || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
 
   // —— FIX de superposición / stacking contexts ——
   const pageIsolated = {
@@ -649,15 +622,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
           </div>
         </div>
       )}
-
-      <RaffleIntroModal
-        open={showIntro}
-        onClose={() => {
-          setShowIntro(false);
-          try { localStorage.setItem(`rifex.intro.dismissed:${id}`, "1"); } catch {}
-        }}
-        raffle={raffle}
-      />
 
       <div className={styles.card} style={{ position: "relative" }}>
         {winner && (

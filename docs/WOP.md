@@ -4,6 +4,48 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## HUMAN SLUG V2 + PUBLIC RAFFLE CLEANUP (2026-09-07) — DEV only, retiro de modal antiguo + slugs amigables sin sufijo hex
+
+`origin/develop` advances from `a6fc58f` (RAFFLE VISUAL POLISH DEV certified).
+Mandato explícito de Rodrigo tras verificar en vivo el despliegue de RAFFLE VISUAL
+POLISH. Ver detalle completo en
+[docs/rifas/HUMAN_SLUG_V2_2026.md](rifas/HUMAN_SLUG_V2_2026.md).
+
+**Objetivo A — retiro del modal antiguo**: `RaffleIntroModal.jsx` (tipo "mixto",
+Premio/Valor del número/Termina/Estado) ya no se invoca en la ficha pública. Retiro
+quirúrgico solo de la invocación en `rifas/[id].jsx` (único consumidor real,
+confirmado por auditoría previa a implementar) — el componente en sí no se borró. El
+popup Trust "Antes de continuar" (`TrustPopup`) es distinto y no fue tocado.
+
+**Objetivo B — Human Slug V2**: mismo `slugify()` y mismo patrón
+intento-de-INSERT-then-catch-23505 ya certificados (sin migración nueva, sin tocar el
+índice único parcial de RAFFLE VISUAL POLISH) — solo se amplía `MAX_SLUG_ATTEMPTS` de
+3 a 5 y el sufijo de colisión se acota a exactamente 3 caracteres alfanuméricos,
+nunca derivado del UUID (a diferencia del backfill V1, que no se toca ni se
+retro-migra).
+
+**Prueba de concurrencia real** (no solo tests unitarios): fixture disposable con un
+creador Auth real (onboarding + RUT válido + MP conectado, `mp_identity_match:
+'matched'`), autenticado con `signInWithPassword` real, disparando dos `POST
+/api/rifas` HTTP simultáneos con el mismo título contra un `next start` real en
+`rifex-dev`. Resultado: dos creaciones exitosas, dos slugs distintos (uno limpio, uno
+con sufijo de 3 caracteres), ambos resueltos al UUID real correcto, cleanup
+verificado en cero residuos.
+
+UUID histórico y slug V1 (`lambo-6f9973`) siguen resolviendo sin cambios — ninguna
+rifa existente fue re-migrada. Re-confirmado sin regresión: checkout, canal
+realtime, `release-expired`/`ensureWinner`, draw y QR siguen usando exclusivamente
+el UUID real ya resuelto, nunca el parámetro crudo de la URL (mismo fix ya
+certificado en RAFFLE VISUAL POLISH).
+
+Diff completo de esta misión: 2 archivos (`src/pages/api/rifas/index.js`,
+`src/pages/rifas/[id].jsx`) — cero migraciones SQL nuevas, cero cambios a Payment
+Engine/MP/webhook/comisión/Trust/RLS/draw/Eventos/Campañas/Inscripciones/
+`origin/main`. 31 tests nuevos, todos en verde. Regresión 1001/1002 (mismo flake
+histórico de XLSX). Build limpio.
+
+---
+
 ## RAFFLE VISUAL POLISH (2026-09-07) — DEV only, layout 2 columnas + pestañas + slug + características
 
 `origin/develop` advances from `14f1f69` (RIFEX RAFFLE EXPERIENCE 2026 DEV certified).

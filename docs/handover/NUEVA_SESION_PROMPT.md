@@ -1,7 +1,34 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-07 (actualización más reciente) — **RAFFLE VISUAL
+> 2026-09-07 (actualización más reciente) — **HUMAN SLUG V2 +
+> PUBLIC RAFFLE CLEANUP, DEV only, mandato explícito de Rodrigo
+> sobre RAFFLE VISUAL POLISH.** `origin/develop` avanza desde
+> `a6fc58f`. Dos objetivos quirúrgicos: **(A)** se retira la
+> invocación del modal antiguo (`RaffleIntroModal.jsx`, tipo
+> "mixto"/Premio/Valor del número/Termina/Estado) de la ficha
+> pública — único consumidor confirmado por auditoría, componente
+> preservado sin borrar; el popup Trust "Antes de continuar" es
+> distinto y no fue tocado. **(B)** Human Slug V2: mismo `slugify()`
+> y mismo patrón intento-INSERT-then-catch-23505 ya certificados
+> (sin migración nueva), solo se amplía el máximo de reintentos de 3
+> a 5 y el sufijo de colisión se acota a exactamente 3 caracteres
+> alfanuméricos, nunca derivado del UUID. **Prueba de concurrencia
+> real** (no solo unitaria): fixture disposable con creador Auth
+> real + onboarding/RUT/MP completos, dos `POST /api/rifas` HTTP
+> simultáneos con el mismo título contra un servidor real — dos
+> slugs distintos confirmados, ambos resueltos al UUID real
+> correcto, cleanup verificado en cero. UUID histórico y slug V1
+> (`lambo-6f9973`) siguen resolviendo sin cambios; checkout/
+> realtime/release-expired/ensureWinner/draw/QR re-confirmados sin
+> regresión (siguen usando el UUID real, nunca el parámetro crudo de
+> la URL). Diff de 2 archivos, cero migraciones nuevas, cero cambios
+> a Payment Engine/MP/webhook/Trust/RLS/draw/Eventos/Campañas/
+> Inscripciones/`origin/main`. 31 tests nuevos en verde, regresión
+> 1001/1002 (mismo flake histórico de XLSX), build limpio. Detalle
+> completo: `docs/WOP.md`, `docs/rifas/HUMAN_SLUG_V2_2026.md`.
+>
+> 2026-09-07 — **RAFFLE VISUAL
 > POLISH, DEV only, brief de Doris sobre RIFEX RAFFLE EXPERIENCE
 > 2026.** `origin/develop` avanza desde `14f1f69`. Hero más grande
 > sin recortar, galería con flechas + indicador "+N fotos", layout

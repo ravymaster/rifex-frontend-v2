@@ -45,10 +45,14 @@ const MAX_EXTENSION_LIMIT = 3;
 const MAX_FEATURES = 8;
 const MAX_FEATURE_LABEL_LEN = 40;
 const MAX_FEATURE_VALUE_LEN = 60;
-// Reintentos acotados ante colisión real de slug (mismo patrón ya
-// certificado en api/blog/historia.js: sufijo aleatorio corto, nunca un
-// contador secuencial que revele cuántas rifas comparten título).
-const MAX_SLUG_ATTEMPTS = 3;
+// HUMAN SLUG V2 (2026-09-07): reintentos acotados ante colisión real de
+// slug (mismo patrón ya certificado en api/blog/historia.js: sufijo
+// aleatorio corto, nunca un contador secuencial que revele cuántas rifas
+// comparten título, y nunca derivado de mostrar los primeros caracteres
+// del UUID). Se amplió de 3 a 5 intentos con la misma primitiva — sin
+// algoritmo nuevo — para dar más margen bajo colisión real concurrente.
+const MAX_SLUG_ATTEMPTS = 5;
+// Sufijo de colisión: ~3 caracteres alfanuméricos url-safe (base36).
 // DRAW-1B: anticipación mínima — con T-5, esto deja al menos 5 minutos
 // reales de venta antes de que sales_end_at cierre las compras.
 const MIN_LEAD_MINUTES = 10;
@@ -255,11 +259,15 @@ export default async function handler(req, res) {
         row.end_date = draw_date;
       }
 
-      // RAFFLE VISUAL POLISH (2026-09-07): slug amigable, generado desde
-      // el título — se congela para siempre al crear (nunca se
-      // regenera si el creador edita el título después). El UUID real
-      // (`id`) sigue siendo la identidad interna; el slug solo mejora el
-      // link público.
+      // HUMAN SLUG V2 (2026-09-07): slug amigable, generado desde el
+      // título — se congela para siempre al crear (nunca se regenera si
+      // el creador edita el título después). El UUID real (`id`) sigue
+      // siendo la identidad interna; el slug solo mejora el link
+      // público. Primer intento siempre usa el slug base sin sufijo
+      // (ej. "lambo"); el sufijo de colisión (~3 caracteres alfanuméricos
+      // aleatorios, ej. "lambo-k7m") solo aparece si el slug base ya
+      // existe — nunca deriva del UUID (eso era el patrón V1 del
+      // backfill, deliberadamente no reutilizado acá).
       const baseSlug = slugify(row.title) || 'rifa';
 
       // DRAW-1B: crear rifa + declaraciones legales en una sola transacción
@@ -271,7 +279,7 @@ export default async function handler(req, res) {
       let created = null;
       let rpcErr = null;
       for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
-        const slug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+        const slug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 5)}`;
         const result = await supabase.rpc('create_raffle_with_declarations', {
           p_raffle: { ...row, slug },
           p_user_id: creator_id,
