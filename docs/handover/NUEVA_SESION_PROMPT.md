@@ -1,7 +1,38 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-05 (actualización más reciente) — **RIFEX PANEL
+> 2026-09-06 (actualización más reciente) — **RIFEX RAFFLE
+> EXPERIENCE 2026, DEV only, rediseño visual de Rifas.**
+> `origin/develop` avanza desde `7506890`. Rediseña la ficha pública
+> y la creación de Rifas reutilizando el 100% de la lógica
+> financiera/reserva/sorteo ya certificada — cero migraciones
+> nuevas. Auditoría previa confirmó que creación, upload de fotos,
+> reserva atómica, draw/winner y toda la capa de pagos funcionan
+> correctamente sin cambios; solo el render público estaba roto o
+> incompleto. **Bug real de imágenes**: `prize_photos` llegaba
+> correcto desde el backend pero ningún componente lo renderizaba —
+> corregido con un componente de galería nuevo, cero cambio de
+> backend/storage. **Bug real de "$0"**: premios físicos mostraban
+> `$0` porque siempre se formateaba `prize_amount_cents` (null en
+> ese caso) — corregido con rama explícita por tipo de premio.
+> **Grilla pública de números eliminada**, reemplazada por un
+> selector de cantidad — el checkout pasó de aceptar números
+> específicos a solo una cantidad; la asignación real de números la
+> decide siempre el servidor, pero la escritura sigue siendo
+> exactamente la misma RPC atómica todo-o-nada ya certificada, sin
+> RPC ni migración nueva. Prueba en vivo real de concurrencia contra
+> `rifex-dev`: 20 compradores simultáneos pidiendo 3 números cada
+> uno sobre un pool de 100 → 20/20 éxitos, 60/60 números únicos,
+> cero duplicados (tras ajustar la ventana de candidatos con
+> evidencia real de una corrida previa); prueba de agotamiento →
+> comportamiento determinista y seguro, nunca overselling; fixture
+> eliminado y verificado en cero. Organizador real mostrado vía la
+> misma API pública de perfil ya existente, nunca datos copiados a
+> mano. 44 tests nuevos, regresión completa 935/936 (mismo flake
+> histórico de XLSX), build limpio. Detalle completo: `docs/WOP.md`,
+> `docs/rifas/RAFFLE_EXPERIENCE_2026.md`.
+>
+> 2026-09-05 — **RIFEX PANEL
 > SCALABILITY — SERVER-SIDE PAGINATION, DEV only, misión quirúrgica.**
 > `origin/develop` avanza desde el commit de v3.0 PROD. Corrige
 > escalabilidad real en los paneles privados de Eventos e Inscripciones

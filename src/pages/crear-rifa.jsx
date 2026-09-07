@@ -1,5 +1,5 @@
 // src/pages/crear-rifa.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
@@ -138,6 +138,38 @@ export default function CrearRifaPage() {
   const [okCreator, setOkCreator] = useState(false);
   const [okAge, setOkAge] = useState(false);
   const [okPrize, setOkPrize] = useState(false);
+
+  // RIFEX RAFFLE EXPERIENCE 2026 (§8/§9) — "Perfil del organizador": la
+  // ficha pública obtiene siempre al organizador desde la autoridad real
+  // de perfil (misma API pública que ya usa /perfil/[id]), nunca un campo
+  // duplicado escrito a mano acá. Solo se muestra + enlaza a editar.
+  const [myProfile, setMyProfile] = useState(null);
+  const [myProfileLoaded, setMyProfileLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: sres } = await supabase.auth.getUser();
+        const uid = sres?.user?.id;
+        if (!uid) { setMyProfileLoaded(true); return; }
+        const r = await fetch(`/api/perfil/${uid}`);
+        const j = await r.json().catch(() => null);
+        if (j?.ok) setMyProfile(j.profile || null);
+      } catch {}
+      setMyProfileLoaded(true);
+    })();
+  }, []);
+
+  // Previews locales de las fotos elegidas — nunca se suben hasta enviar
+  // el formulario, pero el creador debe poder ver qué eligió.
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  useEffect(() => {
+    const urls = Array.from(prizePhotos || []).slice(0, 3).map((f) => URL.createObjectURL(f));
+    setPhotoPreviews(urls);
+    return () => { urls.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [prizePhotos]);
+
+  const profileIncomplete = myProfileLoaded && !myProfile?.nombre;
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -322,6 +354,13 @@ export default function CrearRifaPage() {
                     <div className={styles.field} style={{ marginBottom: 16 }}>
                       <span className={styles.fieldLabel}>Fotos del premio (hasta 3)</span>
                       <input type="file" accept="image/*" multiple onChange={e=>setPrizePhotos(Array.from(e.target.files||[]))} />
+                      {photoPreviews.length > 0 && (
+                        <div className={styles.photoPreviewRow}>
+                          {photoPreviews.map((url, i) => (
+                            <img key={i} src={url} alt="" className={styles.photoPreviewThumb} />
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* RIFEX CLOSURE PASS: entrega — obligatoria, sin "a
@@ -446,6 +485,33 @@ export default function CrearRifaPage() {
                     <option value="3">Hasta 3 veces</option>
                   </select>
                 </div>
+              </div>
+
+              {/* RIFEX RAFFLE EXPERIENCE 2026 (§8/§9) — Perfil del organizador:
+                  solo lectura + link a editar, nunca campos duplicados. */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Perfil del organizador</div>
+                <div className={styles.organizerCard}>
+                  <div className={styles.organizerCardAvatar}>
+                    {myProfile?.avatar_url ? (
+                      <img src={myProfile.avatar_url} alt="" />
+                    ) : (
+                      <span>{(myProfile?.nombre || "?").charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className={styles.organizerCardName}>{myProfile?.nombre || "Sin nombre configurado"}</div>
+                    <div className={styles.organizerCardStatus}>
+                      {myProfile?.nombre ? "Este nombre y foto se mostrarán en tu rifa." : "Aún no configuras tu nombre público."}
+                    </div>
+                  </div>
+                  <a href="/perfil" className={styles.organizerCardEdit}>Completar / editar perfil</a>
+                </div>
+                {profileIncomplete && (
+                  <p className={styles.fieldHelp} style={{ marginTop: 8 }}>
+                    Completa tu perfil para que los participantes conozcan quién organiza esta iniciativa.
+                  </p>
+                )}
               </div>
 
               {/* Términos */}

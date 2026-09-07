@@ -1,12 +1,16 @@
 // src/components/rifex/RaffleIntroModal.jsx
 import React from "react";
 import { formatDateOnly } from "@/lib/raffleTime";
+import { humanRaffleStatus } from "@/lib/raffleLabels";
 
 export default function RaffleIntroModal({ open, onClose, raffle }) {
   if (!open || !raffle) return null;
   const clp = (cents = 0) =>
     new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 })
       .format((cents || 0) / 100);
+  // RIFEX RAFFLE EXPERIENCE 2026 — bug real de auditoría: esto mostraba
+  // "$0" para premios físicos (prize_amount_cents es null en ese caso).
+  const prizeValue = raffle.prize_type === "money" ? clp(raffle.prize_amount_cents) : (raffle.title || "Premio físico");
 
   return (
     <div style={{
@@ -43,7 +47,7 @@ export default function RaffleIntroModal({ open, onClose, raffle }) {
           border: "1px solid #e5e7eb", borderRadius: 12, padding: 12 }}>
           <div>
             <div style={{ fontSize:12, color:"#64748b" }}>Premio</div>
-            <div style={{ fontSize:18, fontWeight:800 }}>{clp(raffle.prize_amount_cents)}</div>
+            <div style={{ fontSize:18, fontWeight:800 }}>{prizeValue}</div>
           </div>
           <div>
             <div style={{ fontSize:12, color:"#64748b" }}>Valor del número</div>
@@ -57,7 +61,7 @@ export default function RaffleIntroModal({ open, onClose, raffle }) {
           </div>
           <div>
             <div style={{ fontSize:12, color:"#64748b" }}>Estado</div>
-            <div style={{ fontSize:16, fontWeight:700 }}>{raffle.status || "activa"}</div>
+            <div style={{ fontSize:16, fontWeight:700 }}>{humanRaffleStatus(raffle.status)}</div>
           </div>
         </div>
       </div>

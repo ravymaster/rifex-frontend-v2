@@ -19,6 +19,80 @@ const supabase = createClient(url, service || anon, {
 const HOLD_MINUTES = parseInt(process.env.HOLD_MINUTES || "15", 10);
 const RIFEX_FEE_RATE = 0.07; // 7% de comisión Rifex vía marketplace_fee (redondeo hacia abajo)
 
+// RIFEX RAFFLE EXPERIENCE 2026 — el comprador ya no elige números
+// específicos (grilla eliminada), solo una cantidad. La asignación real
+// de números sigue pasando 100% por la misma RPC atómica todo-o-nada ya
+// certificada (reserve_tickets_for_purchase) — esta función solo decide
+// QUÉ candidatos proponerle a esa RPC, nunca reemplaza su garantía de
+// atomicidad. Selección "random" real por SQL (order=random()) no está
+// disponible vía PostgREST sin una función nueva (habría requerido
+// migración + STOP); en su lugar se usa un offset aleatorio acotado +
+// shuffle en memoria sobre una ventana pequeña de candidatos — aleatorio
+// en la práctica, sin tocar el schema. Si la RPC rechaza el lote elegido
+// (alguien más tomó alguno de esos números entre la lectura y la
+// escritura), se reintenta con una ventana nueva — nunca dejamos un
+// estado parcial, porque la RPC en sí es todo-o-nada.
+// Ajustado con evidencia real: bajo ráfagas de concurrencia muy altas
+// (20 compradores simultáneos sobre un pool de 100), una ventana de
+// candidatos de quantity*3 con solo 4 reintentos dejó UNA solicitud sin
+// resolver (assignment_conflict_retry_exhausted — comportamiento seguro,
+// nunca un duplicado, pero evitable). Ventana más ancha + más reintentos
+// reduce la probabilidad de colisión sin tocar la garantía de atomicidad
+// real, que sigue viviendo 100% en la RPC.
+const MAX_ASSIGNMENT_RETRIES = 6;
+const CANDIDATE_WINDOW_CAP = 200;
+
+async function assignRandomAvailableNumbers(supabase, raffleId, quantity, purchaseId, holdUntilIso) {
+  for (let attempt = 1; attempt <= MAX_ASSIGNMENT_RETRIES; attempt++) {
+    const { count: availableCount, error: cErr } = await supabase
+      .from("tickets")
+      .select("id", { count: "exact", head: true })
+      .eq("raffle_id", raffleId)
+      .in("status", ["available", "free"]);
+    if (cErr) throw cErr;
+    if ((availableCount || 0) < quantity) {
+      return { ok: false, error: "insufficient_availability", available: availableCount || 0 };
+    }
+
+    const candidateSize = Math.min(Math.max(quantity * 6, quantity), availableCount, CANDIDATE_WINDOW_CAP);
+    const maxOffset = Math.max(0, availableCount - candidateSize);
+    const offset = maxOffset > 0 ? Math.floor(Math.random() * (maxOffset + 1)) : 0;
+
+    const { data: candidates, error: candErr } = await supabase
+      .from("tickets")
+      .select("number")
+      .eq("raffle_id", raffleId)
+      .in("status", ["available", "free"])
+      .order("number", { ascending: true })
+      .range(offset, offset + candidateSize - 1);
+    if (candErr) throw candErr;
+
+    const pool = (candidates || []).map((t) => t.number);
+    if (pool.length < quantity) continue; // la disponibilidad cambió entre el count y el fetch — reintentar
+
+    // Fisher-Yates sobre la ventana de candidatos — aleatoriza cuáles de
+    // esos candidatos se proponen, sin necesitar random() en SQL.
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const picked = pool.slice(0, quantity);
+
+    const { error: rErr } = await supabase.rpc("reserve_tickets_for_purchase", {
+      p_raffle_id: raffleId,
+      p_numbers: picked,
+      p_purchase_id: purchaseId,
+      p_hold_until: holdUntilIso,
+    });
+    if (!rErr) return { ok: true, numbers: picked };
+    if (rErr.message !== "tickets_unavailable") throw rErr;
+    // conflicto real: otro comprador tomó alguno de los candidatos elegidos
+    // entre la lectura y la escritura — la RPC no dejó nada a medias,
+    // reintentamos con una ventana de candidatos fresca.
+  }
+  return { ok: false, error: "assignment_conflict_retry_exhausted" };
+}
+
 // URL base limpia (sin slash final) y respetando headers si falta env
 function resolveBaseUrl(req) {
   const cfg = process.env.NEXT_PUBLIC_BASE_URL?.replace(/\/+$/, "");
@@ -44,28 +118,39 @@ export default async function handler(req, res) {
   if (await enforceRateLimit(req, res, { key: `checkout-mp:${ip}`, maxHits: 20, windowSeconds: 60 })) return;
 
   try {
-    // 1) Body
+    // 1) Body — RIFEX RAFFLE EXPERIENCE 2026: el comprador ya no envía
+    // números específicos (grilla eliminada de la UI pública), solo una
+    // cantidad. El servidor decide siempre qué números concretos se
+    // asignan (assignRandomAvailableNumbers, arriba) — el cliente nunca
+    // puede forzar/sugerir un número puntual.
     const {
-      raffle_id, raffleId, numbers,
+      raffle_id, raffleId, quantity,
       buyer_email, buyer_name,
       accepted_terms, terms_version,
     } = req.body || {};
     const rid = raffle_id || raffleId;
     if (!rid) return res.status(400).json({ ok: false, error: "missing_raffle_id" });
-    if (!Array.isArray(numbers) || numbers.length === 0) {
-      return res.status(400).json({ ok: false, error: "missing_numbers" });
+    const qtyRequested = Number.parseInt(quantity, 10);
+    if (!Number.isInteger(qtyRequested) || qtyRequested < 1) {
+      return res.status(400).json({ ok: false, error: "invalid_quantity" });
     }
 
     // 2) Rifa
     const { data: rdata, error: rerr } = await supabase
       .from("raffles")
-      .select("id, title, price_cents, creator_id, creator_email, sales_end_at")
+      .select("id, title, price_cents, total_numbers, creator_id, creator_email, sales_end_at")
       .eq("id", rid)
       .maybeSingle();
     if (rerr) throw rerr;
     if (!rdata) return res.status(404).json({ ok: false, error: "raffle_not_found" });
 
     const raffle = rdata;
+
+    // Techo real: nunca más que el tamaño total de la rifa — no es un
+    // límite nuevo inventado, es el propio total_numbers ya existente.
+    if (raffle.total_numbers && qtyRequested > raffle.total_numbers) {
+      return res.status(400).json({ ok: false, error: "quantity_exceeds_total" });
+    }
 
     // DRAW-1: gate de tiempo — solo bloquea si la rifa configuró
     // sales_end_at (modelo temporal nuevo). Rifas V1 con sales_end_at=NULL
@@ -83,33 +168,19 @@ export default async function handler(req, res) {
 
     const pricePerNumberCents = Number(raffle.price_cents || 0);
     const unitPriceCLP = Math.round(pricePerNumberCents / 100); // CLP entero por número
-    const qty = numbers.length;
+    const qty = qtyRequested;
     if (!Number.isFinite(unitPriceCLP) || unitPriceCLP <= 0) {
       return res.status(400).json({ ok: false, error: "invalid_price" });
     }
 
-    // 3) Disponibilidad
-    const { data: currentTickets, error: terr } = await supabase
-      .from("tickets")
-      .select("number,status")
-      .eq("raffle_id", rid)
-      .in("number", numbers);
-    if (terr) throw terr;
-
-    const unavailable = (currentTickets || [])
-      .filter((t) => !["available","free"].includes(t.status))
-      .map((t) => t.number);
-    if (unavailable.length) {
-      return res.status(409).json({ ok: false, error: "some_numbers_unavailable", details: { unavailable } });
-    }
-
-    // 4) Purchase + reservar
+    // 3) Purchase (números aún desconocidos — se completan tras la
+    // asignación atómica de abajo) + asignación + reserva
     const now = Date.now();
     const holdsUntilIso = new Date(now + HOLD_MINUTES * 60_000).toISOString();
 
     const insertPurchase = {
       raffle_id: rid,
-      numbers,
+      numbers: [],
       status: "pending_payment",
       buyer_email: buyer_email || null,
       buyer_name:  buyer_name  || null,
@@ -128,26 +199,21 @@ export default async function handler(req, res) {
     if (perr) throw perr;
     const purchase = pIns;
 
-    // PRE-LAUNCH-FIX-1 (P0-2): reserva atómica todo-o-nada vía RPC — el
-    // UPDATE condicional anterior no verificaba cuántas filas afectó
-    // realmente, así que el perdedor de una carrera concurrente por el
-    // mismo número continuaba como si hubiera reservado con éxito. La RPC
-    // reserve_tickets_for_purchase() revierte CUALQUIER reserva parcial y
-    // lanza 'tickets_unavailable' si no se pudieron reservar TODOS los
-    // números pedidos — nunca deja un pedido parcialmente reservado.
-    const { error: rErrReserve } = await supabase.rpc("reserve_tickets_for_purchase", {
-      p_raffle_id: rid,
-      p_numbers: numbers,
-      p_purchase_id: purchase.id,
-      p_hold_until: holdsUntilIso,
-    });
-    if (rErrReserve) {
+    // PRE-LAUNCH-FIX-1 (P0-2) + RAFFLE EXPERIENCE 2026: la asignación de
+    // candidatos es nueva (arriba), pero la escritura real sigue siendo
+    // 100% la misma RPC reserve_tickets_for_purchase() todo-o-nada ya
+    // certificada — revierte cualquier reserva parcial y nunca deja un
+    // pedido a medias.
+    const assignment = await assignRandomAvailableNumbers(supabase, rid, qty, purchase.id, holdsUntilIso);
+    if (!assignment.ok) {
       await supabase.from("purchases").update({ status: "failed" }).eq("id", purchase.id);
-      if (rErrReserve.message === "tickets_unavailable") {
-        return res.status(409).json({ ok: false, error: "some_numbers_unavailable" });
+      if (assignment.error === "insufficient_availability") {
+        return res.status(409).json({ ok: false, error: "insufficient_availability", details: { available: assignment.available } });
       }
-      throw rErrReserve;
+      return res.status(409).json({ ok: false, error: assignment.error || "assignment_failed" });
     }
+    const numbers = assignment.numbers;
+    await supabase.from("purchases").update({ numbers }).eq("id", purchase.id);
 
     // 5) Token del vendedor (mp_accounts o merchant_gateways) + fallback plataforma
     let sellerToken = null;

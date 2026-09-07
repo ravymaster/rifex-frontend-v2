@@ -1,0 +1,93 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mainImageBtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: #0f172a;
+  aspect-ratio: 16 / 10;
+}
+.mainImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.moneyHero {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #1E3A8A 0%, #18A957 100%);
+  color: #fff;
+}
+.moneyIcon { font-size: 56px; line-height: 1; }
+.moneyLabel { font-weight: 800; font-size: 16px; text-align: center; padding: 0 16px; }
+
+.thumbRow {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.thumbBtn {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  padding: 0;
+  cursor: pointer;
+  background: #f1f5f9;
+}
+.thumbActive { border-color: #18A957; }
+.thumbImage { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.lightboxBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3200;
+  padding: 24px;
+}
+.lightboxImage {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  object-fit: contain;
+}
+.lightboxClose {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255,255,255,.15);
+  color: #fff;
+  font-weight: 800;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .thumbBtn { width: 56px; height: 56px; }
+}

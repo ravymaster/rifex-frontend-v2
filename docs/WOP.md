@@ -4,6 +4,66 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX RAFFLE EXPERIENCE 2026 (2026-09-06) — DEV only, rediseño visual + selector de cantidad
+
+`origin/develop` advances from `7506890` (panel pagination DEV certified). Rediseña la
+experiencia pública de Rifas (ficha visual premium, galería de imágenes, selector de
+cantidad) reutilizando el 100% de la lógica financiera/de reserva/de sorteo ya
+certificada — cero migraciones nuevas.
+
+**Auditoría previa** confirmó: la creación (`POST /api/rifas` + RPC
+`create_raffle_with_declarations`), el upload de fotos (`upload-photo.js`, bucket
+`raffle-prizes`), la reserva atómica (`reserve_tickets_for_purchase` RPC), el
+draw/winner (`drawWinner.js`), y toda la capa de Mercado Pago/webhook/reconciliación
+funcionan correctamente y no necesitaban cambios — solo el render público estaba
+roto/incompleto.
+
+**Bug real #1 (imágenes)**: `raffle.prize_photos` llegaba correcto desde el backend
+end-to-end, pero ningún componente en `src/` lo leía — gap de render puro, cero
+mismatch de nombres/Storage. Corregido con `PrizeGallery.jsx` (nuevo componente,
+cero cambio de backend).
+
+**Bug real #2 ("$0")**: el precio del premio se formateaba siempre desde
+`prize_amount_cents` (null para premios físicos), mostrando "$0". Corregido con una
+rama explícita por `prize_type`.
+
+**Grilla eliminada, reemplazada por cantidad**: `POST /api/checkout/mp` pasó de
+aceptar `{numbers: [...]}` a `{quantity}`. La asignación de números concretos ahora
+la decide siempre el servidor (`assignRandomAvailableNumbers` — offset aleatorio
+acotado + ventana de candidatos barajada en memoria, Fisher-Yates), pero la
+escritura real sigue siendo exactamente la misma RPC atómica todo-o-nada ya
+certificada (`reserve_tickets_for_purchase`) — sin migración nueva. SQL `random()`
+real habría requerido una función nueva (STOP explícito por mandato); se evitó.
+
+**Evidencia real de tuning bajo carga**: la primera corrida de 20 compradores
+concurrentes reales (rifex-dev, quantity=3 cada uno, pool de 100) con
+ventana=`quantity*3`/4 reintentos dejó 1/20 sin resolver de forma segura
+(`assignment_conflict_retry_exhausted`, nunca un duplicado). Se amplió a
+`quantity*6`/6 reintentos y la repetición exacta dio **20/20 éxitos, 60/60
+números únicos, cero duplicados**. Prueba de agotamiento (5 tickets, 3
+compradores×3) dio exactamente 1 éxito, 2 fallos deterministas
+(`insufficient_availability`), disponibilidad final exacta — nunca overselling.
+Fixture disposable eliminado y verificado en cero.
+
+**Organizador real**: la rifa nunca copia nombre/foto del organizador — llama a
+`GET /api/perfil/[uid]` (misma autoridad pública ya usada por "Ver perfil del
+creador") tanto en `crear-rifa.jsx` (perfil propio + link a editar) como en la
+ficha pública (perfil del creador).
+
+**Performance**: la ficha pública ya no descarga el arreglo completo de tickets —
+solo counts agregados (`count:'exact', head:true`).
+
+**Seguridad**: el cliente nunca puede enviar números específicos — solo `quantity`
+(validado como entero, techo = `total_numbers` real de la rifa, no un límite
+inventado). Country Gate, rate limiting y ownership sin cambios.
+
+44/44 tests nuevos (`tests/raffleExperience2026.test.mjs`), regresión completa
+935/936 (mismo flake histórico de XLSX, misma firma reconfirmada), build limpio.
+Cero cambios a Payment Engine, MP OAuth, webhook, comisión, Trust, RLS,
+migraciones, semántica de scanner/check-in, ni a Eventos/Campañas/Inscripciones.
+
+---
+
 ## RIFEX PANEL SCALABILITY — SERVER-SIDE PAGINATION (2026-09-05) — DEV only, surgical hardening
 
 `origin/develop` advances from `ce4f69f` (v3.0 PROD promotion docs). Corrects real scalability risk in the private panels of Eventos e Inscripciones — no new product surface, only server-side pagination and accurate counters for existing listados.

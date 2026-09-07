@@ -6,7 +6,7 @@ import styles from "../../styles/buyerForm.module.css";
 export default function BuyerForm({
   open,
   onClose,
-  selected = [],
+  quantity = 0,
   priceCLP = 0,          // cents
   termsVersion = "v1.0",
   onSubmit,
@@ -24,7 +24,7 @@ export default function BuyerForm({
     setAccepted(false);
   }, [open]);
 
-  const qty = selected.length;
+  const qty = quantity;
   const total = useMemo(() => {
     const n = (Number(priceCLP || 0) / 100) * qty;
     return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -42,7 +42,7 @@ export default function BuyerForm({
 
         <div className={styles.body}>
           <div className={styles.summary}>
-            <div><b>Números:</b> {selected.join(", ") || "—"}</div>
+            <div><b>Cantidad:</b> {qty} {qty === 1 ? "número" : "números"}</div>
             <div><b>Total:</b> {total}</div>
             {extraCostNotices.length > 0 && (
               <div className={styles.extraCosts}>
