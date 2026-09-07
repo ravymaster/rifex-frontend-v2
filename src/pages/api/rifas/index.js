@@ -6,6 +6,7 @@ import { COUNTRY_POLICY } from '@/lib/countryPolicy';
 import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
 import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
 import { enforceRateLimit } from '@/lib/rateLimit';
+import { slugify } from '@/lib/slugify';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,9 +34,21 @@ const ALLOWED_CREATE_FIELDS = new Set([
   'requires_transfer_procedures',
   'transfer_expenses_owner',
   'transfer_conditions',
+  'features',
 ]);
 
 const MAX_EXTENSION_LIMIT = 3;
+// RAFFLE VISUAL POLISH (2026-09-07): "características dinámicas" del
+// premio (ej. Marca/Lamborghini) — puramente descriptivas, nunca
+// afectan precio/atomicidad/reserva. Límite razonable para que la
+// grilla de la ficha pública no se desborde.
+const MAX_FEATURES = 8;
+const MAX_FEATURE_LABEL_LEN = 40;
+const MAX_FEATURE_VALUE_LEN = 60;
+// Reintentos acotados ante colisión real de slug (mismo patrón ya
+// certificado en api/blog/historia.js: sufijo aleatorio corto, nunca un
+// contador secuencial que revele cuántas rifas comparten título).
+const MAX_SLUG_ATTEMPTS = 3;
 // DRAW-1B: anticipación mínima — con T-5, esto deja al menos 5 minutos
 // reales de venta antes de que sales_end_at cierre las compras.
 const MIN_LEAD_MINUTES = 10;
@@ -124,6 +137,32 @@ export default async function handler(req, res) {
         if (ALLOWED_CREATE_FIELDS.has(k)) row[k] = body[k];
       }
       if (!row.title) return res.status(400).json({ ok: false, error: 'missing_title' });
+
+      // RAFFLE VISUAL POLISH (2026-09-07): características dinámicas —
+      // validadas server-side, nunca se confía en lo que mande el cliente
+      // más allá de la forma esperada. Ausente o vacío es válido (rifa sin
+      // características declaradas).
+      if (row.features !== undefined) {
+        if (!Array.isArray(row.features)) {
+          return res.status(400).json({ ok: false, error: 'invalid_features' });
+        }
+        if (row.features.length > MAX_FEATURES) {
+          return res.status(400).json({ ok: false, error: 'too_many_features', message: `Máximo ${MAX_FEATURES} características.` });
+        }
+        const cleanFeatures = [];
+        for (const f of row.features) {
+          const label = typeof f?.label === 'string' ? f.label.trim() : '';
+          const value = typeof f?.value === 'string' ? f.value.trim() : '';
+          if (!label || !value) continue; // fila vacía del formulario, se descarta silenciosamente
+          if (label.length > MAX_FEATURE_LABEL_LEN || value.length > MAX_FEATURE_VALUE_LEN) {
+            return res.status(400).json({ ok: false, error: 'feature_too_long' });
+          }
+          cleanFeatures.push({ label, value });
+        }
+        row.features = cleanFeatures;
+      } else {
+        row.features = [];
+      }
 
       row.price_cents = Math.max(0, Math.round(Number(row.price_cents || 0)));
       row.total_numbers = Math.max(1, Math.round(Number(row.total_numbers || 0)));
@@ -216,15 +255,32 @@ export default async function handler(req, res) {
         row.end_date = draw_date;
       }
 
+      // RAFFLE VISUAL POLISH (2026-09-07): slug amigable, generado desde
+      // el título — se congela para siempre al crear (nunca se
+      // regenera si el creador edita el título después). El UUID real
+      // (`id`) sigue siendo la identidad interna; el slug solo mejora el
+      // link público.
+      const baseSlug = slugify(row.title) || 'rifa';
+
       // DRAW-1B: crear rifa + declaraciones legales en una sola transacción
       // (RPC atómica) — si el registro de 18+/premio falla, la rifa
       // tampoco queda creada. Nunca dejar una rifa sin evidencia de
-      // aceptación (fail-closed).
-      const { data: created, error: rpcErr } = await supabase.rpc('create_raffle_with_declarations', {
-        p_raffle: row,
-        p_user_id: creator_id,
-        p_declaration_types: [DECLARATION_TYPES.AGE_18, DECLARATION_TYPES.PRIZE_OWNERSHIP],
-      });
+      // aceptación (fail-closed). Reintento acotado solo ante colisión
+      // real de slug (23505 en el índice único) — nunca ante otro tipo
+      // de error, que se propaga tal cual.
+      let created = null;
+      let rpcErr = null;
+      for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+        const slug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+        const result = await supabase.rpc('create_raffle_with_declarations', {
+          p_raffle: { ...row, slug },
+          p_user_id: creator_id,
+          p_declaration_types: [DECLARATION_TYPES.AGE_18, DECLARATION_TYPES.PRIZE_OWNERSHIP],
+        });
+        if (!result.error) { created = result.data; rpcErr = null; break; }
+        rpcErr = result.error;
+        if (result.error.code !== '23505') break;
+      }
       if (rpcErr) throw rpcErr;
 
       // Crear tickets 1..N

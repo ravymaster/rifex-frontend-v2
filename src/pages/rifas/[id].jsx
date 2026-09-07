@@ -15,6 +15,7 @@ import QuantitySelector from "../../components/rifex/QuantitySelector";
 import PrizeGallery from "../../components/rifex/PrizeGallery";
 import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
+import { idOrSlugColumn } from "../../lib/idOrSlug";
 
 const TERMS_VERSION = "v1.0";
 const TZ_LABELS = {
@@ -33,6 +34,32 @@ const DELIVERY_METHOD_LABELS = {
   envio_pagado: "Envío a cargo del ganador",
   a_convenir: "A convenir con el creador",
 };
+
+// RAFFLE VISUAL POLISH (2026-09-07) — pasos y preguntas frecuentes de las
+// pestañas "Cómo participar" y "Preguntas frecuentes": copy estático,
+// nunca depende de datos por-rifa — la lógica real de compra/asignación/
+// pago no cambia, esto solo la explica.
+const HOW_IT_WORKS_STEPS = [
+  { title: "Elegí la cantidad", text: "Indicá cuántos números querés — el sistema te muestra el total a pagar." },
+  { title: "Pagá con Mercado Pago", text: "Completás el pago de forma segura, directo en Mercado Pago." },
+  { title: "Recibí tus números", text: "El sistema asigna tus números al azar entre los disponibles — nunca los elegís vos." },
+  { title: "Esperá el sorteo", text: "Cuando llegue la fecha, el sorteo se ejecuta automáticamente y se avisa al ganador." },
+];
+
+const TABS = [
+  { id: "premio", label: "Sobre el premio" },
+  { id: "participar", label: "Cómo participar" },
+  { id: "condiciones", label: "Condiciones" },
+  { id: "organizador", label: "Organizador" },
+  { id: "faq", label: "Preguntas frecuentes" },
+];
+
+const FAQ_ITEMS = [
+  { q: "¿Cómo se eligen los números?", a: "Los asigna el sistema automáticamente entre los disponibles al confirmarse el pago — nunca los elige el comprador ni el organizador." },
+  { q: "¿Es seguro pagar?", a: "Sí. Todo el pago se procesa a través de Mercado Pago — Rifex nunca ve ni guarda tus datos de tarjeta." },
+  { q: "¿Qué pasa si no gano?", a: "No hay cargos adicionales. Podés participar en otras rifas activas cuando quieras." },
+  { q: "¿Cómo sé si gané?", a: "El ganador se contacta directamente por los datos entregados al comprar, y el resultado queda visible en esta misma página." },
+];
 
 // RIFEX V4 A6 fix — esta página siempre fue client-fetch puro (raffle
 // llega recién tras el useEffect) y tiene un return temprano de "cargando"
@@ -90,10 +117,17 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
   // Spinner overlay durante la redirección a MP
   const [redirecting, setRedirecting] = useState(false);
 
+  // RAFFLE VISUAL POLISH (2026-09-07) — pestañas de la sección inferior,
+  // puramente de presentación (nunca cambian qué datos se piden ni cómo).
+  const [activeTab, setActiveTab] = useState("premio");
+
   useEffect(() => {
     if (!id) return;
+    // RAFFLE VISUAL POLISH (2026-09-07) — `id` puede ser el slug amigable
+    // nuevo, no el UUID real. loadWinner ya no se llama acá directo con
+    // `id`: se dispara desde loadData una vez que se resuelve el UUID
+    // real de la rifa, para no consultar /api/raffles/winner con un slug.
     loadData(id);
-    loadWinner(id);
   }, [id]);
 
   // Mostrar/ocultar intro según ganador / preferencia del usuario / query
@@ -190,7 +224,8 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
       setTimeout(() => loadData(id), 3000);
 
       if (final === "approved") {
-        await ensureWinner(id);
+        // UUID real ya resuelto por loadData — nunca el slug de la URL.
+        await ensureWinner(raffle?.id);
       }
 
       setTimeout(() => setPaymentResult(null), MODAL_AUTO_HIDE_MS);
@@ -208,38 +243,42 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
     })();
   }, [router.isReady, router.query, id]);
 
-  // Liberar reservas vencidas + refrescar si liberó algo
+  // Liberar reservas vencidas + refrescar si liberó algo — siempre con el
+  // UUID real ya resuelto (raffle.id), nunca con el slug de la URL.
   useEffect(() => {
-    if (!id) return;
+    const rid = raffle?.id;
+    if (!rid) return;
     const hit = async () => {
       try {
-        const r = await fetch(`/api/tickets/release-expired?rid=${id}`);
+        const r = await fetch(`/api/tickets/release-expired?rid=${rid}`);
         const j = await r.json().catch(() => null);
-        if (j?.ok && j.released > 0) await loadData(id);
+        if (j?.ok && j.released > 0) await loadData(rid);
       } catch {}
     };
     hit();
     const timer = setInterval(hit, 30_000);
     return () => clearInterval(timer);
-  }, [id]);
+  }, [raffle?.id]);
 
   // Realtime en tickets — refresca solo los TOTALES agregados (nunca
-  // descarga el arreglo completo de tickets al navegador).
+  // descarga el arreglo completo de tickets al navegador). Igual que
+  // arriba, siempre contra el UUID real, nunca el slug de la URL.
   useEffect(() => {
-    if (!id) return;
+    const rid = raffle?.id;
+    if (!rid) return;
     const channel = supabase
-      .channel(`raffle-${id}`)
+      .channel(`raffle-${rid}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "tickets", filter: `raffle_id=eq.${id}` },
+        { event: "*", schema: "public", table: "tickets", filter: `raffle_id=eq.${rid}` },
         async () => {
-          await loadData(id);
-          await loadWinner(id);
+          await loadData(rid);
+          await loadWinner(rid);
         }
       )
       .subscribe();
     return () => { try { supabase.removeChannel(channel); } catch {} };
-  }, [id]);
+  }, [raffle?.id]);
 
   // mapeos compat (rifas legacy — ninguna rifa creada por crear-rifa.jsx
   // actual pasa por acá, pero rifas históricas siguen debiendo cargar)
@@ -296,19 +335,27 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
 
       let raffleData = null;
 
-      { const { data, error } = await supabase.from("raffles").select("*").eq("id", rid).limit(1);
+      // RAFFLE VISUAL POLISH (2026-09-07) — `rid` puede ser el UUID real o
+      // el slug amigable nuevo (/rifas/lambo): nunca se asume uno u otro.
+      const col = idOrSlugColumn(rid);
+
+      { const { data, error } = await supabase.from("raffles").select("*").eq(col, rid).limit(1);
         if (!error && Array.isArray(data) && data.length) raffleData = data[0]; }
-      if (!raffleData) {
+      if (!raffleData && col === "id") {
         const { data, error } = await supabase.from("raffles_compat").select("*").eq("id", rid).limit(1);
         if (!error && Array.isArray(data) && data.length) raffleData = data[0];
       }
-      if (!raffleData) {
+      if (!raffleData && col === "id") {
         const { data, error } = await supabase.from("rifas").select("*").eq("id", rid).limit(1);
         if (!error && Array.isArray(data) && data.length) raffleData = mapRaffleFromOld(data[0]);
       }
 
       setRaffle(raffleData);
-      await loadCounts(rid, raffleData?._legacy);
+      if (raffleData?.id) {
+        await loadCounts(raffleData.id, raffleData?._legacy);
+        // Siempre con el UUID real ya resuelto — nunca con el slug de la URL.
+        loadWinner(raffleData.id);
+      }
       if (raffleData?.creator_id) loadOrganizer(raffleData.creator_id);
       setError(null);
     } catch (e) {
@@ -431,8 +478,10 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
     try {
       try { localStorage.setItem("rifex.lastBuyerEmail", String(buyer?.email || "").trim().toLowerCase()); } catch {}
       const payload = {
-        raffle_id: id,
-        raffleId: id,
+        // UUID real de la rifa — nunca el slug de la URL (checkout/mp.js
+        // espera el id real, no un slug legible).
+        raffle_id: raffle.id,
+        raffleId: raffle.id,
         quantity: qty,
         buyer_email: buyer?.email || null,
         buyer_name: buyer?.name || null,
@@ -629,23 +678,173 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
           </div>
         )}
 
-        {/* HERO */}
-        <div className={styles.heroGrid}>
-          <div className={styles.heroMedia}>
+        {/* RAFFLE VISUAL POLISH (2026-09-07) — encabezado + layout de 2
+            columnas (imagen+pestañas a la izquierda, compra+confianza a
+            la derecha), acercándose al diseño aprobado. Toda la data
+            (raffle, counts, organizer, premioInfo, extraCostNotices)
+            sigue siendo exactamente la misma de siempre — esto es
+            reordenamiento visual puro. */}
+        <div className={styles.headTop}>
+          <span className={styles.statusPill}>● {humanRaffleStatus(raffle.status)}</span>
+          <h1 className={styles.title}>{titleCap}</h1>
+        </div>
+
+        <div className={styles.layout2col}>
+          <div className={styles.mainCol}>
             <PrizeGallery
               photos={raffle.prize_photos}
               prizeType={raffle.prize_type}
               title={titleCap}
             />
-          </div>
 
-          <div className={styles.heroSide}>
-            <div className={styles.head}>
-              <span className={styles.statusPill}>● {humanRaffleStatus(raffle.status)}</span>
-              <h1 className={styles.title}>{titleCap}</h1>
-              <p className={styles.sub}>{raffle.description || ""}</p>
+            <div className={styles.tabsNav} role="tablist" aria-label="Detalle de la rifa">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === t.id}
+                  className={`${styles.tabBtn} ${activeTab === t.id ? styles.tabBtnActive : ""}`}
+                  onClick={() => setActiveTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
 
+            <div className={styles.tabPanel}>
+              {activeTab === "premio" && (
+                <div>
+                  <h2 className={styles.tabPanelTitle}>🎁 Sobre el premio</h2>
+                  <p className={styles.tabPanelText}>{raffle.description || "Sin descripción adicional."}</p>
+                  {Array.isArray(raffle.features) && raffle.features.length > 0 && (
+                    <>
+                      <h3 className={styles.featuresTitle}>Características</h3>
+                      <div className={styles.featuresGrid}>
+                        {raffle.features.map((f, i) => (
+                          <div key={i} className={styles.featureCard}>
+                            <span className={styles.featureCardIcon} aria-hidden="true">✦</span>
+                            <div>
+                              <div className={styles.featureCardLabel}>{f.label}</div>
+                              <div className={styles.featureCardValue}>{f.value}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "participar" && (
+                <div>
+                  <h2 className={styles.tabPanelTitle}>🛒 Cómo participar</h2>
+                  <div className={styles.stepsList}>
+                    {HOW_IT_WORKS_STEPS.map((s, i) => (
+                      <div key={i} className={styles.stepItem}>
+                        <span className={styles.stepNum}>{i + 1}</span>
+                        <div>
+                          <div className={styles.stepTitle}>{s.title}</div>
+                          <div className={styles.stepText}>{s.text}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "condiciones" && (
+                <div>
+                  <h2 className={styles.tabPanelTitle}>📋 Condiciones</h2>
+
+                  {(drawInfo || (raffle?.extension_limit ?? 0) > 0) && !winner && (
+                    <div style={{ margin: "4px 0 12px", padding: "12px 14px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#f8fafc", color: "#0f172a", fontSize: 14, lineHeight: 1.6 }}>
+                      <div style={{ fontWeight: 700 }}>{salesClosed ? "Ventas cerradas" : "Ventas abiertas"}</div>
+                      {drawInfo && (
+                        <div style={{ color: "#94a3b8", fontSize: 12 }}>
+                          Sorteo automático: puede ejecutarse hasta 5 minutos después de la hora indicada.
+                        </div>
+                      )}
+                      {drawInfo && <div style={{ color: "#64748b" }}>Ventas cierran 5 minutos antes del sorteo.</div>}
+                      {(raffle?.extension_limit ?? 0) > 0 && (
+                        <div style={{ color: "#64748b" }}>
+                          {(raffle?.extensions_used ?? 0) > 0
+                            ? `Fecha de sorteo modificada · ${raffle.extensions_used} de ${raffle.extension_limit} extensiones utilizadas.`
+                            : `Esta rifa puede extender su fecha de sorteo hasta ${raffle.extension_limit} ${raffle.extension_limit === 1 ? "vez" : "veces"}. Cualquier cambio será informado a los participantes.`}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {premioInfo && (
+                    <div style={{ margin: "4px 0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: ".03em" }}>
+                        Información del premio
+                      </div>
+                      {premioInfo.map((row, idx) => (
+                        <div
+                          key={idx}
+                          className={row.tone === "amber" ? styles.alertAmber : row.tone === "green" ? styles.alertGreen : styles.alertNeutral}
+                        >
+                          {row.title && <div style={{ fontWeight: 700, marginBottom: 4 }}>{row.title}</div>}
+                          {row.lines.map((line, i) => <div key={i}>{line}</div>)}
+                          {row.conditions && (
+                            <>
+                              <div style={{ fontWeight: 700, marginTop: 8 }}>Condiciones de transferencia</div>
+                              <div>{row.conditions}</div>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <a className={styles.linkMuted} href="/terminos-rifas" target="_blank" rel="noreferrer">📄 Ver términos completos de la rifa</a>
+                </div>
+              )}
+
+              {activeTab === "organizador" && (
+                <div>
+                  <h2 className={styles.tabPanelTitle}>👤 Organizador</h2>
+                  <div className={styles.organizerBlock}>
+                    <div className={styles.organizerHead}>
+                      <div className={styles.organizerAvatar}>
+                        {organizer?.avatar_url ? (
+                          <img src={organizer.avatar_url} alt="" />
+                        ) : (
+                          <span>{(organizer?.nombre || "?").charAt(0).toUpperCase()}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className={styles.organizerLabel}>Organizador</div>
+                        <div className={styles.organizerName}>{organizer?.nombre || "Organizador de Rifex"}</div>
+                      </div>
+                      {creatorId && (
+                        <a className={styles.organizerLink} href={`/perfil/${creatorId}`}>Ver perfil</a>
+                      )}
+                    </div>
+                    {organizer?.bio && <p className={styles.organizerBio}>"{organizer.bio}"</p>}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "faq" && (
+                <div>
+                  <h2 className={styles.tabPanelTitle}>❓ Preguntas frecuentes</h2>
+                  <div className={styles.faqList}>
+                    {FAQ_ITEMS.map((f, i) => (
+                      <div key={i} className={styles.faqItem}>
+                        <div className={styles.faqQ}>{f.q}</div>
+                        <div className={styles.faqA}>{f.a}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <aside className={styles.sideCol}>
             {drawInfo && (
               <div className={styles.drawCard}>
                 <div className={styles.drawCardLabel}>Sorteo el</div>
@@ -654,21 +853,18 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
               </div>
             )}
 
-            <div className={styles.topInfo}>
-              <div className={`${styles.infoItem} ${styles.infoItemHi}`}>
-                <div className={styles.infoLabel}>{prizeDisplay.label}</div>
-                <div className={styles.infoValue}>{prizeDisplay.value}</div>
-                <div className={styles.infoSub}>{prizeDisplay.sub}</div>
+            <div className={styles.statCardsRow}>
+              <div className={styles.statCard}>
+                <div className={styles.statCardLabel}>Números disponibles</div>
+                <div className={styles.statCardValue}>{counts.available} de {counts.total || raffle.total_numbers || 0}</div>
               </div>
-              <div className={styles.infoItem}>
-                <div className={styles.infoLabel}>Números disponibles</div>
-                <div className={styles.infoValue}>{counts.available} de {counts.total || raffle.total_numbers || 0}</div>
-                <div className={styles.infoSub}>{" "}</div>
+              <div className={styles.statCard}>
+                <div className={styles.statCardLabel}>Valor por número</div>
+                <div className={styles.statCardValue}>{priceCLP}</div>
               </div>
-              <div className={styles.infoItem}>
-                <div className={styles.infoLabel}>Valor por número</div>
-                <div className={styles.infoValue}>{priceCLP}</div>
-                <div className={styles.infoSub}>{" "}</div>
+              <div className={`${styles.statCard} ${styles.statCardHi}`}>
+                <div className={styles.statCardLabel}>{prizeDisplay.label}</div>
+                <div className={styles.statCardValue}>{prizeDisplay.value}</div>
               </div>
             </div>
 
@@ -688,85 +884,58 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
               </div>
             )}
 
+            {/* RAFFLE VISUAL POLISH (2026-09-07) — badges de confianza
+                genéricas del diseño aprobado; TrustBadge de abajo sigue
+                siendo la señal REAL basada en creator_trust_level. */}
+            <div className={styles.staticTrustRow}>
+              <span className={styles.staticTrustBadge}>✅ Organizador verificado</span>
+              <span className={styles.staticTrustBadge}>🔒 Pago seguro (Mercado Pago)</span>
+              <span className={styles.staticTrustBadge}>💎 Transparencia total</span>
+            </div>
+
             <div className={styles.trustRow}>
               <TrustBadge level={raffle?.creator_trust_level ?? null} />
             </div>
-          </div>
-        </div>
 
-        {/* DRAW-1: estado público del lifecycle temporal (sin copy técnico) */}
-        {(drawInfo || (raffle?.extension_limit ?? 0) > 0) && !winner && (
-          <div style={{ margin: "4px 0 12px", padding: "12px 14px", borderRadius: 12, border: "1px solid #e5e7eb", background: "#f8fafc", color: "#0f172a", fontSize: 14, lineHeight: 1.6 }}>
-            <div style={{ fontWeight: 700 }}>{salesClosed ? "Ventas cerradas" : "Ventas abiertas"}</div>
-            {drawInfo && (
-              <div style={{ color: "#94a3b8", fontSize: 12 }}>
-                Sorteo automático: puede ejecutarse hasta 5 minutos después de la hora indicada.
-              </div>
-            )}
-            {drawInfo && <div style={{ color: "#64748b" }}>Ventas cierran 5 minutos antes del sorteo.</div>}
-            {(raffle?.extension_limit ?? 0) > 0 && (
-              <div style={{ color: "#64748b" }}>
-                {(raffle?.extensions_used ?? 0) > 0
-                  ? `Fecha de sorteo modificada · ${raffle.extensions_used} de ${raffle.extension_limit} extensiones utilizadas.`
-                  : `Esta rifa puede extender su fecha de sorteo hasta ${raffle.extension_limit} ${raffle.extension_limit === 1 ? "vez" : "veces"}. Cualquier cambio será informado a los participantes.`}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* RIFEX CLOSURE PASS (2026-08-29): un único bloque público con las
-            condiciones económicas del premio físico — visible ANTES de
-            participar, nunca escondido en Términos. Ámbar = costo a cargo
-            del ganador, verde = incluido por el creador, neutro = sin
-            alerta económica (ej. retiro presencial). */}
-        {premioInfo && (
-          <div style={{ margin: "4px 0 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: ".03em" }}>
-              Información del premio
+            <div className={styles.safetyNote}>
+              🛡️ ¡Rifa segura! Tus datos están protegidos. Compra con confianza.
             </div>
-            {premioInfo.map((row, idx) => (
-              <div
-                key={idx}
-                className={row.tone === "amber" ? styles.alertAmber : row.tone === "green" ? styles.alertGreen : styles.alertNeutral}
-              >
-                {row.title && <div style={{ fontWeight: 700, marginBottom: 4 }}>{row.title}</div>}
-                {row.lines.map((line, i) => <div key={i}>{line}</div>)}
-                {row.conditions && (
-                  <>
-                    <div style={{ fontWeight: 700, marginTop: 8 }}>Condiciones de transferencia</div>
-                    <div>{row.conditions}</div>
-                  </>
+
+            <div className={styles.sideOrganizerCard}>
+              <div className={styles.organizerHead}>
+                <div className={styles.organizerAvatar}>
+                  {organizer?.avatar_url ? (
+                    <img src={organizer.avatar_url} alt="" />
+                  ) : (
+                    <span>{(organizer?.nombre || "?").charAt(0).toUpperCase()}</span>
+                  )}
+                </div>
+                <div>
+                  <div className={styles.organizerLabel}>Organizador</div>
+                  <div className={styles.organizerName}>{organizer?.nombre || "Organizador de Rifex"}</div>
+                </div>
+                {creatorId && (
+                  <a className={styles.organizerLink} href={`/perfil/${creatorId}`}>Ver perfil</a>
                 )}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
 
-        {/* RIFEX RAFFLE EXPERIENCE 2026 — bloque del organizador: datos
-            reales vía la misma autoridad pública de perfil (nunca copiados
-            a mano en la rifa). */}
-        <div className={styles.organizerBlock}>
-          <div className={styles.organizerHead}>
-            <div className={styles.organizerAvatar}>
-              {organizer?.avatar_url ? (
-                <img src={organizer.avatar_url} alt="" />
-              ) : (
-                <span>{(organizer?.nombre || "?").charAt(0).toUpperCase()}</span>
-              )}
-            </div>
-            <div>
-              <div className={styles.organizerLabel}>Organizador</div>
-              <div className={styles.organizerName}>{organizer?.nombre || "Organizador de Rifex"}</div>
-            </div>
-            {creatorId && (
-              <a className={styles.organizerLink} href={`/perfil/${creatorId}`}>Ver perfil</a>
+            {raffle.prize_type === "physical" && (
+              <div className={styles.sideDeliveryCard}>
+                <div className={styles.sideDeliveryTitle}>🚚 Entrega del premio</div>
+                <div className={styles.sideDeliveryText}>
+                  {raffle.delivery_method ? (DELIVERY_METHOD_LABELS[raffle.delivery_method] || raffle.delivery_method) : "Se coordina con el organizador."}
+                </div>
+                {extraCostNotices.length > 0 && (
+                  <div className={styles.sideDeliveryNotice}>{extraCostNotices.join(" ")}</div>
+                )}
+              </div>
             )}
-          </div>
-          {organizer?.bio && <p className={styles.organizerBio}>"{organizer.bio}"</p>}
-        </div>
 
-        <div className={styles.linksRow}>
-          <a className={styles.linkMuted} href="/terminos-rifas" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
+            <div className={styles.linksRow}>
+              <a className={styles.linkMuted} href="/terminos-rifas" target="_blank" rel="noreferrer">📄 Términos de la rifa</a>
+            </div>
+          </aside>
         </div>
       </div>
 

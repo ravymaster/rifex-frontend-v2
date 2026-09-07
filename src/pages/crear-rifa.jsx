@@ -52,6 +52,10 @@ const TRANSFER_EXPENSES_OWNERS = [
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+// RAFFLE VISUAL POLISH (2026-09-07): 1 portada + hasta 4 adicionales,
+// según el brief aprobado — antes el tope era 3.
+const MAX_PHOTOS = 5;
+const MAX_FEATURES = 8;
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -164,10 +168,27 @@ export default function CrearRifaPage() {
   // el formulario, pero el creador debe poder ver qué eligió.
   const [photoPreviews, setPhotoPreviews] = useState([]);
   useEffect(() => {
-    const urls = Array.from(prizePhotos || []).slice(0, 3).map((f) => URL.createObjectURL(f));
+    const urls = Array.from(prizePhotos || []).slice(0, MAX_PHOTOS).map((f) => URL.createObjectURL(f));
     setPhotoPreviews(urls);
     return () => { urls.forEach((u) => URL.revokeObjectURL(u)); };
   }, [prizePhotos]);
+
+  // RAFFLE VISUAL POLISH (2026-09-07) — "Características dinámicas":
+  // pares clave/valor que el creador declara (ej. Marca/Lamborghini,
+  // Año/2024), mostrados luego en la ficha pública dentro de
+  // "Características". Puramente descriptivo — nunca toca precio,
+  // reserva ni ningún cálculo real.
+  const [features, setFeatures] = useState([]);
+  function addFeature() {
+    if (features.length >= MAX_FEATURES) return;
+    setFeatures((prev) => [...prev, { label: "", value: "" }]);
+  }
+  function updateFeature(i, field, val) {
+    setFeatures((prev) => prev.map((f, idx) => (idx === i ? { ...f, [field]: val } : f)));
+  }
+  function removeFeature(i) {
+    setFeatures((prev) => prev.filter((_, idx) => idx !== i));
+  }
 
   const profileIncomplete = myProfileLoaded && !myProfile?.nombre;
 
@@ -233,7 +254,7 @@ export default function CrearRifaPage() {
     try {
       let photos = [];
       if (prizeType === "physical" && prizePhotos?.length) {
-        photos = await uploadPrizePhotos(Array.from(prizePhotos).slice(0, 3), token);
+        photos = await uploadPrizePhotos(Array.from(prizePhotos).slice(0, MAX_PHOTOS), token);
       }
 
       const payload = {
@@ -263,6 +284,10 @@ export default function CrearRifaPage() {
         extension_limit: Number(extensionLimit) || 0,
         age_confirmed: okAge,
         prize_declaration_confirmed: okPrize,
+
+        features: features
+          .map((f) => ({ label: f.label.trim(), value: f.value.trim() }))
+          .filter((f) => f.label && f.value),
       };
 
       const res = await fetch("/api/rifas", {
@@ -276,11 +301,12 @@ export default function CrearRifaPage() {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.message || data?.error || "Error");
 
-      // Redirige a la rifa creada (API devuelve id en la raíz)
-      if (data.id) {
-        router.push(`/rifas/${data.id}`);
-      } else if (data.data?.id) {
-        router.push(`/rifas/${data.data.id}`);
+      // Redirige a la rifa creada — RAFFLE VISUAL POLISH (2026-09-07):
+      // preferir el slug amigable nuevo cuando esté disponible, el UUID
+      // real (`id`) sigue funcionando siempre como fallback.
+      const dest = data.data?.slug || data.id || data.data?.id;
+      if (dest) {
+        router.push(`/rifas/${dest}`);
       } else {
         router.push("/panel");
       }
@@ -352,7 +378,7 @@ export default function CrearRifaPage() {
                 {prizeType==="physical" && (
                   <>
                     <div className={styles.field} style={{ marginBottom: 16 }}>
-                      <span className={styles.fieldLabel}>Fotos del premio (hasta 3)</span>
+                      <span className={styles.fieldLabel}>Fotos del premio (hasta {MAX_PHOTOS})</span>
                       <input type="file" accept="image/*" multiple onChange={e=>setPrizePhotos(Array.from(e.target.files||[]))} />
                       {photoPreviews.length > 0 && (
                         <div className={styles.photoPreviewRow}>
@@ -435,6 +461,37 @@ export default function CrearRifaPage() {
                       </>
                     )}
                   </>
+                )}
+              </div>
+
+              {/* RAFFLE VISUAL POLISH (2026-09-07) — Características
+                  dinámicas: pares clave/valor opcionales (ej.
+                  Marca/Lamborghini) que se muestran en la ficha pública.
+                  Aplica a cualquier tipo de premio, no solo físico. */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Características (opcional)</div>
+                <p className={styles.sectionHint}>Agrega detalles como Marca, Modelo, Año — se mostrarán en la ficha pública.</p>
+                {features.map((f, i) => (
+                  <div key={i} className={styles.featureRow}>
+                    <input
+                      className="rf-pill"
+                      placeholder="Ej: Marca"
+                      value={f.label}
+                      maxLength={40}
+                      onChange={(e) => updateFeature(i, "label", e.target.value)}
+                    />
+                    <input
+                      className="rf-pill"
+                      placeholder="Ej: Lamborghini"
+                      value={f.value}
+                      maxLength={60}
+                      onChange={(e) => updateFeature(i, "value", e.target.value)}
+                    />
+                    <button type="button" className={styles.featureRemoveBtn} onClick={() => removeFeature(i)} aria-label="Quitar característica">✕</button>
+                  </div>
+                ))}
+                {features.length < MAX_FEATURES && (
+                  <button type="button" className={styles.addFeatureBtn} onClick={addFeature}>+ Agregar característica</button>
                 )}
               </div>
 

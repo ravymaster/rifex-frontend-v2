@@ -1,7 +1,31 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-06 (actualización más reciente) — **RIFEX RAFFLE
+> 2026-09-07 (actualización más reciente) — **RAFFLE VISUAL
+> POLISH, DEV only, brief de Doris sobre RIFEX RAFFLE EXPERIENCE
+> 2026.** `origin/develop` avanza desde `14f1f69`. Hero más grande
+> sin recortar, galería con flechas + indicador "+N fotos", layout
+> de 2 columnas con 5 pestañas (Sobre el premio / Cómo participar /
+> Condiciones / Organizador / Preguntas frecuentes — "Condiciones"
+> reutiliza el mismo bloque de información del premio ya certificado,
+> solo reubicado), características dinámicas clave/valor (hasta 8,
+> declaradas en `/crear-rifa`) y slug amigable (`/rifas/lambo`,
+> generado server-side desde el título, congelado al crear,
+> reintento acotado ante colisión real igual que el patrón ya
+> certificado de Blog) — `/rifas/<uuid>` sigue funcionando siempre.
+> **Bug real detectado y corregido durante la propia
+> implementación**: varias llamadas internas (checkout, canal
+> realtime, liberación de reservas vencidas, confirmación de
+> ganador) usaban el parámetro crudo de la URL en vez del UUID real
+> — si un visitante llegaba por el slug nuevo, esas llamadas habrían
+> fallado; corregido para usar siempre el UUID real ya resuelto.
+> Migración aditiva (slug + características) aplicada solo a
+> `rifex-dev`, con backfill de rifas existentes. 44 tests nuevos +
+> 1 test preexistente actualizado, regresión 970/971 (mismo flake
+> histórico de XLSX), build limpio. Detalle completo: `docs/WOP.md`,
+> `docs/rifas/RAFFLE_VISUAL_POLISH_2026.md`.
+>
+> 2026-09-06 — **RIFEX RAFFLE
 > EXPERIENCE 2026, DEV only, rediseño visual de Rifas.**
 > `origin/develop` avanza desde `7506890`. Rediseña la ficha pública
 > y la creación de Rifas reutilizando el 100% de la lógica

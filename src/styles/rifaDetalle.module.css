@@ -334,3 +334,162 @@
   font-style: italic;
 }
 
+/* =========================
+   RAFFLE VISUAL POLISH (2026-09-07)
+   Layout de 2 columnas + pestañas + sidebar de compra, acercándose al
+   diseño aprobado. Todas las clases de abajo son puramente visuales —
+   ninguna cambia qué datos se piden ni cómo se procesan.
+   ========================= */
+
+.headTop { margin-bottom: 14px; }
+
+.layout2col {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout2col { grid-template-columns: 1fr; }
+}
+
+.mainCol { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.sideCol { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* --- Pestañas --- */
+.tabsNav {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0;
+}
+.tabBtn {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.tabBtn:hover { color: #0f172a; }
+.tabBtnActive { color: #18A957; border-bottom-color: #18A957; }
+
+.tabPanel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px;
+}
+.tabPanelTitle { margin: 0 0 10px; font-size: 17px; font-weight: 800; color: #0f172a; }
+.tabPanelText { margin: 0; color: #334155; line-height: 1.6; font-size: 14px; }
+
+/* --- Características (rifas con features declaradas) --- */
+.featuresTitle { margin: 18px 0 10px; font-size: 14px; font-weight: 800; color: #0f172a; }
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (max-width: 560px) {
+  .featuresGrid { grid-template-columns: 1fr; }
+}
+.featureCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.featureCardIcon { font-size: 16px; color: #18A957; flex-shrink: 0; }
+.featureCardLabel { font-size: 11.5px; color: #64748b; text-transform: uppercase; letter-spacing: .03em; }
+.featureCardValue { font-size: 14px; font-weight: 700; color: #0f172a; }
+
+/* --- Cómo participar --- */
+.stepsList { display: flex; flex-direction: column; gap: 14px; }
+.stepItem { display: flex; gap: 12px; align-items: flex-start; }
+.stepNum {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1E3A8A, #18A957);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepTitle { font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 2px; }
+.stepText { color: #64748b; font-size: 13.5px; line-height: 1.5; }
+
+/* --- Preguntas frecuentes --- */
+.faqList { display: flex; flex-direction: column; gap: 14px; }
+.faqItem { border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
+.faqItem:last-child { border-bottom: none; padding-bottom: 0; }
+.faqQ { font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 4px; }
+.faqA { color: #64748b; font-size: 13.5px; line-height: 1.5; }
+
+/* --- Sidebar de compra --- */
+.statCardsRow { display: flex; flex-direction: column; gap: 8px; }
+.statCard {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.statCardHi { background: #EAF3DE; border-color: #C0DD97; }
+.statCardLabel { font-size: 12.5px; color: #64748b; }
+.statCardHi .statCardLabel { color: #3B6D11; }
+.statCardValue { font-weight: 800; color: #0f172a; font-size: 14px; text-align: right; }
+.statCardHi .statCardValue { color: #173404; }
+
+.staticTrustRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.staticTrustBadge {
+  font-size: 12.5px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.safetyNote {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #14532D;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sideOrganizerCard {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.sideDeliveryCard {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.sideDeliveryTitle { font-weight: 700; color: #0f172a; font-size: 13.5px; margin-bottom: 4px; }
+.sideDeliveryText { color: #334155; font-size: 13px; line-height: 1.5; }
+.sideDeliveryNotice { margin-top: 6px; color: #92400E; font-size: 12.5px; font-weight: 600; }
+

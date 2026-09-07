@@ -1,6 +1,7 @@
 // src/pages/api/rifas/[id]/index.js
 import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
+import { idOrSlugColumn } from '@/lib/idOrSlug';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,7 +29,9 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const { data, error } = await supabase.from('raffles').select('*').eq('id', id).maybeSingle();
+      // RAFFLE VISUAL POLISH (2026-09-07): `id` puede ser el UUID real o
+      // el slug amigable nuevo (/rifas/lambo) — nunca se asume uno u otro.
+      const { data, error } = await supabase.from('raffles').select('*').eq(idOrSlugColumn(id), id).maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ ok: false, error: 'not_found' });
 

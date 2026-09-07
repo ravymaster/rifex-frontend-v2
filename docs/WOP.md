@@ -4,6 +4,34 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RAFFLE VISUAL POLISH (2026-09-07) — DEV only, layout 2 columnas + pestañas + slug + características
+
+`origin/develop` advances from `14f1f69` (RIFEX RAFFLE EXPERIENCE 2026 DEV certified).
+Brief redactado por Doris a partir de comparar el diseño aprobado contra una rifa de
+prueba real creada en `rifex-dev` durante la misma sesión de QA. Ver detalle completo
+en [docs/rifas/RAFFLE_VISUAL_POLISH_2026.md](rifas/RAFFLE_VISUAL_POLISH_2026.md).
+
+Resumen: hero más grande sin recortar (`object-fit: contain`), galería con flechas +
+indicador "+N fotos", layout de 2 columnas con 5 pestañas (Sobre el premio / Cómo
+participar / Condiciones / Organizador / Preguntas frecuentes), características
+dinámicas clave/valor (`raffles.features jsonb`, hasta 8), y slug amigable
+(`raffles.slug`, `/rifas/lambo`) generado server-side y congelado al crear —
+reintento acotado ante colisión real, mismo patrón ya certificado en
+`api/blog/historia.js`. `/rifas/<uuid>` sigue funcionando exactamente igual.
+
+**Bug real detectado y corregido durante la propia implementación**: varias llamadas
+internas de `rifas/[id].jsx` (checkout, canal realtime de tickets, release-expired,
+ensureWinner) usaban el parámetro crudo de la URL en vez del UUID real ya resuelto —
+si un visitante llegaba por el slug nuevo, esas llamadas habrían fallado. Corregido
+consistentemente para usar siempre `raffle.id`.
+
+Migración aditiva (`slug`, `features`, índice único parcial, extensión de
+`create_raffle_with_declarations`) aplicada solo a `rifex-dev`, con backfill de
+rifas existentes. 44 tests nuevos + 1 test preexistente actualizado (límite de fotos
+3→5). Regresión 970/971 (mismo flake histórico). Build limpio.
+
+---
+
 ## RIFEX RAFFLE EXPERIENCE 2026 (2026-09-06) — DEV only, rediseño visual + selector de cantidad
 
 `origin/develop` advances from `7506890` (panel pagination DEV certified). Rediseña la

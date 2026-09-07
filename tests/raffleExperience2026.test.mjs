@@ -40,9 +40,10 @@ test('CREAR RIFA 3: permite subir imagen principal + preview local antes de envi
   assert.match(src, /URL\.createObjectURL/);
 });
 
-test('CREAR RIFA 4: permite galería (hasta 3 fotos, no solo una)', () => {
+test('CREAR RIFA 4: permite galería (hasta 5 fotos, no solo una — límite ampliado por RAFFLE VISUAL POLISH 2026-09-07)', () => {
   const src = read('src/pages/crear-rifa.jsx');
-  assert.match(src, /slice\(0,\s*3\)/);
+  assert.match(src, /slice\(0,\s*MAX_PHOTOS\)/);
+  assert.match(src, /MAX_PHOTOS\s*=\s*5/);
 });
 
 test('CREAR RIFA 5: bloque de organizador viene de la autoridad real de perfil (fetch /api/perfil/uid), no un campo escrito a mano', () => {
