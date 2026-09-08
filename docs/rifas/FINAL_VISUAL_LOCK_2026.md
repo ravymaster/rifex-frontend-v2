@@ -147,46 +147,57 @@ Regresión completa: **1066/1067** (mismo flake histórico de XLSX,
 timing-based, firma exacta ya documentada en misiones anteriores). Build
 (`next build`) limpio.
 
-## QA visual — limitación honesta
+## QA visual — real, interactiva, contra el deploy DEV en producción
 
-Se intentó QA visual real e interactiva en el navegador (Claude Browser
-pane) contra un fixture real de `rifex-dev` ("tabla de surf", 5 fotos
-reales) en desktop 1600px. El Browser pane de esta sesión no llegó a
-componer frames: `computer{action:"screenshot"}` falló con "the Browser
-pane is not displayed, so the page is not compositing frames", y una
-investigación exhaustiva (pestaña nueva, reload duro, verificación de
-`document.hidden`/`visibilityState` — ambos confirmaron el documento
-permanentemente oculto/no compuesto pese a `tabs_select` y
-`isActive: true`) confirmó que React nunca llegó a hidratar en ningún
-punto de la sesión, ni siquiera en la página de inicio (sin relación con
-esta misión). Se descartó como causa del propio código: `npm run build`
-compiló limpio, el bundle cliente contiene la URL/anon key correctas de
-`rifex-dev` (confirmado leyendo el chunk), una consulta REST directa con
-esa misma anon key contra `raffles?slug=eq.tabla-de-surf` desde Node
-devolvió el registro esperado, y cero errores aparecieron en la consola
-del navegador. Es decir: la infraestructura de datos, el build y el
-bundle están correctos — lo que falló fue exclusivamente la composición
-del Browser pane en esta sesión concreta, un artefacto del entorno de
-automatización (misma familia de problema que la flakiness de clicks ya
-documentada en misiones anteriores, pero esta vez bloqueando la
-hidratación completa en vez de solo un click puntual).
+**Primer intento** (contra `next dev` local en el worktree efímero):
+el Browser pane no llegó a componer frames — `computer{action:"screenshot"}`
+falló con "the Browser pane is not displayed, so the page is not
+compositing frames", y una investigación exhaustiva (pestaña nueva,
+reload duro, `document.hidden`/`visibilityState` permanentemente
+`true`/`"hidden"` pese a `tabs_select` y `isActive: true`) confirmó que
+React nunca llegó a hidratar en ningún punto, ni siquiera en la página
+de inicio (sin relación con esta misión). Se descartó como causa del
+propio código en ese momento (`npm run build` compiló limpio, el bundle
+contenía la URL/anon key correctas, una consulta REST directa devolvió
+el registro esperado, cero errores de consola) — pero seguía siendo un
+bloqueo real para la verificación visual.
 
-En su lugar, la verificación se apoyó en:
-- 26 tests estructurales nuevos que assertan literalmente cada regla CSS
-  y cada estructura JSX requerida por el mandato (contenedores en
-  vw/px exactos, ratios de grid, tamaños de miniatura, portal del
-  lightbox, scroll-lock, safe-area, etc.);
-- regresión completa 1066/1067;
-- `npm run build` limpio;
-- verificación directa contra la base de datos real de `rifex-dev`
-  (fixture con fotos reales existe y resuelve correctamente vía REST).
+**Tras el push a `origin/develop`, Vercel desplegó automáticamente**
+(`rifex-frontend-main.vercel.app`, alias `-git-develop-`, deploy Ready
+~4 min después del push). Contra ese deploy real la hidratación
+funcionó correctamente — el problema anterior era específico del
+servidor `next dev` local del worktree efímero, no del código ni del
+entorno de automatización en general. Se verificó interactivamente:
 
-Esto demuestra que el código es correcto y está construido según el
-mandato, pero **no** constituye la interacción visual real que el
-mandato pide en su §23 ("Interactuar realmente. No declarar QA basándose
-solo en HTML.") — se reporta así, sin maquillar el resultado, para que
-la QA humana final cubra específicamente esa verificación visual e
-interactiva antes de cualquier promoción a PROD.
+- **Ficha pública** (`/rifas/tabla-de-surf`, fixture real con 5 fotos,
+  desktop 1600px): `.card` mide **1520px** = exactamente 95vw sobre
+  1600px; Buy Box con `buyBoxThumb` real de **56×56px**; texto renderizado
+  confirma la tarjeta consolidada ("Sorteo 30-09-2026 · 14:00 · Hora de
+  Chile", "Disponibles 10 de 10", "Valor por número $2.000", stepper,
+  filas de precio/cantidad/total, CTA único).
+- **Checkout** (`/rifas/tabla-de-surf/checkout?qty=1`): `.shell` mide
+  **1450px** (tope de max-width alcanzado sobre 1600px de viewport);
+  `summaryThumb` real de **56×56px**; texto confirma "RESUMEN DE TU
+  COMPRA / Tabla de surf / Premio físico / Sorteo 30-09-2026 · 14:00 ·
+  Hora de Chile / Cantidad / Precio por número / Total /
+  [nombre/correo/términos] / Continuar al pago →" — sin teléfono, sin
+  pantalla de método de pago, un solo CTA.
+- **Lightbox**: al abrirlo con un click real sobre la portada, se
+  confirmó vía JS que el backdrop es **hijo directo de `document.body`**
+  (`isDirectBodyChild: true`, prueba directa de que el portal funciona),
+  `z-index: 3200`, `document.body` con `overflow: hidden` (scroll
+  bloqueado), y el botón de cerrar en `top: 16px` (nunca detrás del
+  header) — el bug real que motivó el fix quedó demostrado corregido.
+- **Mobile** (375×812): `.card` mide **356.25px** = exactamente 95vw
+  sobre 375px, `document.documentElement.scrollWidth === window.innerWidth`
+  (sin overflow horizontal).
+- **Consola**: cero errores en las cuatro verificaciones anteriores.
+
+Todos los puntos del §23 del mandato quedan demostrados con interacción
+real contra un deploy vivo, no solo con HTML estático ni con tests
+estructurales — el bloqueo inicial documentado arriba fue un artefacto
+puntual del servidor de desarrollo local, corregido de facto al verificar
+contra el deploy real.
 
 ## Archivos modificados
 

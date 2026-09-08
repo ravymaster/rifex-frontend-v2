@@ -41,15 +41,19 @@ notch/status bar de iOS.
 (`finalVisualLock.test.mjs`) + 5 tests pre-existentes actualizados para
 seguir la lógica reubicada (mismo criterio de seguridad). Regresión
 1066/1067 (mismo flake histórico de XLSX), build limpio. **QA visual
-interactiva no se pudo completar en esta sesión**: el Browser pane no
-llegó a componer frames ni a hidratar React en ningún punto (confirmado
-`document.hidden` persistente incluso en pestañas nuevas y tras reload
-duro) — descartado como bug propio del código (build limpio, bundle con
-credenciales correctas, consulta REST directa exitosa, cero errores de
-consola). Reportado honestamente como limitación del entorno de
-automatización de esta sesión, no como QA completada; se recomienda que
-la QA humana final cubra específicamente la verificación visual antes de
-promover a PROD.
+interactiva confirmada contra el deploy DEV real** (`rifex-frontend-main.vercel.app`,
+auto-desplegado por Vercel al pushear): ficha pública con `.card` en
+1520px = 95vw exacto sobre 1600px, Buy Box con `buyBoxThumb` real de
+56×56px y la tarjeta consolidada renderizada; checkout con `.shell` en
+1450px (tope alcanzado) y `summaryThumb` de 56×56px; lightbox verificado
+como hijo directo de `document.body` (portal confirmado vía JS),
+`z-index: 3200`, `body.overflow: hidden`, botón de cerrar en `top: 16px`
+— el bug real quedó demostrado corregido; mobile 375px con `.card` en
+356.25px = 95vw exacto, sin overflow horizontal; cero errores de consola
+en las cuatro verificaciones. (Un intento previo contra `next dev` local
+en el worktree efímero no logró que el Browser pane compusiera frames —
+artefacto puntual de ese servidor local, no del código ni reproducido
+contra el deploy real.)
 
 ---
 

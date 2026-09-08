@@ -23,12 +23,17 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > **Cero cambios a `checkout/mp.js`** (diff = 0 líneas). 26 tests
 > nuevos + 5 pre-existentes actualizados (mismo criterio de
 > seguridad). Regresión 1066/1067 (mismo flake histórico de
-> XLSX), build limpio. **QA visual interactiva no se pudo
-> completar en esta sesión** — el Browser pane no llegó a
-> componer frames ni a hidratar React en ningún punto (build,
-> bundle, DB y consola descartados como causa; ver detalle en el
-> doc dedicado), reportado honestamente como limitación del
-> entorno de automatización. Detalle completo: `docs/WOP.md`,
+> XLSX), build limpio. **QA visual interactiva confirmada
+> contra el deploy DEV real** (`rifex-frontend-main.vercel.app`,
+> auto-desplegado por Vercel al pushear): contenedores en 95vw
+> exacto (desktop 1520/1600px, checkout 1450px tope, mobile
+> 356.25/375px), thumbnails de 56×56px en Buy Box y checkout,
+> lightbox confirmado como hijo directo de `document.body` con
+> scroll bloqueado y X en `top: 16px`, cero errores de consola.
+> (Un primer intento contra `next dev` local no logró que el
+> Browser pane compusiera frames — artefacto puntual de ese
+> servidor, no del código ni reproducido contra el deploy real).
+> Detalle completo: `docs/WOP.md`,
 > `docs/rifas/FINAL_VISUAL_LOCK_2026.md`.
 >
 > 2026-09-07 — **CHECKOUT V2 —
