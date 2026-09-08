@@ -87,7 +87,10 @@ test('SLUG 9: rifas/[id].jsx resuelve la carga inicial por id-o-slug (nunca solo
 // URL en vez del UUID real para checkout/realtime/winner/release-expired.
 // ---------------------------------------------------------------------
 test('IDENTIDAD 1: checkout usa raffle.id (UUID real ya resuelto), nunca el "id" crudo de la URL', () => {
-  const src = read('src/pages/rifas/[id].jsx');
+  // RIFEX CHECKOUT UNIFICADO V2 (2026-09-07): el submit real vive ahora
+  // en rifas/[id]/checkout.jsx, no en la ficha pública — se sigue la
+  // lógica a su ubicación real; el criterio de seguridad no cambia.
+  const src = read('src/pages/rifas/[id]/checkout.jsx');
   assert.match(src, /raffle_id: raffle\.id,/);
   assert.match(src, /raffleId: raffle\.id,/);
   // nunca el patrón viejo (bug potencial): raffle_id: id,

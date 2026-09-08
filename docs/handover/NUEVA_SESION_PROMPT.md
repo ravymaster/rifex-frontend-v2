@@ -1,7 +1,30 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-07 (actualización más reciente) — **HUMAN SLUG V2 +
+> 2026-09-07 (actualización más reciente) — **CHECKOUT
+> UNIFICADO V2, DEV only, brief de Doris + requisito visual de
+> Rodrigo.** `origin/develop` avanza desde `168ed37`. Retira el
+> modal "¿Cuántos números quieres?" — el stepper + accesos rápidos
+> ahora viven inline en el sidebar de la ficha pública, nunca un
+> backdrop de página completa. "Continuar" navega a una página
+> nueva, `/rifas/[id]/checkout`, con 2 pantallas internas: "Tus
+> datos" (nombre/correo/teléfono/términos con validación real) y
+> "Método de pago" (selector visual de 4 opciones, cosmético — solo
+> existe una integración real). **Cero cambios a `checkout/mp.js`**
+> (diff = 0 líneas): el submit real se movió de archivo con el mismo
+> payload exacto, siempre el UUID real de la rifa, nunca el
+> parámetro crudo de la URL. Campo teléfono nuevo enviado como
+> `buyer_phone`, ignorado silenciosamente por el backend — no se
+> persiste, no se agregó migración. Identidad visual "tienda
+> online": fondo blanco puro, separación de contenido vía sombra
+> difusa + halo verde/azul extremadamente sutil, nunca superficies
+> de color sólido. 26 tests nuevos + 3 tests estructurales
+> pre-existentes actualizados para seguir el payload a su ubicación
+> real (mismo criterio de seguridad). Regresión 1027/1028 (mismo
+> flake histórico de XLSX), build limpio. Detalle completo:
+> `docs/WOP.md`, `docs/rifas/CHECKOUT_UNIFICADO_V2_2026.md`.
+>
+> 2026-09-07 — **HUMAN SLUG V2 +
 > PUBLIC RAFFLE CLEANUP, DEV only, mandato explícito de Rodrigo
 > sobre RAFFLE VISUAL POLISH.** `origin/develop` avanza desde
 > `a6fc58f`. Dos objetivos quirúrgicos: **(A)** se retira la

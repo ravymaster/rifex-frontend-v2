@@ -166,7 +166,11 @@ test('COMPAT 5: la carga inicial de la ficha pública (loadData) sigue resolvien
 // explícita pedida por el mandato (checkout/realtime/winner/release).
 // ---------------------------------------------------------------------
 test('IDENTIDAD-V2 1: checkout sigue usando raffle.id (UUID real), nunca el parámetro crudo de la URL', () => {
-  const src = read('src/pages/rifas/[id].jsx');
+  // RIFEX CHECKOUT UNIFICADO V2 (2026-09-07): el submit real a
+  // /api/checkout/mp se movió de rifas/[id].jsx a rifas/[id]/checkout.jsx
+  // — esta prueba se actualiza para seguir esa lógica a su ubicación
+  // real, el criterio de seguridad (nunca el id crudo) no cambia.
+  const src = read('src/pages/rifas/[id]/checkout.jsx');
   assert.match(src, /raffle_id: raffle\.id,/);
   assert.match(src, /raffleId: raffle\.id,/);
   assert.doesNotMatch(src, /raffle_id:\s*id,/);

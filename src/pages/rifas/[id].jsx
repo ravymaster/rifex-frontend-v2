@@ -9,14 +9,11 @@ import TrustBadge from "../../components/TrustBadge";
 import TrustPopup from "../../components/TrustPopup";
 import { canonicalUrl, DEFAULT_OG_IMAGE } from "../../lib/publicMetadata";
 
-import BuyerForm from "../../components/rifex/BuyerForm";
-import QuantitySelector from "../../components/rifex/QuantitySelector";
 import PrizeGallery from "../../components/rifex/PrizeGallery";
 import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
 import { idOrSlugColumn } from "../../lib/idOrSlug";
 
-const TERMS_VERSION = "v1.0";
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
   "America/Argentina/Buenos_Aires": "Hora de Argentina",
@@ -60,6 +57,68 @@ const FAQ_ITEMS = [
   { q: "¿Cómo sé si gané?", a: "El ganador se contacta directamente por los datos entregados al comprar, y el resultado queda visible en esta misma página." },
 ];
 
+// RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — panel de cantidad inline,
+// reemplaza el modal QuantitySelector.jsx (retirado de esta página, el
+// archivo sigue existiendo sin consumidores). Solo decide CUÁNTOS
+// números — nunca cuáles; "Continuar" navega a /rifas/[id]/checkout,
+// que es quien realmente llama a /api/checkout/mp.
+function QuantityPanel({ maxQuantity, unitPriceCLPNumber, quantity, setQuantity, onCancel, onContinue }) {
+  const clampedMax = Math.max(1, maxQuantity || 1);
+  const qty = Math.min(Math.max(1, quantity || 1), clampedMax);
+  const QUICK_AMOUNTS = [1, 5, 10, 20].filter((n) => n <= clampedMax);
+
+  const totalCLP = (unitPriceCLPNumber * qty).toLocaleString("es-CL", {
+    style: "currency", currency: "CLP", maximumFractionDigits: 0,
+  });
+
+  return (
+    <div className={styles.qtyPanel}>
+      <h3 className={styles.qtyPanelTitle}>¿Cuántos números quieres?</h3>
+      <p className={styles.qtyPanelSub}>Cada número aumenta tus posibilidades.</p>
+
+      <div className={styles.qtyStepperRow}>
+        <button type="button" className={styles.qtyStepBtn} disabled={qty <= 1}
+          onClick={() => setQuantity(Math.max(1, qty - 1))} aria-label="Menos">−</button>
+        <span className={styles.qtyStepValue}>{qty}</span>
+        <button type="button" className={styles.qtyStepBtn} disabled={qty >= clampedMax}
+          onClick={() => setQuantity(Math.min(clampedMax, qty + 1))} aria-label="Más">+</button>
+      </div>
+
+      <div className={styles.qtyChipsRow}>
+        {QUICK_AMOUNTS.map((n) => (
+          <button
+            key={n}
+            type="button"
+            className={`${styles.qtyChip} ${qty === n ? styles.qtyChipActive : ""}`}
+            onClick={() => setQuantity(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+
+      <div className={styles.qtyTotalRow}>
+        <span className={styles.qtyTotalLabel}>
+          Total a pagar
+          <span className={styles.qtyTotalBadge}>{qty} {qty === 1 ? "número" : "números"}</span>
+        </span>
+        <span className={styles.qtyTotalValue}>{totalCLP}</span>
+      </div>
+
+      {clampedMax <= 5 && (
+        <p className={styles.qtyLowStockNote}>
+          Quedan {clampedMax} {clampedMax === 1 ? "número disponible" : "números disponibles"}.
+        </p>
+      )}
+
+      <div className={styles.qtyBtnRow}>
+        <button type="button" className={styles.qtyCancelBtn} onClick={onCancel}>Cancelar</button>
+        <button type="button" className={styles.qtyContinueBtn} onClick={() => onContinue(qty)}>Continuar →</button>
+      </div>
+    </div>
+  );
+}
+
 // RIFEX V4 A6 fix — esta página siempre fue client-fetch puro (raffle
 // llega recién tras el useEffect) y tiene un return temprano de "cargando"
 // antes de llegar al <Head> de abajo. Eso significa que un rastreador que
@@ -102,9 +161,12 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — showQty ya no abre un modal:
+  // expande un panel de cantidad inline en el propio sidebar (ver mapping
+  // de estados más abajo). "Continuar" navega a /rifas/[id]/checkout con
+  // la cantidad elegida; el checkout completo (datos + pago) vive ahí.
   const [showQty, setShowQty] = useState(false);
-  const [quantity, setQuantity] = useState(0);
-  const [showBuyer, setShowBuyer] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const [payBanner, setPayBanner] = useState(null);       // {kind,text}
   const [paymentResult, setPaymentResult] = useState(null); // 'approved'|'pending'|'rejected'|null
@@ -446,42 +508,10 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
   const soldOut = counts.total > 0 && counts.available === 0;
   const canBuy = !salesClosed && !soldOut && counts.available > 0;
 
-  async function comprar(buyer, qty) {
-    if (!qty || qty < 1) return;
-    try {
-      try { localStorage.setItem("rifex.lastBuyerEmail", String(buyer?.email || "").trim().toLowerCase()); } catch {}
-      const payload = {
-        // UUID real de la rifa — nunca el slug de la URL (checkout/mp.js
-        // espera el id real, no un slug legible).
-        raffle_id: raffle.id,
-        raffleId: raffle.id,
-        quantity: qty,
-        buyer_email: buyer?.email || null,
-        buyer_name: buyer?.name || null,
-        accepted_terms: !!buyer?.accepted_terms,
-        terms_version: TERMS_VERSION,
-      };
-      const r = await fetch("/api/checkout/mp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (r.ok && (data.init_point || data.url)) {
-        // 🔵 Mostrar overlay spinner antes de salir a MP
-        setRedirecting(true);
-        // Evita doble click mientras se navega
-        setShowBuyer(false);
-        window.location.href = data.init_point || data.url;
-        return;
-      }
-      alert(data?.error || "No se pudo iniciar el checkout.");
-    } catch (e) {
-      console.error(e);
-      setRedirecting(false);
-      alert("Error iniciando checkout.");
-    }
-  }
+  // RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — comprar() se retiró de esta
+  // página: el submit real (POST /api/checkout/mp) ahora vive en
+  // /rifas/[id]/checkout.jsx (pantalla "Método de pago"), con el mismo
+  // payload y el mismo endpoint, sin ningún cambio de lógica de pagos.
 
   // RIFEX V4 A6 fix — esta página tenía returns tempranos (cargando/error/no
   // encontrada) que corrían ANTES de llegar al <Head> más abajo. Como toda
@@ -541,9 +571,11 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
 
   const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
 
-  // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA
+  // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA.
+  // showQty ya NO es un overlay (RIFEX CHECKOUT UNIFICADO V2) — es un
+  // panel inline dentro del propio sidebar, nunca cubre la foto/hero.
   const hasAnyModalOrOverlay =
-    !!showQty || !!showBuyer || !!paymentResult || !!redirecting || !!payBanner;
+    !!paymentResult || !!redirecting || !!payBanner;
 
   // —— FIX de superposición / stacking contexts ——
   const pageIsolated = {
@@ -832,15 +864,34 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
               </div>
             </div>
 
-            <button
-              type="button"
-              className={styles.cta}
-              disabled={!canBuy}
-              onClick={() => setShowQty(true)}
-              style={{ position: "relative", zIndex: 1 }}
-            >
-              {salesClosed ? "Ventas cerradas" : soldOut ? "Rifa agotada" : "Comprar número"}
-            </button>
+            {/* RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — "Comprar número"
+                ya no abre un modal: expande este panel inline (nunca un
+                backdrop de página completa) con la cantidad + accesos
+                rápidos del mockup aprobado. "Continuar" navega a
+                /rifas/[id]/checkout con la cantidad elegida — ahí viven
+                las pantallas "Tus datos" y "Método de pago". */}
+            {!showQty ? (
+              <button
+                type="button"
+                className={styles.cta}
+                disabled={!canBuy}
+                onClick={() => setShowQty(true)}
+                style={{ position: "relative", zIndex: 1 }}
+              >
+                {salesClosed ? "Ventas cerradas" : soldOut ? "Rifa agotada" : "Comprar número"}
+              </button>
+            ) : (
+              <QuantityPanel
+                maxQuantity={counts.available}
+                unitPriceCLPNumber={unitPriceCLPNumber}
+                quantity={quantity}
+                setQuantity={setQuantity}
+                onCancel={() => setShowQty(false)}
+                onContinue={(qty) => {
+                  router.push({ pathname: "/rifas/[id]/checkout", query: { id, qty } });
+                }}
+              />
+            )}
 
             {soldOut && !salesClosed && (
               <div className={styles.soldOutNote}>
@@ -925,29 +976,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
           </div>
         </div>
       )}
-
-      <QuantitySelector
-        open={showQty}
-        onClose={() => setShowQty(false)}
-        unitPriceCLP={unitPriceCLPNumber}
-        maxQuantity={counts.available}
-        onContinue={(qty) => {
-          setQuantity(qty);
-          setShowQty(false);
-          setShowBuyer(true);
-        }}
-      />
-
-      <BuyerForm
-        open={showBuyer}
-        onClose={() => setShowBuyer(false)}
-        quantity={quantity}
-        priceCLP={raffle.price_cents}
-        termsVersion={TERMS_VERSION}
-        onSubmit={async (buyer) => { setShowBuyer(false); await comprar(buyer, quantity); }}
-        modalZIndex={2100}
-        extraCostNotices={extraCostNotices}
-      />
 
       {/* Animaciones */}
       <style jsx>{`

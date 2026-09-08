@@ -4,6 +4,41 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CHECKOUT UNIFICADO V2 (2026-09-07) — DEV only, checkout estilo tienda online en 2 pantallas
+
+`origin/develop` advances from `168ed37` (HUMAN SLUG V2 + PUBLIC RAFFLE
+CLEANUP DEV certified). Brief de Doris (mockup de 3 tarjetas) + requisito
+visual explícito de Rodrigo. Ver detalle completo en
+[docs/rifas/CHECKOUT_UNIFICADO_V2_2026.md](rifas/CHECKOUT_UNIFICADO_V2_2026.md).
+
+Retira el modal "¿Cuántos números quieres?" — el stepper + accesos rápidos
+(1/5/10/20) ahora viven inline en el sidebar de la ficha pública, nunca un
+backdrop de página completa. "Continuar" navega a una página nueva,
+`/rifas/[id]/checkout`, con 2 pantallas internas: "Tus datos" (nombre,
+correo, teléfono +56/9 dígitos, términos, con validación real) y "Método
+de pago" (selector visual de 4 opciones — cosmético, solo existe una
+integración real de pago).
+
+**Cero cambios a `checkout/mp.js`** (diff = 0 líneas): el submit real se
+movió de `rifas/[id].jsx` a la página nueva con el mismo payload exacto,
+siempre `raffle.id` (UUID real), nunca el parámetro crudo de la URL. El
+campo teléfono nuevo se envía como `buyer_phone`, que el backend ignora
+silenciosamente por diseño — no se persiste, no se agregó migración; usarlo
+de verdad requeriría una migración aditiva nueva, a autorizar
+explícitamente, que no se ejecutó en esta misión.
+
+Identidad visual "tienda online": fondo blanco puro (`#ffffff`, nunca
+gris), separación del contenido íntegramente vía `box-shadow` (sombra
+difusa neutra + halo verde/azul Rifex extremadamente sutil vía rgba),
+nunca un bloque de color sólido — mismo gradiente `#1E3A8A → #18A957` ya
+certificado en el CTA.
+
+26 tests nuevos + 3 tests estructurales pre-existentes actualizados para
+seguir el payload de checkout a su ubicación real nueva (mismo criterio de
+seguridad). Regresión 1027/1028 (mismo flake histórico), build limpio.
+
+---
+
 ## HUMAN SLUG V2 + PUBLIC RAFFLE CLEANUP (2026-09-07) — DEV only, retiro de modal antiguo + slugs amigables sin sufijo hex
 
 `origin/develop` advances from `a6fc58f` (RAFFLE VISUAL POLISH DEV certified).

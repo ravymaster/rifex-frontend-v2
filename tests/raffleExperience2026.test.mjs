@@ -150,8 +150,11 @@ test('COMPRA 19: la grilla pública de números fue eliminada de la página púb
 });
 
 test('COMPRA 20: el comprador nunca envía "numbers" a checkout — solo "quantity" (servidor decide siempre)', () => {
-  const src = publicPage();
-  assert.match(src, /quantity:\s*qty/);
+  // RIFEX CHECKOUT UNIFICADO V2 (2026-09-07): el submit real vive ahora
+  // en rifas/[id]/checkout.jsx, no en la ficha pública — se sigue la
+  // lógica a su ubicación real; el criterio (nunca "numbers") no cambia.
+  const src = read('src/pages/rifas/[id]/checkout.jsx');
+  assert.match(src, /quantity,/);
   assert.doesNotMatch(src, /numbers:\s*selected/);
 });
 
