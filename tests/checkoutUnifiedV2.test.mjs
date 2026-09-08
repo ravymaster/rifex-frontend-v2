@@ -77,8 +77,11 @@ test('UX-BUYBOX 1: la Buy Box es siempre visible cuando se puede comprar — ya 
   // El texto puede seguir mencionado en comentarios explicando la migración
   // (documentación honesta), pero el LABEL del botón ya no lo usa: solo
   // quedan las dos etiquetas de estado no-comprable.
+  // FINAL VISUAL LOCK (2026-09-08): la Buy Box ahora se renderiza siempre
+  // (nunca detrás de `canBuy ? <BuyBox> : <button>`) — es el propio
+  // componente quien decide internamente qué mostrar, vía la prop canBuy.
   assert.doesNotMatch(rifaPage, /salesClosed \? ["']Ventas cerradas["'] : soldOut \? ["']Rifa agotada["'] : ["']Comprar número["']/);
-  assert.match(rifaPage, /canBuy \? \(\s*<BuyBox/);
+  assert.match(rifaPage, /<BuyBox\b[\s\S]{0,700}canBuy=\{canBuy\}/);
 });
 
 test('UX-BUYBOX 2: la Buy Box nunca usa un backdrop de página completa (no hay position:fixed para su contenedor)', () => {
@@ -103,7 +106,10 @@ test('UX-BUYBOX 5: la Buy Box muestra la foto real del premio (raffle.prize_phot
 });
 
 test('UX-BUYBOX 6: el selector mínimo/máximo respeta la disponibilidad real (sin cambios de lógica)', () => {
-  assert.match(rifaPage, /maxQuantity=\{counts\.available\}/);
+  // FINAL VISUAL LOCK (2026-09-08): la prop se renombró de maxQuantity a
+  // availableCount (ahora también alimenta la fila "Disponibles" de la
+  // Buy Box consolidada) — sigue siendo exactamente counts.available.
+  assert.match(rifaPage, /availableCount=\{counts\.available\}/);
   assert.match(rifaPage, /Math\.max\(1, qty - 1\)/);
   assert.match(rifaPage, /Math\.min\(clampedMax, qty \+ 1\)/);
 });
@@ -142,8 +148,11 @@ test('UX-CHECKOUT 4: checkout.jsx NO tiene el stepper visual 1-2-3', () => {
 });
 
 test('UX-CHECKOUT 5: checkout.jsx muestra la foto real del premio (mismo asset, sin pipeline nuevo)', () => {
+  // FINAL VISUAL LOCK (2026-09-08): se muestra como miniatura
+  // (summaryThumb) dentro del resumen, ya no como foto hero (prizePhoto)
+  // — mismo asset real, sin pipeline de imágenes nuevo.
   assert.match(checkoutPage, /prizeThumb[\s\S]{0,200}raffle\?\.prize_photos/);
-  assert.match(checkoutPage, /prizePhoto/);
+  assert.match(checkoutPage, /summaryThumb/);
 });
 
 test('UX-CHECKOUT 6: checkout.jsx muestra nombre, correo y aceptación de términos', () => {
@@ -263,9 +272,11 @@ test('DISEÑO-CO 5: checkout.jsx no indexa la página (checkout es un paso trans
   assert.match(checkoutPage, /noindex,nofollow/);
 });
 
-test('DISEÑO-CO 6: el contenedor del checkout usa un ancho tipo tienda online (~1080px), no el ancho angosto de un formulario administrativo', () => {
+test('DISEÑO-CO 6: el contenedor del checkout usa un ancho tipo tienda online, no el ancho angosto de un formulario administrativo', () => {
+  // FINAL VISUAL LOCK (2026-09-08): el tope de max-width sube de 1080px a
+  // 1450px (95vw), "casi todo el ancho útil" en vez de una card angosta.
   const shellBlock = checkoutCss.match(/\.shell\s*\{[^}]*\}/)[0];
-  assert.match(shellBlock, /max-width:\s*(1000|1040|1080|1100)px/);
+  assert.match(shellBlock, /max-width:\s*(1000|1040|1080|1100|1400|1450|1500)px/);
 });
 
 test('DISEÑO-CO 7: desktop usa dos columnas (grid), mobile una sola columna', () => {

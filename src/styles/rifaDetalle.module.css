@@ -3,19 +3,29 @@
    ========================= */
 
 /* --- Página / Card --- */
+/* RIFEX RAFFLE EXPERIENCE 2026 — FINAL VISUAL LOCK (2026-09-08) — fondo
+   off-white extremadamente suave (nunca gris visible), contenedor amplio
+   (~95vw, tope ~1700px) para que la ficha use casi todo el ancho
+   disponible en vez de flotar en un océano vacío. Separación del
+   contenedor vía borde ultratenue + sombra difusa, nunca contraste de
+   color. */
 .page {
   min-height: 100vh;
-  padding: 24px 16px;
-  background: #f6f8fb;
+  padding: 24px 0;
+  background: #FAFAFA;
 }
 .card {
-  max-width: 1100px;
+  width: 95vw;
+  max-width: 1700px;
   margin: 0 auto;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 18px 18px 8px;
   box-shadow: 0 12px 32px rgba(20, 30, 50, 0.06);
+}
+@media (max-width: 480px) {
+  .card { padding: 14px 12px 6px; border-radius: 14px; }
 }
 
 /* RIFEX CLOSURE PASS (2026-08-29) — bloque público "Información del
@@ -210,28 +220,6 @@
   font-size: 13px;
 }
 
-/* --- CTA inferior --- */
-.bottomCta {
-  display: grid;
-  gap: 6px;
-  padding: 10px 0 16px;
-}
-.cta {
-  width: 100%;
-  height: 48px;
-  border: none;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #1E3A8A 0%, #18A957 100%);
-  color: #fff;
-  font-weight: 800;
-  letter-spacing: .2px;
-  box-shadow: 0 10px 28px rgba(24, 169, 87, 0.25);
-  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
-  cursor: pointer;
-}
-.cta:not(:disabled):hover { transform: translateY(-1px); }
-.cta:disabled { opacity: .55; box-shadow: none; cursor: not-allowed; }
-
 /* RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — Buy Box
    photo-first, siempre visible en el sidebar (reemplaza el panel
    comprimido de la misión anterior y el modal QuantitySelector
@@ -248,15 +236,32 @@
   padding: 18px;
   box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 20px 40px -22px rgba(24,169,87,.28);
 }
-.buyBoxPhoto {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  border-radius: 14px;
-  overflow: hidden;
-  margin-bottom: 12px;
+/* FINAL VISUAL LOCK (2026-09-08) — la Buy Box ya no repite la foto hero
+   (esa vive grande en la columna izquierda): usa una miniatura real de
+   la portada + título/tipo, y consolida en una sola tarjeta la
+   información que antes vivía repartida en drawCard/statCardsRow
+   (sorteo, disponibles, valor por número), manteniéndola siempre
+   visible tanto si se puede comprar como si las ventas están cerradas o
+   agotadas. */
+.buyBoxHead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.buyBoxThumb {
+  width: 56px; height: 56px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
   background: linear-gradient(135deg, #1E3A8A, #18A957);
 }
-.buyBoxPhoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.buyBoxThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.buyBoxHeadText { min-width: 0; }
+.buyBoxHeadTitle {
+  margin: 0; font-size: 14.5px; font-weight: 800; color: #0f172a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.buyBoxHeadType { margin: 2px 0 0; font-size: 12px; color: #64748b; }
+.buyBoxInfoRow {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px; color: #64748b; padding: 5px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.buyBoxInfoRow:last-of-type { border-bottom: none; margin-bottom: 12px; }
+.buyBoxInfoRow b { color: #0f172a; font-weight: 700; }
 .buyBoxTrust { margin: 0 0 14px; font-size: 12.5px; font-weight: 700; color: #18A957; text-align: center; }
 .buyBoxTitle { margin: 0 0 2px; font-size: 16px; font-weight: 800; color: #0f172a; }
 .buyBoxSub { margin: 0 0 16px; font-size: 12.5px; color: #64748b; }
@@ -280,7 +285,6 @@
   font-size: 14px; font-weight: 700; color: #334155;
 }
 .buyBoxTotalRow b { font-size: 21px; font-weight: 800; color: #173404; }
-.buyBoxLowStockNote { margin: 8px 0 0; font-size: 12px; color: #b45309; text-align: center; font-weight: 700; }
 .buyBoxCta {
   width: 100%; height: 50px; margin-top: 16px; border: none; border-radius: 999px;
   background: linear-gradient(90deg, #1E3A8A 0%, #18A957 100%);
@@ -289,6 +293,10 @@
   transition: transform .15s ease, box-shadow .15s ease;
 }
 .buyBoxCta:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(24,169,87,.4); }
+.buyBoxCta:disabled {
+  opacity: .55; cursor: not-allowed; box-shadow: none; transform: none;
+  background: linear-gradient(90deg, #1E3A8A 0%, #18A957 100%);
+}
 .buyBoxFootnote { margin: 10px 0 0; font-size: 11.5px; color: #94a3b8; text-align: center; }
 
 /* --- Estados de página --- */
@@ -325,16 +333,6 @@
 }
 .heroMedia { min-width: 0; }
 .heroSide { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-
-.drawCard {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  padding: 12px 14px;
-}
-.drawCardLabel { font-size: 12px; color: #64748b; }
-.drawCardValue { font-size: 18px; font-weight: 800; color: #0f172a; }
-.drawCardSub { font-size: 13px; color: #334155; }
 
 .soldOutNote {
   background: #fef2f2;
@@ -402,10 +400,13 @@
 
 .headTop { margin-bottom: 14px; }
 
+/* FINAL VISUAL LOCK (2026-09-08) — columna izquierda (foto/galería)
+   claramente dominante (~65-70%), derecha compacta (~30-35%), acorde a
+   "photo-first" con el contenedor ahora mucho más ancho. */
 .layout2col {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 24px;
+  grid-template-columns: 2fr 1fr;
+  gap: 28px;
   align-items: start;
 }
 @media (max-width: 900px) {
@@ -497,23 +498,6 @@
 .faqA { color: #64748b; font-size: 13.5px; line-height: 1.5; }
 
 /* --- Sidebar de compra --- */
-.statCardsRow { display: flex; flex-direction: column; gap: 8px; }
-.statCard {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.statCardHi { background: #EAF3DE; border-color: #C0DD97; }
-.statCardLabel { font-size: 12.5px; color: #64748b; }
-.statCardHi .statCardLabel { color: #3B6D11; }
-.statCardValue { font-weight: 800; color: #0f172a; font-size: 14px; text-align: right; }
-.statCardHi .statCardValue { color: #173404; }
-
 .staticTrustRow {
   display: flex;
   flex-direction: column;

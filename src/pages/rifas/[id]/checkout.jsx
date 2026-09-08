@@ -12,7 +12,13 @@ import Head from "next/head";
 import { supabaseBrowser as supabase } from "../../../lib/supabaseClient";
 import { idOrSlugColumn } from "../../../lib/idOrSlug";
 import { humanPrizeType } from "../../../lib/raffleLabels";
+import { formatDrawAt } from "../../../lib/raffleTime";
 import styles from "../../../styles/checkoutV2.module.css";
+
+const TZ_LABELS = {
+  "America/Santiago": "Hora de Chile",
+  "America/Argentina/Buenos_Aires": "Hora de Argentina",
+};
 
 const TERMS_VERSION = "v1.0";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,7 +98,13 @@ export default function RaffleCheckout() {
   // en la ficha pública y por la Buy Box (raffle.prize_photos[0]), sin
   // pipeline de imágenes nuevo. Para premio en dinero, si la rifa tiene
   // fotos declaradas se usa igual la portada real; nunca se inventa una.
+  // FINAL VISUAL LOCK (2026-09-08) — acá se muestra como miniatura (nunca
+  // como foto hero): ese rol ya lo cumple la columna izquierda de la
+  // ficha pública.
   const prizeThumb = Array.isArray(raffle?.prize_photos) && raffle.prize_photos.length ? raffle.prize_photos[0] : null;
+
+  const drawInfo = raffle?.draw_at && raffle?.timezone ? formatDrawAt(raffle.draw_at, raffle.timezone) : null;
+  const tzLabel = raffle?.timezone ? (TZ_LABELS[raffle.timezone] || raffle.timezone) : null;
 
   const errors = useMemo(() => {
     const e = {};
@@ -179,23 +191,27 @@ export default function RaffleCheckout() {
           <div className={styles.checkoutGrid}>
             <div className={styles.gridHead}>
               <h1 className={styles.title}>Finaliza tu compra</h1>
-              <p className={styles.subtitle}>Completa tus datos para continuar.</p>
+              <p className={styles.subtitle}>Completa tus datos y revisa tu compra.</p>
               {errorMsg && <div className={styles.errorBanner}>{errorMsg}</div>}
-            </div>
-
-            <div className={styles.gridPhoto}>
-              <div className={styles.prizePhoto}>
-                {prizeThumb ? <img src={prizeThumb} alt="" /> : <span className={styles.prizePhotoFallback}>🎁</span>}
-              </div>
-              <p className={styles.prizeName}>{titleCap}</p>
-              <p className={styles.prizeMeta}>{humanPrizeType(raffle.prize_type || "physical")}</p>
-              {extraCostNotices.length > 0 && (
-                <div className={styles.extraCostNotice}>⚠️ {extraCostNotices.join(" ")}</div>
-              )}
             </div>
 
             <div className={styles.gridSummary}>
               <p className={styles.summaryTitle}>Resumen de tu compra</p>
+              <div className={styles.summaryHead}>
+                <div className={styles.summaryThumb}>
+                  {prizeThumb ? <img src={prizeThumb} alt="" /> : <span className={styles.summaryThumbFallback}>🎁</span>}
+                </div>
+                <div className={styles.summaryHeadText}>
+                  <p className={styles.summaryPrizeName}>{titleCap}</p>
+                  <p className={styles.summaryPrizeMeta}>{humanPrizeType(raffle.prize_type || "physical")}</p>
+                </div>
+              </div>
+              {extraCostNotices.length > 0 && (
+                <div className={styles.extraCostNotice}>⚠️ {extraCostNotices.join(" ")}</div>
+              )}
+              {drawInfo && (
+                <div className={styles.summaryRow}><span>Sorteo</span><b>{drawInfo.date} · {drawInfo.time}{tzLabel ? ` · ${tzLabel}` : ""}</b></div>
+              )}
               <div className={styles.summaryRow}><span>Cantidad</span><b>{quantity} {quantity === 1 ? "número" : "números"}</b></div>
               <div className={styles.summaryRow}><span>Precio por número</span><b>{unitFmt}</b></div>
               <div className={styles.summaryTotalRow}><span>Total</span><b>{totalCLP}</b></div>

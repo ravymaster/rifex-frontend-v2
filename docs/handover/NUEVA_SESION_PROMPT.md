@@ -1,7 +1,37 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-07 (actualización más reciente) — **CHECKOUT V2 —
+> 2026-09-08 (actualización más reciente) — **RIFEX RAFFLE
+> EXPERIENCE 2026 — FINAL VISUAL LOCK, DEV only, última pasada
+> visual/responsive antes de QA humana final y PROD.**
+> `origin/develop` avanza desde `66692f3`. Fondo off-white
+> (`#FAFAFA`, ya no gris `#f6f8fb`) y contenedores mucho más
+> anchos — ficha pública `95vw`/tope `1700px` (antes `1100px`
+> fijo), checkout `95vw`/tope `1450px` (antes `1080px` fijo),
+> columna de foto dominante (`2fr 1fr`). Buy Box consolidada:
+> miniatura real de 56×56px en vez de repetir la foto hero
+> completa, agrupa sorteo/disponibles/valor en una sola tarjeta
+> (antes tres separadas), siempre visible — solo la mitad
+> inferior cambia según `canBuy`. Checkout con la misma
+> miniatura en vez de foto hero de 4:3, más fila de sorteo
+> nueva. **Bug real de lightbox corregido en su causa raíz**: el
+> `isolation: isolate` de la página atrapaba el z-index del
+> lightbox dentro de su propio stacking context, perdiendo
+> contra el header sticky sin importar el z-index interno — fix
+> estructural vía `createPortal(..., document.body)`, más
+> bloqueo de scroll del body, Escape y safe-area-inset-top.
+> **Cero cambios a `checkout/mp.js`** (diff = 0 líneas). 26 tests
+> nuevos + 5 pre-existentes actualizados (mismo criterio de
+> seguridad). Regresión 1066/1067 (mismo flake histórico de
+> XLSX), build limpio. **QA visual interactiva no se pudo
+> completar en esta sesión** — el Browser pane no llegó a
+> componer frames ni a hidratar React en ningún punto (build,
+> bundle, DB y consola descartados como causa; ver detalle en el
+> doc dedicado), reportado honestamente como limitación del
+> entorno de automatización. Detalle completo: `docs/WOP.md`,
+> `docs/rifas/FINAL_VISUAL_LOCK_2026.md`.
+>
+> 2026-09-07 — **CHECKOUT V2 —
 > UX CORRECTION PASS, DEV only, QA humana sobre CHECKOUT
 > UNIFICADO V2.** `origin/develop` avanza desde `0d429fd`. Buy
 > Box photo-first siempre visible en el sidebar (ya no detrás

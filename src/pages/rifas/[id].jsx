@@ -65,8 +65,23 @@ const FAQ_ITEMS = [
 // quien no quiera comprar simplemente no continúa. Solo decide CUÁNTOS
 // números — nunca cuáles; "Continuar" navega a /rifas/[id]/checkout, que
 // es quien realmente llama a /api/checkout/mp (sin cambios).
-function BuyBox({ photoUrl, maxQuantity, unitPriceCLPNumber, quantity, setQuantity, onContinue }) {
-  const clampedMax = Math.max(1, maxQuantity || 1);
+//
+// FINAL VISUAL LOCK (2026-09-08) — la Buy Box deja de repetir la foto
+// hero (esa ahora es grande en la columna izquierda): usa una miniatura
+// real de la portada + título/tipo, y consolida en una sola tarjeta la
+// info que antes vivía repartida en drawCard/statCardsRow (sorteo,
+// disponibles, valor por número) — siempre visible, se pueda comprar o
+// no, para no perder esa información cuando las ventas están cerradas o
+// la rifa está agotada. Solo la mitad inferior (selector/CTA) cambia
+// según `canBuy`; cero cambios a qué datos se piden o cómo se procesan.
+function BuyBox({
+  photoUrl, title, prizeTypeLabel, drawInfo, tzLabel,
+  availableCount, totalCount, unitPriceCLPNumber,
+  isMoneyPrize, prizeAmountFmt,
+  canBuy, salesClosed,
+  quantity, setQuantity, onContinue,
+}) {
+  const clampedMax = Math.max(1, availableCount || 1);
   const qty = Math.min(Math.max(1, quantity || 1), clampedMax);
 
   const unitFmt = unitPriceCLPNumber.toLocaleString("es-CL", {
@@ -78,46 +93,75 @@ function BuyBox({ photoUrl, maxQuantity, unitPriceCLPNumber, quantity, setQuanti
 
   return (
     <div className={styles.buyBox}>
-      {photoUrl && (
-        <div className={styles.buyBoxPhoto}>
-          <img src={photoUrl} alt="" />
+      <div className={styles.buyBoxHead}>
+        {photoUrl && (
+          <div className={styles.buyBoxThumb}>
+            <img src={photoUrl} alt="" />
+          </div>
+        )}
+        <div className={styles.buyBoxHeadText}>
+          <p className={styles.buyBoxHeadTitle}>{title}</p>
+          <p className={styles.buyBoxHeadType}>{prizeTypeLabel}</p>
+        </div>
+      </div>
+
+      {drawInfo && (
+        <div className={styles.buyBoxInfoRow}>
+          <span>Sorteo</span>
+          <b>{drawInfo.date} · {drawInfo.time}{tzLabel ? ` · ${tzLabel}` : ""}</b>
+        </div>
+      )}
+      <div className={styles.buyBoxInfoRow}>
+        <span>Disponibles</span>
+        <b>{availableCount} de {totalCount}</b>
+      </div>
+      <div className={styles.buyBoxInfoRow}>
+        <span>Valor por número</span>
+        <b>{unitFmt}</b>
+      </div>
+      {isMoneyPrize && (
+        <div className={styles.buyBoxInfoRow}>
+          <span>Premio</span>
+          <b>{prizeAmountFmt}</b>
         </div>
       )}
 
       <p className={styles.buyBoxTrust}>🔒 Compra segura</p>
 
-      <h3 className={styles.buyBoxTitle}>🎟 ¿Cuántos números quieres?</h3>
-      <p className={styles.buyBoxSub}>Cada número aumenta tus posibilidades.</p>
+      {canBuy ? (
+        <>
+          <h3 className={styles.buyBoxTitle}>🎟 ¿Cuántos números quieres?</h3>
+          <p className={styles.buyBoxSub}>Cada número aumenta tus posibilidades.</p>
 
-      <div className={styles.buyBoxStepperRow}>
-        <button type="button" className={styles.buyBoxStepBtn} disabled={qty <= 1}
-          onClick={() => setQuantity(Math.max(1, qty - 1))} aria-label="Menos">−</button>
-        <span className={styles.buyBoxStepValue}>{qty}</span>
-        <button type="button" className={styles.buyBoxStepBtn} disabled={qty >= clampedMax}
-          onClick={() => setQuantity(Math.min(clampedMax, qty + 1))} aria-label="Más">+</button>
-      </div>
+          <div className={styles.buyBoxStepperRow}>
+            <button type="button" className={styles.buyBoxStepBtn} disabled={qty <= 1}
+              onClick={() => setQuantity(Math.max(1, qty - 1))} aria-label="Menos">−</button>
+            <span className={styles.buyBoxStepValue}>{qty}</span>
+            <button type="button" className={styles.buyBoxStepBtn} disabled={qty >= clampedMax}
+              onClick={() => setQuantity(Math.min(clampedMax, qty + 1))} aria-label="Más">+</button>
+          </div>
 
-      <div className={styles.buyBoxRow}>
-        <span>Precio por número</span>
-        <b>{unitFmt}</b>
-      </div>
-      <div className={styles.buyBoxRow}>
-        <span>Cantidad</span>
-        <b>{qty} {qty === 1 ? "número" : "números"}</b>
-      </div>
-      <div className={styles.buyBoxTotalRow}>
-        <span>Total a pagar</span>
-        <b>{totalCLP}</b>
-      </div>
+          <div className={styles.buyBoxRow}>
+            <span>Precio por número</span>
+            <b>{unitFmt}</b>
+          </div>
+          <div className={styles.buyBoxRow}>
+            <span>Cantidad</span>
+            <b>{qty} {qty === 1 ? "número" : "números"}</b>
+          </div>
+          <div className={styles.buyBoxTotalRow}>
+            <span>Total a pagar</span>
+            <b>{totalCLP}</b>
+          </div>
 
-      {clampedMax <= 5 && (
-        <p className={styles.buyBoxLowStockNote}>
-          Quedan {clampedMax} {clampedMax === 1 ? "número disponible" : "números disponibles"}.
-        </p>
+          <button type="button" className={styles.buyBoxCta} onClick={() => onContinue(qty)}>Continuar →</button>
+          <p className={styles.buyBoxFootnote}>🔒 Compra procesada de forma segura.</p>
+        </>
+      ) : (
+        <button type="button" className={styles.buyBoxCta} disabled>
+          {salesClosed ? "Ventas cerradas" : "Rifa agotada"}
+        </button>
       )}
-
-      <button type="button" className={styles.buyBoxCta} onClick={() => onContinue(qty)}>Continuar →</button>
-      <p className={styles.buyBoxFootnote}>🔒 Compra procesada de forma segura.</p>
     </div>
   );
 }
@@ -409,11 +453,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
     const s = String(raffle.title);
     return s.charAt(0).toUpperCase() + s.slice(1);
   }, [raffle?.title]);
-
-  const priceCLP = useMemo(() => {
-    const n = Number(raffle?.price_cents || 0) / 100;
-    return n.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-  }, [raffle?.price_cents]);
 
   const unitPriceCLPNumber = useMemo(() => Math.round(Number(raffle?.price_cents || 0) / 100), [raffle?.price_cents]);
 
@@ -853,51 +892,36 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
           </div>
 
           <aside className={styles.sideCol}>
-            {drawInfo && (
-              <div className={styles.drawCard}>
-                <div className={styles.drawCardLabel}>Sorteo el</div>
-                <div className={styles.drawCardValue}>{drawInfo.date}</div>
-                <div className={styles.drawCardSub}>a las {drawInfo.time}{tzLabel ? ` · ${tzLabel}` : ""}</div>
-              </div>
-            )}
-
-            <div className={styles.statCardsRow}>
-              <div className={styles.statCard}>
-                <div className={styles.statCardLabel}>Números disponibles</div>
-                <div className={styles.statCardValue}>{counts.available} de {counts.total || raffle.total_numbers || 0}</div>
-              </div>
-              <div className={styles.statCard}>
-                <div className={styles.statCardLabel}>Valor por número</div>
-                <div className={styles.statCardValue}>{priceCLP}</div>
-              </div>
-              <div className={`${styles.statCard} ${styles.statCardHi}`}>
-                <div className={styles.statCardLabel}>{prizeDisplay.label}</div>
-                <div className={styles.statCardValue}>{prizeDisplay.value}</div>
-              </div>
-            </div>
-
             {/* RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — la Buy
                 Box ya no vive detrás de un botón "Comprar número": está
-                siempre visible cuando se puede comprar (nunca un modal, nunca
-                un backdrop de página completa). "Continuar" navega
-                directamente a /rifas/[id]/checkout — una sola pantalla,
-                sin "Método de pago" ficticio. */}
-            {canBuy ? (
-              <BuyBox
-                photoUrl={prizeThumb}
-                maxQuantity={counts.available}
-                unitPriceCLPNumber={unitPriceCLPNumber}
-                quantity={quantity}
-                setQuantity={setQuantity}
-                onContinue={(qty) => {
-                  router.push({ pathname: "/rifas/[id]/checkout", query: { id, qty } });
-                }}
-              />
-            ) : (
-              <button type="button" className={styles.cta} disabled style={{ position: "relative", zIndex: 1 }}>
-                {salesClosed ? "Ventas cerradas" : "Rifa agotada"}
-              </button>
-            )}
+                siempre visible (nunca un modal, nunca un backdrop de
+                página completa). "Continuar" navega directamente a
+                /rifas/[id]/checkout — una sola pantalla, sin "Método de
+                pago" ficticio.
+                FINAL VISUAL LOCK (2026-09-08) — consolida en esta misma
+                tarjeta lo que antes vivían como drawCard/statCardsRow
+                separados (sorteo, disponibles, valor por número): sigue
+                visible se pueda comprar o no, solo cambia la mitad
+                inferior (selector/CTA vs. botón deshabilitado). */}
+            <BuyBox
+              photoUrl={prizeThumb}
+              title={titleCap}
+              prizeTypeLabel={humanPrizeType(raffle.prize_type || "physical")}
+              drawInfo={drawInfo}
+              tzLabel={tzLabel}
+              availableCount={counts.available}
+              totalCount={counts.total || raffle.total_numbers || 0}
+              unitPriceCLPNumber={unitPriceCLPNumber}
+              isMoneyPrize={raffle.prize_type === "money"}
+              prizeAmountFmt={prizeDisplay.value}
+              canBuy={canBuy}
+              salesClosed={salesClosed}
+              quantity={quantity}
+              setQuantity={setQuantity}
+              onContinue={(qty) => {
+                router.push({ pathname: "/rifas/[id]/checkout", query: { id, qty } });
+              }}
+            />
 
             {soldOut && !salesClosed && (
               <div className={styles.soldOutNote}>

@@ -9,7 +9,20 @@
 // aprobado: flechas prev/next sobre la imagen principal, e indicador
 // "+N fotos" en la última miniatura visible cuando hay más de las que
 // caben. Sigue siendo puro render — mismos `photos` de siempre.
-import { useState } from "react";
+//
+// FINAL VISUAL LOCK (2026-09-08) — bug real de mobile encontrado en la
+// auditoría: el lightbox quedaba atrapado dentro del stacking context
+// aislado de la página (rifas/[id].jsx usa `isolation: isolate` en su
+// contenedor raíz para separar sus propios overlays), y ese contenedor
+// compite con el header sticky (z-index: 40) desde AFUERA — sin
+// portal, el z-index interno del lightbox (por alto que sea) nunca
+// puede ganarle al header, porque la comparación ocurre un nivel más
+// arriba. Se renderiza con un portal a document.body para escapar de
+// cualquier stacking context ajeno, quedando siempre por encima de
+// cualquier header. Se agrega bloqueo de scroll del body y cierre con
+// Escape mientras está abierto.
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import styles from "../../styles/prizeGallery.module.css";
 
 const VISIBLE_THUMBS = 4;
@@ -30,6 +43,23 @@ export default function PrizeGallery({ photos, prizeType, title }) {
   const list = Array.isArray(photos) ? photos.filter(Boolean) : [];
   const [activeIdx, setActiveIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // Bloquea el scroll del body y permite cerrar con Escape mientras el
+  // lightbox está abierto — solo mientras está montado, sin afectar el
+  // resto de la página.
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setLightboxOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [lightboxOpen]);
 
   if (list.length === 0) {
     return (
@@ -95,7 +125,7 @@ export default function PrizeGallery({ photos, prizeType, title }) {
         </div>
       )}
 
-      {lightboxOpen && (
+      {lightboxOpen && typeof document !== "undefined" && createPortal(
         <div
           className={styles.lightboxBackdrop}
           onClick={() => setLightboxOpen(false)}
@@ -137,7 +167,8 @@ export default function PrizeGallery({ photos, prizeType, title }) {
               ›
             </button>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

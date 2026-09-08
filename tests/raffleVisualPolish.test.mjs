@@ -221,10 +221,12 @@ test('LAYOUT 3: la pestaña activa se controla con activeTab, un solo estado, si
   assert.match(src, /activeTab === "faq"/);
 });
 
-test('LAYOUT 4: el sidebar tiene countdown, 3 stat cards, CTA, badges de confianza y banner de seguridad', () => {
+test('LAYOUT 4: el sidebar tiene la Buy Box consolidada (sorteo/disponibles/valor + CTA), badges de confianza y banner de seguridad', () => {
+  // FINAL VISUAL LOCK (2026-09-08): drawCard/statCardsRow (3 tarjetas
+  // separadas) se consolidaron dentro de la propia Buy Box
+  // (buyBoxInfoRow) — mismo dato, misma info, una sola tarjeta.
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /styles\.drawCard/);
-  assert.match(src, /styles\.statCardsRow/);
+  assert.match(src, /styles\.buyBoxInfoRow/);
   assert.match(src, /styles\.staticTrustRow/);
   assert.match(src, /styles\.safetyNote/);
 });
@@ -235,14 +237,19 @@ test('LAYOUT 5: la sección "Condiciones" preserva el bloque real de premioInfo 
   assert.match(src, /row\.tone === "amber" \? styles\.alertAmber : row\.tone === "green" \? styles\.alertGreen : styles\.alertNeutral/);
 });
 
-test('LAYOUT 6: la Buy Box (RIFEX CHECKOUT V2) solo se ofrece con la misma condición canBuy real; si no, un botón deshabilitado explica por qué', () => {
+test('LAYOUT 6: la Buy Box (RIFEX CHECKOUT V2) solo ofrece el selector/CTA de compra con la misma condición canBuy real; si no, un botón deshabilitado explica por qué', () => {
   // RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07): el botón-gate
-  // "Comprar número" fue reemplazado por la Buy Box siempre visible —
-  // esta prueba sigue esa lógica a su forma real, canBuy en sí no cambió.
+  // "Comprar número" fue reemplazado por la Buy Box siempre visible.
+  // FINAL VISUAL LOCK (2026-09-08): la Buy Box ahora se renderiza siempre
+  // (nunca detrás de un ternario canBuy ? <BuyBox> : <button>), y es el
+  // propio componente BuyBox quien decide internamente, vía la prop
+  // canBuy, si muestra el selector/CTA real o el botón deshabilitado —
+  // canBuy en sí no cambió.
   const src = read('src/pages/rifas/[id].jsx');
   assert.match(src, /const canBuy = !salesClosed && !soldOut && counts\.available > 0;/);
-  assert.match(src, /canBuy \? \(\s*<BuyBox/);
-  assert.match(src, /<button type="button" className=\{styles\.cta\} disabled /);
+  assert.match(src, /<BuyBox\b[\s\S]{0,700}canBuy=\{canBuy\}/);
+  assert.match(src, /\{canBuy \? \(/);
+  assert.match(src, /<button type="button" className=\{styles\.buyBoxCta\} disabled>/);
 });
 
 // ---------------------------------------------------------------------

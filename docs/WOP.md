@@ -4,6 +4,55 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX RAFFLE EXPERIENCE 2026 — FINAL VISUAL LOCK (2026-09-08) — DEV only, última pasada visual antes de PROD
+
+`origin/develop` advances from `66692f3` (CHECKOUT V2 UX CORRECTION PASS
+DEV certified). QA humana pidió la última pasada visual/responsive: la
+ficha pública y el checkout desperdiciaban ancho de pantalla, el fondo
+tenía un gris visible, la Buy Box y el checkout repetían la foto hero
+completa en vez de una miniatura, y existía un bug real de mobile (X del
+lightbox oculta detrás del header hasta hacer scroll). Ver detalle
+completo en [docs/rifas/FINAL_VISUAL_LOCK_2026.md](rifas/FINAL_VISUAL_LOCK_2026.md).
+
+**Fondo off-white** (`#FAFAFA`, ya no `#f6f8fb`) y **contenedores mucho
+más anchos**: ficha pública `95vw`/tope `1700px` (antes `1100px` fijo),
+checkout `95vw`/tope `1450px` (antes `1080px` fijo). Columna de foto
+dominante (`2fr 1fr`, antes `1.35fr 1fr`). **Buy Box consolidada**: usa
+una miniatura real de 56×56px (nunca la foto hero duplicada), agrupa
+sorteo/disponibles/valor en la misma tarjeta (antes tres tarjetas
+separadas), y se renderiza siempre (antes un ternario `canBuy ? <BuyBox>
+: <button>`) para no perder esa información en el estado no-comprable.
+**Checkout con la misma miniatura** en vez de una foto hero de 4:3 a todo
+el ancho ("protagonista, nunca una miniatura" según el comentario que
+describía el estado anterior), más una fila de fecha de sorteo nueva.
+
+**Bug real de lightbox corregido en su causa raíz**: el contenedor con
+`isolation: isolate` de la ficha pública atrapaba el z-index del
+lightbox dentro de su propio stacking context, que compite como
+`z-index: auto` contra el header sticky (`z-index: 40`) — sin importar
+qué tan alto fuera el z-index interno del lightbox, nunca podía ganarle
+al header. Fix estructural: el lightbox se renderiza vía
+`createPortal(..., document.body)`, protegiendo automáticamente a
+cualquier consumidor futuro del mismo componente. Se agregó bloqueo de
+scroll del body, cierre con Escape, y `safe-area-inset-top` para el
+notch/status bar de iOS.
+
+**Cero cambios a `checkout/mp.js`** (diff = 0 líneas). 26 tests nuevos
+(`finalVisualLock.test.mjs`) + 5 tests pre-existentes actualizados para
+seguir la lógica reubicada (mismo criterio de seguridad). Regresión
+1066/1067 (mismo flake histórico de XLSX), build limpio. **QA visual
+interactiva no se pudo completar en esta sesión**: el Browser pane no
+llegó a componer frames ni a hidratar React en ningún punto (confirmado
+`document.hidden` persistente incluso en pestañas nuevas y tras reload
+duro) — descartado como bug propio del código (build limpio, bundle con
+credenciales correctas, consulta REST directa exitosa, cero errores de
+consola). Reportado honestamente como limitación del entorno de
+automatización de esta sesión, no como QA completada; se recomienda que
+la QA humana final cubra específicamente la verificación visual antes de
+promover a PROD.
+
+---
+
 ## CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — DEV only, Buy Box photo-first + checkout de una sola pantalla
 
 `origin/develop` advances from `0d429fd` (CHECKOUT UNIFICADO V2 DEV
