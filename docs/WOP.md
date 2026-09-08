@@ -55,6 +55,25 @@ en el worktree efímero no logró que el Browser pane compusiera frames —
 artefacto puntual de ese servidor local, no del código ni reproducido
 contra el deploy real.)
 
+**Fix post-QA (commit `6486fe9`)**: QA humana en vivo detectó un hueco
+real a la izquierda de la ficha pública con la imagen cortada a la
+derecha en viewports anchos. Causa raíz: `rifas/[id].jsx` se renderiza
+dentro de `<main class="container">` de `Layout.jsx` (`max-width:
+1200px; margin: 0 auto`), y `.card { width: 95vw; margin: 0 auto; }`
+calculaba `95vw` contra el viewport completo ignorando esa restricción
+del padre — al ser más ancha que su propio contenedor, `margin: 0 auto`
+se resolvía a 0 y la tarjeta se desbordaba a la derecha, recortada por
+el `overflow-x: hidden` global. Fix: técnica estándar de "breakout"
+(`position: relative; left: 50%; transform: translateX(-50%)`), que
+centra contra el viewport real sin depender del ancho del padre —
+válida porque ese padre ya está centrado vía su propio `margin: 0 auto`.
+El checkout nunca tuvo este problema (no usa `Layout.getLayout`).
+Verificado en vivo tras el fix en 1440px/1600px/mobile 375px: márgenes
+simétricos, sin overflow horizontal. Único archivo tocado:
+`src/styles/rifaDetalle.module.css` — diff = 0 en `checkout/mp.js`.
+Regresión 1066/1067, build limpio. **QA humana final aprobó el diseño
+en desktop y mobile — RIFEX RAFFLE EXPERIENCE 2026 queda VISUAL LOCK.**
+
 ---
 
 ## CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — DEV only, Buy Box photo-first + checkout de una sola pantalla

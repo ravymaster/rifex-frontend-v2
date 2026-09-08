@@ -33,6 +33,19 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > (Un primer intento contra `next dev` local no logró que el
 > Browser pane compusiera frames — artefacto puntual de ese
 > servidor, no del código ni reproducido contra el deploy real).
+> **Fix post-QA (commit `6486fe9`)**: QA humana en vivo detectó
+> un hueco real a la izquierda con la imagen cortada a la
+> derecha — causa raíz: `.card` calculaba `95vw` contra el
+> viewport completo ignorando que ya estaba anidada dentro de
+> `<main class="container">` de `Layout.jsx` (max-width
+> 1200px), por lo que se desbordaba y `margin: 0 auto` no podía
+> centrarla; fix vía la técnica de "breakout"
+> (`left: 50%; transform: translateX(-50%)`), verificado
+> simétrico en 1440/1600/mobile 375px tras el fix. Único
+> archivo tocado (`rifaDetalle.module.css`), diff = 0 en
+> `checkout/mp.js`, regresión 1066/1067, build limpio. **QA
+> humana final aprobó el diseño en desktop y mobile — RIFEX
+> RAFFLE EXPERIENCE 2026 queda VISUAL LOCK.**
 > Detalle completo: `docs/WOP.md`,
 > `docs/rifas/FINAL_VISUAL_LOCK_2026.md`.
 >

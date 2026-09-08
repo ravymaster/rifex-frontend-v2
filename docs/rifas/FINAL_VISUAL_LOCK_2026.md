@@ -199,6 +199,62 @@ estructurales — el bloqueo inicial documentado arriba fue un artefacto
 puntual del servidor de desarrollo local, corregido de facto al verificar
 contra el deploy real.
 
+## Fix post-QA: centrado de la ficha pública
+
+QA humana en vivo (desktop y mobile) detectó un problema real que la
+verificación anterior no capturó: la ficha pública mostraba un hueco
+grande a la izquierda y la imagen quedaba visualmente cortada a la
+derecha en viewports anchos.
+
+**Causa raíz**: `rifas/[id].jsx` se renderiza vía `Layout.jsx`
+(`getLayout`), que envuelve todo el contenido en `<main class="container">`
+con `max-width: 1200px; margin: 0 auto;`. La regla original de esta
+misión, `.card { width: 95vw; max-width: 1700px; margin: 0 auto; }`,
+calculaba `95vw` contra el viewport completo del navegador — ignorando
+por completo que su contenedor padre real ya estaba angostado a
+~1168px útiles. Como el ancho resultante de `.card` (hasta 1368px+ en
+viewports anchos) superaba el de su propio padre, `margin: 0 auto` no
+podía centrarlo (por spec, cuando el contenido excede su containing
+block los márgenes automáticos se resuelven a 0): la tarjeta se
+desbordaba hacia la derecha y quedaba recortada por el
+`overflow-x: hidden` global de `html`/`body` — de ahí el hueco visible
+a la izquierda. Verificado en vivo a 1440px: `.card` medía
+`left: 128.5px, right: 1496.5px` (desbordando 56.5px más allá del
+viewport) en vez de estar centrada.
+
+**Fix**: se reemplazó `margin: 0 auto` por la técnica estándar de
+"breakout" (`position: relative; left: 50%; transform: translateX(-50%);`),
+que centra el elemento contra el viewport real sin importar la
+restricción del padre — válida acá porque `Layout`'s `.container` ya
+está centrado en el viewport vía su propio `margin: 0 auto`, así que su
+centro horizontal ya coincide con el centro del viewport.
+
+El checkout nunca tuvo este problema: no usa el `getLayout` de
+`Layout.jsx` en absoluto, por lo que su propio contenedor `95vw/1450px`
+nunca estuvo anidado dentro de la restricción de 1200px.
+
+**Verificado en vivo tras el fix**, en los tres anchos de QA humana:
+- 1440px: márgenes 28.5px / 43.5px (la diferencia de 15px es el ancho
+  del scrollbar, no una asimetría real).
+- 1600px: 32.5px / 47.5px, misma explicación.
+- Mobile 375px: 9.375px / 9.375px — perfectamente simétrico.
+- Sin overflow horizontal en ningún caso
+  (`scrollWidth === clientWidth`).
+
+Commit `6486fe9`. Cero cambios a `checkout/mp.js` (diff = 0 líneas,
+único archivo tocado: `src/styles/rifaDetalle.module.css`). Suite
+`finalVisualLock.test.mjs` (26 escenarios) sigue en verde sin cambios,
+ya que las declaraciones `width`/`max-width` no se tocaron, solo el
+mecanismo de centrado.
+
+## Estado final: VISUAL LOCK
+
+QA humana final aprobó el diseño en desktop y mobile tras este fix. El
+diseño de la ficha pública, la Buy Box, el checkout y el lightbox de
+`RIFEX RAFFLE EXPERIENCE 2026` queda **VISUAL LOCK** — no se esperan
+más cambios visuales en estas superficies salvo que surja un nuevo
+mandato explícito.
+
 ## Archivos modificados
 
 - `src/pages/rifas/[id].jsx` — Buy Box consolidada (thumbnail, info
