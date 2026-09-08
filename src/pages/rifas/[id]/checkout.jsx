@@ -1,11 +1,11 @@
 // src/pages/rifas/[id]/checkout.jsx
-// RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — reemplaza los modales
-// QuantitySelector/BuyerForm de la ficha pública por una experiencia de
-// 2 pantallas ("Tus datos" / "Método de pago"), estilo tienda online.
-// Cero cambios de lógica de pagos: el submit real sigue siendo el mismo
-// POST /api/checkout/mp ya certificado (misma RPC atómica, mismo HOLD_
-// MINUTES, mismo assignRandomAvailableNumbers) — esta página solo
-// reorganiza cómo se recolectan los datos antes de ese POST.
+// RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07). Pantalla única
+// "Finaliza tu compra": foto real del premio + resumen + datos del
+// comprador (nombre, correo, términos) + un solo CTA. Sin teléfono, sin
+// pantalla "Método de pago" ficticia, sin stepper 1-2-3. Cero cambios de
+// lógica de pagos: el submit real sigue siendo el mismo
+// POST /api/checkout/mp ya certificado (misma RPC atómica, mismo
+// HOLD_MINUTES, mismo assignRandomAvailableNumbers).
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
@@ -16,17 +16,6 @@ import styles from "../../../styles/checkoutV2.module.css";
 
 const TERMS_VERSION = "v1.0";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// Chile: el usuario solo escribe los 9 dígitos locales (siempre
-// empiezan en 9), mismo criterio ya usado en el resto de Rifex para
-// teléfono chileno — el "+56" es fijo en la UI, nunca se pide escribirlo.
-const PHONE_CL_RE = /^9[0-9]{8}$/;
-
-const PAYMENT_METHODS = [
-  { id: "card", icon: "💳", label: "Tarjeta de crédito o débito" },
-  { id: "transfer", icon: "🏦", label: "Transferencia bancaria" },
-  { id: "balance", icon: "💰", label: "Saldo en cuenta" },
-  { id: "other", icon: "⋯", label: "Otro método de pago" },
-];
 
 export default function RaffleCheckout() {
   const router = useRouter();
@@ -37,13 +26,10 @@ export default function RaffleCheckout() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
-  const [step, setStep] = useState("datos"); // 'datos' | 'pago'
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [touched, setTouched] = useState({});
-  const [method, setMethod] = useState("card");
   const [redirecting, setRedirecting] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
 
@@ -60,10 +46,8 @@ export default function RaffleCheckout() {
       }
       const r = data[0];
       setRaffle(r);
-      const [{ count: availableCount }] = await Promise.all([
-        supabase.from("tickets").select("id", { count: "exact", head: true })
-          .eq("raffle_id", r.id).in("status", ["available", "free"]),
-      ]);
+      const { count: availableCount } = await supabase.from("tickets").select("id", { count: "exact", head: true })
+        .eq("raffle_id", r.id).in("status", ["available", "free"]);
       setAvailable(availableCount || 0);
       setLoading(false);
     })();
@@ -82,6 +66,10 @@ export default function RaffleCheckout() {
   }, [raffle?.title]);
 
   const unitPriceCLP = useMemo(() => Math.round(Number(raffle?.price_cents || 0) / 100), [raffle?.price_cents]);
+  const unitFmt = useMemo(
+    () => unitPriceCLP.toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }),
+    [unitPriceCLP]
+  );
   const totalCLP = useMemo(
     () => (unitPriceCLP * quantity).toLocaleString("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }),
     [unitPriceCLP, quantity]
@@ -100,27 +88,30 @@ export default function RaffleCheckout() {
     return notices;
   }, [raffle]);
 
+  // RIFEX 2026 PHOTO-FIRST — misma portada real ya usada por PrizeGallery
+  // en la ficha pública y por la Buy Box (raffle.prize_photos[0]), sin
+  // pipeline de imágenes nuevo. Para premio en dinero, si la rifa tiene
+  // fotos declaradas se usa igual la portada real; nunca se inventa una.
   const prizeThumb = Array.isArray(raffle?.prize_photos) && raffle.prize_photos.length ? raffle.prize_photos[0] : null;
 
   const errors = useMemo(() => {
     const e = {};
     if (!name.trim() || name.trim().length < 3) e.name = "Ingresa tu nombre completo.";
     if (!EMAIL_RE.test(email.trim())) e.email = "Ingresa un correo válido.";
-    if (!PHONE_CL_RE.test(phone.trim())) e.phone = "Ingresa 9 dígitos, empezando en 9.";
     if (!accepted) e.accepted = "Debes aceptar los términos de la rifa.";
     return e;
-  }, [name, email, phone, accepted]);
+  }, [name, email, accepted]);
 
-  const datosValid = Object.keys(errors).length === 0;
+  const formValid = Object.keys(errors).length === 0;
+  const rawIdForBack = typeof id === "string" ? id : "";
 
   function markTouched(field) {
     setTouched((t) => ({ ...t, [field]: true }));
   }
 
-  const rawIdForBack = typeof id === "string" ? id : "";
-
-  async function handlePagar() {
-    if (!raffle?.id || quantity < 1) return;
+  async function handleContinuar() {
+    setTouched({ name: true, email: true, accepted: true });
+    if (!formValid || !raffle?.id || quantity < 1) return;
     setErrorMsg(null);
     try {
       const payload = {
@@ -131,13 +122,6 @@ export default function RaffleCheckout() {
         quantity,
         buyer_email: email.trim(),
         buyer_name: name.trim(),
-        // buyer_phone: campo nuevo de UX (mockup de checkout tienda
-        // online). No existe columna de persistencia para esto todavía
-        // — checkout/mp.js lo ignora silenciosamente (destructuring por
-        // nombre, cero cambio de backend). Si se quiere guardar/usar más
-        // adelante, requiere una migración aditiva nueva, a autorizar
-        // explícitamente — no se agregó una en esta misión.
-        buyer_phone: `+56${phone.trim()}`,
         accepted_terms: accepted,
         terms_version: TERMS_VERSION,
       };
@@ -154,7 +138,7 @@ export default function RaffleCheckout() {
         return;
       }
       setErrorMsg(data?.error === "insufficient_availability"
-        ? "Ya no quedan suficientes números disponibles para esta cantidad. Vuelve atrás y elige menos."
+        ? "Ya no quedan suficientes números disponibles para esta cantidad. Vuelve a la rifa y elige menos."
         : (data?.error || "No se pudo iniciar el pago. Intenta nuevamente."));
     } catch (e) {
       console.error(e);
@@ -189,105 +173,62 @@ export default function RaffleCheckout() {
       </Head>
 
       <div className={styles.shell}>
-        <div className={styles.topBar}>
-          <button
-            type="button"
-            className={styles.backLink}
-            onClick={() => (step === "pago" ? setStep("datos") : router.push(`/rifas/${rawIdForBack}`))}
-          >
-            ← Volver
-          </button>
-          <button
-            type="button"
-            className={styles.closeBtn}
-            aria-label="Cerrar"
-            onClick={() => router.push(`/rifas/${rawIdForBack}`)}
-          >
-            ✕
-          </button>
-        </div>
+        <a className={styles.backLink} href={`/rifas/${rawIdForBack}`}>← Volver a la rifa</a>
 
         <div className={styles.card}>
-          <span className={styles.statusPill}>
-            <span className={styles.statusDot} />
-            Rifa activa
-          </span>
-          <h1 className={styles.title}>{titleCap}</h1>
-          <p className={styles.subtitle}>
-            {step === "datos" ? "Completa la información para continuar." : "Elige cómo quieres pagar tu compra."}
-          </p>
-
-          <div className={styles.productRow}>
-            <div className={styles.productThumb}>
-              {prizeThumb ? <img src={prizeThumb} alt="" /> : <span style={{ color: "#fff", fontSize: 22 }}>🎁</span>}
+          <div className={styles.checkoutGrid}>
+            <div className={styles.gridHead}>
+              <h1 className={styles.title}>Finaliza tu compra</h1>
+              <p className={styles.subtitle}>Completa tus datos para continuar.</p>
+              {errorMsg && <div className={styles.errorBanner}>{errorMsg}</div>}
             </div>
-            <div className={styles.productInfo}>
-              <p className={styles.productName}>{titleCap}</p>
-              <p className={styles.productMeta}>{quantity} {quantity === 1 ? "número" : "números"} · {humanPrizeType(raffle.prize_type || "physical")}</p>
+
+            <div className={styles.gridPhoto}>
+              <div className={styles.prizePhoto}>
+                {prizeThumb ? <img src={prizeThumb} alt="" /> : <span className={styles.prizePhotoFallback}>🎁</span>}
+              </div>
+              <p className={styles.prizeName}>{titleCap}</p>
+              <p className={styles.prizeMeta}>{humanPrizeType(raffle.prize_type || "physical")}</p>
+              {extraCostNotices.length > 0 && (
+                <div className={styles.extraCostNotice}>⚠️ {extraCostNotices.join(" ")}</div>
+              )}
             </div>
-            <div className={styles.productTotal}>{totalCLP}</div>
-          </div>
 
-          {extraCostNotices.length > 0 && (
-            <div className={styles.extraCostNotice}>⚠️ {extraCostNotices.join(" ")}</div>
-          )}
+            <div className={styles.gridSummary}>
+              <p className={styles.summaryTitle}>Resumen de tu compra</p>
+              <div className={styles.summaryRow}><span>Cantidad</span><b>{quantity} {quantity === 1 ? "número" : "números"}</b></div>
+              <div className={styles.summaryRow}><span>Precio por número</span><b>{unitFmt}</b></div>
+              <div className={styles.summaryTotalRow}><span>Total</span><b>{totalCLP}</b></div>
+            </div>
 
-          {errorMsg && <div className={styles.errorBanner}>{errorMsg}</div>}
-
-          {step === "datos" && (
-            <>
-              <h2 className={styles.sectionTitle}>Información personal</h2>
-
+            <div className={styles.gridForm}>
               <div className={styles.field}>
                 <label className={styles.label}>Nombre completo</label>
-                <div className={styles.inputWrap}>
-                  <span className={styles.inputIcon}>👤</span>
-                  <input
-                    className={`${styles.input} ${touched.name && errors.name ? styles.inputError : ""}`}
-                    placeholder="Tu nombre y apellido"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onBlur={() => markTouched("name")}
-                  />
-                </div>
+                <input
+                  className={`${styles.input} ${touched.name && errors.name ? styles.inputError : ""}`}
+                  placeholder="Tu nombre y apellido"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => markTouched("name")}
+                />
                 {touched.name && errors.name && <p className={styles.fieldErrorText}>{errors.name}</p>}
               </div>
 
               <div className={styles.field}>
                 <label className={styles.label}>Correo electrónico</label>
-                <div className={styles.inputWrap}>
-                  <span className={styles.inputIcon}>✉️</span>
-                  <input
-                    className={`${styles.input} ${touched.email && errors.email ? styles.inputError : ""}`}
-                    placeholder="tu@correo.com"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    onBlur={() => markTouched("email")}
-                  />
-                </div>
+                <input
+                  className={`${styles.input} ${touched.email && errors.email ? styles.inputError : ""}`}
+                  placeholder="tu@correo.com"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => markTouched("email")}
+                />
                 {touched.email && errors.email && <p className={styles.fieldErrorText}>{errors.email}</p>}
               </div>
+            </div>
 
-              <div className={styles.field}>
-                <label className={styles.label}>Teléfono</label>
-                <div className={styles.phoneRow}>
-                  <span className={styles.phonePrefix}>🇨🇱 +56</span>
-                  <div className={styles.inputWrap}>
-                    <span className={styles.inputIcon}>📱</span>
-                    <input
-                      className={`${styles.input} ${touched.phone && errors.phone ? styles.inputError : ""}`}
-                      placeholder="9 1234 5678"
-                      inputMode="numeric"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 9))}
-                      onBlur={() => markTouched("phone")}
-                    />
-                  </div>
-                </div>
-                {touched.phone && errors.phone && <p className={styles.fieldErrorText}>{errors.phone}</p>}
-              </div>
-
+            <div className={styles.gridTerms}>
               <label className={styles.checkRow}>
                 <input
                   type="checkbox"
@@ -298,77 +239,14 @@ export default function RaffleCheckout() {
                   Acepto los <a href="/terminos-rifas" target="_blank" rel="noreferrer">Términos y condiciones</a> de la rifa.
                 </span>
               </label>
+            </div>
 
-              <button
-                type="button"
-                className={styles.primaryBtn}
-                style={{ marginTop: 14 }}
-                disabled={!datosValid}
-                onClick={() => {
-                  setTouched({ name: true, email: true, phone: true, accepted: true });
-                  if (datosValid) setStep("pago");
-                }}
-              >
+            <div className={styles.gridCta}>
+              <button type="button" className={styles.primaryBtn} disabled={!formValid} onClick={handleContinuar}>
                 Continuar al pago →
               </button>
-
-              <p className={styles.secondaryLink} style={{ margin: "14px 0 0" }}>
-                🔒 Tus datos están protegidos. Solo los usamos para procesar tu compra y notificarte.
-              </p>
-            </>
-          )}
-
-          {step === "pago" && (
-            <>
-              <h2 className={styles.sectionTitle}>Método de pago</h2>
-
-              <div className={styles.methodList}>
-                {PAYMENT_METHODS.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`${styles.methodCard} ${method === m.id ? styles.methodCardActive : ""}`}
-                    onClick={() => setMethod(m.id)}
-                  >
-                    <span className={styles.methodIcon}>{m.icon}</span>
-                    <span className={styles.methodLabel}>{m.label}</span>
-                    <span className={styles.methodRadio} />
-                  </div>
-                ))}
-              </div>
-
-              <div className={styles.summaryTotalRow}>
-                <span className={styles.summaryTotalLabel}>Total a pagar</span>
-                <span className={styles.summaryTotalValue}>{totalCLP}</span>
-              </div>
-
-              <button type="button" className={styles.primaryBtn} onClick={handlePagar}>
-                🔒 Pagar {totalCLP} →
-              </button>
-
-              <div className={styles.trustFooter}>
-                <span className={styles.trustItem}>✅ Organizador verificado</span>
-                <span className={styles.trustItem}>💎 Transparencia total</span>
-                <span className={styles.trustItem}>🔒 Tus datos protegidos</span>
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className={styles.stepsFooter}>
-          <div className={styles.stepItem}>
-            <span className={`${styles.stepCircle} ${styles.stepCircleMuted}`}>1</span>
-            <span className={styles.stepLabel}>Selecciona la cantidad</span>
-            <span className={styles.stepSub}>Elige cuántos números quieres comprar.</span>
-          </div>
-          <div className={styles.stepItem}>
-            <span className={`${styles.stepCircle} ${step === "datos" ? "" : styles.stepCircleMuted}`}>2</span>
-            <span className={styles.stepLabel}>Tus datos</span>
-            <span className={styles.stepSub}>Completa la información solicitada.</span>
-          </div>
-          <div className={styles.stepItem}>
-            <span className={`${styles.stepCircle} ${step === "pago" ? "" : styles.stepCircleMuted}`}>3</span>
-            <span className={styles.stepLabel}>Pago</span>
-            <span className={styles.stepSub}>Elige tu método de pago y confirma.</span>
+              <p className={styles.trustFootnote}>🔒 Tus datos están protegidos. Compra procesada de forma segura.</p>
+            </div>
           </div>
         </div>
       </div>

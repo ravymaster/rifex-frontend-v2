@@ -235,10 +235,14 @@ test('LAYOUT 5: la sección "Condiciones" preserva el bloque real de premioInfo 
   assert.match(src, /row\.tone === "amber" \? styles\.alertAmber : row\.tone === "green" \? styles\.alertGreen : styles\.alertNeutral/);
 });
 
-test('LAYOUT 6: el CTA "Comprar número" sigue deshabilitado exactamente con la misma condición canBuy real', () => {
+test('LAYOUT 6: la Buy Box (RIFEX CHECKOUT V2) solo se ofrece con la misma condición canBuy real; si no, un botón deshabilitado explica por qué', () => {
+  // RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07): el botón-gate
+  // "Comprar número" fue reemplazado por la Buy Box siempre visible —
+  // esta prueba sigue esa lógica a su forma real, canBuy en sí no cambió.
   const src = read('src/pages/rifas/[id].jsx');
   assert.match(src, /const canBuy = !salesClosed && !soldOut && counts\.available > 0;/);
-  assert.match(src, /disabled=\{!canBuy\}/);
+  assert.match(src, /canBuy \? \(\s*<BuyBox/);
+  assert.match(src, /<button type="button" className=\{styles\.cta\} disabled /);
 });
 
 // ---------------------------------------------------------------------

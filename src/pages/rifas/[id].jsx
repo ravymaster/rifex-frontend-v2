@@ -57,64 +57,67 @@ const FAQ_ITEMS = [
   { q: "¿Cómo sé si gané?", a: "El ganador se contacta directamente por los datos entregados al comprar, y el resultado queda visible en esta misma página." },
 ];
 
-// RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — panel de cantidad inline,
-// reemplaza el modal QuantitySelector.jsx (retirado de esta página, el
-// archivo sigue existiendo sin consumidores). Solo decide CUÁNTOS
-// números — nunca cuáles; "Continuar" navega a /rifas/[id]/checkout,
-// que es quien realmente llama a /api/checkout/mp.
-function QuantityPanel({ maxQuantity, unitPriceCLPNumber, quantity, setQuantity, onCancel, onContinue }) {
+// RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — Buy Box
+// photo-first, siempre visible en el sidebar (ya no detrás de un botón
+// "Comprar número" ni de un modal). Reutiliza la portada real del premio
+// (raffle.prize_photos[0], mismo asset ya usado por PrizeGallery — sin
+// pipeline de imágenes nuevo). Sin chips 1/5/10/20, sin botón Cancelar:
+// quien no quiera comprar simplemente no continúa. Solo decide CUÁNTOS
+// números — nunca cuáles; "Continuar" navega a /rifas/[id]/checkout, que
+// es quien realmente llama a /api/checkout/mp (sin cambios).
+function BuyBox({ photoUrl, maxQuantity, unitPriceCLPNumber, quantity, setQuantity, onContinue }) {
   const clampedMax = Math.max(1, maxQuantity || 1);
   const qty = Math.min(Math.max(1, quantity || 1), clampedMax);
-  const QUICK_AMOUNTS = [1, 5, 10, 20].filter((n) => n <= clampedMax);
 
+  const unitFmt = unitPriceCLPNumber.toLocaleString("es-CL", {
+    style: "currency", currency: "CLP", maximumFractionDigits: 0,
+  });
   const totalCLP = (unitPriceCLPNumber * qty).toLocaleString("es-CL", {
     style: "currency", currency: "CLP", maximumFractionDigits: 0,
   });
 
   return (
-    <div className={styles.qtyPanel}>
-      <h3 className={styles.qtyPanelTitle}>¿Cuántos números quieres?</h3>
-      <p className={styles.qtyPanelSub}>Cada número aumenta tus posibilidades.</p>
+    <div className={styles.buyBox}>
+      {photoUrl && (
+        <div className={styles.buyBoxPhoto}>
+          <img src={photoUrl} alt="" />
+        </div>
+      )}
 
-      <div className={styles.qtyStepperRow}>
-        <button type="button" className={styles.qtyStepBtn} disabled={qty <= 1}
+      <p className={styles.buyBoxTrust}>🔒 Compra segura</p>
+
+      <h3 className={styles.buyBoxTitle}>🎟 ¿Cuántos números quieres?</h3>
+      <p className={styles.buyBoxSub}>Cada número aumenta tus posibilidades.</p>
+
+      <div className={styles.buyBoxStepperRow}>
+        <button type="button" className={styles.buyBoxStepBtn} disabled={qty <= 1}
           onClick={() => setQuantity(Math.max(1, qty - 1))} aria-label="Menos">−</button>
-        <span className={styles.qtyStepValue}>{qty}</span>
-        <button type="button" className={styles.qtyStepBtn} disabled={qty >= clampedMax}
+        <span className={styles.buyBoxStepValue}>{qty}</span>
+        <button type="button" className={styles.buyBoxStepBtn} disabled={qty >= clampedMax}
           onClick={() => setQuantity(Math.min(clampedMax, qty + 1))} aria-label="Más">+</button>
       </div>
 
-      <div className={styles.qtyChipsRow}>
-        {QUICK_AMOUNTS.map((n) => (
-          <button
-            key={n}
-            type="button"
-            className={`${styles.qtyChip} ${qty === n ? styles.qtyChipActive : ""}`}
-            onClick={() => setQuantity(n)}
-          >
-            {n}
-          </button>
-        ))}
+      <div className={styles.buyBoxRow}>
+        <span>Precio por número</span>
+        <b>{unitFmt}</b>
       </div>
-
-      <div className={styles.qtyTotalRow}>
-        <span className={styles.qtyTotalLabel}>
-          Total a pagar
-          <span className={styles.qtyTotalBadge}>{qty} {qty === 1 ? "número" : "números"}</span>
-        </span>
-        <span className={styles.qtyTotalValue}>{totalCLP}</span>
+      <div className={styles.buyBoxRow}>
+        <span>Cantidad</span>
+        <b>{qty} {qty === 1 ? "número" : "números"}</b>
+      </div>
+      <div className={styles.buyBoxTotalRow}>
+        <span>Total a pagar</span>
+        <b>{totalCLP}</b>
       </div>
 
       {clampedMax <= 5 && (
-        <p className={styles.qtyLowStockNote}>
+        <p className={styles.buyBoxLowStockNote}>
           Quedan {clampedMax} {clampedMax === 1 ? "número disponible" : "números disponibles"}.
         </p>
       )}
 
-      <div className={styles.qtyBtnRow}>
-        <button type="button" className={styles.qtyCancelBtn} onClick={onCancel}>Cancelar</button>
-        <button type="button" className={styles.qtyContinueBtn} onClick={() => onContinue(qty)}>Continuar →</button>
-      </div>
+      <button type="button" className={styles.buyBoxCta} onClick={() => onContinue(qty)}>Continuar →</button>
+      <p className={styles.buyBoxFootnote}>🔒 Compra procesada de forma segura.</p>
     </div>
   );
 }
@@ -161,11 +164,11 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — showQty ya no abre un modal:
-  // expande un panel de cantidad inline en el propio sidebar (ver mapping
-  // de estados más abajo). "Continuar" navega a /rifas/[id]/checkout con
-  // la cantidad elegida; el checkout completo (datos + pago) vive ahí.
-  const [showQty, setShowQty] = useState(false);
+  // RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — la Buy Box es
+  // siempre visible en el sidebar cuando se puede comprar (ya no detrás
+  // de un botón "Comprar número" ni de un modal). "Continuar" navega a
+  // /rifas/[id]/checkout con la cantidad elegida; el checkout (datos +
+  // pago, una sola pantalla) vive ahí.
   const [quantity, setQuantity] = useState(1);
 
   const [payBanner, setPayBanner] = useState(null);       // {kind,text}
@@ -414,6 +417,15 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
 
   const unitPriceCLPNumber = useMemo(() => Math.round(Number(raffle?.price_cents || 0) / 100), [raffle?.price_cents]);
 
+  // RIFEX 2026 PHOTO-FIRST — reutiliza la portada real ya usada por
+  // PrizeGallery (raffle.prize_photos[0]), sin pipeline de imágenes
+  // nuevo, para que la Buy Box y el checkout mantengan el premio
+  // visualmente presente durante la compra.
+  const prizeThumb = useMemo(
+    () => (Array.isArray(raffle?.prize_photos) && raffle.prize_photos.length ? raffle.prize_photos[0] : null),
+    [raffle?.prize_photos]
+  );
+
   // RIFEX RAFFLE EXPERIENCE 2026 — bug real encontrado en la auditoría:
   // esto se calculaba SIEMPRE desde prize_amount_cents, que es null para
   // premios físicos → "$0" visible. Ahora solo se muestra para dinero;
@@ -572,8 +584,8 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
   const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
 
   // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA.
-  // showQty ya NO es un overlay (RIFEX CHECKOUT UNIFICADO V2) — es un
-  // panel inline dentro del propio sidebar, nunca cubre la foto/hero.
+  // La Buy Box no es un overlay — vive inline dentro del propio sidebar,
+  // nunca cubre la foto/hero.
   const hasAnyModalOrOverlay =
     !!paymentResult || !!redirecting || !!payBanner;
 
@@ -864,33 +876,27 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
               </div>
             </div>
 
-            {/* RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — "Comprar número"
-                ya no abre un modal: expande este panel inline (nunca un
-                backdrop de página completa) con la cantidad + accesos
-                rápidos del mockup aprobado. "Continuar" navega a
-                /rifas/[id]/checkout con la cantidad elegida — ahí viven
-                las pantallas "Tus datos" y "Método de pago". */}
-            {!showQty ? (
-              <button
-                type="button"
-                className={styles.cta}
-                disabled={!canBuy}
-                onClick={() => setShowQty(true)}
-                style={{ position: "relative", zIndex: 1 }}
-              >
-                {salesClosed ? "Ventas cerradas" : soldOut ? "Rifa agotada" : "Comprar número"}
-              </button>
-            ) : (
-              <QuantityPanel
+            {/* RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — la Buy
+                Box ya no vive detrás de un botón "Comprar número": está
+                siempre visible cuando se puede comprar (nunca un modal, nunca
+                un backdrop de página completa). "Continuar" navega
+                directamente a /rifas/[id]/checkout — una sola pantalla,
+                sin "Método de pago" ficticio. */}
+            {canBuy ? (
+              <BuyBox
+                photoUrl={prizeThumb}
                 maxQuantity={counts.available}
                 unitPriceCLPNumber={unitPriceCLPNumber}
                 quantity={quantity}
                 setQuantity={setQuantity}
-                onCancel={() => setShowQty(false)}
                 onContinue={(qty) => {
                   router.push({ pathname: "/rifas/[id]/checkout", query: { id, qty } });
                 }}
               />
+            ) : (
+              <button type="button" className={styles.cta} disabled style={{ position: "relative", zIndex: 1 }}>
+                {salesClosed ? "Ventas cerradas" : "Rifa agotada"}
+              </button>
             )}
 
             {soldOut && !salesClosed && (

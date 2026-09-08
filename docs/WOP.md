@@ -4,6 +4,34 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — DEV only, Buy Box photo-first + checkout de una sola pantalla
+
+`origin/develop` advances from `0d429fd` (CHECKOUT UNIFICADO V2 DEV
+certified). QA humana sobre esa misión: técnicamente correcta,
+visualmente insuficiente. Ver detalle completo en
+[docs/rifas/CHECKOUT_V2_UX_CORRECTION_2026.md](rifas/CHECKOUT_V2_UX_CORRECTION_2026.md).
+
+**Buy Box photo-first, siempre visible** en el sidebar — ya no detrás de
+un botón "Comprar número": foto real del premio, stepper grande, filas
+Precio por número/Cantidad/Total, CTA dominante. Retirados: chips
+rápidos 1/5/10/20 y botón Cancelar.
+
+**Checkout de una sola pantalla** ("Finaliza tu compra") reemplaza el
+flujo de 2 pantallas de la misión anterior — layout tipo tienda online
+(~1080px, grid 2 columnas ~60/40 en desktop, 1 columna en mobile), foto
+real del premio (mismo asset que `PrizeGallery`) presente en ambas
+superficies. Teléfono eliminado por completo (no se muestra, no se
+recolecta, no se envía). Pantalla "Método de pago" ficticia eliminada —
+un único CTA dispara el submit real directamente. Stepper 1-2-3
+eliminado sin sustituto.
+
+**Cero cambios a `checkout/mp.js`** (diff = 0 líneas). 39 tests
+reescritos + 1 test estructural pre-existente actualizado para seguir la
+lógica reubicada (mismo criterio de seguridad, sin relajarlo). Regresión
+1040/1041 (mismo flake histórico), build limpio.
+
+---
+
 ## CHECKOUT UNIFICADO V2 (2026-09-07) — DEV only, checkout estilo tienda online en 2 pantallas
 
 `origin/develop` advances from `168ed37` (HUMAN SLUG V2 + PUBLIC RAFFLE

@@ -232,61 +232,64 @@
 .cta:not(:disabled):hover { transform: translateY(-1px); }
 .cta:disabled { opacity: .55; box-shadow: none; cursor: not-allowed; }
 
-/* RIFEX CHECKOUT UNIFICADO V2 (2026-09-07) — panel de cantidad inline en
-   el propio sidebar (reemplaza el modal QuantitySelector): mismo look
-   que el resto del sidebar (borde ultraligero + fondo blanco), nunca un
-   backdrop de página completa. "Continuar" navega a /rifas/[id]/checkout
+/* RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — Buy Box
+   photo-first, siempre visible en el sidebar (reemplaza el panel
+   comprimido de la misión anterior y el modal QuantitySelector
+   original). Composición como superficie de compra de producto, no
+   como widget administrativo: foto real del premio, selector grande,
+   filas de precio/cantidad/total, CTA dominante. Sin chips de cantidad
+   rápida, sin botón Cancelar. "Continuar" navega a /rifas/[id]/checkout
    — la reserva real de números sigue ocurriendo 100% en checkout/mp.js,
-   sin cambios, exactamente al hacer clic en "Pagar" en esa página nueva. */
-.qtyPanel {
+   sin cambios, exactamente al hacer clic en "Continuar al pago" ahí. */
+.buyBox {
   background: #fff;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 16px 32px -20px rgba(24,169,87,.25);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 20px 40px -22px rgba(24,169,87,.28);
 }
-.qtyPanelTitle { margin: 0 0 2px; font-size: 15px; font-weight: 800; color: #0f172a; }
-.qtyPanelSub { margin: 0 0 14px; font-size: 12.5px; color: #64748b; }
-.qtyStepperRow { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 12px; }
-.qtyStepBtn {
-  width: 40px; height: 40px; border-radius: 999px; border: 1px solid #e5e7eb;
-  background: #f8fafc; font-size: 18px; font-weight: 800; color: #0f172a;
+.buyBoxPhoto {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #1E3A8A, #18A957);
+}
+.buyBoxPhoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.buyBoxTrust { margin: 0 0 14px; font-size: 12.5px; font-weight: 700; color: #18A957; text-align: center; }
+.buyBoxTitle { margin: 0 0 2px; font-size: 16px; font-weight: 800; color: #0f172a; }
+.buyBoxSub { margin: 0 0 16px; font-size: 12.5px; color: #64748b; }
+.buyBoxStepperRow { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 18px; }
+.buyBoxStepBtn {
+  width: 46px; height: 46px; border-radius: 999px; border: 1px solid #e5e7eb;
+  background: #f8fafc; font-size: 20px; font-weight: 800; color: #0f172a;
   cursor: pointer; transition: background .15s ease;
 }
-.qtyStepBtn:not(:disabled):hover { background: #EAF3DE; }
-.qtyStepBtn:disabled { opacity: .4; cursor: not-allowed; }
-.qtyStepValue { min-width: 32px; text-align: center; font-size: 20px; font-weight: 800; color: #0f172a; }
-.qtyChipsRow { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; justify-content: center; }
-.qtyChip {
-  border: 1px solid #e5e7eb; background: #f8fafc; border-radius: 999px;
-  padding: 6px 14px; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer;
+.buyBoxStepBtn:not(:disabled):hover { background: #EAF3DE; }
+.buyBoxStepBtn:disabled { opacity: .4; cursor: not-allowed; }
+.buyBoxStepValue { min-width: 36px; text-align: center; font-size: 22px; font-weight: 800; color: #0f172a; }
+.buyBoxRow {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13.5px; color: #334155; padding: 7px 0;
 }
-.qtyChip:disabled { opacity: .35; cursor: not-allowed; }
-.qtyChipActive { background: #18A957; border-color: #18A957; color: #fff; }
-.qtyTotalRow {
-  display: flex; align-items: baseline; justify-content: space-between;
-  background: #f8fafc; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px;
+.buyBoxRow b { color: #0f172a; font-weight: 800; }
+.buyBoxTotalRow {
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid #e5e7eb; margin-top: 4px; padding-top: 12px;
+  font-size: 14px; font-weight: 700; color: #334155;
 }
-.qtyTotalLabel { font-size: 12.5px; color: #64748b; font-weight: 700; }
-.qtyTotalValue { font-size: 20px; font-weight: 800; color: #173404; }
-.qtyTotalBadge {
-  font-size: 11.5px; font-weight: 700; color: #18A957; background: #EAF3DE;
-  border-radius: 999px; padding: 2px 8px; margin-left: 8px;
-}
-.qtyBtnRow { display: flex; gap: 8px; }
-.qtyCancelBtn {
-  flex: 0 0 auto; height: 44px; padding: 0 16px; border-radius: 999px;
-  border: 1px solid #e5e7eb; background: #fff; color: #334155; font-weight: 700; cursor: pointer;
-}
-.qtyContinueBtn {
-  flex: 1; height: 44px; border: none; border-radius: 999px;
+.buyBoxTotalRow b { font-size: 21px; font-weight: 800; color: #173404; }
+.buyBoxLowStockNote { margin: 8px 0 0; font-size: 12px; color: #b45309; text-align: center; font-weight: 700; }
+.buyBoxCta {
+  width: 100%; height: 50px; margin-top: 16px; border: none; border-radius: 999px;
   background: linear-gradient(90deg, #1E3A8A 0%, #18A957 100%);
-  color: #fff; font-weight: 800; cursor: pointer;
-  box-shadow: 0 10px 28px rgba(24, 169, 87, 0.25);
-  transition: transform .15s ease;
+  color: #fff; font-weight: 800; font-size: 15px; cursor: pointer;
+  box-shadow: 0 12px 30px rgba(24, 169, 87, 0.3);
+  transition: transform .15s ease, box-shadow .15s ease;
 }
-.qtyContinueBtn:hover { transform: translateY(-1px); }
-.qtyLowStockNote { margin: 8px 0 0; font-size: 12px; color: #b45309; text-align: center; font-weight: 700; }
+.buyBoxCta:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(24,169,87,.4); }
+.buyBoxFootnote { margin: 10px 0 0; font-size: 11.5px; color: #94a3b8; text-align: center; }
 
 /* --- Estados de página --- */
 .loading, .error {

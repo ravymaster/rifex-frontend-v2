@@ -1,7 +1,28 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-07 (actualización más reciente) — **CHECKOUT
+> 2026-09-07 (actualización más reciente) — **CHECKOUT V2 —
+> UX CORRECTION PASS, DEV only, QA humana sobre CHECKOUT
+> UNIFICADO V2.** `origin/develop` avanza desde `0d429fd`. Buy
+> Box photo-first siempre visible en el sidebar (ya no detrás
+> de un botón "Comprar número"): foto real del premio, stepper
+> grande, filas Precio/Cantidad/Total, CTA dominante — sin
+> chips rápidos 1/5/10/20 ni botón Cancelar. Checkout de una
+> sola pantalla ("Finaliza tu compra") reemplaza el flujo de 2
+> pantallas: layout tipo tienda online (~1080px, 2 columnas en
+> desktop, 1 en mobile), foto real del premio en ambas
+> superficies (mismo asset que `PrizeGallery`). Teléfono
+> eliminado por completo (no se muestra/recolecta/envía).
+> Pantalla "Método de pago" ficticia eliminada — un único CTA
+> dispara el submit real directamente. Stepper 1-2-3 eliminado
+> sin sustituto. **Cero cambios a `checkout/mp.js`** (diff = 0
+> líneas). 39 tests reescritos + 1 test estructural
+> pre-existente actualizado para seguir la lógica reubicada
+> (mismo criterio de seguridad). Regresión 1040/1041 (mismo
+> flake histórico de XLSX), build limpio. Detalle completo:
+> `docs/WOP.md`, `docs/rifas/CHECKOUT_V2_UX_CORRECTION_2026.md`.
+>
+> 2026-09-07 — **CHECKOUT
 > UNIFICADO V2, DEV only, brief de Doris + requisito visual de
 > Rodrigo.** `origin/develop` avanza desde `168ed37`. Retira el
 > modal "¿Cuántos números quieres?" — el stepper + accesos rápidos
