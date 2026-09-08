@@ -1,7 +1,33 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-05 (actualización más reciente) — **RIFEX v3.0.1 PANEL
+> 2026-09-08 (actualización más reciente) — **RIFEX RAFFLE EXPERIENCE
+> 2026 — PROD PROMOTION.** `origin/main` avanza de `84708a9` (tag
+> `v3.0.1-rifex-prod-panel-pagination`), promoviendo el stack completo
+> de Rifas certificado en `origin/develop @ c3a3553` (VISUAL LOCK, QA
+> humana final aprobada), vía release branch aislada
+> `release/rifex-raffle-experience-2026`. Divergencia real de dos
+> puntos: 57 archivos; 29 promovidos (checkout v2 de una pantalla sin
+> modales ni grilla de números, galería/lightbox, slugs humanos con
+> compatibilidad UUID, features dinámicas, hasta 5 fotos, visual lock
+> final), 28 excluidos (DEV-tooling, Landings/Eventos/Campañas/
+> Inscripciones/Trust/Blog ajenos, componentes legacy huérfanos
+> intactos). Bug real encontrado y corregido antes de promover: la
+> migración de `develop` redefinía `create_raffle_with_declarations`
+> omitiendo 3 columnas de transferencia de premio físico ya
+> certificadas en PROD — confirmado empíricamente contra `rifex-dev`
+> con fixture desechable; la migración de este release preserva ambas
+> evoluciones de la función. Comisión 7%/`marketplace_fee` y
+> `webhook.js`/`paymentEngine`/`drawWinner.js` intactos, fuera del
+> diff; cero contaminación de otros módulos; única migración
+> puramente aditiva. 5/5 tests específicos verdes, regresión completa
+> verde salvo 1 flake preexistente ajeno (XLSX de Eventos), build
+> limpio. **Estado: release branch verificada localmente, pendiente
+> de autorización explícita para push a `origin/main`.** Detalle:
+> `docs/WOP.md`, "RIFEX RAFFLE EXPERIENCE 2026 — PROD PROMOTION
+> (2026-09-08)"; `docs/releases/RIFEX_RAFFLE_EXPERIENCE_2026_PROD_PROMOTION.md`.
+>
+> 2026-09-05 — **RIFEX v3.0.1 PANEL
 > PAGINATION HARDENING — PROD PROMOTION.** `origin/main` avanza de
 > `0c72ccf` (tag `v3.0-rifex-prod-platform`) a `4b01348`, promoviendo
 > exclusivamente el hardening de paginación server-side de

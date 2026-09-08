@@ -6,7 +6,7 @@
 // presentar Rifas como parte del catálogo público. Esta página conserva
 // exactamente el mismo texto y los mismos anchors (#comprador,
 // #creador, #rifex) que ya usan crear-rifa.jsx, rifas/[id].jsx y
-// BuyerForm.jsx para la aceptación contractual real — ninguna
+// rifas/[id]/checkout.jsx para la aceptación contractual real — ninguna
 // referencia activa se rompe. NO indexada: no es superficie de
 // marketing, es documentación contractual del producto autenticado.
 // PUBLIC SURFACE FINAL CLEANUP (2026-09-03) — decisión humana explícita

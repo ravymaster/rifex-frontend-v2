@@ -1,5 +1,5 @@
 // src/pages/crear-rifa.jsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
@@ -52,6 +52,10 @@ const TRANSFER_EXPENSES_OWNERS = [
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const ALLOWED_PHOTO_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+// RAFFLE VISUAL POLISH (2026-09-07): 1 portada + hasta 4 adicionales,
+// según el brief aprobado — antes el tope era 3.
+const MAX_PHOTOS = 5;
+const MAX_FEATURES = 8;
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -139,6 +143,55 @@ export default function CrearRifaPage() {
   const [okAge, setOkAge] = useState(false);
   const [okPrize, setOkPrize] = useState(false);
 
+  // RIFEX RAFFLE EXPERIENCE 2026 (§8/§9) — "Perfil del organizador": la
+  // ficha pública obtiene siempre al organizador desde la autoridad real
+  // de perfil (misma API pública que ya usa /perfil/[id]), nunca un campo
+  // duplicado escrito a mano acá. Solo se muestra + enlaza a editar.
+  const [myProfile, setMyProfile] = useState(null);
+  const [myProfileLoaded, setMyProfileLoaded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: sres } = await supabase.auth.getUser();
+        const uid = sres?.user?.id;
+        if (!uid) { setMyProfileLoaded(true); return; }
+        const r = await fetch(`/api/perfil/${uid}`);
+        const j = await r.json().catch(() => null);
+        if (j?.ok) setMyProfile(j.profile || null);
+      } catch {}
+      setMyProfileLoaded(true);
+    })();
+  }, []);
+
+  // Previews locales de las fotos elegidas — nunca se suben hasta enviar
+  // el formulario, pero el creador debe poder ver qué eligió.
+  const [photoPreviews, setPhotoPreviews] = useState([]);
+  useEffect(() => {
+    const urls = Array.from(prizePhotos || []).slice(0, MAX_PHOTOS).map((f) => URL.createObjectURL(f));
+    setPhotoPreviews(urls);
+    return () => { urls.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [prizePhotos]);
+
+  // RAFFLE VISUAL POLISH (2026-09-07) — "Características dinámicas":
+  // pares clave/valor que el creador declara (ej. Marca/Lamborghini,
+  // Año/2024), mostrados luego en la ficha pública dentro de
+  // "Características". Puramente descriptivo — nunca toca precio,
+  // reserva ni ningún cálculo real.
+  const [features, setFeatures] = useState([]);
+  function addFeature() {
+    if (features.length >= MAX_FEATURES) return;
+    setFeatures((prev) => [...prev, { label: "", value: "" }]);
+  }
+  function updateFeature(i, field, val) {
+    setFeatures((prev) => prev.map((f, idx) => (idx === i ? { ...f, [field]: val } : f)));
+  }
+  function removeFeature(i) {
+    setFeatures((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  const profileIncomplete = myProfileLoaded && !myProfile?.nombre;
+
   async function onSubmit(e) {
     e.preventDefault();
 
@@ -201,7 +254,7 @@ export default function CrearRifaPage() {
     try {
       let photos = [];
       if (prizeType === "physical" && prizePhotos?.length) {
-        photos = await uploadPrizePhotos(Array.from(prizePhotos).slice(0, 3), token);
+        photos = await uploadPrizePhotos(Array.from(prizePhotos).slice(0, MAX_PHOTOS), token);
       }
 
       const payload = {
@@ -231,6 +284,10 @@ export default function CrearRifaPage() {
         extension_limit: Number(extensionLimit) || 0,
         age_confirmed: okAge,
         prize_declaration_confirmed: okPrize,
+
+        features: features
+          .map((f) => ({ label: f.label.trim(), value: f.value.trim() }))
+          .filter((f) => f.label && f.value),
       };
 
       const res = await fetch("/api/rifas", {
@@ -244,11 +301,12 @@ export default function CrearRifaPage() {
       const data = await res.json();
       if (!res.ok || !data?.ok) throw new Error(data?.message || data?.error || "Error");
 
-      // Redirige a la rifa creada (API devuelve id en la raíz)
-      if (data.id) {
-        router.push(`/rifas/${data.id}`);
-      } else if (data.data?.id) {
-        router.push(`/rifas/${data.data.id}`);
+      // Redirige a la rifa creada — RAFFLE VISUAL POLISH (2026-09-07):
+      // preferir el slug amigable nuevo cuando esté disponible, el UUID
+      // real (`id`) sigue funcionando siempre como fallback.
+      const dest = data.data?.slug || data.id || data.data?.id;
+      if (dest) {
+        router.push(`/rifas/${dest}`);
       } else {
         router.push("/panel");
       }
@@ -320,8 +378,15 @@ export default function CrearRifaPage() {
                 {prizeType==="physical" && (
                   <>
                     <div className={styles.field} style={{ marginBottom: 16 }}>
-                      <span className={styles.fieldLabel}>Fotos del premio (hasta 3)</span>
+                      <span className={styles.fieldLabel}>Fotos del premio (hasta {MAX_PHOTOS})</span>
                       <input type="file" accept="image/*" multiple onChange={e=>setPrizePhotos(Array.from(e.target.files||[]))} />
+                      {photoPreviews.length > 0 && (
+                        <div className={styles.photoPreviewRow}>
+                          {photoPreviews.map((url, i) => (
+                            <img key={i} src={url} alt="" className={styles.photoPreviewThumb} />
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* RIFEX CLOSURE PASS: entrega — obligatoria, sin "a
@@ -399,6 +464,37 @@ export default function CrearRifaPage() {
                 )}
               </div>
 
+              {/* RAFFLE VISUAL POLISH (2026-09-07) — Características
+                  dinámicas: pares clave/valor opcionales (ej.
+                  Marca/Lamborghini) que se muestran en la ficha pública.
+                  Aplica a cualquier tipo de premio, no solo físico. */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Características (opcional)</div>
+                <p className={styles.sectionHint}>Agrega detalles como Marca, Modelo, Año — se mostrarán en la ficha pública.</p>
+                {features.map((f, i) => (
+                  <div key={i} className={styles.featureRow}>
+                    <input
+                      className="rf-pill"
+                      placeholder="Ej: Marca"
+                      value={f.label}
+                      maxLength={40}
+                      onChange={(e) => updateFeature(i, "label", e.target.value)}
+                    />
+                    <input
+                      className="rf-pill"
+                      placeholder="Ej: Lamborghini"
+                      value={f.value}
+                      maxLength={60}
+                      onChange={(e) => updateFeature(i, "value", e.target.value)}
+                    />
+                    <button type="button" className={styles.featureRemoveBtn} onClick={() => removeFeature(i)} aria-label="Quitar característica">✕</button>
+                  </div>
+                ))}
+                {features.length < MAX_FEATURES && (
+                  <button type="button" className={styles.addFeatureBtn} onClick={addFeature}>+ Agregar característica</button>
+                )}
+              </div>
+
               {/* Fecha de inicio + estado */}
               <div className={styles.section}>
                 <div className={styles.sectionTitle}>Fecha y estado</div>
@@ -446,6 +542,33 @@ export default function CrearRifaPage() {
                     <option value="3">Hasta 3 veces</option>
                   </select>
                 </div>
+              </div>
+
+              {/* RIFEX RAFFLE EXPERIENCE 2026 (§8/§9) — Perfil del organizador:
+                  solo lectura + link a editar, nunca campos duplicados. */}
+              <div className={styles.section}>
+                <div className={styles.sectionTitle}>Perfil del organizador</div>
+                <div className={styles.organizerCard}>
+                  <div className={styles.organizerCardAvatar}>
+                    {myProfile?.avatar_url ? (
+                      <img src={myProfile.avatar_url} alt="" />
+                    ) : (
+                      <span>{(myProfile?.nombre || "?").charAt(0).toUpperCase()}</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className={styles.organizerCardName}>{myProfile?.nombre || "Sin nombre configurado"}</div>
+                    <div className={styles.organizerCardStatus}>
+                      {myProfile?.nombre ? "Este nombre y foto se mostrarán en tu rifa." : "Aún no configuras tu nombre público."}
+                    </div>
+                  </div>
+                  <a href="/perfil" className={styles.organizerCardEdit}>Completar / editar perfil</a>
+                </div>
+                {profileIncomplete && (
+                  <p className={styles.fieldHelp} style={{ marginTop: 8 }}>
+                    Completa tu perfil para que los participantes conozcan quién organiza esta iniciativa.
+                  </p>
+                )}
               </div>
 
               {/* Términos */}

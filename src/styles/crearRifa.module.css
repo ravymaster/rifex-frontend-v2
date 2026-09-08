@@ -182,17 +182,79 @@
     var(--fondo);
 }
 
-/* Secciones dentro del formCard */
+/* RIFEX RAFFLE EXPERIENCE 2026 (§3) — secciones como bloques/cards
+   claras, no un formulario técnico plano. Se mantiene la misma
+   estructura de datos/estado, solo cambia la presentación visual. */
 .section {
-  padding: 20px 0;
-  border-top: 1px solid var(--borde);
+  padding: 20px;
+  margin-bottom: 16px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid var(--borde);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 }
-.section:first-child { border-top: none; padding-top: 0; }
+.section:last-child { margin-bottom: 0; }
 .sectionTitle {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
-  color: var(--oscuro);
-  margin: 0 0 12px;
+  color: var(--ultramar);
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Previews de fotos elegidas antes de subir */
+.photoPreviewRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.photoPreviewThumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--borde);
+}
+
+/* Tarjeta de perfil del organizador (solo lectura + link editar) */
+.organizerCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid var(--borde);
+}
+.organizerCardAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--ultramar), var(--trebol));
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.organizerCardAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.organizerCardName { font-weight: 800; color: var(--oscuro); font-size: 14.5px; }
+.organizerCardStatus { font-size: 12.5px; color: var(--gris); }
+.organizerCardEdit {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, var(--ultramar), var(--trebol));
+  padding: 8px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  white-space: nowrap;
 }
 .fieldGrid {
   display: grid;
@@ -312,3 +374,44 @@
   box-shadow: 0 0 0 3px #2563eb66;
 }
 
+
+/* RAFFLE VISUAL POLISH (2026-09-07) — características dinámicas */
+.sectionHint {
+  font-size: 13px;
+  color: #6b7280;
+  margin: -4px 0 12px;
+}
+.featureRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.featureRemoveBtn {
+  cursor: pointer;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.featureRemoveBtn:hover { background: #fee2e2; }
+.addFeatureBtn {
+  cursor: pointer;
+  background: #fff;
+  color: var(--ultramar, #1d4ed8);
+  border: 1px dashed var(--ultramar, #1d4ed8);
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.addFeatureBtn:hover { background: #eff6ff; }
+
+@media (max-width: 560px) {
+  .featureRow { grid-template-columns: 1fr; }
+  .featureRemoveBtn { width: 100%; }
+}

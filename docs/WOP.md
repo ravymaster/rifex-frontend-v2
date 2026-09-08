@@ -4,6 +4,22 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX RAFFLE EXPERIENCE 2026 — PROD PROMOTION (2026-09-08)
+
+`origin/main`/PROD avanza de `84708a9` (tag `v3.0.1-rifex-prod-panel-pagination`), promoviendo el stack completo de Rifas certificado en `origin/develop @ c3a3553` (VISUAL LOCK, QA humana final aprobada en desktop y mobile por Rodrigo), vía release branch aislada `release/rifex-raffle-experience-2026` construida desde `origin/main` — sin merge/rebase de la historia de `develop`.
+
+**Alcance real**: divergencia real de dos puntos `main`↔`develop` es de 57 archivos (el diff de tres puntos da 379 por la antigüedad del ancestro común — nunca fusionado). De esos 57, se promovieron **29** — el stack Rifas completo: checkout v2 de una sola pantalla (elimina modales, elimina grilla de números — el comprador elige cantidad, el servidor asigna vía la misma RPC atómica ya certificada), galería/lightbox de premio, sistema de slugs humanos con compatibilidad UUID, `features` dinámicas del creador, hasta 5 fotos, visual lock final (contenedores anchos, Buy Box compacto, centrado corregido). Se excluyeron 28 archivos ajenos: DEV-tooling (`captchaGate.js`/`DevBanner.jsx`/`_app.js`/`login.jsx`/`register.jsx`, certificado por el propio `authUxCrawler.test.mjs` de PROD que nunca deben existir ahí), Landings/Eventos/Campañas/Inscripciones/Trust/Blog (ajenos a Rifas), y componentes legacy huérfanos (`BuyerForm.jsx`/`RaffleIntroModal.jsx`, dejados intactos en su versión de `main`, nunca leídos por ningún test de Rifas).
+
+**Bug encontrado y corregido antes de promover**: la única migración de esta cadena (`2026-09-07_raffle_slug_features.sql`) redefinía `create_raffle_with_declarations` omitiendo 3 columnas (`requires_transfer_procedures`/`transfer_expenses_owner`/`transfer_conditions`) que una migración distinta ya certificada (`2026-08-29_physical_prize_transfer_transparency.sql`) había agregado a esa misma función — confirmado empíricamente contra `rifex-dev` con un fixture desechable (los 3 campos volvían en `false`/`null`/`null` pese a enviarse valores reales). La migración incluida en este release es una reconstrucción que preserva ambas evoluciones de la función — PROD nunca recibe la regresión. El mismo defecto sigue vivo en `rifex-dev`, fuera del alcance de esta misión de PROD.
+
+**Payment Engine / RLS / Trust**: `checkout/mp.js` cambia solo en la asignación server-side de números (Fisher-Yates sobre RPC atómica ya certificada, sin cambios en la RPC misma); `RIFEX_FEE_RATE = 0.07` y todo el cálculo de `marketplace_fee` quedan exactamente igual, fuera del diff. `checkout/webhook.js`, `paymentEngine/money.js` y `drawWinner.js` confirmados byte-idénticos a `main`. Cero archivos de Eventos/Campañas/Inscripciones/Trust/Blog en el diff final. Única migración promovida es puramente aditiva, no toca ninguna política RLS existente.
+
+**Validación**: 5/5 tests específicos de Rifas verdes; regresión completa verde salvo 1 flake preexistente y ajeno (`eventAnalyticsWorkbook.test.mjs`, timing de XLSX de Eventos); build limpio (`/rifas/[id]`, `/rifas/[id]/checkout`, `/rifas/crear` presentes); `git diff --check` limpio; clasificación de 29/29 archivos verificada sin contaminación cruzada. Detalle completo, matriz de divergencia archivo por archivo y exclusiones: `docs/releases/RIFEX_RAFFLE_EXPERIENCE_2026_PROD_PROMOTION.md`.
+
+**Estado**: release branch verificada localmente, pendiente de autorización explícita para push a `origin/main`. Tag final (`v3.1-rifex-prod-raffle-experience-2026`, propuesto) se crea únicamente después del smoke PROD y la QA humana de Rodrigo sobre `rifex.pro`.
+
+---
+
 ## RIFEX v3.0.1 PANEL PAGINATION HARDENING — PROD PROMOTION (2026-09-05)
 
 `origin/main`/PROD advances from `0c72ccf` (tag `v3.0-rifex-prod-platform`) a `4b01348`. Promueve exclusivamente el hardening de paginación server-side de paneles privados certificado en `origin/develop` @ `7506890` ("RIFEX PANEL SERVER-SIDE PAGINATION DEV CERTIFIED"), autorizado explícitamente por Rodrigo, vía el mismo patrón de reconstrucción quirúrgica establecido en cada promoción previa: worktree aislado desde `origin/main` (`release/v3.0-panel-pagination-prod-2026-09-05`), sin merge/rebase de la historia completa de `develop`.

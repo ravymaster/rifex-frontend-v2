@@ -4,7 +4,7 @@
 // plataforma). Las condiciones históricas/específicas de Rifas
 // (Comprador, Creador, Condiciones de Rifex-Rifas) se movieron
 // verbatim a /terminos-rifas — mismo texto, mismos anchors — para que
-// crear-rifa.jsx, rifas/[id].jsx y BuyerForm.jsx sigan apuntando a la
+// crear-rifa.jsx, rifas/[id].jsx y rifas/[id]/checkout.jsx sigan apuntando a la
 // aceptación contractual real sin ninguna referencia rota. #privacidad
 // y #cookies se conservan aquí sin cambios porque ConsentBanner.jsx y
 // registro/continuar.jsx dependen de esos anchors exactos.
