@@ -14,10 +14,23 @@
   padding: 24px 0;
   background: #FAFAFA;
 }
+/* FINAL VISUAL LOCK fix (2026-09-08) — esta página se renderiza dentro
+   de <main class="container"> (Layout.jsx: max-width 1200px, margin: 0
+   auto), que `width: 95vw` ignora por completo (vw se calcula contra el
+   viewport real, no contra ese contenedor ya angostado a 1200px). Eso
+   hacía que .card se desbordara ~200px a la derecha del contenedor
+   padre y quedara recortado por el overflow-x:hidden global de
+   html/body — visualmente, un hueco enorme a la izquierda y la imagen
+   cortada a la derecha. Fix: técnica estándar de "breakout" (left:50%
+   + translateX(-50%)) para centrar .card contra el viewport real en
+   vez de contra el contenedor padre — válida porque ese padre ya está
+   centrado en el viewport vía margin:0 auto. */
 .card {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
   width: 95vw;
   max-width: 1700px;
-  margin: 0 auto;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
