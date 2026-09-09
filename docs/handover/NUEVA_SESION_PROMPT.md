@@ -1,7 +1,53 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-08 (actualización más reciente) — **RIFEX RAFFLE
+> 2026-09-09 (actualización más reciente) — **RIFEX MEDIDOR QR V1,
+> DEV only, worktree aislado `dev/medidor-qr-v1-2026-09-b` desde
+> `origin/develop`, PENDIENTE DE COMMIT/PUSH.** Nueva herramienta
+> gratuita: pregunta con 2-4 alternativas (10 plantillas o
+> personalizada) → QR permanente (`/m/<slug>`) → respuesta
+> anónima en un toque, sin login → métricas + Excel. Cupo real de
+> 1 Medidor QR gratis por cuenta/mes calendario, REUSE DIRECT del
+> patrón ya certificado de Inscripciones (ledger `UNIQUE
+> (organizer_id, period_key)` + `RAISE EXCEPTION` que revierte
+> toda la transacción) — probado en vivo con una carrera real de
+> dos creaciones simultáneas (exactamente una gana). Extensión de
+> destino opcional post-respuesta con confirmación de dominio real
+> (nunca redirección automática, nunca redirect endpoint abierto).
+> Extensión de escalabilidad: paginación/búsqueda/filtro
+> server-side, nombre interno editable, PATCH de edición limitada
+> (pregunta/alternativas bloqueadas server-side desde la primera
+> respuesta real), timezone persistido para la evolución diaria y
+> el Excel. Identidad del QR permanente e inmutable; cerrar es
+> terminal y nunca borra métricas/histórico. Integrado en
+> Navbar/Footer/Mis Iniciativas/Home (card en capacidades, **nunca
+> el hero** — explícitamente fuera de alcance por instrucción
+> directa, futura misión visual dedicada) y SEO/PSCG completo.
+> **Gap conocido, no resuelto a propósito**: `/difusion` todavía
+> no incluye Medidor QR (fuera de la lista de superficies
+> permitidas para esta misión). 42 tests (`tests/medidorQr.test.mjs`,
+> 30 estáticos + 12 empíricos en vivo contra `rifex-dev`, fixtures
+> desechables sin residuo), regresión 1118/1119 (mismo flake
+> histórico de XLSX, no relacionado), build limpio. **QA real E2E
+> contra el servidor de desarrollo corriendo** (sesión real,
+> creación real, QR real generado con `satori`+`sharp`, respuesta
+> anónima con anti-duplicación real, funnel de clic al destino,
+> Excel descargado y verificado línea por línea, edición,
+> segundo intento de creación bloqueado por la API, cierre
+> terminal sin romper la página pública) — fixture completo
+> eliminado al final, verificado en cero. **Incidente de sesión
+> documentado, sin impacto en el resultado**: el worktree local
+> (en `/tmp`, efímero) se perdió por un reinicio de máquina a
+> mitad de la misión; la base de datos en `rifex-dev` no se vio
+> afectada; el código se reconstruyó íntegramente desde el
+> historial de la conversación y se re-certificó (build +
+> regresión + QA real) antes de continuar. Detalle completo:
+> `docs/medidor-qr/MEDIDOR_QR_V1.md`. **Si retomás esto: falta
+> exclusivamente el commit + push a `origin/develop` (nunca
+> `main`/PROD/tags) — todo el resto de la Definición de Hecho ya
+> está cumplido y verificado.**
+>
+> 2026-09-08 — **RIFEX RAFFLE
 > EXPERIENCE 2026 — FINAL VISUAL LOCK, DEV only, última pasada
 > visual/responsive antes de QA humana final y PROD.**
 > `origin/develop` avanza desde `66692f3`. Fondo off-white

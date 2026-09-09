@@ -78,6 +78,12 @@ export const PSCG_REGISTRY = [
     category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
     notes: "INSCRIPCIONES V1 — landing comercial estático. Nunca un directorio de actividades de usuarios (eso es /inscripcion/[id], PUBLIC_NOINDEX). No muestra Plus/Gold/precios futuros. RIFEX PRODUCT LANDINGS V1: evolucionada a la misma anatomía (hero/features/pasos/casos de uso/bloque operacional/confianza/FAQ/CTA) de Eventos/Campañas, misma ruta y categoría sin cambio. Service+FAQPage JSON-LD agregado.",
   },
+  {
+    path: "/medidor-qr",
+    file: "src/pages/medidor-qr.jsx",
+    category: PSCG_CATEGORY.PUBLIC_INDEXABLE,
+    notes: "MEDIDOR QR V1 — landing comercial estático, misma anatomía ProductSections que Eventos/Campañas/Inscripciones. Nunca un directorio de Medidores de usuarios (eso es /m/[slug], PUBLIC_NOINDEX). Service+FAQPage JSON-LD.",
+  },
   { path: "/planes", file: "src/pages/planes.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/seguridad", file: "src/pages/seguridad.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
   { path: "/confianza", file: "src/pages/confianza.js", category: PSCG_CATEGORY.PUBLIC_INDEXABLE },
@@ -135,6 +141,13 @@ export const PSCG_REGISTRY = [
     category: PSCG_CATEGORY.PUBLIC_NOINDEX,
     robotsDisallow: false,
     notes: "INSCRIPCIONES V1 — resolución pública del QR de un participante, hermano de /t/[token] (Eventos). GET puro, nunca consume/modifica la inscripción. noindex, no Disallow'd, mismo criterio que /inscripcion/[id].",
+  },
+  {
+    path: "/m/[slug]",
+    file: "src/pages/m/[slug].jsx",
+    category: PSCG_CATEGORY.PUBLIC_NOINDEX,
+    robotsDisallow: false,
+    notes: "MEDIDOR QR V1 — página pública de respuesta anónima, resuelta por slug permanente y compartible vía QR impreso, sin login. noindex+nofollow (Layout noindex+noarchive), fuera de sitemap, no Disallow'd (sección 20 del mandato: 'evitar miles de páginas temporales/user-generated ensuciando SEO' vía noindex, mismo criterio que /inscripcion/[id]).",
   },
 
   // ---------- PRIVATE_AUTHENTICATED ----------
@@ -208,6 +221,14 @@ export const PSCG_REGISTRY = [
     notes: "INSCRIPCIONES V1 — gate propio (sesión + assertOnboardingComplete), deliberadamente NO resolveCreationGate/assertCreatorEligible (sección 4 del mandato: Inscripciones no exige MP/Trust financiero).",
   },
   {
+    path: "/crear-medidor-qr",
+    file: "src/pages/crear-medidor-qr.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "MEDIDOR QR V1 — mismo gate que crear-inscripcion.jsx: sesión + assertOnboardingComplete, deliberadamente NO resolveCreationGate/assertCreatorEligible (gratis, sin MP/Trust financiero). El límite real de 1/mes es autoridad exclusiva de la RPC create_medidor_qr, nunca de este boundary.",
+  },
+  {
     path: "/panel/inscripciones",
     file: "src/pages/panel/inscripciones/index.jsx",
     category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
@@ -230,6 +251,22 @@ export const PSCG_REGISTRY = [
     boundary: PSCG_BOUNDARY.SSR_REDIRECT,
     robotsDisallow: true,
     notes: "Cubierto por el prefijo 'Disallow: /panel'. SSR AUTH HARDENING (2026-09-04): boundary corregido a ssr_redirect. V1 owner-only (sección 20 del mandato) — autorización real sigue viviendo en check_in_registration_participant (RPC) y en el ping GET/check-in; este SSR boundary solo demuestra sesión, nunca reemplaza esa autoridad.",
+  },
+  {
+    path: "/panel/medidor-qr",
+    file: "src/pages/panel/medidor-qr/index.jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. MEDIDOR QR V1 — mismo boundary certificado en panel/inscripciones/index.jsx desde el primer commit (ssr_redirect, nunca client_redirect).",
+  },
+  {
+    path: "/panel/medidor-qr/[id]",
+    file: "src/pages/panel/medidor-qr/[id].jsx",
+    category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
+    boundary: PSCG_BOUNDARY.SSR_REDIRECT,
+    robotsDisallow: true,
+    notes: "Cubierto por el prefijo 'Disallow: /panel'. MEDIDOR QR V1 — next construido desde un literal fijo + el id de ruta, saneado con sanitizeNextPath. Autenticación únicamente — ownership real sigue siendo autoridad exclusiva de cada endpoint /api/medidor-qr/[id]/*.",
   },
   {
     path: "/panel",

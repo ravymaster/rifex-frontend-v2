@@ -99,6 +99,16 @@ function BarsIcon() {
     </svg>
   );
 }
+function QrIcon() {
+  return (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" />
+    </svg>
+  );
+}
 
 const CAPABILITIES = [
   {
@@ -155,6 +165,22 @@ const CAPABILITIES = [
     accent: '#1E3A8A',
     accentSoft: 'rgba(30, 58, 138, 0.16)',
     accentBorder: 'rgba(30, 58, 138, 0.4)',
+  },
+  // MEDIDOR QR V1 — mismo criterio que la card de Inscripciones: link
+  // real a /medidor-qr. Eventos/Campañas son transaccionales; Inscripciones
+  // y Medidor QR son herramientas gratuitas de adquisición (sección 17
+  // del mandato) — se representan con el mismo lenguaje visual de card,
+  // sin convertir el hero en una fila de botones.
+  {
+    key: 'medidor-qr',
+    icon: <QrIcon />,
+    title: 'Medidor QR',
+    text: 'Crea una pregunta, genera tu QR gratis y mide el interés real de tu público donde quieras.',
+    detail: 'Gratis · 1/mes',
+    href: '/medidor-qr',
+    accent: '#18A957',
+    accentSoft: 'rgba(24, 169, 87, 0.16)',
+    accentBorder: 'rgba(24, 169, 87, 0.4)',
   },
 ];
 

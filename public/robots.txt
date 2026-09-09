@@ -8,6 +8,7 @@ Disallow: /reset-password
 Disallow: /crear-rifa
 Disallow: /crear-evento
 Disallow: /crear-inscripcion
+Disallow: /crear-medidor-qr
 Disallow: /crear-colecta
 Disallow: /checkout
 Disallow: /mis-iniciativas

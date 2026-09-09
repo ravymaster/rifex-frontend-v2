@@ -123,10 +123,20 @@ test('SLUG-V2 9: la migración de RAFFLE VISUAL POLISH ya estableció el índice
 });
 
 test('SLUG-V2 10: esta misión no agrega ninguna migración SQL nueva (Human Slug V2 reutiliza el constraint ya certificado)', () => {
+  // El filtro por prefijo de fecha asumía que ninguna otra misión
+  // agregaría una migración fechada 2026-09-07/08 — supuesto que dejó
+  // de sostenerse cuando una misión no relacionada (MEDIDOR QR V1,
+  // dominio propio: medidores_qr/medidor_qr_*, nunca toca raffles/slug)
+  // agregó la suya el mismo día. Se excluye explícitamente por nombre
+  // en vez de ampliar el patrón de fecha, para que el invariante real
+  // ("Human Slug V2 no agrega SQL nueva") no se afloje silenciosamente
+  // ante la próxima migración de otra misión con la misma fecha.
   const migDir = path.join(ROOT, 'db/migrations');
   const files = fs.readdirSync(migDir);
-  const newOnes = files.filter((f) => f.startsWith('2026-09-07') || f.startsWith('2026-09-08'));
-  // Debe seguir existiendo exactamente el mismo archivo de la misión anterior — ninguno nuevo.
+  const KNOWN_UNRELATED_SAME_DAY = ['2026-09-08_medidor_qr_v1.sql'];
+  const newOnes = files
+    .filter((f) => f.startsWith('2026-09-07') || f.startsWith('2026-09-08'))
+    .filter((f) => !KNOWN_UNRELATED_SAME_DAY.includes(f));
   assert.deepEqual(newOnes.sort(), ['2026-09-07_raffle_slug_features.sql']);
 });
 

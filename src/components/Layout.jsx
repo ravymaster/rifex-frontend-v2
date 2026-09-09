@@ -118,6 +118,7 @@ export default function Layout({
     { label: 'Eventos',        href: '/eventos' },
     { label: 'Campañas',       href: '/campanas' },
     { label: 'Inscripciones',  href: '/inscripciones' },
+    { label: 'Medidor QR',     href: '/medidor-qr' },
   ];
 
   // EVENT-1 (Fase 12): "Panel" pasa a ser "Mis iniciativas" — el
@@ -364,6 +365,7 @@ export default function Layout({
               <Link href="/eventos">Cómo funciona Eventos</Link>
               <Link href="/campanas">Cómo funcionan las Campañas</Link>
               <Link href="/inscripciones">Cómo funcionan las Inscripciones</Link>
+              <Link href="/medidor-qr">Cómo funciona Medidor QR</Link>
               {user && <Link href="/soluciones/rifas">Cómo funcionan las Rifas</Link>}
               <Link href="/planes">Comisión</Link>
               <Link href="/register" className="rf-foot__community">Conoce más productos de Rifex siendo parte de la comunidad</Link>

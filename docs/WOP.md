@@ -4,6 +4,34 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX MEDIDOR QR V1 (2026-09-09) — DEV only, nuevo módulo, pendiente de commit/push
+
+Worktree aislado `dev/medidor-qr-v1-2026-09-b` desde `origin/develop` (nunca `main`/PROD/tags). Reemplaza por completo el mandato anterior "MEDIDOR DE CONVOCATORIA V1" (nunca aplicado más allá de un fixture desechable, revertido antes de cualquier commit).
+
+**Producto**: herramienta gratuita de adquisición — pregunta con 2-4 alternativas (10 plantillas o personalizada) → Rifex genera un QR permanente apuntando a `/m/<slug>` → respuesta anónima en un toque, sin login → métricas agregadas + Excel. Cupo real de 1 Medidor QR gratis por cuenta/mes calendario, REUSE DIRECT del patrón ya certificado de Inscripciones (`registrationFreeQuota.js`, ledger `medidor_qr_free_usage` con `UNIQUE(organizer_id, period_key)`, `RAISE EXCEPTION` que revierte toda la transacción incluido el insert del Medidor). Probado en vivo contra `rifex-dev`: segunda creación mismo mes rechazada (`409`), carrera real de dos creaciones simultáneas (`Promise.all`) con exactamente una ganadora, cross-account isolation, restauración de cupo al cambiar de mes, bypass directo de API también bloqueado.
+
+**Extensión "destino opcional post-respuesta"**: botón de destino que confirma el dominio real antes de navegar (nunca redirección automática), validado con `src/lib/safeExternalUrl.js` (allowlist `http`/`https`, nunca `javascript:`/`data:`/`file:`), sin redirect endpoint abierto genérico. El registro del clic es fire-and-forget — nunca bloquea la navegación del visitante.
+
+**Extensión "escalabilidad e integridad"**: paginación/búsqueda/filtro server-side reales en "Mis Medidores QR" (`?q=`, `?status=all|active|finalizados`, aplicados a la misma query que la paginación); nombre interno (`name`) siempre editable, separado de la pregunta pública; PATCH de edición limitada — nombre/destino/fechas siempre editables, pregunta/alternativas bloqueadas server-side desde la primera respuesta real (`response_count` recalculado en cada request, nunca un flag del cliente); `timezone` persistido por Medidor (default `America/Santiago`, mismo patrón que Events/Inscripciones) usado en la evolución diaria y el Excel para no asumir que UTC representa el día local del organizador.
+
+**Identidad pública permanente**: el QR impreso codifica exclusivamente `/m/<slug>`, inmutable — editar cualquier campo permitido nunca invalida un QR ya impreso. Cerrar un Medidor es terminal (nunca reabre) y NO elimina métricas/histórico/Excel/URL pública — verificado en vivo: tras cerrar, `/m/<slug>` sigue resolviendo `HTTP 200` mostrando "finalizada", el QR sigue descargable, una respuesta nueva es rechazada.
+
+**Seguridad**: ownership real en cada endpoint (`organizer_id !== user.id` → 403), identidad siempre desde `auth.getUser(token)`, RLS habilitado en `medidores_qr` (policy pública acotada a `status='active'`) y `revoke all` en las 4 tablas de instrumentación, rate limiting en creación/respuesta/visita/clic/export, anti-duplicación real vía `UNIQUE(medidor_qr_id, visitor_key)` (visitor_key opaco de `localStorage`, limitación honesta documentada — no robusto contra incógnito/storage limpiado). Excel certificado sin PII (visitor_key/IP/cookies) por test estático.
+
+**Integración**: Navbar (desktop+móvil) y Footer ("Cómo funciona Medidor QR"), Mis Iniciativas, Home — card en la grilla de capacidades, **nunca el hero** (explícitamente fuera de alcance de esta misión por instrucción directa de Rodrigo a mitad de sesión; el hero de Home espera una futura misión visual dedicada con referencias aprobadas desktop/mobile). SEO/PSCG: `/medidor-qr` PUBLIC_INDEXABLE en sitemap; `/crear-medidor-qr` y `/panel/medidor-qr*` PRIVATE_AUTHENTICATED (ssr_redirect) en el Disallow de `/panel`; `/m/[slug]` PUBLIC_NOINDEX, deliberadamente fuera del Disallow (la señal real es `noindex`, mismo criterio que `/inscripcion/[id]`).
+
+**Gap conocido, deliberadamente no resuelto**: `/difusion` (guía multiproducto para organizadores) todavía no incluye Medidor QR — no está en la lista explícita de superficies permitidas para esta misión (Home/Navbar/Footer/Mis Iniciativas), documentado como trabajo futuro en vez de expandir el alcance sin autorización.
+
+**Validación**: 42 tests en `tests/medidorQr.test.mjs` (30 estáticos + 12 empíricos en vivo contra `rifex-dev`, fixtures desechables eliminados sin residuo verificado), regresión completa 1118/1119 (el único fallo es el flake histórico de rendimiento en `eventAnalyticsWorkbook.test.mjs`, confirmado no relacionado — no toca ningún archivo de Medidor QR), build limpio. **QA real E2E contra el servidor de desarrollo corriendo** (no solo tests unitarios): sesión real vía Supabase Auth, creación real vía la API, descarga de QR (PNG generado con `satori`+`sharp` en el entorno real), página pública, búsqueda/filtro reales, visita+respuesta anónima con anti-duplicación real, funnel de clic al destino, métricas exactas, descarga y verificación línea-por-línea del contenido del Excel, edición con bloqueo correcto verificado en ambos sentidos, segundo intento de creación bloqueado directamente contra la API, cierre terminal sin romper la página pública — fixture completo (Medidor + instrumentación + usuario Auth) eliminado al final, verificado en cero.
+
+**Incidente de sesión, sin impacto en el resultado final**: a mitad de la misión, el PC del usuario se reinició y el worktree local (vivía en `/tmp`, efímero) con todo el código sin commitear se perdió. La base de datos en `rifex-dev` (tablas, RPCs, RLS, columnas `name`/`timezone`) no se vio afectada — persiste en Supabase, no en disco local. El código completo se reconstruyó desde el historial de la conversación (contenido exacto de cada archivo ya producido) y se re-certificó íntegramente (build, regresión completa, QA real E2E) antes de continuar, incluyendo la corrección de dos problemas de entorno descubiertos en la reconstrucción (versión de Node inconsistente entre `npm ci` y `npm run dev`/`node --test`; binario nativo de `sharp` desalineado con `libvips`, corregido con una reinstalación limpia bajo un único toolchain).
+
+Detalle completo del producto: [docs/medidor-qr/MEDIDOR_QR_V1.md](medidor-qr/MEDIDOR_QR_V1.md).
+
+**Pendiente antes de cerrar la misión**: commit + push a `origin/develop` únicamente (nunca `main`/PROD/tags).
+
+---
+
 ## RIFEX RAFFLE EXPERIENCE 2026 — FINAL VISUAL LOCK (2026-09-08) — DEV only, última pasada visual antes de PROD
 
 `origin/develop` advances from `66692f3` (CHECKOUT V2 UX CORRECTION PASS
