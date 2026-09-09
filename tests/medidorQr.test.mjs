@@ -151,11 +151,113 @@ test('13. /crear-medidor-qr y /panel/medidor-qr* son PRIVATE_AUTHENTICATED con b
   assert.match(read('public/robots.txt'), /Disallow: \/crear-medidor-qr/);
 });
 
-test('14. /m/[slug].jsx tiene getServerSideProps (SSR) y usa noindex+noarchive en todas las ramas de estado', () => {
+test('13b. /crear-medidor-qr.jsx: el Nombre Interno se auto-completa al cambiar de plantilla, pero deja de hacerlo apenas el usuario lo edita a mano', () => {
+  const src = read('src/pages/crear-medidor-qr.jsx');
+  assert.match(src, /const \[nameTouched, setNameTouched\] = useState\(false\)/);
+  assert.match(src, /if \(!nameTouched\) setName\(t\.label\)/);
+  assert.match(src, /setName\(v\);/);
+  assert.match(src, /setNameTouched\(v\.trim\(\) !== ''\)/);
+});
+
+test('13b-2. POST-HUMAN-QA: limpiar completamente Nombre interno restaura el modo automático (v.trim()==="" -> nameTouched=false)', () => {
+  const src = read('src/pages/crear-medidor-qr.jsx');
+  // La lógica vive en un único onChange: setNameTouched(v.trim() !== '').
+  // Si v es '', el resultado es false -> vuelve a modo automático.
+  const fn = new Function('v', `
+    let nameTouched;
+    const setNameTouched = (x) => { nameTouched = x; };
+    setNameTouched(v.trim() !== '');
+    return nameTouched;
+  `);
+  assert.equal(fn(''), false);
+  assert.equal(fn('   '), false);
+  assert.equal(fn('Encuesta vitrina septiembre'), true);
+});
+
+test('13b-3. las plantillas Convocatoria/Satisfacción/Recomendación existen con label exacto (Nombre interno = label de la plantilla elegida)', () => {
+  for (const label of ['Convocatoria', 'Satisfacción', 'Recomendación']) {
+    const t = MEDIDOR_QR_TEMPLATES.find((tpl) => tpl.label === label);
+    assert.ok(t, `falta la plantilla "${label}"`);
+    assert.equal(typeof t.question, 'string');
+    assert.ok(t.question.length > 0);
+  }
+});
+
+test('13c. qr.png.js: el espacio superior de la ficha es del creador (nombre/pregunta), Rifex solo aparece como firma discreta "Powered by rifex.pro"', () => {
+  const src = read('src/pages/api/medidor-qr/m/[slug]/qr.png.js');
+  assert.doesNotMatch(src, /children: 'Rifex'/);
+  assert.match(src, /children: 'Powered by rifex\.pro'/);
+  assert.match(src, /children: truncateTitle\(medidor\.name \|\| medidor\.question\)/);
+});
+
+test('14. /m/[slug].jsx tiene getServerSideProps (SSR) y usa MedidorQrPublicShell (noindex/noarchive centralizado) en las 4 ramas de estado', () => {
   const src = read('src/pages/m/[slug].jsx');
   assert.match(src, /export async function getServerSideProps/);
-  const noindexOccurrences = (src.match(/noindex/g) || []).length;
-  assert.ok(noindexOccurrences >= 4, 'debe marcar noindex en not-found/ended/not-started/active');
+  const shellOccurrences = (src.match(/<MedidorQrPublicShell/g) || []).length;
+  assert.ok(shellOccurrences >= 4, 'debe envolver not-found/ended/not-started/active con el shell público');
+});
+
+// ===========================================================================
+// POST-HUMAN-QA CORRECTIONS — sección 16.B/16.C/16.E del mandato: shell
+// público minimalista (sin Navbar/Footer/menú de Rifex) para /m/[slug],
+// infraestructura preservada (noindex, canonical, viewport).
+// ===========================================================================
+test('16B-1. /m/[slug].jsx NUNCA importa el <Layout> global — usa MedidorQrPublicShell exclusivamente', () => {
+  const src = read('src/pages/m/[slug].jsx');
+  assert.doesNotMatch(src, /from '@\/components\/Layout'/);
+  assert.match(src, /import MedidorQrPublicShell from '@\/components\/MedidorQrPublicShell'/);
+});
+
+test('16B-2. MedidorQrPublicShell no renderiza <header>/<footer>/navegación de Rifex — solo su propio <Head> y el contenido del creador', () => {
+  const src = read('src/components/MedidorQrPublicShell.jsx');
+  assert.doesNotMatch(src, /<header/);
+  assert.doesNotMatch(src, /<footer/);
+  assert.doesNotMatch(src, /navItems/);
+  assert.doesNotMatch(src, /rf-hamburger/);
+  assert.doesNotMatch(src, /accountItems/);
+});
+
+test('16B-3. MedidorQrPublicShell preserva la infraestructura técnica: title/description/canonical/viewport y robots noindex+nofollow+noarchive SIEMPRE (no condicional)', () => {
+  const src = read('src/components/MedidorQrPublicShell.jsx');
+  assert.match(src, /<title>\{title\}<\/title>/);
+  assert.match(src, /name="description"/);
+  assert.match(src, /name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/);
+  assert.match(src, /rel="canonical"/);
+  assert.match(src, /name="robots" content="noindex, nofollow, noarchive"/);
+  // Sin "if" alrededor del robots meta -> siempre presente, no depende de una rama de estado.
+  assert.doesNotMatch(src, /noindex &&/);
+});
+
+test('16C-1. Powered by Rifex.pro está presente y es discreto (sin card/banner/logo grande) en las 4 ramas + post-respuesta', () => {
+  const src = read('src/pages/m/[slug].jsx');
+  const codeOnly = src.split('\n').filter((line) => !line.trim().startsWith('//')).join('\n');
+  const poweredByCount = (codeOnly.match(/Powered by Rifex\.pro/g) || []).length;
+  assert.equal(poweredByCount, 1, 'debe existir un único componente Signature reutilizado en todas las ramas, no texto duplicado por rama');
+  assert.match(src, /const Signature = \(\) =>/);
+});
+
+test('16C-2. la pregunta y las alternativas siguen presentes/dominantes; sin depender del Layout para renderizarlas', () => {
+  const src = read('src/pages/m/[slug].jsx');
+  assert.match(src, /\{medidor\.question\}/);
+  assert.match(src, /options\.map\(\(opt, i\) =>/);
+});
+
+test('16C-3. post-respuesta usa el mismo shell minimalista, agradecimiento + destino opcional con dominio real, sin redirect automático', () => {
+  const src = read('src/pages/m/[slug].jsx');
+  assert.match(src, /Gracias por responder/);
+  assert.match(src, /Tu respuesta fue registrada/);
+  assert.match(src, /¿Quieres continuar a \{destinationInfo\.hostname\}\?/);
+  assert.doesNotMatch(src, /window\.location\.href = destinationInfo/);
+  assert.match(src, /onClick=\{goToDestination\}/);
+});
+
+test('16E-1. la infraestructura funcional del Medidor (scan/response counting, destination click, anti-duplicación) sigue intacta tras retirar el Layout', () => {
+  const src = read('src/pages/m/[slug].jsx');
+  assert.match(src, /\/visit`/);
+  assert.match(src, /\/respond`/);
+  assert.match(src, /\/click`/);
+  assert.match(src, /getOrCreateVisitorKey/);
+  assert.match(src, /already_responded/);
 });
 
 // ===========================================================================

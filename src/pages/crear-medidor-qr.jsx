@@ -51,6 +51,7 @@ export default function CrearMedidorQr() {
 
   const [templateKey, setTemplateKey] = useState(null);
   const [name, setName] = useState('');
+  const [nameTouched, setNameTouched] = useState(false);
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
   const [measurementStart, setMeasurementStart] = useState(toLocalInputValue(new Date()));
@@ -77,10 +78,10 @@ export default function CrearMedidorQr() {
     setTemplateKey(t.key);
     setQuestion(t.question);
     setOptions(t.options.length >= 2 ? t.options : ['', '']);
-    // Sugerencia de punto de partida, siempre editable por el creador
-    // — el nombre interno nunca debe quedar forzado a ser igual a la
-    // pregunta.
-    if (!name.trim()) setName(t.label);
+    // Sugerencia de punto de partida: se actualiza con cada plantilla
+    // elegida hasta que el usuario edite el nombre a mano — desde ahí
+    // el override manual manda y ya no se pisa con otra plantilla.
+    if (!nameTouched) setName(t.label);
   }
 
   function updateOption(i, value) {
@@ -156,8 +157,11 @@ export default function CrearMedidorQr() {
           <img
             src={`/api/medidor-qr/m/${created.slug}/qr.png`}
             alt="Código QR del Medidor"
-            style={{ width: 240, height: 240, borderRadius: 16, border: '2px solid #e5e7eb', margin: '0 auto 18px', display: 'block' }}
+            style={{ width: 240, height: 240, borderRadius: 16, border: '2px solid #e5e7eb', margin: '0 auto 0', display: 'block' }}
           />
+          <a href="https://rifex.pro" target="_blank" rel="noopener noreferrer" style={{ display: 'block', width: 240, margin: '4px auto 18px', textAlign: 'right', fontSize: 11, fontWeight: 600, color: '#94a3b8', textDecoration: 'none' }}>
+            Powered by rifex.pro
+          </a>
           <p style={{ fontWeight: 700, color: '#0f172a', fontSize: 16, margin: '0 0 24px' }}>{created.question}</p>
 
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
@@ -199,7 +203,21 @@ export default function CrearMedidorQr() {
         <div style={{ border: '1px solid #e5e7eb', borderRadius: 16, padding: 22, marginBottom: 16 }}>
           <label style={labelStyle}>Nombre interno *</label>
           <p style={{ fontSize: 12.5, color: '#94a3b8', margin: '0 0 8px' }}>Solo para identificarlo en tu panel — nunca se muestra a quien responde.</p>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} placeholder="Ej: Vitrina septiembre" style={inputStyle} />
+          <input
+            value={name}
+            onChange={(e) => {
+              const v = e.target.value;
+              setName(v);
+              // Si el usuario limpia completamente el campo, vuelve al
+              // comportamiento automático (la próxima plantilla elegida
+              // vuelve a autocompletar) en vez de quedar "atascado" en
+              // modo manual con un valor vacío.
+              setNameTouched(v.trim() !== '');
+            }}
+            maxLength={120}
+            placeholder="Ej: Vitrina septiembre"
+            style={inputStyle}
+          />
         </div>
 
         <div style={{ border: '1px solid #e5e7eb', borderRadius: 16, padding: 22, marginBottom: 16 }}>

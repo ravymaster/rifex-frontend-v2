@@ -279,6 +279,60 @@ para esta misión (Home/Navbar/Footer/Mis Iniciativas), así que se deja
 documentado como trabajo futuro en vez de expandir el alcance sin
 autorización.
 
+## POST-HUMAN-QA CORRECTIONS (2026-09-09)
+
+QA humana real de Rodrigo sobre el deploy DEV encontró y aprobó las
+siguientes correcciones, sin tocar nada de lo ya certificado (cupo
+1/mes, dashboard del creador, Excel, integridad histórica):
+
+- **Nombre interno auto-completa con cada plantilla elegida** —
+  `pickTemplate` en `crear-medidor-qr.jsx` ahora actualiza `name` a
+  `t.label` con cada plantilla seleccionada, no solo la primera vez.
+  Bug original: el nombre se autocompletaba una vez y quedaba
+  "atascado" con esa plantilla aunque el usuario cambiara a otra.
+  Override manual respetado vía un flag explícito `nameTouched` (no
+  una heurística de comparar strings) — apenas el usuario escribe algo
+  no vacío, sus futuras elecciones de plantilla dejan de pisar el
+  campo. Si limpia el campo por completo, `nameTouched` vuelve a
+  `false` y el modo automático se reactiva en la próxima plantilla.
+- **QR PNG descargable — Rifex ya no compite por el espacio del
+  creador**: se quitó el título "Rifex" grande de la parte superior de
+  la ficha (`src/pages/api/medidor-qr/m/[slug]/qr.png.js`); ese
+  espacio ahora es del nombre/pregunta del Medidor. La única presencia
+  de Rifex es una firma discreta "Powered by rifex.pro" en la esquina
+  inferior — no es un link real (PNG estático no puede serlo). En la
+  pantalla web "Tu Medidor QR está listo" sí existe un link real y
+  clickeable a `https://rifex.pro`, deliberadamente sin duplicar ese
+  crédito en el panel de detalle.
+- **Página pública `/m/[slug]` deja de usar el `<Layout>` global** —
+  nuevo componente `src/components/MedidorQrPublicShell.jsx`: sin
+  Navbar, sin Footer, sin menú hamburguesa, sin navegación de Rifex.
+  Shell mobile-first (`100dvh`, `safe-area-inset`, `box-sizing:
+  border-box`) con la pregunta/alternativas del creador como
+  protagonistas y "Powered by Rifex.pro" como única firma, discreta,
+  al pie — mismo principio ya aplicado a la página pública antes de
+  esta corrección, ahora reforzado quitando el chrome global entero
+  (no solo el título "Rifex"). Preserva intacta toda la infraestructura
+  que no depende del Layout visual: `getServerSideProps` (SSR),
+  `noindex/nofollow/noarchive` (ahora incondicional en las 4 ramas de
+  estado, antes se repetía por rama), `canonical`, scan/response
+  counting, anti-duplicación por `visitor_key`, registro de clic al
+  destino (fire-and-forget), rate limiting — nada de esto vivía en el
+  `<Layout>`, así que retirarlo no lo tocó. Verificado con `curl`
+  contra un fixture desechable real en `rifex-dev` (visita → respuesta
+  → intento de doble respuesta rechazado → clic al destino, sin
+  residuo tras limpiar) y auditoría del HTML servido por SSR (cero
+  ocurrencias de `<header`/`<footer`/clases de navegación de Rifex).
+- **Limitación de herramienta durante esta pasada**: el panel de
+  navegador (Browser pane) no compositó frames en esta sesión —
+  `screenshot`/`read_page` fallaron con "the Browser pane is not
+  displayed". La verificación visual se hizo por HTML servido por SSR
+  (`curl`), auditoría de CSS (flex/`dvh`/`safe-area`/`box-sizing`), y
+  simulación en Node de los escenarios exactos de cambio de plantilla
+  usando `MEDIDOR_QR_TEMPLATES` real — no una captura de pantalla
+  pixel a pixel. No es un defecto de código, es una limitación del
+  entorno de esta sesión.
+
 ## Seguridad — resumen adversarial
 
 Cubierto en profundidad por `tests/medidorQr.test.mjs` (30 estáticos +

@@ -11,15 +11,17 @@
 // según measurement_start/end, nunca un 404 genérico para un slug que
 // sí existe).
 //
-// PÁGINA PÚBLICA — MARCA RIFEX (extensión del mandato): Rifex no debe
-// competir visualmente con el contenido del creador. Tras responder,
-// solo un botón de destino opcional (con confirmación de dominio real
-// antes de navegar — nunca redirección automática) y una firma
-// discreta "Powered by Rifex.pro" al pie, nunca un bloque promocional
-// grande.
+// PÁGINA PÚBLICA — MARCA RIFEX (extensión del mandato, endurecida por
+// POST-HUMAN-QA CORRECTIONS): Rifex no debe competir visualmente con
+// el contenido del creador. Esta superficie NO usa el <Layout> global
+// (sin Navbar, sin Footer, sin menú, sin navegación Rifex) — ver
+// src/components/MedidorQrPublicShell.jsx. Tras responder, solo un
+// botón de destino opcional (con confirmación de dominio real antes de
+// navegar — nunca redirección automática) y una firma discreta
+// "Powered by Rifex.pro" al pie, nunca un bloque promocional grande.
 import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
-import Layout from '@/components/Layout';
+import MedidorQrPublicShell from '@/components/MedidorQrPublicShell';
 import { getOrCreateVisitorKey } from '@/lib/medidorQrVisitor';
 
 const supabaseAdmin = createClient(
@@ -115,107 +117,106 @@ export default function MedidorQrPublicPage({ medidor }) {
   }
 
   const Signature = () => (
-    <p style={{ marginTop: 20, fontSize: 11.5, color: '#64748b', textAlign: 'center' }}>
-      <a href="/medidor-qr" style={{ color: '#64748b', textDecoration: 'none' }}>Powered by Rifex.pro</a>
+    <p style={{ marginTop: 28, fontSize: 11.5, color: '#94a3b8', textAlign: 'center' }}>
+      <a href="/medidor-qr" style={{ color: '#94a3b8', textDecoration: 'none' }}>Powered by Rifex.pro</a>
     </p>
   );
 
+  const canonicalPath = `/m/${String(medidor?.slug || '')}`;
+
   if (!medidor) {
     return (
-      <Layout title="Medidor no encontrado — Rifex" noindex noarchive>
-        <div style={{ maxWidth: 420, margin: '48px auto', textAlign: 'center', padding: '0 16px' }}>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a' }}>Medidor no encontrado</h1>
-          <p style={{ color: '#64748b', fontSize: 14, marginTop: 8 }}>Este código no corresponde a ningún Medidor QR válido.</p>
+      <MedidorQrPublicShell title="Medidor no encontrado — Rifex" canonicalPath={canonicalPath}>
+        <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>Medidor no encontrado</h1>
+          <p style={{ color: '#64748b', fontSize: 15, marginTop: 10 }}>Este código no corresponde a ningún Medidor QR válido.</p>
           <Signature />
         </div>
-      </Layout>
+      </MedidorQrPublicShell>
     );
   }
 
   if (alreadyEnded) {
     return (
-      <Layout title="Medición finalizada — Rifex" noindex noarchive>
-        <div style={{ maxWidth: 420, margin: '48px auto', textAlign: 'center', padding: '0 16px' }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#1e3a8a', margin: 0 }}>Rifex</p>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '10px 0 4px' }}>{medidor.question}</h1>
-          <p style={{ color: '#64748b', fontSize: 14, marginTop: 12 }}>Esta medición ha finalizado.</p>
+      <MedidorQrPublicShell title="Medición finalizada — Rifex" canonicalPath={canonicalPath}>
+        <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>{medidor.question}</h1>
+          <p style={{ color: '#64748b', fontSize: 15, marginTop: 14 }}>Esta medición ha finalizado.</p>
           <Signature />
         </div>
-      </Layout>
+      </MedidorQrPublicShell>
     );
   }
 
   if (notStartedYet) {
     return (
-      <Layout title="Medición aún no disponible — Rifex" noindex noarchive>
-        <div style={{ maxWidth: 420, margin: '48px auto', textAlign: 'center', padding: '0 16px' }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#1e3a8a', margin: 0 }}>Rifex</p>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '10px 0 4px' }}>{medidor.question}</h1>
-          <p style={{ color: '#64748b', fontSize: 14, marginTop: 12 }}>Esta medición aún no comienza. Volvé a intentarlo más tarde.</p>
+      <MedidorQrPublicShell title="Medición aún no disponible — Rifex" canonicalPath={canonicalPath}>
+        <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: 0 }}>{medidor.question}</h1>
+          <p style={{ color: '#64748b', fontSize: 15, marginTop: 14 }}>Esta medición aún no comienza. Volvé a intentarlo más tarde.</p>
           <Signature />
         </div>
-      </Layout>
+      </MedidorQrPublicShell>
     );
   }
 
   const options = Array.isArray(medidor.options) ? medidor.options : [];
 
   return (
-    <Layout title={`${medidor.question} — Rifex`} description="Responde en un toque, sin registro." noindex noarchive>
-      <div style={{ maxWidth: 420, margin: '24px auto', padding: '0 16px' }}>
-        <div style={{ border: '2px solid #e5e7eb', borderRadius: 20, padding: 24, textAlign: 'center' }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: '#1e3a8a', margin: 0 }}>Rifex</p>
-
-          {!sent && (
-            <>
-              <h1 style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '10px 0 20px' }}>{medidor.question}</h1>
-              {err && <p style={{ color: '#b91c1c', fontSize: 13, marginBottom: 10 }}>{err}</p>}
-              <div style={{ display: 'grid', gap: 10 }}>
-                {options.map((opt, i) => (
-                  <button
-                    key={i}
-                    onClick={() => respond(i)}
-                    disabled={submitting}
-                    style={{
-                      padding: '15px 16px', borderRadius: 14,
-                      border: selected === i ? '2px solid #18A957' : '1px solid #d1d5db',
-                      background: '#fff', fontSize: 15, fontWeight: 700, color: '#0f172a',
-                      cursor: submitting ? 'wait' : 'pointer', textAlign: 'left',
-                    }}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-              <p style={{ fontSize: 11.5, color: '#64748b', marginTop: 16 }}>Tu respuesta es anónima.</p>
-            </>
-          )}
-
-          {sent && (
-            <div style={{ marginTop: 10 }} aria-live="polite">
-              <div style={{ padding: '10px 16px', borderRadius: 999, display: 'inline-block', fontWeight: 700, fontSize: 14, background: '#dcfce7', color: '#15803d' }}>
-                ✓ Gracias por responder.
-              </div>
-
-              {destinationInfo && (
-                <div style={{ marginTop: 20 }}>
-                  <p style={{ fontSize: 13.5, color: '#334155', marginBottom: 10 }}>
-                    ¿Quieres continuar a {destinationInfo.hostname}?
-                  </p>
-                  <button
-                    onClick={goToDestination}
-                    style={{ padding: '11px 20px', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, #1e3a8a 0%, #18a957 100%)', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}
-                  >
-                    {destinationInfo.label || `Ir a ${destinationInfo.hostname}`} →
-                  </button>
-                </div>
-              )}
+    <MedidorQrPublicShell title={`${medidor.question} — Rifex`} canonicalPath={canonicalPath}>
+      <div style={{ width: '100%', maxWidth: 480, textAlign: 'center' }}>
+        {!sent && (
+          <>
+            <h1 style={{ fontSize: 25, fontWeight: 800, color: '#0f172a', margin: 0, lineHeight: 1.25 }}>{medidor.question}</h1>
+            {err && <p style={{ color: '#b91c1c', fontSize: 13.5, marginTop: 14 }}>{err}</p>}
+            <div style={{ display: 'grid', gap: 12, marginTop: 24 }}>
+              {options.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => respond(i)}
+                  disabled={submitting}
+                  style={{
+                    padding: '19px 20px', borderRadius: 16, minHeight: 56,
+                    border: selected === i ? '2px solid #18A957' : '1px solid #d1d5db',
+                    background: '#fff', fontSize: 16.5, fontWeight: 700, color: '#0f172a',
+                    cursor: submitting ? 'wait' : 'pointer', textAlign: 'left',
+                    WebkitTapHighlightColor: 'transparent',
+                  }}
+                >
+                  {opt}
+                </button>
+              ))}
             </div>
-          )}
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 18 }}>Tu respuesta es anónima.</p>
+          </>
+        )}
 
-          <Signature />
-        </div>
+        {sent && (
+          <div aria-live="polite">
+            <div style={{ width: 52, height: 52, borderRadius: '50%', background: '#dcfce7', color: '#15803d', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 800, margin: '0 auto' }}>
+              ✓
+            </div>
+            <h1 style={{ fontSize: 21, fontWeight: 800, color: '#0f172a', margin: '18px 0 6px' }}>Gracias por responder</h1>
+            <p style={{ fontSize: 14, color: '#64748b', margin: 0 }}>Tu respuesta fue registrada.</p>
+
+            {destinationInfo && (
+              <div style={{ marginTop: 26 }}>
+                <p style={{ fontSize: 14, color: '#334155', marginBottom: 12 }}>
+                  ¿Quieres continuar a {destinationInfo.hostname}?
+                </p>
+                <button
+                  onClick={goToDestination}
+                  style={{ padding: '15px 24px', minHeight: 52, width: '100%', borderRadius: 14, border: 'none', background: 'linear-gradient(135deg, #1e3a8a 0%, #18a957 100%)', color: '#fff', fontWeight: 700, fontSize: 15, cursor: 'pointer' }}
+                >
+                  {destinationInfo.label || `Ir a ${destinationInfo.hostname}`} →
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <Signature />
       </div>
-    </Layout>
+    </MedidorQrPublicShell>
   );
 }

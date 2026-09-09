@@ -93,11 +93,26 @@ export default async function handler(req, res) {
                 border: '2px solid #E5E7EB', padding: '36px 40px',
               },
               children: [
-                { type: 'div', props: { style: { fontSize: 28, fontWeight: 800, color: '#1E3A8A', display: 'flex' }, children: 'Rifex' } },
-                { type: 'div', props: { style: { fontSize: 21, fontWeight: 700, color: '#111111', marginTop: 12, display: 'flex', textAlign: 'center', maxWidth: 520 }, children: truncateTitle(medidor.name || medidor.question) } },
+                // El espacio superior es del creador (nombre/pregunta del
+                // Medidor) — Rifex nunca compite visualmente con el
+                // contenido del creador, mismo principio ya aplicado en
+                // la página pública /m/[slug].
+                { type: 'div', props: { style: { fontSize: 25, fontWeight: 800, color: '#111111', display: 'flex', textAlign: 'center', maxWidth: 560 }, children: truncateTitle(medidor.name || medidor.question) } },
                 { type: 'img', props: { src: qrDataUri, width: QR_SIZE, height: QR_SIZE, style: { marginTop: 24, borderRadius: 16, border: '2px solid #E5E7EB' } } },
                 { type: 'div', props: { style: { fontSize: 19, fontWeight: 700, color: '#18A957', marginTop: 22, display: 'flex' }, children: 'Escanea y responde' } },
                 { type: 'div', props: { style: { fontSize: 13, color: '#6B7280', marginTop: 6, display: 'flex' }, children: url } },
+                // Firma discreta, nunca un bloque promocional grande —
+                // no es un link real (PNG estático), pero queda legible
+                // como marca de agua para quien vea/imprima el archivo.
+                {
+                  type: 'div',
+                  props: {
+                    style: { width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: 18 },
+                    children: [
+                      { type: 'div', props: { style: { fontSize: 12, fontWeight: 600, color: '#94A3B8', display: 'flex' }, children: 'Powered by rifex.pro' } },
+                    ],
+                  },
+                },
               ],
             },
           },

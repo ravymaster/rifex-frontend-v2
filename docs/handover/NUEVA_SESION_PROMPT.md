@@ -42,7 +42,32 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > afectada; el código se reconstruyó íntegramente desde el
 > historial de la conversación y se re-certificó (build +
 > regresión + QA real) antes de continuar. Detalle completo:
-> `docs/medidor-qr/MEDIDOR_QR_V1.md`. **Si retomás esto: falta
+> `docs/medidor-qr/MEDIDOR_QR_V1.md`.
+>
+> **POST-HUMAN-QA CORRECTIONS (mismo día)** — QA humana real de
+> Rodrigo sobre el deploy DEV encontró y aprobó 3 correcciones,
+> sin tocar cupo/dashboard/Excel/integridad histórica ya
+> certificados: (1) Nombre interno ahora se autocompleta con
+> **cada** plantilla elegida (antes quedaba pegado a la primera),
+> override manual vía flag explícito `nameTouched`, con reseteo a
+> modo automático si el campo se limpia por completo; (2) QR PNG:
+> se quitó el título "Rifex" del espacio superior de la ficha —
+> ahora es del nombre/pregunta del Medidor, Rifex queda solo como
+> firma discreta "Powered by rifex.pro"; (3) `/m/[slug]` deja de
+> usar el `<Layout>` global — nuevo
+> `src/components/MedidorQrPublicShell.jsx`, sin
+> Navbar/Footer/menú/navegación de Rifex, mobile-first,
+> infraestructura preservada (SSR, noindex/nofollow/noarchive
+> ahora incondicional, canonical, scan/response counting,
+> anti-duplicación, click tracking, rate limiting) — verificado
+> con `curl` E2E real contra un fixture desechable y auditoría del
+> HTML servido por SSR. 53 tests (antes 42), regresión 1129/1130
+> (mismo flake histórico de XLSX), build limpio, `git diff
+> --check` limpio. Limitación de esta pasada: el Browser pane no
+> compositó frames en esta sesión — verificación mobile/responsive
+> hecha por auditoría de HTML/CSS SSR y simulación en Node de los
+> escenarios de plantilla con `MEDIDOR_QR_TEMPLATES` real, no por
+> captura de pantalla. **Si retomás esto: falta
 > exclusivamente el commit + push a `origin/develop` (nunca
 > `main`/PROD/tags) — todo el resto de la Definición de Hecho ya
 > está cumplido y verificado.**
