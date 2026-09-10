@@ -1,7 +1,36 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-10 (actualización más reciente) — **RIFEX HOME HERO 2026:
+> 2026-09-10 (actualización más reciente) — **RIFEX HUMAN URL STANDARD
+> 2026, `dev/human-url-standard-2026-09-10-v2` desde
+> `origin/develop@8249258`, DEV only, DEV CERTIFIED / READY FOR HUMAN
+> QA.** Extiende slug humano (patrón ya certificado en Rifas/Medidor
+> QR) a Eventos, Campañas, Inscripciones; consolida canonical de Rifas
+> hacia el slug (único cambio en ese módulo). Migración aditiva
+> (`slug` nullable + índice único parcial en los 3 módulos, backfill;
+> nuevo overload de `create_free_registration_activity` con `p_slug`,
+> el original de 13 params intacto). Auditoría encontró y corrigió 3
+> bugs reales de reuso del id/slug crudo en vez del UUID resuelto
+> (`PATCH events/[id]`, `PATCH inscripciones/[id]`, conteo de
+> `colecta_contributions`) y arregló `eventos/[id].jsx`/
+> `inscripcion[id].jsx` para reusar el UUID resuelto en llamadas
+> posteriores — `colectas/[id].jsx` ya lo hacía bien, sin cambios. QR
+> ya vivos (Rifas/Colectas con UUID, Eventos/Inscripciones con token
+> opaco) deliberadamente sin tocar. Medidor QR baseline protegido
+> intacto. 29 tests nuevos, regresión 1165/1180 (mismo flake XLSX),
+> build limpio, diff acotado a 9 archivos + 1 migración + 1 test.
+> Verificado en vivo contra `rifex-dev` (fixtures reales): resolución
+> dual UUID/slug idéntica en los 6 endpoints de lectura, colisión de
+> slug rechazada con `23505` real, canonical de Rifas confirmado.
+> **Fixtures de QA humana dejados vivos a propósito** (Rodrigo puede
+> borrarlos tras revisar): `/eventos/qa-human-url-evento`,
+> `/colectas/qa-human-url-colecta`, `/inscripcion/qa-human-url-inscripcion`
+> (rifex-dev). Detalle: `docs/WOP.md`, "RIFEX HUMAN URL STANDARD
+> 2026". **Si retomas esto: falta QA humana de Rodrigo sobre las 3
+> URLs fixture, y eventual promoción selectiva a PROD sujeta a
+> autorización explícita — todavía no iniciada.**
+>
+> 2026-09-10 — **RIFEX HOME HERO 2026:
 > DESKTOP CROSS-BROWSER FIX, segunda pasada, sobre commit `4fabad7`,
 > HUMAN VISUAL SIGN-OFF APROBADO (Firefox/Linux).** La primera pasada
 > (commit `4fabad7`, pushed a `origin/develop`, detalle abajo)

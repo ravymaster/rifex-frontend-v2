@@ -187,18 +187,29 @@ export async function getServerSideProps({ params, req }) {
       props: {
         metaTitle: raffle?.titulo || raffle?.title || null,
         metaTrustLevel: raffle?.creator_trust_level ?? null,
+        // RIFEX HUMAN URL STANDARD 2026: único cambio autorizado en Rifas
+        // esta misión — consolidar canonical/og:url hacia el slug cuando
+        // existe, en vez de reflejar de vuelta lo que sea que trajo la URL
+        // (UUID o slug). Rifas históricas sin slug siguen usando su UUID.
+        metaSlug: raffle?.slug || null,
       },
     };
   } catch {
-    return { props: { metaTitle: null, metaTrustLevel: null } };
+    return { props: { metaTitle: null, metaTrustLevel: null, metaSlug: null } };
   }
 }
 
-export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
+export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
   const router = useRouter();
   const { id } = router.query;
 
   const [raffle, setRaffle] = useState(null);
+  // RIFEX HUMAN URL STANDARD 2026: consolida canonical/og:url hacia el
+  // slug — prioriza el slug ya resuelto client-side (raffle.slug), cae a
+  // metaSlug (SSR, disponible antes de la primera pintura/para crawlers
+  // sin JS) y solo usa el `id` crudo de la URL si la rifa no tiene slug
+  // (histórica, backfill nunca corrido, o falló el SSR fetch).
+  const canonicalId = raffle?.slug || metaSlug || id || "";
   // RIFEX RAFFLE EXPERIENCE 2026 — ya no se carga el arreglo completo de
   // tickets al navegador (eso alimentaba la grilla pública, eliminada por
   // decisión de producto). Solo se necesitan totales agregados: el
@@ -588,14 +599,14 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel }) {
           key="robots" pisa el <meta robots> que Layout agregaría solo si se le
           pasara noindex — acá se define directamente el valor exacto de V4. */}
       <meta key="robots" name="robots" content="noindex, follow, noarchive" />
-      <link key="canonical" rel="canonical" href={canonicalUrl(`/rifas/${id || ""}`)} />
+      <link key="canonical" rel="canonical" href={canonicalUrl(`/rifas/${canonicalId}`)} />
       <meta key="og:title" property="og:title" content={`${effectiveTitle} — Información de la iniciativa`} />
       <meta
         key="og:description"
         property="og:description"
         content="Consulta organizador, finalidad, fecha, condiciones y estado de confianza en Rifex."
       />
-      <meta key="og:url" property="og:url" content={canonicalUrl(`/rifas/${id || ""}`)} />
+      <meta key="og:url" property="og:url" content={canonicalUrl(`/rifas/${canonicalId}`)} />
       <meta key="og:type" property="og:type" content="website" />
       <meta key="og:image" property="og:image" content={DEFAULT_OG_IMAGE} />
       <meta key="twitter:card" name="twitter:card" content="summary_large_image" />

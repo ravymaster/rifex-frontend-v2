@@ -70,7 +70,11 @@ export default function InscripcionPublica() {
 
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/inscripciones/${id}/register`, {
+      // RIFEX HUMAN URL STANDARD 2026: `id` de la URL puede ser slug;
+      // solo /api/inscripciones/[id]/index.js resuelve slug-o-UUID. El
+      // registro usa activity.id (UUID real ya resuelto por `load()`),
+      // nunca el id/slug crudo de la URL de nuevo.
+      const res = await fetch(`/api/inscripciones/${activity.id}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ full_name: fullName.trim(), email: email.trim(), phone: phone.trim() || undefined }),

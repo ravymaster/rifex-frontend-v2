@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
+import { slugify } from '@/lib/slugify';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -24,6 +25,10 @@ const supabase = createClient(
 const MAX_GALLERY = 10;
 const ALLOWED_DURATION_DAYS = new Set([15, 30, 60]);
 const DEFAULT_DURATION_DAYS = 30;
+// RIFEX HUMAN URL STANDARD 2026: misma primitiva ya certificada en
+// /api/rifas — slug generado server-side desde el título, reintento
+// acotado solo ante colisión real (23505 en el índice único parcial).
+const MAX_SLUG_ATTEMPTS = 5;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -92,21 +97,31 @@ export default async function handler(req, res) {
   const endAt = new Date(startAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
   try {
-    const { data: inserted, error } = await supabase
-      .from('colectas')
-      .insert({
-        creator_id: ures.user.id,
-        title,
-        description,
-        cover_image_url: coverImageUrl,
-        gallery_urls: galleryUrls,
-        goal_cents: goalCents,
-        status: 'active',
-        start_at: startAt.toISOString(),
-        end_at: endAt.toISOString(),
-      })
-      .select('id, title, status, start_at, end_at, created_at')
-      .single();
+    const baseSlug = slugify(title) || 'colecta';
+    let inserted = null;
+    let error = null;
+    for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+      const slug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 5)}`;
+      const result = await supabase
+        .from('colectas')
+        .insert({
+          creator_id: ures.user.id,
+          title,
+          description,
+          cover_image_url: coverImageUrl,
+          gallery_urls: galleryUrls,
+          goal_cents: goalCents,
+          status: 'active',
+          start_at: startAt.toISOString(),
+          end_at: endAt.toISOString(),
+          slug,
+        })
+        .select('id, title, status, start_at, end_at, created_at, slug')
+        .single();
+      if (!result.error) { inserted = result.data; error = null; break; }
+      error = result.error;
+      if (result.error.code !== '23505') break;
+    }
     if (error) throw error;
 
     return res.status(201).json({ ok: true, colecta: inserted });

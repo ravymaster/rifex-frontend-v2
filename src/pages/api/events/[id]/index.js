@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { parseCapacityInput } from '@/lib/eventCapacity';
+import { idOrSlugColumn } from '@/lib/idOrSlug';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -48,7 +49,7 @@ export default async function handler(req, res) {
     const { data: event, error: fetchErr } = await supabase
       .from('events')
       .select('*')
-      .eq('id', id)
+      .eq(idOrSlugColumn(id), id)
       .maybeSingle();
     if (fetchErr) throw fetchErr;
     if (!event) return res.status(404).json({ ok: false, error: 'not_found' });
@@ -158,7 +159,7 @@ export default async function handler(req, res) {
       const { data: updated, error: updErr } = await supabase
         .from('events')
         .update(patch)
-        .eq('id', id)
+        .eq('id', event.id)
         .select('*')
         .single();
       if (updErr) {
