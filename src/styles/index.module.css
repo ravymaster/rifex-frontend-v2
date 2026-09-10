@@ -14,157 +14,97 @@
 /* =========================================================
    HERO
    ========================================================= */
+/* FIX DESKTOP CROSS-BROWSER, segunda pasada (2026-09-09/10): Layout.jsx
+   envuelve TODA página en `<main className="container">` (max-width:1200px,
+   margin:0 auto) — un dato que la primera pasada de este fix pasó por
+   alto (solo se auditó el JSX de index.js, no el de Layout.jsx). Por lo
+   tanto `.hero` SÍ vive dentro de un contenedor angosto y necesita
+   escapar de él para lograr "casi todo el ancho de pantalla". El breakout
+   real correcto vive acá (a nivel de sección, no en `.heroPictureWrap`
+   como antes): técnica estándar `width:100vw` + `margin-left/right:
+   calc(50% - 50vw)` (sin `left`/`transform`, evita crear un desfase
+   extra) — funciona porque `.container` está centrado (`margin:0 auto`)
+   en el viewport, así que el centro de `.hero` coincide con el centro
+   real del viewport. Antes, el breakout vivía en `.heroPictureWrap`
+   (hijo de `.hero`) — pero como `.hero` mismo NUNCA rompía su propio
+   contenedor y tiene `overflow:hidden`, ese breakout interno quedaba
+   recortado por los propios límites (angostos) de `.hero`, cortando
+   ~266px de cada lado del asset en pantallas anchas: la causa real de
+   las letras perdidas en Firefox y del ajuste "muy justo" en Chrome/Edge
+   — no una discrepancia de cálculo de `vw`. Con el breakout ahora en
+   `.hero`, `.heroPictureWrap` ya no necesita escapar nada — ver su
+   propio comentario más abajo. */
 .hero {
   position: relative;
-  background: radial-gradient(1100px 520px at 85% -10%, rgba(124, 111, 232, 0.25), transparent 60%),
-              radial-gradient(900px 500px at -10% 110%, rgba(35, 182, 198, 0.18), transparent 55%),
-              linear-gradient(180deg, var(--homeNavy) 0%, var(--homeNavy2) 100%);
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  background: linear-gradient(180deg, var(--homeNavy) 0%, var(--homeNavy2) 100%);
   overflow: hidden;
-  padding: 40px 0 48px;
+  padding: 24px 0 0;
 }
 
-/* Columna de texto — position:relative + z-index para quedar SIEMPRE
-   sobre la fotografía de fondo (.heroPhotoWrap, position:absolute en
-   desktop). En mobile la foto vuelve al flujo normal, debajo de las
-   CTAs (orden explícito del mandato: headline -> texto -> botones ->
-   imagen) — ver .heroPhotoWrap más abajo. */
-.heroContent {
-  position: relative;
-  z-index: 2;
+/* Utilidad estándar "visualmente oculto, accesible a lectores de
+   pantalla" — el <h1> real vive acá para SEO/estructura semántica sin
+   duplicar visualmente el mensaje que ya está en el asset del Hero. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
-@media (min-width: 1024px) {
-  .heroContent { max-width: 480px; }
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #b9c3e6;
-  font-size: 12.5px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-  margin: 0 0 18px;
-}
-.eyebrow span { color: var(--turquesa); }
-
-.heroTitle {
-  margin: 0 0 16px;
-  font-weight: 800;
-  line-height: 1.08;
-  font-size: clamp(32px, 6vw, 56px);
-  letter-spacing: -1px;
-  color: #fff;
-}
-.heroTitleAccent {
-  background: linear-gradient(100deg, var(--turquesa) 0%, var(--trebol) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.heroSub {
-  margin: 0 0 28px;
-  max-width: 480px;
-  color: rgba(255, 255, 255, 0.68);
-  font-size: clamp(15px, 1.8vw, 17.5px);
-  line-height: 1.6;
-}
-
-.heroCtas {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 36px;
-}
-@media (min-width: 560px) {
-  .heroCtas { flex-direction: row; }
-}
-.ctaPrimary,
-.ctaSecondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 15px 26px;
-  border-radius: 999px;
-  font-size: 15.5px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
-  width: 100%;
-}
-@media (min-width: 560px) {
-  .ctaPrimary, .ctaSecondary { width: auto; }
-}
-.ctaPrimary {
-  background: linear-gradient(120deg, var(--trebol) 0%, var(--turquesa) 100%);
-  color: #06210f;
-  box-shadow: 0 10px 26px rgba(24, 169, 87, 0.28);
-}
-.ctaPrimary:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(24, 169, 87, 0.36); }
-.ctaSecondary {
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-}
-.ctaSecondary:hover { background: rgba(255, 255, 255, 0.12); transform: translateY(-2px); }
 
 /* =========================================================
-   FOTO HERO — public/images/hero/rifex-hero-events.png. La fotografía ya
-   incluye visualmente las métricas de ejemplo (Entradas vendidas,
-   Ingresos totales, Entrada validada/VIP/QR) y el fondo de concierto —
-   por eso NUNCA se duplican como cards HTML ni se agrega una
-   ilustración propia encima. Puramente decorativa (alt="", aria-hidden
-   en el wrapper): el contenido real ya está en el texto del hero.
-
-   Mobile (<1024px): bloque normal en el flujo, DESPUÉS de las CTAs
-   (orden explícito: headline -> texto -> botones -> imagen), con un
-   crop que prioriza rostro + notebook + concierto — si alguna de las
-   tres cards de la propia foto queda fuera del recorte es aceptable
-   (documentado, nunca forzar la imagen completa de desktop en una
-   pantalla chica).
-
-   Desktop (min-width:1024px): position:absolute cubriendo el costado
-   derecho del Hero, con mask-image que difumina su borde izquierdo
-   hacia transparente — se funde con el fondo navy del Hero en vez de
-   quedar encerrada en una tarjeta rectangular con bordes duros. */
-.heroPhotoWrap {
-  position: relative;
-  margin-top: 32px;
-  border-radius: 24px;
-  overflow: hidden;
-  aspect-ratio: 3 / 2;
-}
-.heroPhotoImg {
-  object-fit: cover;
-  object-position: 70% 30%;
+   HERO — RIFEX HOME HERO 2026. `.heroPictureWrap` es hijo directo de
+   `.hero`, que ahora sí rompe su propio contenedor (ver el comentario
+   junto a `.hero` arriba) y ocupa el viewport casi completo — así que
+   `.heroPictureWrap` NO necesita ningún breakout propio, solo centrarse
+   dentro del `.hero` ya ancho: `width:min(95%,1700px)` con tope en
+   1700px para no agrandar la imagen mucho más allá de su resolución
+   nativa (1672px) en monitores ultra anchos.
+   FIX DESKTOP CROSS-BROWSER, primera pasada (2026-09-09): esta clase
+   solía llevar el breakout completo (`left:50%; transform:
+   translateX(-50%); width:95vw`) que hoy vive en `.hero`. Se retiró de
+   acá porque, anidado dentro de `.hero{overflow:hidden}` sin que `.hero`
+   mismo escapara su contenedor, ese breakout quedaba recortado por los
+   límites (angostos) del propio `.hero` — cortando ~266px de cada lado
+   del asset en pantallas anchas. Esa es la causa real de las letras
+   perdidas en Firefox y del ajuste "muy justo" en Chrome/Edge; la
+   primera pasada de este fix diagnosticó mal la causa (atribuyéndola a
+   un desfase de cálculo `vw`-vs-scrollbar) y, al solo remover el
+   breakout sin moverlo a `.hero`, arregló el corte pero introdujo una
+   regresión real: el Hero quedaba angosto (~1200px) en pantallas
+   anchas, violando el requisito de "casi todo el ancho de pantalla".
+   Esta segunda pasada mueve el breakout a `.hero` (su lugar
+   arquitectónicamente correcto) y deja esta clase simple. */
+.heroPictureWrap {
+  width: min(95%, 1700px);
+  margin: 0 auto 8px;
 }
 
+/* Proporción por breakpoint: el <img> de fallback declara las
+   dimensiones del asset mobile (941×1672, mobile-first) — a partir de
+   1024px el <source> desktop (1672×941) es el que realmente carga, así
+   que el aspect-ratio se redeclara acá para reservar el alto correcto
+   y evitar layout shift en ambos sentidos. object-fit no hace falta:
+   el contenedor siempre respeta la proporción real del asset activo,
+   nunca recorta ni deforma. */
+.heroImg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 16px;
+}
 @media (min-width: 1024px) {
-  .hero { min-height: 620px; }
-  .heroPhotoWrap {
-    position: absolute;
-    inset: 0;
-    left: 30%;
-    margin-top: 0;
-    border-radius: 0;
-    aspect-ratio: auto;
-    -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 16%, #000 34%);
-            mask-image: linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.55) 16%, #000 34%);
+  .heroImg {
+    aspect-ratio: 1672 / 941;
+    border-radius: 20px;
   }
-  .heroPhotoWrap::after {
-    /* glow sutil detrás de la foto, refuerza la fusión con el fondo */
-    content: '';
-    position: absolute;
-    inset: -10% -10% -10% 10%;
-    background: radial-gradient(closest-side, rgba(35, 182, 198, 0.22), transparent 70%);
-    z-index: -1;
-  }
-  .heroPhotoImg { object-position: 58% 38%; }
 }
 
 /* =========================================================

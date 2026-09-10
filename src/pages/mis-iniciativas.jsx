@@ -34,6 +34,7 @@ const INITIATIVES = [
   { key: 'campanas', title: 'Campañas', description: 'Recauda aportes para una causa o proyecto.', href: '/crear-colecta', cta: 'Ir a mis campañas' },
   { key: 'eventos', title: 'Eventos', description: 'Crea eventos, configura entradas y publícalas.', href: '/panel/eventos', cta: 'Ir a mis eventos' },
   { key: 'inscripciones', title: 'Inscripciones', description: 'Recibe inscripciones gratis, controla el acceso con QR y descarga tu lista de asistentes.', href: '/panel/inscripciones', cta: 'Ir a mis inscripciones' },
+  { key: 'medidor-qr', title: 'Medidor QR', description: 'Crea una pregunta, genera tu QR gratis y mide el interés real de tu público.', href: '/panel/medidor-qr', cta: 'Ir a mis Medidores QR' },
 ];
 
 export default function MisIniciativas() {

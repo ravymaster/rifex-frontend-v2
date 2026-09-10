@@ -9,19 +9,26 @@
 // tenía peso visible acá pese a ser un producto público real desde
 // INSCRIPCIONES V1.
 //
-// AJUSTE VISUAL (photo hero): el visual del hero es ahora
-// public/images/hero/rifex-hero-events.png — una fotografía real que ya
-// incluye visualmente las tres métricas de ejemplo (Entradas vendidas,
-// Ingresos totales, Entrada validada) y el fondo navy de concierto. Por
-// eso este archivo NUNCA debe volver a agregar cards HTML duplicadas ni
-// una ilustración SVG propia encima: la foto ES el visual completo, no
-// solo un fondo decorativo.
+// RIFEX HOME HERO 2026 (2026-09-09) — el Hero es ahora un asset
+// aprobado por el usuario (composición desktop/mobile deliberadamente
+// distinta, no un mismo archivo escalado), que ya incluye visualmente
+// el headline completo ("Recauda. Vende entradas. Gestiona
+// inscripciones. Mide respuestas."), el eyebrow de capacidades, las
+// métricas de ejemplo y la fila de capacidades — por eso este archivo
+// NUNCA debe volver a agregar ese texto como HTML visible, ni cards
+// duplicadas, ni CTAs (decisión de producto final: el Hero ya no
+// lleva botones — los accesos viven en Navbar/cards/landings/Mis
+// iniciativas). Selección responsive real vía <picture>/<source> —
+// dos assets distintos (public/images/hero/hero-rifex-{desktop,
+// mobile}.{webp,png}), nunca el mismo archivo escalado — el navegador
+// descarga solo el que corresponde, sin JS. Breakpoint: 1024px (ver
+// comentario junto al <picture> más abajo). Un <h1> visualmente oculto
+// (sr-only) preserva la estructura semántica/SEO sin duplicar el
+// mensaje en pantalla.
 import Head from 'next/head';
-import Image from 'next/image';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import styles from '@/styles/index.module.css';
-import heroPhoto from '../../public/images/hero/rifex-hero-events.png';
 import { SITE_URL } from '@/lib/publicMetadata';
 
 // PUBLIC SURFACE FINAL CLEANUP — JSON-LD mínimo, solo en Home (entidad
@@ -99,6 +106,16 @@ function BarsIcon() {
     </svg>
   );
 }
+function QrIcon() {
+  return (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <path d="M14 14h3v3h-3zM19 14h2v2h-2zM14 19h2v2h-2zM19 19h2v2h-2z" />
+    </svg>
+  );
+}
 
 const CAPABILITIES = [
   {
@@ -156,6 +173,22 @@ const CAPABILITIES = [
     accentSoft: 'rgba(30, 58, 138, 0.16)',
     accentBorder: 'rgba(30, 58, 138, 0.4)',
   },
+  // MEDIDOR QR V1 — mismo criterio que la card de Inscripciones: link
+  // real a /medidor-qr. Eventos/Campañas son transaccionales; Inscripciones
+  // y Medidor QR son herramientas gratuitas de adquisición (sección 17
+  // del mandato) — se representan con el mismo lenguaje visual de card,
+  // sin convertir el hero en una fila de botones.
+  {
+    key: 'medidor-qr',
+    icon: <QrIcon />,
+    title: 'Medidor QR',
+    text: 'Crea una pregunta, genera tu QR gratis y mide el interés real de tu público donde quieras.',
+    detail: 'Gratis · 10/mes',
+    href: '/medidor-qr',
+    accent: '#18A957',
+    accentSoft: 'rgba(24, 169, 87, 0.16)',
+    accentBorder: 'rgba(24, 169, 87, 0.4)',
+  },
 ];
 
 export default function Home() {
@@ -173,44 +206,52 @@ export default function Home() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }}
         />
       </Head>
-      {/* HERO */}
+      {/* HERO — RIFEX HOME HERO 2026: pura imagen, sin CTAs, sin texto
+          HTML duplicado (ver comentario del import más arriba). */}
       <section className={styles.hero}>
-        <div className="container">
-          <div className={styles.heroContent}>
-            <span className={styles.eyebrow}>
-              <span>●</span> Eventos · Entradas digitales · Campañas · Inscripciones
-            </span>
-            <h1 className={styles.heroTitle}>
-              Crea eventos.<br />
-              Vende entradas.<br />
-              <span className={styles.heroTitleAccent}>Impulsa causas.</span>
-            </h1>
-            <p className={styles.heroSub}>
-              Organiza eventos, controla el acceso y recauda fondos con herramientas simples y seguras.
-            </p>
-            <div className={styles.heroCtas}>
-              <a href="/crear-evento" className={styles.ctaPrimary}>Crear un evento</a>
-              <a href="/crear-colecta" className={styles.ctaSecondary}>Crear una campaña</a>
-            </div>
-          </div>
+        {/* h1 real para estructura semántica/SEO — visualmente oculto
+            (sr-only), nunca duplicado en pantalla; el mensaje visible
+            vive únicamente en el asset. */}
+        <h1 className={styles.srOnly}>
+          Recauda. Vende entradas. Gestiona inscripciones. Mide respuestas. Todo desde Rifex.pro.
+        </h1>
 
-          {/* Foto real (public/images/hero/rifex-hero-events.png). Ya
-              incluye visualmente las métricas de ejemplo — nunca
-              duplicarlas como cards HTML acá. En mobile queda en flujo
-              normal, después de las CTAs; en desktop (min-width:1024px)
-              pasa a position:absolute para fusionarse con el fondo navy
-              del Hero (ver .heroPhotoWrap). */}
-          <div className={styles.heroPhotoWrap} aria-hidden="true">
-            <Image
-              src={heroPhoto}
-              alt=""
-              fill
-              priority
-              sizes="(min-width: 1024px) 68vw, 100vw"
-              className={styles.heroPhotoImg}
+        {/* Breakout deliberado del ancho de `.container` (mismo patrón
+            de escape ya certificado en la misión VISUAL-LOCK para otra
+            ficha pública del catálogo): el Hero debe aprovechar casi
+            todo el ancho de pantalla, nunca quedar limitado a
+            max-width:1200px como el resto del contenido de Home. */}
+        <div className={styles.heroPictureWrap}>
+          {/*
+            Breakpoint elegido: 1024px (no 768px). Motivo verificado
+            contra la composición real de ambos assets, no por nombre
+            de archivo: el asset mobile es un cartel vertical (941×1672)
+            con grilla 2×2 de capacidades — a 1024px de ancho (tablet
+            landscape) esa proporción produciría un Hero de ~1820px de
+            alto, absurdamente largo. El asset desktop es horizontal
+            (1672×941) — a 768/820px (tablet portrait) el texto ya
+            compuesto para 1672px de ancho quedaría demasiado pequeño
+            para leerse. 1024px es el punto donde el asset desktop
+            (paisaje) empieza a lucir mejor que forzar el vertical en
+            una pantalla ancha, y coincide con el breakpoint "lg"
+            convencional del resto del proyecto.
+          */}
+          <picture>
+            <source media="(max-width: 1023px)" type="image/webp" srcSet="/images/hero/hero-rifex-mobile.webp" />
+            <source media="(max-width: 1023px)" type="image/png" srcSet="/images/hero/hero-rifex-mobile.png" />
+            <source type="image/webp" srcSet="/images/hero/hero-rifex-desktop.webp" />
+            <img
+              src="/images/hero/hero-rifex-desktop.png"
+              alt="Rifex: recauda fondos, vende entradas para eventos, gestiona inscripciones y mide respuestas con Medidor QR — todo desde Rifex.pro"
+              width={941}
+              height={1672}
+              fetchpriority="high"
+              className={styles.heroImg}
             />
-          </div>
+          </picture>
+        </div>
 
+        <div className="container">
           {/* TRUST STRIP */}
           <div className={styles.trust}>
             <div className={styles.trustGrid}>
