@@ -4,7 +4,31 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
-## RIFEX MEDIDOR QR V1 — FREE QUOTA ADJUSTMENT (2026-09-09) — DEV only, misión aislada, pendiente de commit/push
+## RIFEX HOME HERO 2026 — FINAL VISUAL LOCK (2026-09-09) — DEV only, worktree aislado `dev/home-hero-2026-09-09` desde `origin/develop@28abc17`, PENDING HUMAN VISUAL SIGN-OFF
+
+Reemplaza la composición del Hero de Home por dos assets aprobados por Rodrigo (`hero-rifex-desktop.png`/`hero-rifex-mobile.png`, movidos a `public/images/hero/` — mismo patrón ya usado por el hero anterior, verificado antes de asumir la ruta) — composiciones deliberadamente distintas (desktop 1672×941 horizontal con métricas flotantes y fila de 4 capacidades; mobile 941×1672 vertical con grilla 2×2), no el mismo archivo escalado. **Última misión visual antes de una eventual promoción selectiva a PROD — NO se promovió nada a PROD en esta misión, NO se tocó base de datos, NO se creó ninguna migración, NO se modificó lógica funcional de ningún módulo.**
+
+**Selección responsive real**: `<picture>` nativo con `<source media="(max-width: 1023px)">` (mobile, WebP + PNG) y un `<source>`/`<img>` desktop sin media (fallback) — nunca JS decidiendo el breakpoint. Verificado en vivo contra un servidor real en 375px/1024px/1280px: `currentSrc` confirma el asset correcto en cada viewport, exactamente 1023px/1024px es el punto de corte (1023 → mobile, 1024 → desktop), y `read_network_requests` confirmó que el navegador descarga solo el recurso que corresponde — cero doble descarga. **Breakpoint elegido (1024px, no 768px) por la composición real de ambos assets, no por nombre de archivo**: el asset mobile es un cartel vertical — a 1024px de ancho esa proporción daría un Hero de ~1820px de alto; el asset desktop es horizontal — a 768/820px el texto compuesto para 1672px de ancho quedaría ilegible. 1024px es el punto donde el asset horizontal empieza a lucir mejor, y coincide con el breakpoint "lg" convencional del resto del proyecto.
+
+**Sin CTAs, sin texto HTML duplicado**: decisión de producto final — el Hero ya no lleva "Crear un evento"/"Crear una campaña" (los accesos ya existen vía Navbar/cards/landings/Mis iniciativas). El mensaje de marca ("Recauda. Vende entradas. Gestiona inscripciones. Mide respuestas. Todo desde Rifex.pro.") ya está compuesto visualmente dentro de los assets — nunca se duplica como párrafo visible en pantalla; vive únicamente en un `<h1>` real pero visualmente oculto (sr-only, técnica de accesibilidad estándar, nunca un truco de SEO engañoso) para preservar la estructura semántica.
+
+**Ancho/proporción**: breakout deliberado fuera de `max-width:1200px` (mismo patrón de escape ya certificado en una misión VISUAL-LOCK previa sobre otra ficha pública del catálogo) — `width:95vw; max-width:1700px` centrado, nunca una miniatura con márgenes enormes. Proporción del asset preservada exactamente por breakpoint vía `aspect-ratio` en CSS (nunca `object-fit:cover` recortando contenido) — la imagen completa siempre visible, nunca deformada/estirada/recortada.
+
+**Performance**: ambos PNG originales pesaban ~1.6-1.7MB — se generaron versiones WebP (calidad 82, verificado visualmente sin pérdida perceptible incluso con zoom en el texto de las tarjetas flotantes) de ~114-121KB cada una (-93%), servidas como `<source>` primario con el PNG como fallback final. `width`/`height` explícitos + `aspect-ratio` por breakpoint evitan layout shift; `fetchpriority="high"` prioriza el LCP (imagen above-the-fold). Página `/` compila a 2.67 kB (estática).
+
+**Preservado sin cambios**: Navbar, trust strip, capacidades (Eventos/Campañas/Inscripciones/Medidor QR — incluida la card de Inscripciones con su link real), SEO (`/` sigue `PUBLIC_INDEXABLE`, en sitemap, fuera del Disallow, title/description/canonical/JSON-LD Organization+WebSite intactos, sin `noindex` introducido), DEV banner (infraestructura de `_app.js`, nunca tocada).
+
+**Validación**: 14 tests nuevos en `tests/homeHero2026.test.mjs`, regresión completa 1134/1135 (mismo flake histórico de XLSX, no relacionado), build limpio, `git diff --check` limpio. **QA visual**: el Browser pane sí compositó frames en esta sesión (a diferencia de pasadas anteriores) — se verificó `currentSrc`/`matchMedia`/ausencia de doble descarga en vivo en 375/1024/1280px; la medición pixel-perfecta de layout (`getBoundingClientRect`) no fue posible por una limitación puntual del pane en ese momento, documentado honestamente — la aprobación visual final queda para Rodrigo.
+
+Detalle completo: `docs/handover/NUEVA_SESION_PROMPT.md` (mismo día).
+
+**RIFEX HOME HERO 2026 — DEV IMPLEMENTED. PENDING HUMAN VISUAL SIGN-OFF — nunca declarar VISUAL LOCK hasta la aprobación de Rodrigo.**
+
+**Pendiente antes de cerrar la misión**: commit aislado + push a `origin/develop` únicamente (nunca `main`/PROD/tags).
+
+---
+
+## RIFEX MEDIDOR QR V1 — FREE QUOTA ADJUSTMENT (2026-09-09) — DEV only, misión aislada, commit `28abc17`, pushed a `origin/develop`
 
 Sube el cupo gratuito de Medidor QR de 1 a 10 Medidores QR por cuenta/mes calendario — decisión de producto para permitir probar realmente la herramienta antes de tocar el límite. Sigue siendo 100% gratis V1, sin planes pagos, sin mención de Pro/Premium/upgrade. Misión pequeña y aislada sobre el baseline recién certificado `12bfc8b` — no rediseña Medidor QR, no agrega funcionalidades, no toca ningún otro módulo.
 
@@ -17,8 +41,6 @@ Sube el cupo gratuito de Medidor QR de 1 a 10 Medidores QR por cuenta/mes calend
 **Validación**: 16 tests nuevos/reescritos en `tests/medidorQr.test.mjs` (58 total: 46 estáticos + 12 en vivo), regresión completa 1120/1121 (mismo flake histórico de XLSX, no relacionado), build limpio, `git diff --check` limpio. **QA real E2E contra rifex-dev con fixtures desechables** (no solo tests unitarios): creaciones #1/#2/#5/#9/#10 permitidas con el contador exacto en cada checkpoint (1/10, 2/10, 5/10, 9/10, 10/10); intento #11 rechazado sin dejar Medidor huérfano; **carrera real en el borde 9/10** (dos creaciones simultáneas para el slot #10 vía `Promise.all` contra la RPC real) → exactamente una gana, resultado final 10/10, **nunca 11/10**; usuario B no consume el cupo de usuario A aunque A ya esté en 10/10; cambio de período (mes) restaura el cupo; borrar/cerrar un Medidor confirmado que no libera cupo. Todos los fixtures eliminados y verificados en cero tras cada test (un residuo de una corrida fallida intermedia también se limpió manualmente antes del cierre).
 
 Detalle completo del mecanismo: [docs/medidor-qr/MEDIDOR_QR_V1.md](medidor-qr/MEDIDOR_QR_V1.md), sección "Cupo mensual".
-
-**Pendiente antes de cerrar la misión**: commit aislado + push a `origin/develop` únicamente (nunca `main`/PROD/tags).
 
 ---
 

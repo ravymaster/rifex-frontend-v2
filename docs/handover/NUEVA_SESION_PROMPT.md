@@ -1,10 +1,49 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-09 (actualización más reciente) — **RIFEX MEDIDOR QR V1:
-> FREE QUOTA ADJUSTMENT, DEV only, misión pequeña y aislada sobre
-> el baseline recién certificado `12bfc8b`, PENDIENTE DE
-> COMMIT/PUSH.** Sube el cupo gratuito de Medidor QR de 1 a 10
+> 2026-09-09 (actualización más reciente) — **RIFEX HOME HERO 2026
+> (FINAL VISUAL LOCK), DEV only, worktree aislado
+> `dev/home-hero-2026-09-09` sobre el baseline recién certificado
+> `28abc17`, PENDING HUMAN VISUAL SIGN-OFF — nunca declarar VISUAL
+> LOCK hasta que Rodrigo apruebe.** Reemplaza el Hero de Home por
+> dos assets aprobados por Rodrigo
+> (`public/images/hero/hero-rifex-{desktop,mobile}.{png,webp}`,
+> composiciones deliberadamente distintas — desktop 1672×941
+> horizontal, mobile 941×1672 vertical). Última misión visual
+> antes de una eventual promoción selectiva a PROD — sin tocar
+> DB, sin migraciones, sin lógica funcional de ningún módulo.
+> Selección responsive real vía `<picture>`/`<source>` nativo,
+> breakpoint 1024px (elegido por la composición real de ambos
+> assets: a 1024px el mobile daría un Hero de ~1820px de alto, a
+> 768/820px el texto del desktop quedaría ilegible), verificado en
+> vivo (`currentSrc`/`matchMedia`/network requests en
+> 375/1024/1280px) que se descarga exactamente un asset por
+> viewport. Sin CTAs (decisión de producto final — "Crear un
+> evento"/"Crear una campaña" retirados), sin texto HTML duplicado
+> del mensaje ya compuesto en los assets — un `<h1>` real pero
+> sr-only preserva SEO/accesibilidad. Breakout fuera de
+> `max-width:1200px` (mismo patrón ya certificado en una misión
+> VISUAL-LOCK previa) para aprovechar el ancho; `aspect-ratio` por
+> breakpoint preserva la proporción exacta, nunca recorte/
+> deformación. PNG originales ~1.6-1.7MB → WebP generados (calidad
+> 82, sin pérdida perceptible) de ~114-121KB (-93%). Preservado:
+> Navbar, trust strip, capacidades (Eventos/Campañas/
+> Inscripciones/Medidor QR), SEO de Home intacto (PUBLIC_INDEXABLE,
+> sitemap, canonical, JSON-LD), DEV banner. 14 tests nuevos
+> (`tests/homeHero2026.test.mjs`), regresión 1134/1135 (mismo
+> flake histórico de XLSX), build limpio (`/` 2.67 kB estática).
+> QA visual: el Browser pane sí compositó frames esta vez —
+> selección de asset/no-doble-descarga verificada en vivo; la
+> medición pixel-perfecta de layout no fue posible por una
+> limitación puntual del pane, documentado honestamente. Detalle:
+> `docs/WOP.md`, "RIFEX HOME HERO 2026 — FINAL VISUAL LOCK". **Si
+> retomás esto: falta exclusivamente el commit aislado + push a
+> `origin/develop` (nunca `main`/PROD/tags), y la aprobación visual
+> humana de Rodrigo antes de cualquier promoción a PROD.**
+>
+> 2026-09-09 — **RIFEX MEDIDOR QR V1:
+> FREE QUOTA ADJUSTMENT, commit `28abc17`, pushed a
+> `origin/develop`.** Sube el cupo gratuito de Medidor QR de 1 a 10
 > Medidores QR por cuenta/mes calendario — sigue siendo 100%
 > gratis V1, sin planes pagos. El mecanismo cambió: una constraint
 > `UNIQUE(organizer_id, period_key)` solo puede expresar "máximo
@@ -22,9 +61,8 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > #11 rechazada sin huérfano, carrera real en el borde 9/10
 > (`Promise.all`) → exactamente una gana, nunca 11/10, usuario B
 > no bloqueado por A. Detalle: `docs/medidor-qr/MEDIDOR_QR_V1.md`,
-> sección "Cupo mensual". **Si retomás esto: falta exclusivamente
-> el commit aislado + push a `origin/develop` (nunca
-> `main`/PROD/tags).**
+> sección "Cupo mensual". **Commit `28abc17`, pushed a
+> `origin/develop`.**
 >
 > 2026-09-09 — **RIFEX MEDIDOR QR V1,
 > DEV only, worktree aislado `dev/medidor-qr-v1-2026-09-b` desde
