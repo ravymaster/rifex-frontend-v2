@@ -4,7 +4,23 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
-## RIFEX HOME HERO 2026 — FINAL VISUAL LOCK (2026-09-09) — DEV only, worktree aislado `dev/home-hero-2026-09-09` desde `origin/develop@28abc17`, PENDING HUMAN VISUAL SIGN-OFF
+## RIFEX HOME HERO 2026 — DESKTOP CROSS-BROWSER FIX (2026-09-09) — DEV only, worktree aislado `dev/home-hero-desktop-fix-2026-09-09` desde `origin/develop@49250d3`, PENDING HUMAN VISUAL SIGN-OFF
+
+Rodrigo reportó tras QA humana real (capturas propias) que el Hero desktop se veía inconsistente entre navegadores: en Chrome/Edge Windows la imagen entraba completa pero "muy justa" al contenedor; en Firefox Linux se recortaba lateralmente, perdiendo las letras iniciales de "Recauda"/"Vende entradas"/"Gestiona inscripciones"/"Mide respuestas". Mobile y Medidor QR ya habían sido aprobados y quedaron fuera de alcance — no se tocó ningún asset, ni el breakpoint mobile, ni nada de Medidor QR.
+
+**Causa raíz identificada** (no un parche por navegador): `.heroPictureWrap` (el wrapper del `<picture>`) es hijo directo de `.hero` — una `<section>` ya de ancho completo, nunca envuelta por `.container`. La versión anterior igual le aplicaba el patrón de "breakout" (`position:relative; left:50%; transform:translateX(-50%); width:95vw`) copiado de una misión VISUAL-LOCK previa donde sí hacía falta escapar un `max-width:1200px` — acá no existía tal contenedor del que escapar. `vw` mide contra el viewport completo (incluye el área reservada para la scrollbar), mientras que `left:50%` mide contra el ancho del padre (que la excluye) — con `.hero{overflow:hidden}` ese desfase recorta un borde del asset, y la magnitud varía según el ancho real de la scrollbar de cada navegador/SO — por eso el corte solo era visible en algunas combinaciones (Firefox Linux) y "muy justo" en otras (Chrome/Edge Windows).
+
+**Fix**: se retiró el breakout completo — `.heroPictureWrap { width: min(95%, 1700px); margin: 0 auto 8px; }`, sin `position`/`left`/`transform`/`vw`. Elimina la causa raíz estructuralmente para todos los navegadores/SO a la vez, en vez de parchear Firefox específicamente (explícitamente prohibido por el mandato).
+
+**Verificación realizada**: computed styles confirman `position:static; left:auto; transform:none` y `width` resuelto a `min(95%, 1700px)` en 1920/1600/1440/1366/1280/1024px; `currentSrc`/`matchMedia` confirman el corte exacto en el breakpoint 1023→mobile/1024→desktop sigue intacto; `document.documentElement.scrollWidth === innerWidth` en todos los anchos probados (sin overflow horizontal a nivel de documento); mobile (375/390/414) confirmado sin cambios — mismo asset/dimensiones naturales (941×1672) que antes. **Limitación honesta**: el compositing de frames del Browser pane no estuvo disponible en esta sesión (mismo límite puntual documentado en misiones previas) — no se pudo tomar un screenshot pixel-perfecto ni probar Firefox/Edge reales dentro de esta herramienta (solo un motor Chromium-like está disponible acá). La verificación se hizo por mecánica CSS + DOM/estilos computados, no por inspección visual directa — la certificación visual final en los tres navegadores reales (Chrome/Edge Windows, Firefox Linux) queda, como ya estaba previsto, para Rodrigo.
+
+**Tests**: 2 tests nuevos/reescritos en `tests/homeHero2026.test.mjs` (test 9 actualizado al nuevo CSS, test 9b nuevo que falla si el breakout `left:50%`/`translateX`/`vw` vuelve a aparecer en `.heroPictureWrap`) — 15/15 pass. Regresión completa 1135/1150 (14 skip = tests vivos de Medidor QR sin credenciales DB en este entorno estático, no relacionados; 1 fail = mismo flake histórico conocido de XLSX `eventAnalyticsWorkbook.test.mjs`, firma exacta ya documentada). Build limpio, `/` sigue en 2.67 kB estático. `git diff --check` limpio — diff acotado a `src/styles/index.module.css` (35 líneas) y `tests/homeHero2026.test.mjs` (12 líneas), cero archivos de Medidor QR/Rifas/Eventos/Campañas/Inscripciones/Payment Engine tocados.
+
+**RIFEX HOME HERO 2026 — DEV IMPLEMENTED. PENDING HUMAN VISUAL SIGN-OFF** — la promoción selectiva a PROD (ya autorizada conceptualmente por el mandato) permanece bloqueada hasta que Rodrigo confirme visualmente en Firefox Linux y Chrome/Edge Windows que el defecto quedó resuelto.
+
+---
+
+## RIFEX HOME HERO 2026 — FINAL VISUAL LOCK (2026-09-09) — DEV only, worktree aislado `dev/home-hero-2026-09-09` desde `origin/develop@28abc17`, commit `49250d3`, pushed a `origin/develop`
 
 Reemplaza la composición del Hero de Home por dos assets aprobados por Rodrigo (`hero-rifex-desktop.png`/`hero-rifex-mobile.png`, movidos a `public/images/hero/` — mismo patrón ya usado por el hero anterior, verificado antes de asumir la ruta) — composiciones deliberadamente distintas (desktop 1672×941 horizontal con métricas flotantes y fila de 4 capacidades; mobile 941×1672 vertical con grilla 2×2), no el mismo archivo escalado. **Última misión visual antes de una eventual promoción selectiva a PROD — NO se promovió nada a PROD en esta misión, NO se tocó base de datos, NO se creó ninguna migración, NO se modificó lógica funcional de ningún módulo.**
 
@@ -24,7 +40,7 @@ Detalle completo: `docs/handover/NUEVA_SESION_PROMPT.md` (mismo día).
 
 **RIFEX HOME HERO 2026 — DEV IMPLEMENTED. PENDING HUMAN VISUAL SIGN-OFF — nunca declarar VISUAL LOCK hasta la aprobación de Rodrigo.**
 
-**Pendiente antes de cerrar la misión**: commit aislado + push a `origin/develop` únicamente (nunca `main`/PROD/tags).
+Commit `49250d3`, pushed a `origin/develop`. **Nota (2026-09-09, misma sesión)**: Rodrigo hizo QA humana real y reportó un defecto de desktop cross-browser sobre este mismo Hero — ver entrada "DESKTOP CROSS-BROWSER FIX" arriba (más reciente).
 
 ---
 

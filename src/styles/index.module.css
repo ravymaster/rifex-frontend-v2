@@ -37,20 +37,29 @@
 }
 
 /* =========================================================
-   HERO — RIFEX HOME HERO 2026. Breakout deliberado fuera de
-   `.container` (mismo patrón ya certificado en VISUAL-LOCK,
-   rifaDetalle.module.css): el Hero debe aprovechar casi todo el ancho
-   de pantalla en vez de quedar acotado a max-width:1200px como el
-   resto de Home. 95vw + tope en 1700px evita además agrandar la
-   imagen mucho más allá de su resolución nativa (1672px de ancho) en
-   monitores ultra anchos, para no perder nitidez.
-   ========================================================= */
+   HERO — RIFEX HOME HERO 2026. `.heroPictureWrap` es hijo directo de
+   `.hero` (una <section> ya de ancho completo, NUNCA envuelta por
+   `.container`) — a diferencia del patrón de breakout usado en
+   VISUAL-LOCK (rifaDetalle.module.css), acá no hay ningún
+   `max-width:1200px` del que escapar, así que no hace falta
+   `left:50%/transform:translateX(-50%)/vw`. Un `width:min(95%,1700px)`
+   simple centra el bloque dentro de `.hero` con casi todo el ancho de
+   pantalla, tope en 1700px para no agrandar la imagen mucho más allá
+   de su resolución nativa (1672px) en monitores ultra anchos.
+   FIX DESKTOP CROSS-BROWSER (2026-09-09): la versión anterior usaba
+   `left:50%; transform:translateX(-50%); width:95vw` — ese breakout
+   solo tiene sentido para escapar un contenedor angosto, y acá no
+   existía tal contenedor. `vw` mide contra el viewport completo
+   (incluye el área reservada para la scrollbar), mientras que
+   `left:50%` mide contra el ancho del padre (que excluye esa
+   scrollbar) — con `.hero{overflow:hidden}` ese desfase recorta un
+   borde del asset, y la magnitud del desfase varía según el ancho real
+   de la scrollbar de cada navegador/SO (por eso el corte solo era
+   visible en algunas combinaciones). `min(95%, 1700px)` sin
+   position/left/transform elimina la causa raíz en vez de parchear
+   por navegador. */
 .heroPictureWrap {
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 95vw;
-  max-width: 1700px;
+  width: min(95%, 1700px);
   margin: 0 auto 8px;
 }
 

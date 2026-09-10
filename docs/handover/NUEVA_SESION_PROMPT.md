@@ -1,11 +1,49 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-09 (actualización más reciente) — **RIFEX HOME HERO 2026
+> 2026-09-09 (actualización más reciente) — **RIFEX HOME HERO 2026:
+> DESKTOP CROSS-BROWSER FIX, DEV only, worktree aislado
+> `dev/home-hero-desktop-fix-2026-09-09` sobre `origin/develop@49250d3`,
+> PENDING HUMAN VISUAL SIGN-OFF.** Rodrigo hizo QA humana real
+> (capturas propias) sobre la misión anterior y reportó el Hero
+> desktop inconsistente entre navegadores: Chrome/Edge Windows con
+> la imagen completa pero "muy justa", Firefox Linux recortando
+> lateralmente y perdiendo las letras iniciales de "Recauda"/"Vende
+> entradas"/"Gestiona inscripciones"/"Mide respuestas". Mobile y
+> Medidor QR ya aprobados, fuera de alcance. **Causa raíz** (no un
+> parche por navegador): `.heroPictureWrap` es hijo directo de
+> `.hero` (ya de ancho completo, nunca envuelto por `.container`),
+> pero heredaba el patrón de "breakout"
+> (`left:50%;transform:translateX(-50%);width:95vw`) de una misión
+> VISUAL-LOCK previa donde sí hacía falta escapar un
+> `max-width:1200px` — acá no existía tal contenedor. `vw` mide el
+> viewport completo (incluye la scrollbar), `left:50%` mide el
+> ancho del padre (la excluye); con `.hero{overflow:hidden}` ese
+> desfase recorta un borde, con magnitud distinta por navegador/SO.
+> **Fix**: `.heroPictureWrap { width: min(95%, 1700px); margin: 0
+> auto 8px; }` — sin `position`/`left`/`transform`/`vw`, elimina la
+> causa raíz para todos los navegadores/SO a la vez. Verificado por
+> computed styles + DOM (no screenshot — Browser pane sin
+> compositing esta vez, mismo límite puntual ya documentado; solo
+> un motor tipo Chromium disponible en esta herramienta, sin
+> Firefox/Edge reales): corte 1023→mobile/1024→desktop intacto,
+> sin overflow horizontal en 1024-1920px, mobile 375/390/414 sin
+> cambios. 2 tests nuevos/reescritos (15/15 pass), regresión
+> 1135/1150 (14 skip = vivos de Medidor QR sin credenciales DB, no
+> relacionados; 1 fail = mismo flake XLSX), build limpio, diff
+> acotado a 2 archivos (`index.module.css`,
+> `homeHero2026.test.mjs`). Detalle: `docs/WOP.md`, "RIFEX HOME
+> HERO 2026 — DESKTOP CROSS-BROWSER FIX". **Si retomás esto: falta
+> exclusivamente el commit aislado + push a `origin/develop`, y la
+> confirmación visual de Rodrigo en Firefox Linux y Chrome/Edge
+> Windows antes de cualquier promoción a PROD.**
+>
+> 2026-09-09 — **RIFEX HOME HERO 2026
 > (FINAL VISUAL LOCK), DEV only, worktree aislado
 > `dev/home-hero-2026-09-09` sobre el baseline recién certificado
-> `28abc17`, PENDING HUMAN VISUAL SIGN-OFF — nunca declarar VISUAL
-> LOCK hasta que Rodrigo apruebe.** Reemplaza el Hero de Home por
+> `28abc17`, commit `49250d3`, pushed a `origin/develop`, PENDING
+> HUMAN VISUAL SIGN-OFF — nunca declarar VISUAL LOCK hasta que
+> Rodrigo apruebe.** Reemplaza el Hero de Home por
 > dos assets aprobados por Rodrigo
 > (`public/images/hero/hero-rifex-{desktop,mobile}.{png,webp}`,
 > composiciones deliberadamente distintas — desktop 1672×941
@@ -36,10 +74,11 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > selección de asset/no-doble-descarga verificada en vivo; la
 > medición pixel-perfecta de layout no fue posible por una
 > limitación puntual del pane, documentado honestamente. Detalle:
-> `docs/WOP.md`, "RIFEX HOME HERO 2026 — FINAL VISUAL LOCK". **Si
-> retomás esto: falta exclusivamente el commit aislado + push a
-> `origin/develop` (nunca `main`/PROD/tags), y la aprobación visual
-> humana de Rodrigo antes de cualquier promoción a PROD.**
+> `docs/WOP.md`, "RIFEX HOME HERO 2026 — FINAL VISUAL LOCK".
+> Commit `49250d3`, pushed a `origin/develop`. **Nota**: tras esta
+> misión Rodrigo reportó un defecto de desktop cross-browser sobre
+> este mismo Hero — ver la entrada "DESKTOP CROSS-BROWSER FIX"
+> arriba (más reciente).
 >
 > 2026-09-09 — **RIFEX MEDIDOR QR V1:
 > FREE QUOTA ADJUSTMENT, commit `28abc17`, pushed a
