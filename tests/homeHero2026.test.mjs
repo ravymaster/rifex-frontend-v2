@@ -74,16 +74,23 @@ test('8. el mensaje de marca ("Recauda. Vende entradas...") no se duplica como t
   assert.equal(visibleTextBlocks, null, 'no debe existir un párrafo visible duplicando el mensaje del Hero');
 });
 
-test('9. .heroPictureWrap usa casi todo el ancho vía width:min(95%,1700px) centrado, nunca el breakout left:50%/transform/vw — `.heroPictureWrap` es hijo directo de `.hero` (no de `.container`), así que no hay contenedor angosto del que escapar', () => {
+test('9. .heroPictureWrap se centra dentro de `.hero` vía width:min(95%,1700px), sin ningún breakout propio — el breakout real vive en `.hero` (ver test 9c), porque Layout.jsx envuelve toda página en <main class="container"> (max-width:1200px)', () => {
   assert.match(HOME_CSS, /\.heroPictureWrap\s*\{[\s\S]*?width:\s*min\(95%,\s*1700px\);/);
 });
 
-test('9b. FIX DESKTOP CROSS-BROWSER (2026-09-09): `.heroPictureWrap` nunca vuelve a usar left:50%/transform:translateX/width:vw — ese breakout causaba un desfase entre el ancho vw (incluye scrollbar) y left:50% (lo excluye) que `.hero{overflow:hidden}` recortaba de forma distinta por navegador/SO (letras iniciales perdidas en Firefox Linux, imagen muy ajustada en Chrome/Edge Windows)', () => {
+test('9b. `.heroPictureWrap` nunca vuelve a llevar su propio breakout (left:50%/transform:translateX/vw) — anidado dentro de `.hero{overflow:hidden}` sin que `.hero` mismo escape su contenedor, ese breakout quedaba recortado por los límites angostos de `.hero` (causa real del corte de texto en Firefox y el ajuste "muy justo" en Chrome/Edge)', () => {
   const wrapBlock = HOME_CSS.match(/\.heroPictureWrap\s*\{[^}]*\}/)[0];
   assert.doesNotMatch(wrapBlock, /left:\s*50%/);
   assert.doesNotMatch(wrapBlock, /translateX/);
   assert.doesNotMatch(wrapBlock, /\d+vw/);
   assert.doesNotMatch(wrapBlock, /position:\s*relative/);
+});
+
+test('9c. FIX DESKTOP CROSS-BROWSER, segunda pasada: el breakout real vive en `.hero` (width:100vw + margin-left/right:calc(50% - 50vw), sin left/transform) — escapa el <main class="container"> (max-width:1200px) de Layout.jsx para que el Hero use casi todo el ancho de pantalla, en vez de quedar angosto', () => {
+  const heroBlock = HOME_CSS.match(/\n\.hero\s*\{[^}]*\}/)[0];
+  assert.match(heroBlock, /width:\s*100vw;/);
+  assert.match(heroBlock, /margin-left:\s*calc\(50% - 50vw\);/);
+  assert.match(heroBlock, /margin-right:\s*calc\(50% - 50vw\);/);
 });
 
 test('10. proporción del asset preservada por breakpoint (aspect-ratio en CSS, nunca object-fit:cover destruyendo contenido)', () => {

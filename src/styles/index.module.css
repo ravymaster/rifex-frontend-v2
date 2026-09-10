@@ -14,8 +14,31 @@
 /* =========================================================
    HERO
    ========================================================= */
+/* FIX DESKTOP CROSS-BROWSER, segunda pasada (2026-09-09/10): Layout.jsx
+   envuelve TODA página en `<main className="container">` (max-width:1200px,
+   margin:0 auto) — un dato que la primera pasada de este fix pasó por
+   alto (solo se auditó el JSX de index.js, no el de Layout.jsx). Por lo
+   tanto `.hero` SÍ vive dentro de un contenedor angosto y necesita
+   escapar de él para lograr "casi todo el ancho de pantalla". El breakout
+   real correcto vive acá (a nivel de sección, no en `.heroPictureWrap`
+   como antes): técnica estándar `width:100vw` + `margin-left/right:
+   calc(50% - 50vw)` (sin `left`/`transform`, evita crear un desfase
+   extra) — funciona porque `.container` está centrado (`margin:0 auto`)
+   en el viewport, así que el centro de `.hero` coincide con el centro
+   real del viewport. Antes, el breakout vivía en `.heroPictureWrap`
+   (hijo de `.hero`) — pero como `.hero` mismo NUNCA rompía su propio
+   contenedor y tiene `overflow:hidden`, ese breakout interno quedaba
+   recortado por los propios límites (angostos) de `.hero`, cortando
+   ~266px de cada lado del asset en pantallas anchas: la causa real de
+   las letras perdidas en Firefox y del ajuste "muy justo" en Chrome/Edge
+   — no una discrepancia de cálculo de `vw`. Con el breakout ahora en
+   `.hero`, `.heroPictureWrap` ya no necesita escapar nada — ver su
+   propio comentario más abajo. */
 .hero {
   position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
   background: linear-gradient(180deg, var(--homeNavy) 0%, var(--homeNavy2) 100%);
   overflow: hidden;
   padding: 24px 0 0;
@@ -38,26 +61,27 @@
 
 /* =========================================================
    HERO — RIFEX HOME HERO 2026. `.heroPictureWrap` es hijo directo de
-   `.hero` (una <section> ya de ancho completo, NUNCA envuelta por
-   `.container`) — a diferencia del patrón de breakout usado en
-   VISUAL-LOCK (rifaDetalle.module.css), acá no hay ningún
-   `max-width:1200px` del que escapar, así que no hace falta
-   `left:50%/transform:translateX(-50%)/vw`. Un `width:min(95%,1700px)`
-   simple centra el bloque dentro de `.hero` con casi todo el ancho de
-   pantalla, tope en 1700px para no agrandar la imagen mucho más allá
-   de su resolución nativa (1672px) en monitores ultra anchos.
-   FIX DESKTOP CROSS-BROWSER (2026-09-09): la versión anterior usaba
-   `left:50%; transform:translateX(-50%); width:95vw` — ese breakout
-   solo tiene sentido para escapar un contenedor angosto, y acá no
-   existía tal contenedor. `vw` mide contra el viewport completo
-   (incluye el área reservada para la scrollbar), mientras que
-   `left:50%` mide contra el ancho del padre (que excluye esa
-   scrollbar) — con `.hero{overflow:hidden}` ese desfase recorta un
-   borde del asset, y la magnitud del desfase varía según el ancho real
-   de la scrollbar de cada navegador/SO (por eso el corte solo era
-   visible en algunas combinaciones). `min(95%, 1700px)` sin
-   position/left/transform elimina la causa raíz en vez de parchear
-   por navegador. */
+   `.hero`, que ahora sí rompe su propio contenedor (ver el comentario
+   junto a `.hero` arriba) y ocupa el viewport casi completo — así que
+   `.heroPictureWrap` NO necesita ningún breakout propio, solo centrarse
+   dentro del `.hero` ya ancho: `width:min(95%,1700px)` con tope en
+   1700px para no agrandar la imagen mucho más allá de su resolución
+   nativa (1672px) en monitores ultra anchos.
+   FIX DESKTOP CROSS-BROWSER, primera pasada (2026-09-09): esta clase
+   solía llevar el breakout completo (`left:50%; transform:
+   translateX(-50%); width:95vw`) que hoy vive en `.hero`. Se retiró de
+   acá porque, anidado dentro de `.hero{overflow:hidden}` sin que `.hero`
+   mismo escapara su contenedor, ese breakout quedaba recortado por los
+   límites (angostos) del propio `.hero` — cortando ~266px de cada lado
+   del asset en pantallas anchas. Esa es la causa real de las letras
+   perdidas en Firefox y del ajuste "muy justo" en Chrome/Edge; la
+   primera pasada de este fix diagnosticó mal la causa (atribuyéndola a
+   un desfase de cálculo `vw`-vs-scrollbar) y, al solo remover el
+   breakout sin moverlo a `.hero`, arregló el corte pero introdujo una
+   regresión real: el Hero quedaba angosto (~1200px) en pantallas
+   anchas, violando el requisito de "casi todo el ancho de pantalla".
+   Esta segunda pasada mueve el breakout a `.hero` (su lugar
+   arquitectónicamente correcto) y deja esta clase simple. */
 .heroPictureWrap {
   width: min(95%, 1700px);
   margin: 0 auto 8px;

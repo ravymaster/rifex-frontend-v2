@@ -1,42 +1,55 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-09 (actualización más reciente) — **RIFEX HOME HERO 2026:
-> DESKTOP CROSS-BROWSER FIX, DEV only, worktree aislado
-> `dev/home-hero-desktop-fix-2026-09-09` sobre `origin/develop@49250d3`,
-> PENDING HUMAN VISUAL SIGN-OFF.** Rodrigo hizo QA humana real
-> (capturas propias) sobre la misión anterior y reportó el Hero
-> desktop inconsistente entre navegadores: Chrome/Edge Windows con
-> la imagen completa pero "muy justa", Firefox Linux recortando
-> lateralmente y perdiendo las letras iniciales de "Recauda"/"Vende
-> entradas"/"Gestiona inscripciones"/"Mide respuestas". Mobile y
-> Medidor QR ya aprobados, fuera de alcance. **Causa raíz** (no un
-> parche por navegador): `.heroPictureWrap` es hijo directo de
-> `.hero` (ya de ancho completo, nunca envuelto por `.container`),
-> pero heredaba el patrón de "breakout"
-> (`left:50%;transform:translateX(-50%);width:95vw`) de una misión
-> VISUAL-LOCK previa donde sí hacía falta escapar un
-> `max-width:1200px` — acá no existía tal contenedor. `vw` mide el
-> viewport completo (incluye la scrollbar), `left:50%` mide el
-> ancho del padre (la excluye); con `.hero{overflow:hidden}` ese
-> desfase recorta un borde, con magnitud distinta por navegador/SO.
-> **Fix**: `.heroPictureWrap { width: min(95%, 1700px); margin: 0
-> auto 8px; }` — sin `position`/`left`/`transform`/`vw`, elimina la
-> causa raíz para todos los navegadores/SO a la vez. Verificado por
-> computed styles + DOM (no screenshot — Browser pane sin
-> compositing esta vez, mismo límite puntual ya documentado; solo
-> un motor tipo Chromium disponible en esta herramienta, sin
-> Firefox/Edge reales): corte 1023→mobile/1024→desktop intacto,
-> sin overflow horizontal en 1024-1920px, mobile 375/390/414 sin
-> cambios. 2 tests nuevos/reescritos (15/15 pass), regresión
-> 1135/1150 (14 skip = vivos de Medidor QR sin credenciales DB, no
-> relacionados; 1 fail = mismo flake XLSX), build limpio, diff
-> acotado a 2 archivos (`index.module.css`,
-> `homeHero2026.test.mjs`). Detalle: `docs/WOP.md`, "RIFEX HOME
-> HERO 2026 — DESKTOP CROSS-BROWSER FIX". **Si retomás esto: falta
-> exclusivamente el commit aislado + push a `origin/develop`, y la
-> confirmación visual de Rodrigo en Firefox Linux y Chrome/Edge
-> Windows antes de cualquier promoción a PROD.**
+> 2026-09-10 (actualización más reciente) — **RIFEX HOME HERO 2026:
+> DESKTOP CROSS-BROWSER FIX, segunda pasada, sobre commit `4fabad7`,
+> HUMAN VISUAL SIGN-OFF APROBADO (Firefox/Linux).** La primera pasada
+> (commit `4fabad7`, pushed a `origin/develop`, detalle abajo)
+> resolvió el recorte de texto y Rodrigo lo confirmó visualmente en
+> Firefox/Linux — pero un chequeo propio en vivo post-aprobación
+> encontró una regresión real que esa aprobación no capturó: a
+> 1920px, `.hero` medía solo 1168px (≈368px vacíos a cada lado),
+> violando "casi todo el ancho de pantalla". **Causa del error de
+> diagnóstico original**: `Layout.jsx:338` envuelve TODA página en
+> `<main class="container">` (max-width:1200px) — dato pasado por
+> alto en la primera pasada. El breakout SÍ era necesario, solo
+> estaba mal ubicado (en `.heroPictureWrap`, hijo de `.hero`, en vez
+> de en `.hero` mismo) — como `.hero` nunca escapaba su propio
+> contenedor y tiene `overflow:hidden`, el breakout interno quedaba
+> recortado por los límites angostos de `.hero`, cortando ~266px de
+> cada lado — la causa real de las letras perdidas en Firefox, nunca
+> un desfase `vw`-vs-scrollbar como se documentó en la primera
+> pasada. **Fix correcto**: breakout movido a `.hero`
+> (`width:100vw; margin-left/right:calc(50% - 50vw)`),
+> `.heroPictureWrap` vuelve a ser simple. Verificado en vivo: `.hero`
+> mide el viewport completo en 1920/1600/1440/1366/1280px sin
+> overflow horizontal, corte 1023→mobile/1024→desktop y mobile 375px
+> intactos. 2 tests nuevos/reescritos (16/16 pass, test 9c blinda
+> contra que el breakout vuelva a `.heroPictureWrap`), regresión
+> 1136/1151 (mismo flake XLSX), build limpio. Detalle:
+> `docs/WOP.md`, "DESKTOP CROSS-BROWSER FIX, segunda pasada". **Si
+> retomás esto: falta exclusivamente el commit + push a
+> `origin/develop`, luego proceder con la promoción selectiva a PROD
+> ya autorizada por Rodrigo** (Medidor QR V1 + cuota 10/mes + Home
+> Hero 2026 final; NO merge ciego develop→main, release branch desde
+> `origin/main`).
+>
+> 2026-09-09 — **RIFEX HOME HERO 2026:
+> DESKTOP CROSS-BROWSER FIX, primera pasada, commit `4fabad7`, pushed
+> a `origin/develop`, HUMAN VISUAL SIGN-OFF APROBADO (Firefox/Linux).**
+> Rodrigo hizo QA humana real (capturas propias) sobre la misión
+> anterior y reportó el Hero desktop inconsistente entre navegadores:
+> Chrome/Edge Windows con la imagen completa pero "muy justa",
+> Firefox Linux recortando lateralmente y perdiendo las letras
+> iniciales de "Recauda"/"Vende entradas"/"Gestiona
+> inscripciones"/"Mide respuestas". Mobile y Medidor QR ya aprobados,
+> fuera de alcance. Fix (ver corrección arriba): `.heroPictureWrap {
+> width: min(95%, 1700px); margin: 0 auto 8px; }`. 2 tests nuevos
+> (15/15 pass), regresión 1135/1150 (mismo flake XLSX), build limpio,
+> diff acotado a 2 archivos. Rodrigo confirmó visualmente en
+> Firefox/Linux (completo, centrado, sin recorte) y autorizó la
+> promoción a PROD. Detalle: `docs/WOP.md`, "DESKTOP CROSS-BROWSER
+> FIX, primera pasada".
 >
 > 2026-09-09 — **RIFEX HOME HERO 2026
 > (FINAL VISUAL LOCK), DEV only, worktree aislado
