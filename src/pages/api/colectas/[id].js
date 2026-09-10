@@ -4,6 +4,7 @@
 // genérico (no se distingue "existe pero es privada" de "no existe").
 import { createClient } from '@supabase/supabase-js';
 import { deriveEffectiveStatus } from '@/lib/colectaStatus';
+import { idOrSlugColumn } from '@/lib/idOrSlug';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,8 +23,8 @@ export default async function handler(req, res) {
   try {
     const { data: colecta, error } = await supabase
       .from('colectas')
-      .select('id, creator_id, title, description, cover_image_url, gallery_urls, status, goal_cents, start_at, end_at, created_at')
-      .eq('id', id)
+      .select('id, creator_id, title, description, cover_image_url, gallery_urls, status, goal_cents, start_at, end_at, created_at, slug')
+      .eq(idOrSlugColumn(id), id)
       .in('status', ['active', 'closed'])
       .maybeSingle();
     if (error) throw error;
@@ -38,10 +39,12 @@ export default async function handler(req, res) {
     // Recaudado y cantidad de aportes son públicos (solo el total, nunca
     // los aportes individuales — colecta_contributions sigue sin RLS
     // pública), calculados en vivo igual que en el panel del creador.
+    // Usa colecta.id (UUID real ya resuelto), nunca el id crudo de la URL
+    // — colecta_contributions.colecta_id siempre almacena el UUID.
     const { data: approved, error: cErr } = await supabase
       .from('colecta_contributions')
       .select('amount_cents')
-      .eq('colecta_id', id)
+      .eq('colecta_id', colecta.id)
       .eq('status', 'approved');
     if (cErr) throw cErr;
     const raisedCents = (approved || []).reduce((sum, r) => sum + (r.amount_cents || 0), 0);
@@ -51,6 +54,7 @@ export default async function handler(req, res) {
       ok: true,
       colecta: {
         id: colecta.id,
+        slug: colecta.slug || null,
         title: colecta.title,
         description: colecta.description,
         cover_image_url: colecta.cover_image_url,

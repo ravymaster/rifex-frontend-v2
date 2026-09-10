@@ -45,15 +45,19 @@ export default function EventoPublico() {
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState(null);
 
+  // RIFEX HUMAN URL STANDARD 2026: `id` en la URL puede ser el UUID real
+  // o el slug humano — solo /api/events/[id]/index.js resuelve ambos.
+  // Todo lo demás (ticket-types, expire-orders, checkout) sigue exigiendo
+  // el UUID real, así que se resuelve UNA vez acá y se reutiliza
+  // `event.id` para toda llamada posterior — nunca el `id` crudo de la
+  // URL de nuevo (mismo criterio ya certificado en colectas/[id].jsx).
   const load = useCallback(async () => {
     try {
-      const [evRes, ttRes] = await Promise.all([
-        fetch(`/api/events/${id}`),
-        fetch(`/api/events/${id}/ticket-types`),
-      ]);
+      const evRes = await fetch(`/api/events/${id}`);
       const evData = await evRes.json();
       if (!evRes.ok || !evData.ok) throw new Error(evData.error === 'not_found' ? 'Evento no encontrado' : 'No se pudo cargar el evento');
       setEvent(evData.event);
+      const ttRes = await fetch(`/api/events/${evData.event.id}/ticket-types`);
       const ttData = await ttRes.json();
       if (ttRes.ok && ttData.ok) setTicketTypes(ttData.items || []);
     } catch (e) {
@@ -67,12 +71,14 @@ export default function EventoPublico() {
 
   // EVENT-2 (Fase 21): liberar reservas vencidas de ESTE evento — mismo
   // patrón lazy ya certificado en rifas/[id].jsx (fetch al cargar +
-  // setInterval cada 30s mientras la página sigue abierta).
+  // setInterval cada 30s mientras la página sigue abierta). Usa
+  // event.id (UUID ya resuelto), nunca el id/slug crudo de la URL.
   useEffect(() => {
-    if (!id) return;
+    const eventId = event?.id;
+    if (!eventId) return;
     const hit = async () => {
       try {
-        const r = await fetch(`/api/events/${id}/expire-orders`);
+        const r = await fetch(`/api/events/${eventId}/expire-orders`);
         const j = await r.json().catch(() => null);
         if (j?.ok && j.released > 0) await load();
       } catch { /* silencioso, best-effort */ }
@@ -80,7 +86,7 @@ export default function EventoPublico() {
     hit();
     const timer = setInterval(hit, 30_000);
     return () => clearInterval(timer);
-  }, [id, load]);
+  }, [event?.id, load]);
 
   function availability(t) {
     return Math.max(0, (t.quantity_total || 0) - (t.quantity_sold || 0) - (t.quantity_reserved || 0));
@@ -110,7 +116,7 @@ export default function EventoPublico() {
     }
     setBuying(true);
     try {
-      const res = await fetch(`/api/events/${id}/checkout`, {
+      const res = await fetch(`/api/events/${event.id}/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

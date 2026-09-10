@@ -1,7 +1,33 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público en PROD).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-08 (actualización más reciente) — **RIFEX RAFFLE EXPERIENCE
+> 2026-09-10 (actualización más reciente) — **RIFEX HUMAN URL STANDARD
+> 2026 — PROD PROMOTION.** `origin/main` avanza de `430594a` (tag
+> `v3.2-rifex-prod-medidor-qr-home-hero`), promoviendo URLs humanas
+> (`/eventos/<slug>`, `/colectas/<slug>`, `/inscripcion/<slug>`) para
+> Eventos/Campañas/Inscripciones + consolidación canonical de Rifas
+> hacia el slug, certificado en `origin/develop @ 92ef4445` (DEV
+> CERTIFIED, 29/29 tests, regresión 1165/1180), vía release branch
+> aislada `release/human-url-standard-2026-09-10`. Divergencia real:
+> 42 archivos; 14 promovidos (1 migración aditiva — `slug` + índice
+> único parcial en `events`/`colectas`/`registration_activities`,
+> nuevo overload de `create_free_registration_activity`, original de
+> 13 params intacto —, resolución dual `idOrSlugColumn` en el
+> endpoint de lectura de cada módulo, corrección de 3 bugs reales de
+> reuso de id/slug crudo, 1 test nuevo de 29 escenarios), 28
+> excluidos (mismo motivo ya documentado para
+> `2026-09-07_raffle_slug_features.sql` — `main` más avanzada;
+> DEV-tooling; Blog/Difusión/Trust/Public-Surface ajenos). QR ya vivos
+> y Medidor QR completo sin tocar — decisión deliberada.
+> `checkout/mp.js`/`checkout/colecta.js`/`checkout/webhook.js`/
+> `events/[id]/checkout.js`/`inscripciones/[id]/register.js`/
+> `medidor-qr/*` diff = 0 líneas contra `main`. Detalle: `docs/WOP.md`,
+> "RIFEX HUMAN URL STANDARD 2026 — PROD PROMOTION (2026-09-10)". **Si
+> retomas esto: pendiente aplicar migración PROD, push a main, smoke,
+> tag `v3.3-rifex-prod-human-urls` — todo sujeto a autorización
+> explícita, no iniciado hasta confirmación.**
+>
+> 2026-09-08 — **RIFEX RAFFLE EXPERIENCE
 > 2026 — PROD PROMOTION.** `origin/main` avanza de `84708a9` (tag
 > `v3.0.1-rifex-prod-panel-pagination`), promoviendo el stack completo
 > de Rifas certificado en `origin/develop @ c3a3553` (VISUAL LOCK, QA

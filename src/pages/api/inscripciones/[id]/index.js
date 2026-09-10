@@ -11,6 +11,7 @@
 // cliente puede tocarlos); status solo cambia vía publish.js/status.js.
 import { createClient } from '@supabase/supabase-js';
 import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
+import { idOrSlugColumn } from '@/lib/idOrSlug';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -50,7 +51,7 @@ export default async function handler(req, res) {
     const { data: activity, error: fetchErr } = await supabase
       .from('registration_activities')
       .select('*')
-      .eq('id', id)
+      .eq(idOrSlugColumn(id), id)
       .maybeSingle();
     if (fetchErr) throw fetchErr;
     if (!activity) return res.status(404).json({ ok: false, error: 'not_found' });
@@ -152,7 +153,7 @@ export default async function handler(req, res) {
       const { data: updated, error: updErr } = await supabase
         .from('registration_activities')
         .update(patch)
-        .eq('id', id)
+        .eq('id', activity.id)
         .select('*')
         .single();
       if (updErr) throw updErr;

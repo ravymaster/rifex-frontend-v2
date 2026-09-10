@@ -22,6 +22,7 @@ import { createClient } from '@supabase/supabase-js';
 import { assertOnboardingComplete, getOnboardingRecord } from '@/lib/trustOnboardingGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { currentFreePeriodKey, nextFreePeriodStartsAt } from '@/lib/registrationFreeQuota';
+import { slugify } from '@/lib/slugify';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,6 +34,12 @@ const MODALITIES = ['presencial', 'online', 'hibrida'];
 const MAX_TITLE = 140;
 const MAX_DESCRIPTION = 5000;
 const MAX_SHORT_TEXT = 200;
+// RIFEX HUMAN URL STANDARD 2026: misma primitiva ya certificada en
+// /api/rifas — slug generado server-side desde el título, reintento
+// acotado solo ante colisión real (23505 en el índice único parcial de
+// registration_activities.slug) — nunca ante free_quota_already_used
+// (P0001), que rompe el loop en el primer intento igual que antes.
+const MAX_SLUG_ATTEMPTS = 5;
 const MAX_INSTRUCTIONS = 3000;
 
 async function getRequester(req) {
@@ -106,21 +113,31 @@ export default async function handler(req, res) {
 
     const periodKey = currentFreePeriodKey(new Date());
 
-    const { data: activity, error: rpcErr } = await supabase.rpc('create_free_registration_activity', {
-      p_organizer_id: user.id,
-      p_period_key: periodKey,
-      p_title: title,
-      p_description: description,
-      p_cover_image_url: coverImageUrl,
-      p_starts_at: startsAt.toISOString(),
-      p_ends_at: endsAt ? endsAt.toISOString() : null,
-      p_timezone: timezone,
-      p_venue_name: venueName,
-      p_address: address,
-      p_modality: modality,
-      p_instructions: instructions,
-      p_organizer_name_snapshot: organizerNameSnapshot,
-    });
+    const baseSlug = slugify(title) || 'actividad';
+    let activity = null;
+    let rpcErr = null;
+    for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+      const slug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 5)}`;
+      const result = await supabase.rpc('create_free_registration_activity', {
+        p_organizer_id: user.id,
+        p_period_key: periodKey,
+        p_title: title,
+        p_description: description,
+        p_cover_image_url: coverImageUrl,
+        p_starts_at: startsAt.toISOString(),
+        p_ends_at: endsAt ? endsAt.toISOString() : null,
+        p_timezone: timezone,
+        p_venue_name: venueName,
+        p_address: address,
+        p_modality: modality,
+        p_instructions: instructions,
+        p_organizer_name_snapshot: organizerNameSnapshot,
+        p_slug: slug,
+      });
+      if (!result.error) { activity = result.data; rpcErr = null; break; }
+      rpcErr = result.error;
+      if (result.error.code !== '23505') break;
+    }
 
     if (rpcErr) {
       if (rpcErr.code === 'P0001' || /free_quota_already_used/.test(rpcErr.message || '')) {

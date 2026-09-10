@@ -4,6 +4,31 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFEX HUMAN URL STANDARD 2026 — PROD PROMOTION (2026-09-10)
+
+`origin/main`/PROD avanza de `430594a` (tag `v3.2-rifex-prod-medidor-qr-home-hero`), promoviendo URLs humanas (`/eventos/<slug>`, `/colectas/<slug>`, `/inscripcion/<slug>`) para Eventos, Campañas (Colectas) e Inscripciones, más la consolidación canonical de Rifas hacia el slug, certificado en `origin/develop @ 92ef4445` (DEV CERTIFIED, 29/29 tests, regresión 1165/1180, verificación en vivo de resolución dual UUID/slug contra `rifex-dev`), vía release branch aislada `release/human-url-standard-2026-09-10` construida desde `origin/main` — sin merge/rebase de la historia de `develop`.
+
+**Divergencia real de dos puntos (archivos, no commits)**: 42 archivos difieren entre `main` y `develop`; **14 promovidos**, 28 excluidos.
+
+**Promovido**: 1 migración aditiva (`2026-09-10_human_url_standard.sql` — columna `slug` nullable + índice único parcial en `events`/`colectas`/`registration_activities`, backfill determinístico, nuevo overload de `create_free_registration_activity` con `p_slug`, el original de 13 parámetros intacto); 6 endpoints API (resolución dual `idOrSlugColumn` en el endpoint de lectura de cada módulo, generación vía `slugify()`+retry-en-`23505` en cada creación, corrección de 3 bugs reales de reuso de id/slug crudo en vez del UUID ya resuelto); 3 páginas públicas (`eventos/[id].jsx`, `inscripcion/[id].jsx` — reusan el UUID resuelto en llamadas posteriores; `rifas/[id].jsx` — único cambio: canonical/og:url consolidan hacia el slug); 1 archivo de test nuevo (`humanUrlStandard2026.test.mjs`, 29 escenarios).
+
+**Excluido, con motivo verificado**:
+- `db/migrations/2026-09-07_raffle_slug_features.sql`: **`main` tiene la versión más avanzada** (mismo motivo ya documentado en la promoción de RAFFLE EXPERIENCE 2026 — incluye `requires_transfer_procedures`/`transfer_expenses_owner`/`transfer_conditions` que `develop` no tiene). Nunca tocada.
+- `db/migrations/2026-08-26d5_ar2_country_columns_reconstructed.sql`: existe solo en `main` (nunca se mergea la historia de `develop`); no se toca ni se borra.
+- `docs/difusion/DIFUSION_V1.md`, `docs/inscripciones/*` (4 archivos), `docs/public-surface/*` (3 archivos), `docs/trust/PROGRESSIVE_ONBOARDING_GATE.md`, `docs/releases/*` (4 archivos): deriva documental preexistente de otros módulos DEV-only sin relación con esta misión.
+- `src/components/DevBanner.jsx`, `src/lib/captchaGate.js`, `_app.js`/`login.jsx`/`register.jsx`: tooling exclusivo DEV, mismo patrón de exclusión de toda promoción anterior — `main` certifica su ausencia con `authUxCrawler.test.mjs`, versión de `main` preservada.
+- `src/components/rifex/BuyerForm.jsx`, `RaffleIntroModal.jsx`: cambios de Rifas ajenos, ya reportados y excluidos en la promoción anterior (bug colateral `selected=[]` vs `quantity={quantity}`, sin corregir, fuera de alcance de esta misión también).
+- `src/pages/api/blog/*`, `src/pages/blog/index.js`, `tests/authUxCrawler.test.mjs`, `tests/blogPrivateProd.test.mjs`, `tests/homeHero2026.test.mjs`: reorden de Blog y tests ajenos, sin relación con URLs humanas.
+- `docs/WOP.md`/`docs/CURRENT_STATE.md`/`docs/handover/NUEVA_SESION_PROMPT.md`: no se copia la versión de `develop` (arrastra el changelog completo de misiones DEV-only ajenas) — se edita la versión propia de `main` con esta entrada, mismo patrón que toda promoción anterior.
+
+**Payment Engine/checkout/webhook/comisión/Medidor QR intactos**: `git diff origin/main -- src/pages/api/checkout/mp.js src/pages/api/checkout/colecta.js src/pages/api/checkout/webhook.js src/pages/api/events/[id]/checkout.js src/pages/api/inscripciones/[id]/register.js src/pages/api/medidor-qr/index.js src/pages/api/medidor-qr/[id]/index.js src/pages/m/[slug].jsx` = 0 líneas. Los QR ya vivos que codifican UUID (`api/rifas/[id]/qr.png.js`, `api/colectas/[id]/qr.png.js`) y los de token opaco (`events/tickets/[token]/qr.png.js`, `inscripciones/i/[token]/qr.png.js`) quedan sin tocar — decisión deliberada, la resolución dual ya garantiza que sigan funcionando.
+
+**Validación**: 29/29 tests específicos verdes; regresión completa verde salvo el mismo flake histórico y ajeno de XLSX (`eventAnalyticsWorkbook.test.mjs`); build limpio; `git diff --check` limpio; clasificación de 14/14 archivos promovidos verificada — los 9 archivos de código confirmados idénticos entre `main` actual y el padre de `develop` (`8249258`) antes de la copia, cero riesgo de contaminación cruzada.
+
+**Estado**: release branch verificada localmente, pendiente de autorización explícita para push a `origin/main`. Tag final (`v3.3-rifex-prod-human-urls`, propuesto) se crea únicamente después del smoke PROD.
+
+---
+
 ## RIFEX PRODUCT EXPERIENCE 2026 — MEDIDOR QR V1 + HOME HERO — PROD PROMOTION (2026-09-10)
 
 `origin/main`/PROD avanza de `9885ca3` (release RIFEX RAFFLE EXPERIENCE 2026), promoviendo Medidor QR V1 (herramienta gratuita de adquisición: pregunta + QR permanente + respuesta anónima + destino opcional + Excel + cupo 10/mes) y el nuevo Hero de Home (assets desktop/mobile aprobados por Rodrigo, `<picture>` responsive real, sin CTAs), certificados en `origin/develop @ 8249258` (HUMAN VISUAL SIGN-OFF FINAL aprobado por Rodrigo en Firefox/Linux, ventana ancha, sin crop/overflow), vía release branch aislada `release/medidor-qr-home-hero-2026-09-10` construida desde `origin/main` — sin merge/rebase de la historia de `develop`.

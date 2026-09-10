@@ -9,6 +9,7 @@ import { assertCountryGate } from '@/lib/countryGate';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { parseCapacityInput } from '@/lib/eventCapacity';
+import { slugify } from '@/lib/slugify';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -17,6 +18,11 @@ const supabase = createClient(
 );
 
 const MAX_GALLERY = 10;
+// RIFEX HUMAN URL STANDARD 2026: misma primitiva ya certificada en
+// /api/rifas — slug generado server-side desde el título, reintento
+// acotado solo ante colisión real (23505 en el índice único parcial),
+// nunca ante otro tipo de error.
+const MAX_SLUG_ATTEMPTS = 5;
 
 export default async function handler(req, res) {
   try {
@@ -92,25 +98,35 @@ export default async function handler(req, res) {
       }
       const capacity = capacityInput.provided ? capacityInput.value : null;
 
-      const { data: created, error: insErr } = await supabase
-        .from('events')
-        .insert({
-          organizer_id,
-          title,
-          description,
-          cover_image_url: coverImageUrl,
-          gallery_urls: galleryUrls,
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-          timezone,
-          venue_name: venueName,
-          address,
-          terms_text: termsText,
-          capacity,
-          status: 'draft',
-        })
-        .select('*')
-        .single();
+      const baseSlug = slugify(title) || 'evento';
+      let created = null;
+      let insErr = null;
+      for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+        const slug = attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 5)}`;
+        const result = await supabase
+          .from('events')
+          .insert({
+            organizer_id,
+            title,
+            description,
+            cover_image_url: coverImageUrl,
+            gallery_urls: galleryUrls,
+            starts_at: startsAt.toISOString(),
+            ends_at: endsAt.toISOString(),
+            timezone,
+            venue_name: venueName,
+            address,
+            terms_text: termsText,
+            capacity,
+            status: 'draft',
+            slug,
+          })
+          .select('*')
+          .single();
+        if (!result.error) { created = result.data; insErr = null; break; }
+        insErr = result.error;
+        if (result.error.code !== '23505') break;
+      }
       if (insErr) throw insErr;
 
       return res.status(201).json({ ok: true, id: created.id, event: created });
