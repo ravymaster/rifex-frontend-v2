@@ -12,7 +12,7 @@ import { canonicalUrl, DEFAULT_OG_IMAGE } from "../../lib/publicMetadata";
 import PrizeGallery from "../../components/rifex/PrizeGallery";
 import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
-import { idOrSlugColumn } from "../../lib/idOrSlug";
+import { idOrSlugColumn, isUuid } from "../../lib/idOrSlug";
 
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
@@ -175,7 +175,7 @@ function BuyBox({
 // endpoint que ya usa el fetch client-side, sin duplicar su lógica) — el
 // resto de la página sigue funcionando exactamente igual que antes, con su
 // propio fetch client-side para la UI interactiva real.
-export async function getServerSideProps({ params, req }) {
+export async function getServerSideProps({ params, req, query }) {
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const base = `${proto}://${req.headers.host}`;
   try {
@@ -183,6 +183,26 @@ export async function getServerSideProps({ params, req }) {
     if (!r.ok) return { props: { metaTitle: null, metaTrustLevel: null } };
     const j = await r.json();
     const raffle = j?.data;
+    // PROD FIX (2026-09-10): la misión anterior solo consolidaba el
+    // canonical hacia el slug, pero el UUID seguía siendo la URL real
+    // navegable/compartida — nunca redirigía. Ahora, si se entra por
+    // UUID y la rifa ya tiene slug, se redirige 308 al slug real,
+    // preservando query string. Solo redirige si isUuid(params.id) es
+    // true (nunca si ya se entró por slug, evitando loops); si la rifa
+    // no tiene slug (histórica, sin backfill), no redirige — sigue
+    // resolviendo por UUID como siempre (degradación segura, nunca se
+    // inventa un slug en la visita). El UUID interno nunca cambia.
+    if (isUuid(params.id) && raffle?.slug) {
+      const qs = new URLSearchParams(query || {});
+      qs.delete('id');
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return {
+        redirect: {
+          destination: `/rifas/${raffle.slug}${suffix}`,
+          permanent: true,
+        },
+      };
+    }
     return {
       props: {
         metaTitle: raffle?.titulo || raffle?.title || null,
