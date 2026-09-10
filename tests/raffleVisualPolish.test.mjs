@@ -76,7 +76,7 @@ test('SLUG 8: crear-rifa.jsx redirige preferiendo el slug, con fallback al UUID 
 
 test('SLUG 9: rifas/[id].jsx resuelve la carga inicial por id-o-slug (nunca solo .eq("id", rid))', () => {
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /import \{ idOrSlugColumn \} from "\.\.\/\.\.\/lib\/idOrSlug"/);
+  assert.match(src, /import \{ idOrSlugColumn, isUuid \} from "\.\.\/\.\.\/lib\/idOrSlug"/);
   assert.match(src, /const col = idOrSlugColumn\(rid\)/);
   assert.match(src, /\.eq\(col, rid\)/);
 });

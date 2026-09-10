@@ -89,7 +89,15 @@
 
 /* --- Miniatura real del premio: acompaña el resumen, nunca repite la
    foto hero de la ficha pública. --- */
-.summaryHead { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+/* PROD FIX (2026-09-10): .summaryHead usaba align-items:center — con
+   .summaryHeadText sin ancho mínimo real y .summaryPrizeName truncando
+   con white-space:nowrap, un título largo forzaba el ancho del bloque
+   más allá del viewport en pantallas angostas (encontrado en vivo con
+   "Consola retro 500 en 1 + kit de manicure + stickers"). Se cambia a
+   envolver en varias líneas en vez de truncar (el mandato pide nunca
+   ocultar contenido), con min-width:0 real en el contenedor flex para
+   que el navegador pueda calcular el espacio disponible correctamente. */
+.summaryHead { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
 .summaryThumb {
   width: 56px; height: 56px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
   background: linear-gradient(135deg, #1E3A8A, #18A957);
@@ -97,10 +105,10 @@
 }
 .summaryThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .summaryThumbFallback { font-size: 22px; }
-.summaryHeadText { min-width: 0; }
+.summaryHeadText { min-width: 0; flex: 1 1 auto; }
 .summaryPrizeName {
   margin: 0; font-size: 14.5px; font-weight: 800; color: #0f172a;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow-wrap: break-word; word-break: break-word;
 }
 .summaryPrizeMeta { margin: 2px 0 0; font-size: 12.5px; color: #64748b; }
 
@@ -109,11 +117,18 @@
   font-size: 12px; color: #92400e; background: #FFFBEB; border: 1px solid #FDE68A;
   border-radius: 10px; padding: 8px 10px;
 }
+/* PROD FIX (2026-09-10): mismo problema en la fila "Sorteo" — la fecha
+   larga ("10-10-2026 · 14:00 · Hora de Chile") no tenía permiso de
+   quebrar línea dentro del flex row, forzando overflow horizontal en
+   vez de bajar de línea. flex-wrap permite que el valor caiga debajo
+   de la etiqueta cuando no entra, tal como pide el mandato. */
 .summaryRow {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: baseline; justify-content: space-between;
+  flex-wrap: wrap; row-gap: 2px; column-gap: 8px;
   font-size: 13.5px; color: #334155; padding: 7px 0;
 }
-.summaryRow b { color: #0f172a; font-weight: 800; }
+.summaryRow span { flex-shrink: 0; }
+.summaryRow b { color: #0f172a; font-weight: 800; text-align: right; min-width: 0; overflow-wrap: break-word; }
 .summaryTotalRow {
   display: flex; align-items: center; justify-content: space-between;
   border-top: 1px solid #e5e7eb; margin-top: 6px; padding-top: 12px;
