@@ -5,18 +5,20 @@
 // general) — NUNCA assertCreatorEligible/Country Gate, mismo criterio
 // que Inscripciones (este módulo vive fuera del onboarding financiero).
 //
-// Cuota mensual (sección 1/23 del mandato): REUSE DIRECT de
-// currentFreePeriodKey/nextFreePeriodStartsAt (registrationFreeQuota.js,
-// ya certificado en Inscripciones) — nunca un segundo cálculo de
-// período. La autoridad real de "ya se usó este mes" es
-// exclusivamente la RPC create_medidor_qr (UNIQUE en
-// medidor_qr_free_usage), nunca una validación previa en esta ruta que
-// pudiera desincronizarse bajo concurrencia (ver prueba adversarial de
-// carrera real en la migración).
+// Cuota mensual (FREE QUOTA ADJUSTMENT 2026-09-09: 10/mes, antes 1):
+// REUSE DIRECT de currentFreePeriodKey/nextFreePeriodStartsAt
+// (registrationFreeQuota.js, ya certificado en Inscripciones) — nunca
+// un segundo cálculo de período. La autoridad real de "cuánto se usó
+// este mes" es exclusivamente la RPC create_medidor_qr (conteo bajo
+// advisory lock transaccional sobre medidor_qr_free_usage, ver
+// db/migrations/2026-09-09_medidor_qr_free_quota_10.sql), nunca una
+// validación previa en esta ruta que pudiera desincronizarse bajo
+// concurrencia (ver prueba adversarial de carrera real en 9/10).
 import { createClient } from '@supabase/supabase-js';
 import { assertOnboardingComplete, getOnboardingRecord } from '@/lib/trustOnboardingGate';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { currentFreePeriodKey, nextFreePeriodStartsAt } from '@/lib/registrationFreeQuota';
+import { MEDIDOR_QR_FREE_QUOTA_LIMIT } from '@/lib/medidorQrQuota';
 import { slugify } from '@/lib/slugify';
 import { parseSafeExternalUrl } from '@/lib/safeExternalUrl';
 
@@ -134,22 +136,25 @@ export default async function handler(req, res) {
       });
 
       if (rpcErr) {
-        // free_quota_already_used llega como un error real de Postgres
-        // (RAISE EXCEPTION), nunca como {ok:false} — ver comentario en
-        // la migración sobre por qué esta rama SÍ debe revertir todo.
-        if (rpcErr.code === 'P0001' || /free_quota_already_used/.test(rpcErr.message || '')) {
-          return res.status(409).json({
-            ok: false,
-            error: 'free_quota_already_used',
-            message: 'Ya utilizaste tu Medidor QR gratuito de este mes.',
-            next_available_at: nextFreePeriodStartsAt(new Date()).toISOString(),
-          });
-        }
+        // Defensivo: con el mecanismo actual (conteo bajo advisory lock
+        // ANTES de insertar nada, ver la migración) la RPC ya no
+        // levanta una excepción de Postgres por cuota agotada — la
+        // rechaza con un {ok:false} normal, manejado más abajo. Esta
+        // rama queda solo para errores realmente inesperados.
         throw rpcErr;
       }
 
       if (result?.ok) { created = result.medidor; lastError = null; break; }
       if (result?.error === 'slug_collision') { lastError = result.error; continue; }
+      if (result?.error === 'free_quota_already_used') {
+        return res.status(409).json({
+          ok: false,
+          error: 'free_quota_already_used',
+          message: `Ya utilizaste tus ${MEDIDOR_QR_FREE_QUOTA_LIMIT} Medidores QR gratuitos de este período.`,
+          quota_limit: MEDIDOR_QR_FREE_QUOTA_LIMIT,
+          next_available_at: nextFreePeriodStartsAt(new Date()).toISOString(),
+        });
+      }
       // invalid_options u otro error de validación server-side.
       return res.status(400).json({ ok: false, error: result?.error || 'invalid_request' });
     }

@@ -22,7 +22,7 @@ Slogan: "Ponlo donde quieras. Mide la respuesta."
 
 - No mide asistencia real, solo intención declarada.
 - No pide ni almacena datos personales de quien responde.
-- No tiene pagos, comisión, ni Mercado Pago — cupo 1/mes gratis.
+- No tiene pagos, comisión, ni Mercado Pago — cupo 10/mes gratis.
 - No es un generador de flyers — el organizador aporta su propio
   material, Rifex solo genera el QR.
 
@@ -35,33 +35,62 @@ Personalizado (sin precarga). Las 10 producen el MISMO contrato
 `medidores_qr.question` + `medidores_qr.options` — nunca una tabla o
 endpoint distinto por plantilla.
 
-## Cupo mensual — 1 Medidor QR gratis por cuenta
+## Cupo mensual — 10 Medidores QR gratis por cuenta (FREE QUOTA ADJUSTMENT, 2026-09-09)
+
+Sube de 1 a 10 Medidores QR gratis por cuenta/mes calendario —
+decisión de producto para que un organizador pueda probar el producto
+de verdad, experimentar con varios casos de uso y descubrir valor
+antes de tocar el límite. Sigue siendo 100% gratis, V1 — sin planes
+pagos, sin mención de Pro/Premium/upgrade.
 
 REUSE DIRECT de `currentFreePeriodKey`/`nextFreePeriodStartsAt`
 (`src/lib/registrationFreeQuota.js`, el mismo cálculo ya certificado en
 Inscripciones — mes calendario UTC "YYYY-MM", nunca rolling 30 días).
-La autoridad real es exclusivamente la RPC `create_medidor_qr`
-(`db/migrations/2026-09-08_medidor_qr_v1.sql`): el ledger insert-only
-`medidor_qr_free_usage` con `UNIQUE(organizer_id, period_key)` es la
-única fuente de verdad — nunca un pre-check en la API que pudiera
-desincronizarse bajo concurrencia.
+La autoridad real sigue siendo exclusivamente la RPC `create_medidor_qr`
+(`db/migrations/2026-09-09_medidor_qr_free_quota_10.sql`) — la API y la
+UI nunca deciden, solo muestran lo que la RPC ya certificó.
 
-**Mecanismo de atomicidad**: el insert del Medidor va sin protección
-propia salvo colisión de slug (reintenta con otro slug, nunca consume
-cupo); el insert del ledger usa `RAISE EXCEPTION ... using errcode =
-'P0001'` dentro de su propio bloque — al no ser capturada por nada más
-arriba, esa excepción revierte TODA la llamada, incluido el insert del
-Medidor ya "exitoso" un instante antes. Nunca queda un Medidor huérfano
-sin su fila de consumo.
+**Mecanismo (cambió de diseño para poder expresar "10" en vez de
+"1")**: la migración original usaba `UNIQUE(organizer_id, period_key)`
+en el ledger `medidor_qr_free_usage` — una constraint UNIQUE solo puede
+expresar "como máximo 1", nunca un número arbitrario. El nuevo
+mecanismo retira esa constraint y cuenta las filas existentes de ese
+organizador+período bajo `pg_advisory_xact_lock(hashtextextended(...))`
+— serializa únicamente las llamadas concurrentes del MISMO
+organizador+período (cero contención con otros organizadores/períodos)
+— y solo si el conteo es menor a 10 procede a insertar el Medidor y su
+fila de ledger. El chequeo ocurre ANTES de insertar el Medidor, nunca
+después: si la cuota ya está agotada, la función retorna
+`{ok:false, error:'free_quota_already_used'}` sin haber tocado la tabla
+de Medidores — cero riesgo de huérfanos por diseño (ya no por rollback
+de una excepción, como en el mecanismo anterior de 1/mes).
+
+**Historial nunca se libera**: eliminar o cerrar un Medidor NO devuelve
+cupo — el ledger es insert-only y persiste. De hecho, el propio FK
+(`medidor_qr_free_usage_medidor_qr_id_fkey`, `RESTRICT` por defecto)
+hace estructuralmente IMPOSIBLE borrar un Medidor mientras exista su
+fila de ledger — verificado en vivo (ver test 36b). V1 no expone de
+todas formas una función de "borrar" al usuario, solo "cerrar"
+(terminal, sin reabrir).
+
+**UX del cupo**: `GET /api/medidor-qr/quota` (nuevo) expone
+`used`/`limit`/`remaining`/`next_available_at` — `/crear-medidor-qr`
+lo consulta al cargar y muestra "X de 10 Medidores QR utilizados este
+mes" de forma proactiva, no solo un mensaje al chocar con el límite.
+Al llegar a 10/10 el mensaje es "Ya utilizaste tus 10 Medidores QR
+gratuitos de este período." + la fecha real de renovación (nunca
+hardcodeada).
 
 **Probado en vivo contra rifex-dev** (no solo unitariamente):
-segunda creación mismo mes rechazada con `409 free_quota_already_used`
-sin dejar fila huérfana; dos creaciones simultáneas del mismo
-organizador (`Promise.all`) → exactamente una gana; usuario B no
-consume el cupo de usuario A; cambio de período (mes) restaura el
-cupo; intento directo contra la API (sin pasar por la UI) también
-bloqueado — ver `tests/medidorQr.test.mjs`, sección "6. EMPÍRICO EN
-VIVO".
+creaciones #1, #2, #5, #9 y #10 permitidas con el contador exacto en
+cada checkpoint; intento #11 rechazado sin dejar fila huérfana; carrera
+real en el borde 9/10 (dos creaciones simultáneas para el slot #10,
+`Promise.all`) → exactamente una gana, resultado final 10/10, nunca
+11/10; usuario B no consume el cupo de usuario A aunque A ya esté en
+10/10; cambio de período (mes) restaura el cupo; borrar/cerrar un
+Medidor no libera cupo; intento directo contra la API (sin pasar por
+la UI) también bloqueado — ver `tests/medidorQr.test.mjs`, sección "6.
+EMPÍRICO EN VIVO".
 
 ## Fechas y estados
 

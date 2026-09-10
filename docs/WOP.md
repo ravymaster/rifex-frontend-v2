@@ -4,7 +4,25 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
-## RIFEX MEDIDOR QR V1 (2026-09-09) — DEV only, nuevo módulo, pendiente de commit/push
+## RIFEX MEDIDOR QR V1 — FREE QUOTA ADJUSTMENT (2026-09-09) — DEV only, misión aislada, pendiente de commit/push
+
+Sube el cupo gratuito de Medidor QR de 1 a 10 Medidores QR por cuenta/mes calendario — decisión de producto para permitir probar realmente la herramienta antes de tocar el límite. Sigue siendo 100% gratis V1, sin planes pagos, sin mención de Pro/Premium/upgrade. Misión pequeña y aislada sobre el baseline recién certificado `12bfc8b` — no rediseña Medidor QR, no agrega funcionalidades, no toca ningún otro módulo.
+
+**Mecanismo (cambió de diseño porque una constraint UNIQUE solo puede expresar "máximo 1"):** nueva migración `db/migrations/2026-09-09_medidor_qr_free_quota_10.sql` retira el `UNIQUE(organizer_id, period_key)` del ledger `medidor_qr_free_usage` y reescribe `create_medidor_qr()` — ahora cuenta las filas existentes de ese organizador+período bajo `pg_advisory_xact_lock(hashtextextended(...))` (serializa solo las llamadas concurrentes del MISMO organizador+período, cero contención cruzada) y solo si el conteo es menor a 10 procede a insertar. El chequeo ocurre ANTES de insertar el Medidor — si la cuota ya está agotada, retorna un soft `{ok:false, error:'free_quota_already_used'}` sin haber tocado la tabla de Medidores, cero riesgo de huérfanos por diseño (antes se lograba revirtiendo con una excepción tras insertar).
+
+**API/UX**: nuevo `GET /api/medidor-qr/quota` (auth-gated) expone `used/limit/remaining/next_available_at`; `/crear-medidor-qr` lo consulta al cargar y muestra "X de 10 Medidores QR utilizados este mes" de forma proactiva. Mensaje al agotar cupo: "Ya utilizaste tus 10 Medidores QR gratuitos de este período." + fecha real de renovación (nunca hardcodeada). Copy público actualizado (landing, FAQ, Home, chip de stats) de "1 Medidor QR gratis por mes"/"1/mes" a "hasta 10 Medidores QR gratis al mes"/"10/mes" — sin rehacer ninguna landing, solo el copy afectado.
+
+**Preservado sin cambios**: atomicidad bajo concurrencia real, ownership, RLS, `period_key` mensual calendario, semántica histórica (eliminar/cerrar un Medidor NUNCA devuelve cupo — de hecho el FK `medidor_qr_free_usage_medidor_qr_id_fkey` hace estructuralmente IMPOSIBLE borrar un Medidor mientras exista su fila de ledger, verificado en vivo), aislamiento entre organizadores, y que solo la CREACIÓN consume cupo (visitas/respuestas/Excel/clics/edición/descarga del QR nunca tocan la tabla).
+
+**Validación**: 16 tests nuevos/reescritos en `tests/medidorQr.test.mjs` (58 total: 46 estáticos + 12 en vivo), regresión completa 1120/1121 (mismo flake histórico de XLSX, no relacionado), build limpio, `git diff --check` limpio. **QA real E2E contra rifex-dev con fixtures desechables** (no solo tests unitarios): creaciones #1/#2/#5/#9/#10 permitidas con el contador exacto en cada checkpoint (1/10, 2/10, 5/10, 9/10, 10/10); intento #11 rechazado sin dejar Medidor huérfano; **carrera real en el borde 9/10** (dos creaciones simultáneas para el slot #10 vía `Promise.all` contra la RPC real) → exactamente una gana, resultado final 10/10, **nunca 11/10**; usuario B no consume el cupo de usuario A aunque A ya esté en 10/10; cambio de período (mes) restaura el cupo; borrar/cerrar un Medidor confirmado que no libera cupo. Todos los fixtures eliminados y verificados en cero tras cada test (un residuo de una corrida fallida intermedia también se limpió manualmente antes del cierre).
+
+Detalle completo del mecanismo: [docs/medidor-qr/MEDIDOR_QR_V1.md](medidor-qr/MEDIDOR_QR_V1.md), sección "Cupo mensual".
+
+**Pendiente antes de cerrar la misión**: commit aislado + push a `origin/develop` únicamente (nunca `main`/PROD/tags).
+
+---
+
+## RIFEX MEDIDOR QR V1 (2026-09-09) — DEV only, nuevo módulo, COMMIT `12bfc8b`, pushed a `origin/develop`
 
 Worktree aislado `dev/medidor-qr-v1-2026-09-b` desde `origin/develop` (nunca `main`/PROD/tags). Reemplaza por completo el mandato anterior "MEDIDOR DE CONVOCATORIA V1" (nunca aplicado más allá de un fixture desechable, revertido antes de cualquier commit).
 
@@ -33,7 +51,7 @@ Worktree aislado `dev/medidor-qr-v1-2026-09-b` desde `origin/develop` (nunca `ma
 
 Detalle completo del producto: [docs/medidor-qr/MEDIDOR_QR_V1.md](medidor-qr/MEDIDOR_QR_V1.md).
 
-**Pendiente antes de cerrar la misión**: commit + push a `origin/develop` únicamente (nunca `main`/PROD/tags).
+**Commit `12bfc8b`, pushed a `origin/develop`.** Extendido por la misión FREE QUOTA ADJUSTMENT (ver entrada arriba) el mismo día.
 
 ---
 

@@ -54,16 +54,16 @@ const SECURITY = [
   'Nunca pedimos nombre, correo, teléfono, RUT ni ubicación a quien responde — la respuesta es 100% anónima.',
   'Un mismo navegador no puede inflar las respuestas refrescando la página — el sistema detecta duplicados triviales.',
   'Si agregas un botón de destino opcional, siempre se muestra el dominio real antes de navegar — nunca una redirección automática.',
-  'Sin Mercado Pago, sin comisión — 1 Medidor QR gratis por mes, sin datos de pago involucrados.',
+  'Sin Mercado Pago, sin comisión — hasta 10 Medidores QR gratis por mes, sin datos de pago involucrados.',
 ];
 
 const FAQ = [
-  { q: '¿Cuesta algo usar Medidor QR?', a: 'No. Es gratuito: 1 Medidor QR nuevo por mes por cuenta, sin Mercado Pago ni comisión.' },
+  { q: '¿Cuesta algo usar Medidor QR?', a: 'No. Es gratuito: hasta 10 Medidores QR nuevos por mes por cuenta, sin Mercado Pago ni comisión.' },
   { q: '¿Rifex mide asistencia real?', a: 'No. El Medidor mide escaneos, respuestas e intención declarada — nunca una promesa de asistencia efectiva.' },
   { q: '¿Necesito pedir datos personales a quien responde?', a: 'No. Nunca se pide nombre, correo, teléfono, RUT ni ubicación — la respuesta es anónima.' },
   { q: '¿Rifex diseña mi flyer o cartel?', a: 'No. Vos usás tu propio material — Rifex solo genera el código QR que pegás ahí.' },
   { q: '¿Puedo llevar a los que respondan a otra página?', a: 'Sí, opcionalmente. Podés configurar un botón de destino que se muestra después de responder, siempre con confirmación del dominio real.' },
-  { q: '¿Cuántos Medidores QR gratis puedo crear?', a: 'Uno nuevo por mes calendario por cuenta. Los que ya creaste siguen funcionando normalmente.' },
+  { q: '¿Cuántos Medidores QR gratis puedo crear?', a: 'Hasta 10 nuevos por mes calendario por cuenta. Los que ya creaste siguen funcionando normalmente.' },
 ];
 
 export default function MedidorQrLanding() {
@@ -101,7 +101,7 @@ export default function MedidorQrLanding() {
           subtitle="Crea una pregunta, genera tu QR y úsalo en flyers, carteles, locales, vitrinas, productos, eventos o donde quieras. Rifex convierte las respuestas en métricas fáciles de entender."
           primaryCta={{ label: 'Crear Medidor QR gratis', href: next }}
           chips={[
-            { value: '1/mes', label: 'Medidor QR gratis' },
+            { value: '10/mes', label: 'Medidores QR gratis' },
             { value: '0', label: 'Datos personales pedidos' },
             { value: '10', label: 'Plantillas listas' },
           ]}

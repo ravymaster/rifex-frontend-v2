@@ -176,7 +176,7 @@ const CAPABILITIES = [
     icon: <QrIcon />,
     title: 'Medidor QR',
     text: 'Crea una pregunta, genera tu QR gratis y mide el interés real de tu público donde quieras.',
-    detail: 'Gratis · 1/mes',
+    detail: 'Gratis · 10/mes',
     href: '/medidor-qr',
     accent: '#18A957',
     accentSoft: 'rgba(24, 169, 87, 0.16)',

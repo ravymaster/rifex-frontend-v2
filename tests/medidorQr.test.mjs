@@ -3,13 +3,15 @@
 // Certifica: plantillas (contrato único), safeExternalUrl adversarial,
 // workbook (sin PII), clasificación PSCG/sitemap/robots, patrones de
 // seguridad estáticos en cada endpoint (ownership, rate limiting,
-// autoridad server-side del límite mensual, funnel del destino), y un
+// autoridad server-side del límite mensual (FREE QUOTA ADJUSTMENT
+// 2026-09-09: 10/mes, antes 1/mes), funnel del destino), y un
 // conjunto de escenarios adversariales en VIVO contra rifex-dev usando
 // fixtures desechables (usuarios reales ya existentes, nunca cuentas
-// nuevas) — cuota mensual, concurrencia real (dos creaciones
-// simultáneas), IDOR, anti-duplicación de respuestas, bloqueo de
-// edición tras la primera respuesta, y rechazo de URLs de destino
-// peligrosas. Todos los fixtures se eliminan al final de cada test.
+// nuevas) — cuota mensual hasta el borde 9/10/11, concurrencia real en
+// ese borde (dos creaciones simultáneas para el slot #10), IDOR,
+// anti-duplicación de respuestas, bloqueo de edición tras la primera
+// respuesta, y rechazo de URLs de destino peligrosas. Todos los
+// fixtures se eliminan al final de cada test.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -269,7 +271,7 @@ test('15. POST /api/medidor-qr: identidad SIEMPRE desde auth.getUser(token), rat
   assert.match(src, /enforceRateLimit/);
   assert.match(src, /organizer_id: user\.id/);
   assert.doesNotMatch(src, /organizer_id:\s*body\./, 'organizer_id nunca debe venir del cliente');
-  assert.match(src, /rpcErr\.code === 'P0001'/);
+  assert.match(src, /result\?\.error === 'free_quota_already_used'/);
 });
 
 test('16. GET/PATCH /api/medidor-qr/[id]: ownership real (organizer_id !== user.id -> 403) antes de cualquier operación', () => {
@@ -360,9 +362,52 @@ test('28. la migración exige que un clic al destino tenga una respuesta previa 
   assert.match(sql, /select 1 from public\.medidor_qr_responses/);
 });
 
-test('29. la migración usa RAISE EXCEPTION (nunca un soft-return) al chocar con la cuota mensual, para revertir también el insert del Medidor', () => {
-  const sql = read('db/migrations/2026-09-08_medidor_qr_v1.sql');
-  assert.match(sql, /raise exception 'free_quota_already_used' using errcode = 'P0001'/);
+test('29. FREE QUOTA ADJUSTMENT: el límite es 10/mes, verificado ANTES de insertar el Medidor bajo un advisory lock transaccional — un soft-return es seguro acá porque nunca llega a insertarse nada si la cuota ya está agotada', () => {
+  const sql = read('db/migrations/2026-09-09_medidor_qr_free_quota_10.sql');
+  assert.match(sql, /v_free_quota_limit constant int := 10/);
+  assert.match(sql, /pg_advisory_xact_lock\(hashtextextended\(p_organizer_id::text \|\| ':' \|\| p_period_key, 0\)\)/);
+  assert.match(sql, /if v_used_count >= v_free_quota_limit then/);
+  assert.match(sql, /return jsonb_build_object\('ok', false, 'error', 'free_quota_already_used'\)/);
+  // El chequeo de cuota debe ocurrir ANTES del insert en medidores_qr —
+  // nunca al revés (eso obligaría a revertir con una excepción).
+  const quotaCheckIdx = sql.indexOf("if v_used_count >= v_free_quota_limit then");
+  const medidorInsertIdx = sql.indexOf('insert into public.medidores_qr (');
+  assert.ok(quotaCheckIdx > 0 && medidorInsertIdx > 0 && quotaCheckIdx < medidorInsertIdx, 'el chequeo de cupo debe preceder al insert del Medidor');
+});
+
+test('29b. la migración retira el UNIQUE(organizer_id, period_key) que limitaba estructuralmente a 1 — el límite ahora es un número (10), no una constraint', () => {
+  const sql = read('db/migrations/2026-09-09_medidor_qr_free_quota_10.sql');
+  assert.match(sql, /drop constraint if exists medidor_qr_free_usage_one_per_period/);
+});
+
+test('29c. la API (mensaje de límite) y la landing pública reflejan 10, no queda ningún "1 Medidor QR" ni "1\\/mes" residual', () => {
+  const apiSrc = read('src/pages/api/medidor-qr/index.js');
+  assert.match(apiSrc, /MEDIDOR_QR_FREE_QUOTA_LIMIT/);
+  assert.match(apiSrc, /Ya utilizaste tus \$\{MEDIDOR_QR_FREE_QUOTA_LIMIT\} Medidores QR gratuitos/);
+
+  const landingSrc = read('src/pages/medidor-qr.jsx');
+  assert.doesNotMatch(landingSrc, /1 Medidor QR/);
+  assert.doesNotMatch(landingSrc, /'1\/mes'/);
+  assert.match(landingSrc, /hasta 10 Medidores QR/);
+
+  const homeSrc = read('src/pages/index.js');
+  assert.doesNotMatch(homeSrc, /Gratis · 1\/mes/);
+  assert.match(homeSrc, /Gratis · 10\/mes/);
+
+  const createSrc = read('src/pages/crear-medidor-qr.jsx');
+  assert.doesNotMatch(createSrc, /1 Medidor QR nuevo por mes/);
+  assert.match(createSrc, /hasta 10 Medidores QR nuevos por mes/);
+});
+
+test('29d. GET /api/medidor-qr/quota: auth-gated, cuenta medidor_qr_free_usage del período actual, expone used/limit/remaining/next_available_at (nunca inventa un segundo cálculo de período)', () => {
+  const src = read('src/pages/api/medidor-qr/quota.js');
+  assert.match(src, /req\.method !== 'GET'/);
+  assert.match(src, /auth\.getUser\(token\)/);
+  assert.match(src, /currentFreePeriodKey/);
+  assert.match(src, /from\('medidor_qr_free_usage'\)/);
+  assert.match(src, /\.eq\('organizer_id', ures\.user\.id\)/);
+  assert.match(src, /MEDIDOR_QR_FREE_QUOTA_LIMIT/);
+  assert.match(src, /remaining: Math\.max\(0, MEDIDOR_QR_FREE_QUOTA_LIMIT - used\)/);
 });
 
 test('30. name/timezone son NOT NULL y create_medidor_qr valida p_name server-side (defensa en profundidad, no solo la API)', () => {
@@ -441,51 +486,95 @@ liveTest('32. [vivo] create_medidor_qr rechaza p_name vacío sin llegar a consum
   assert.equal(count, 0, 'un intento rechazado nunca debe consumir cupo');
 });
 
-liveTest('33. [vivo] segunda creación mismo organizador+mes es rechazada (RAISE EXCEPTION P0001) y NO deja un Medidor huérfano', async () => {
+async function usedCount(organizerId, periodKey) {
+  const { count } = await supabase
+    .from('medidor_qr_free_usage')
+    .select('id', { count: 'exact', head: true })
+    .eq('organizer_id', organizerId)
+    .eq('period_key', periodKey);
+  return count;
+}
+
+liveTest('33. [vivo] FREE QUOTA 10/mes: creaciones #1, #2, #5, #9 y #10 permitidas (contador correcto en cada checkpoint), #11 rechazada sin dejar huérfano', async () => {
   const periodKey = uniqueSlug('period');
-  const first = await createFixture({ periodKey });
-  assert.equal(first.ok, true);
+  const created = [];
+  const checkpoints = { 1: null, 2: null, 5: null, 9: null, 10: null };
 
-  const { data: second, error: secondErr } = await supabase.rpc('create_medidor_qr', {
+  for (let i = 1; i <= 10; i++) {
+    const r = await createFixture({ periodKey, name: `Medidor ${i}` });
+    assert.equal(r.ok, true, `la creación #${i} debe ser permitida`);
+    created.push(r.medidor.id);
+    if (i in checkpoints) checkpoints[i] = await usedCount(USER_A, periodKey);
+  }
+  assert.equal(checkpoints[1], 1, 'contador tras crear #1 debe ser 1/10');
+  assert.equal(checkpoints[2], 2, 'contador tras crear #2 debe ser 2/10');
+  assert.equal(checkpoints[5], 5, 'contador tras crear #5 debe ser 5/10');
+  assert.equal(checkpoints[9], 9, 'contador tras crear #9 debe ser 9/10');
+  assert.equal(checkpoints[10], 10, 'contador tras crear #10 debe ser 10/10');
+
+  // Intento #11 — debe ser rechazado con un soft-return, nunca una excepción.
+  const { data: eleventh, error: eleventhErr } = await supabase.rpc('create_medidor_qr', {
     p_organizer_id: USER_A, p_period_key: periodKey, p_organizer_name_snapshot: 'Fixture',
-    p_name: 'Segundo intento', p_question: '¿Otra?', p_options: ['A', 'B'],
+    p_name: 'Medidor 11 (debe rechazarse)', p_question: '¿Once?', p_options: ['A', 'B'],
     p_measurement_start: new Date().toISOString(), p_measurement_end: new Date(Date.now() + 3600_000).toISOString(),
-    p_destination_url: null, p_destination_button_label: null, p_slug: uniqueSlug('t2'),
+    p_destination_url: null, p_destination_button_label: null, p_slug: uniqueSlug('t11'),
   });
-  assert.equal(second, null);
-  assert.match(secondErr.message, /free_quota_already_used/);
+  assert.equal(eleventhErr, null, 'no debe ser una excepción de Postgres — es un soft-return');
+  assert.equal(eleventh.ok, false);
+  assert.equal(eleventh.error, 'free_quota_already_used');
 
-  const { count } = await supabase.from('medidores_qr').select('id', { count: 'exact', head: true }).eq('organizer_id', USER_A).eq('name', 'Segundo intento');
-  assert.equal(count, 0, 'el segundo Medidor rechazado no debe existir en la tabla');
+  const { count: elevenCount } = await supabase.from('medidores_qr').select('id', { count: 'exact', head: true }).eq('organizer_id', USER_A).eq('name', 'Medidor 11 (debe rechazarse)');
+  assert.equal(elevenCount, 0, 'el 11vo Medidor rechazado no debe existir en la tabla — nunca huérfano');
+  assert.equal(await usedCount(USER_A, periodKey), 10, 'el contador final debe quedar exactamente en 10, nunca 11');
 
-  await deleteFixture(first.medidor.id);
+  for (const id of created) await deleteFixture(id);
 });
 
-liveTest('34. [vivo] usuario B no consume el cupo de usuario A en el mismo período', async () => {
+liveTest('34. [vivo] usuario B no consume el cupo de usuario A: A llega a 10/10 y B sigue pudiendo crear su propio Medidor #1', async () => {
   const periodKey = uniqueSlug('period');
-  const a = await createFixture({ organizerId: USER_A, periodKey });
-  const b = await createFixture({ organizerId: USER_B, periodKey });
-  assert.equal(a.ok, true);
-  assert.equal(b.ok, true);
-  await deleteFixture(a.medidor.id);
+  const aIds = [];
+  for (let i = 1; i <= 10; i++) {
+    const r = await createFixture({ organizerId: USER_A, periodKey, name: `A-${i}` });
+    assert.equal(r.ok, true);
+    aIds.push(r.medidor.id);
+  }
+  assert.equal(await usedCount(USER_A, periodKey), 10);
+
+  const b = await createFixture({ organizerId: USER_B, periodKey, name: 'B-1' });
+  assert.equal(b.ok, true, 'usuario B debe poder crear aunque A ya esté en 10/10 del mismo período');
+  assert.equal(await usedCount(USER_B, periodKey), 1);
+
+  for (const id of aIds) await deleteFixture(id);
   await deleteFixture(b.medidor.id);
 });
 
-liveTest('35. [vivo] carrera real: dos creaciones simultáneas mismo organizador+mes -> gana exactamente una', async () => {
+liveTest('35. [vivo] carrera real en el borde 9/10: dos creaciones simultáneas para el Medidor #10 -> gana exactamente una, la otra rechazada, nunca 11', async () => {
   const periodKey = uniqueSlug('period');
+  const nineIds = [];
+  for (let i = 1; i <= 9; i++) {
+    const r = await createFixture({ periodKey, name: `Pre-${i}` });
+    assert.equal(r.ok, true);
+    nineIds.push(r.medidor.id);
+  }
+  assert.equal(await usedCount(USER_A, periodKey), 9, 'debe quedar en 9/10 antes de la carrera');
+
   const attempt = () => supabase.rpc('create_medidor_qr', {
     p_organizer_id: USER_A, p_period_key: periodKey, p_organizer_name_snapshot: 'Fixture',
-    p_name: 'Carrera', p_question: '¿Carrera?', p_options: ['A', 'B'],
+    p_name: 'Carrera #10', p_question: '¿Carrera?', p_options: ['A', 'B'],
     p_measurement_start: new Date().toISOString(), p_measurement_end: new Date(Date.now() + 3600_000).toISOString(),
     p_destination_url: null, p_destination_button_label: null, p_slug: uniqueSlug('race'),
   });
   const [r1, r2] = await Promise.all([attempt(), attempt()]);
   const results = [r1, r2];
   const winners = results.filter((r) => r.data?.ok === true);
-  const losers = results.filter((r) => r.data == null && r.error);
-  assert.equal(winners.length, 1, 'exactamente una de las dos creaciones simultáneas debe ganar');
-  assert.equal(losers.length, 1, 'la otra debe fallar con free_quota_already_used, nunca ambas ganar');
-  assert.match(losers[0].error.message, /free_quota_already_used/);
+  const losers = results.filter((r) => r.data?.ok === false && r.data?.error === 'free_quota_already_used');
+  assert.equal(winners.length, 1, 'exactamente una de las dos creaciones simultáneas en el borde 9->10 debe ganar');
+  assert.equal(losers.length, 1, 'la otra debe ser rechazada con free_quota_already_used, nunca ambas ganar');
+
+  const finalCount = await usedCount(USER_A, periodKey);
+  assert.equal(finalCount, 10, 'el resultado final debe ser exactamente 10/10, NUNCA 11/10');
+
+  for (const id of nineIds) await deleteFixture(id);
   await deleteFixture(winners[0].data.medidor.id);
 });
 
@@ -496,6 +585,45 @@ liveTest('36. [vivo] al cambiar de mes se restaura el cupo (period_key distinto 
   assert.equal(b.ok, true);
   await deleteFixture(a.medidor.id);
   await deleteFixture(b.medidor.id);
+});
+
+liveTest('36b. [vivo] borrar un Medidor de la tabla NO libera cupo — más fuerte aún: el FK real IMPIDE borrarlo mientras exista su fila de ledger', async () => {
+  const periodKey = uniqueSlug('period');
+  const a = await createFixture({ periodKey, name: 'A borrar' });
+  assert.equal(a.ok, true);
+  assert.equal(await usedCount(USER_A, periodKey), 1);
+
+  // V1 no expone una función de "borrar" al usuario (solo cerrar) —
+  // se verifica el invariante directamente a nivel de datos. Hallazgo
+  // real (no asumido): medidor_qr_free_usage_medidor_qr_id_fkey es
+  // RESTRICT por defecto — el delete es rechazado mientras exista la
+  // fila de ledger, así que "borrar no libera cupo" queda garantizado
+  // por el propio esquema, no solo por convención de la app.
+  await supabase.from('medidor_qr_destination_clicks').delete().eq('medidor_qr_id', a.medidor.id);
+  await supabase.from('medidor_qr_visits').delete().eq('medidor_qr_id', a.medidor.id);
+  await supabase.from('medidor_qr_responses').delete().eq('medidor_qr_id', a.medidor.id);
+  const { error: delErr } = await supabase.from('medidores_qr').delete().eq('id', a.medidor.id);
+  assert.ok(delErr, 'el FK debe rechazar el delete mientras exista la fila de ledger');
+  assert.equal(delErr.code, '23503');
+  assert.match(delErr.message, /medidor_qr_free_usage/);
+
+  assert.equal(await usedCount(USER_A, periodKey), 1, 'el Medidor y su fila de ledger siguen intactos — el cupo consumido nunca se libera');
+
+  await deleteFixture(a.medidor.id);
+});
+
+liveTest('36c. [vivo] cerrar un Medidor (status=closed) NO libera cupo', async () => {
+  const periodKey = uniqueSlug('period');
+  const a = await createFixture({ periodKey, name: 'A cerrar' });
+  assert.equal(a.ok, true);
+  assert.equal(await usedCount(USER_A, periodKey), 1);
+
+  const { error: closeErr } = await supabase.from('medidores_qr').update({ status: 'closed' }).eq('id', a.medidor.id);
+  assert.equal(closeErr, null);
+
+  assert.equal(await usedCount(USER_A, periodKey), 1, 'cerrar el Medidor no debe devolver cupo');
+
+  await deleteFixture(a.medidor.id);
 });
 
 liveTest('37. [vivo] respond_to_medidor_qr: anti-duplicación real — mismo visitor_key responde dos veces -> already_responded, no duplica el conteo', async () => {

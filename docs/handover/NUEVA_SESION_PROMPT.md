@@ -1,13 +1,40 @@
 Repositorio: rifex-frontend-v2 (Rifex, plataforma de eventos/entradas digitales/campañas/inscripciones gratuitas — Rifas sigue existiendo como producto autenticado, ya no forma parte del catálogo público).
 Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 
-> 2026-09-09 (actualización más reciente) — **RIFEX MEDIDOR QR V1,
+> 2026-09-09 (actualización más reciente) — **RIFEX MEDIDOR QR V1:
+> FREE QUOTA ADJUSTMENT, DEV only, misión pequeña y aislada sobre
+> el baseline recién certificado `12bfc8b`, PENDIENTE DE
+> COMMIT/PUSH.** Sube el cupo gratuito de Medidor QR de 1 a 10
+> Medidores QR por cuenta/mes calendario — sigue siendo 100%
+> gratis V1, sin planes pagos. El mecanismo cambió: una constraint
+> `UNIQUE(organizer_id, period_key)` solo puede expresar "máximo
+> 1" — la nueva migración la retira y `create_medidor_qr()` ahora
+> cuenta el ledger bajo `pg_advisory_xact_lock` transaccional
+> (serializa solo al mismo organizador+período), chequeando la
+> cuota ANTES de insertar el Medidor (cero riesgo de huérfanos por
+> diseño). Nuevo `GET /api/medidor-qr/quota` + contador "X de 10"
+> en `/crear-medidor-qr`. Preservado: atomicidad, ownership, RLS,
+> período mensual, y que borrar/cerrar un Medidor nunca libera
+> cupo (el FK real lo impide estructuralmente, verificado en
+> vivo). 16 tests nuevos/reescritos (58 total), regresión
+> 1120/1121 (mismo flake XLSX), build limpio. **QA real E2E**:
+> creaciones #1/#2/#5/#9/#10 permitidas con contador exacto,
+> #11 rechazada sin huérfano, carrera real en el borde 9/10
+> (`Promise.all`) → exactamente una gana, nunca 11/10, usuario B
+> no bloqueado por A. Detalle: `docs/medidor-qr/MEDIDOR_QR_V1.md`,
+> sección "Cupo mensual". **Si retomás esto: falta exclusivamente
+> el commit aislado + push a `origin/develop` (nunca
+> `main`/PROD/tags).**
+>
+> 2026-09-09 — **RIFEX MEDIDOR QR V1,
 > DEV only, worktree aislado `dev/medidor-qr-v1-2026-09-b` desde
-> `origin/develop`, PENDIENTE DE COMMIT/PUSH.** Nueva herramienta
+> `origin/develop`, commit `12bfc8b`, pushed a `origin/develop`.**
+> Nueva herramienta
 > gratuita: pregunta con 2-4 alternativas (10 plantillas o
 > personalizada) → QR permanente (`/m/<slug>`) → respuesta
 > anónima en un toque, sin login → métricas + Excel. Cupo real de
-> 1 Medidor QR gratis por cuenta/mes calendario, REUSE DIRECT del
+> 1 Medidor QR gratis por cuenta/mes calendario (subido a 10 en la
+> extensión FREE QUOTA ADJUSTMENT de arriba), REUSE DIRECT del
 > patrón ya certificado de Inscripciones (ledger `UNIQUE
 > (organizer_id, period_key)` + `RAISE EXCEPTION` que revierte
 > toda la transacción) — probado en vivo con una carrera real de
@@ -67,10 +94,9 @@ Remote: https://github.com/ravymaster/rifex-frontend-v2.git.
 > compositó frames en esta sesión — verificación mobile/responsive
 > hecha por auditoría de HTML/CSS SSR y simulación en Node de los
 > escenarios de plantilla con `MEDIDOR_QR_TEMPLATES` real, no por
-> captura de pantalla. **Si retomás esto: falta
-> exclusivamente el commit + push a `origin/develop` (nunca
-> `main`/PROD/tags) — todo el resto de la Definición de Hecho ya
-> está cumplido y verificado.**
+> captura de pantalla. **Commit `12bfc8b`, pushed a
+> `origin/develop`.** Extendido por la misión FREE QUOTA ADJUSTMENT
+> (ver el addendum más reciente arriba) el mismo día.
 >
 > 2026-09-08 — **RIFEX RAFFLE
 > EXPERIENCE 2026 — FINAL VISUAL LOCK, DEV only, última pasada

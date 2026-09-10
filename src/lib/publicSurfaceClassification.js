@@ -226,7 +226,7 @@ export const PSCG_REGISTRY = [
     category: PSCG_CATEGORY.PRIVATE_AUTHENTICATED,
     boundary: PSCG_BOUNDARY.SSR_REDIRECT,
     robotsDisallow: true,
-    notes: "MEDIDOR QR V1 — mismo gate que crear-inscripcion.jsx: sesión + assertOnboardingComplete, deliberadamente NO resolveCreationGate/assertCreatorEligible (gratis, sin MP/Trust financiero). El límite real de 1/mes es autoridad exclusiva de la RPC create_medidor_qr, nunca de este boundary.",
+    notes: "MEDIDOR QR V1 — mismo gate que crear-inscripcion.jsx: sesión + assertOnboardingComplete, deliberadamente NO resolveCreationGate/assertCreatorEligible (gratis, sin MP/Trust financiero). El límite real de 10/mes (FREE QUOTA ADJUSTMENT 2026-09-09, antes 1/mes) es autoridad exclusiva de la RPC create_medidor_qr, nunca de este boundary.",
   },
   {
     path: "/panel/inscripciones",

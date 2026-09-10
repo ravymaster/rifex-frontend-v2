@@ -64,6 +64,9 @@ export default function CrearMedidorQr() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState(null);
   const [quotaMessage, setQuotaMessage] = useState(null);
+  // FREE QUOTA ADJUSTMENT (2026-09-09): cupo cuantitativo (10/mes) —
+  // se muestra proactivamente, nunca solo al chocar con el límite.
+  const [quota, setQuota] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -71,6 +74,14 @@ export default function CrearMedidorQr() {
       const session = data?.session;
       if (!session) { router.push('/login?next=/crear-medidor-qr'); return; }
       setToken(session.access_token);
+      try {
+        const res = await fetch('/api/medidor-qr/quota', { headers: { Authorization: `Bearer ${session.access_token}` } });
+        const body = await res.json();
+        if (res.ok && body.ok) setQuota(body);
+      } catch (_) {
+        // La cuota es solo informativa acá — si falla, la RPC sigue
+        // siendo la autoridad real al intentar crear.
+      }
     })();
   }, [router]);
 
@@ -133,14 +144,15 @@ export default function CrearMedidorQr() {
       const data = await res.json();
       if (!res.ok || !data.ok) {
         if (data.error === 'free_quota_already_used') {
-          setQuotaMessage(
-            `Ya utilizaste tu Medidor QR gratuito de este mes. Podrás crear otro gratis a partir del ${new Date(data.next_available_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', timeZone: 'America/Santiago' })}.`
-          );
+          const nextDate = new Date(data.next_available_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', timeZone: 'America/Santiago' });
+          setQuotaMessage(`${data.message} Podrás crear nuevos Medidores QR a partir del ${nextDate}.`);
+          setQuota((q) => (q ? { ...q, used: q.limit, remaining: 0 } : q));
           return;
         }
         throw new Error(data.message || data.error || 'No se pudo crear el Medidor QR');
       }
       setCreated(data.medidor);
+      setQuota((q) => (q ? { ...q, used: q.used + 1, remaining: Math.max(0, q.remaining - 1) } : q));
     } catch (e) {
       setErr(e.message || 'No se pudo crear el Medidor QR');
     } finally {
@@ -189,9 +201,14 @@ export default function CrearMedidorQr() {
       <Head><meta name="robots" content="noindex, nofollow" /></Head>
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '0 16px' }}>
         <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>Crear Medidor QR</h1>
-        <p style={{ color: '#64748b', fontSize: 14, marginBottom: 20 }}>
-          Gratis — 1 Medidor QR nuevo por mes. Completa los datos y genera tu QR al instante.
+        <p style={{ color: '#64748b', fontSize: 14, marginBottom: quota ? 6 : 20 }}>
+          Gratis — hasta 10 Medidores QR nuevos por mes. Completa los datos y genera tu QR al instante.
         </p>
+        {quota && (
+          <p style={{ color: '#334155', fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+            {quota.used} de {quota.limit} Medidores QR utilizados este mes
+          </p>
+        )}
 
         {quotaMessage && (
           <div style={{ border: '1px solid #fde68a', background: '#fffbeb', borderRadius: 12, padding: '14px 16px', marginBottom: 16, fontSize: 13.5, color: '#92400e' }}>
