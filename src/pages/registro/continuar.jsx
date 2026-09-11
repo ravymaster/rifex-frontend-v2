@@ -142,7 +142,11 @@ export default function RegistroContinuar() {
     }
     setLocalComplete(Boolean(data2.complete));
     setMpState(data2.mp || null);
-    setReadyForWelcome(Boolean(data2.onboarding_complete_for_creators));
+    // HOTFIX ONBOARDING PROGRESIVO (2026-09-10): "listo para continuar"
+    // ya no exige Mercado Pago — solo el onboarding universal (TRUST-1).
+    // MP se exige únicamente al intentar crear Rifas/Campañas/Eventos
+    // pagados, vía resolveCreationGate() (creationGate.js), no acá.
+    setReadyForWelcome(Boolean(data2.complete));
     return data2;
   }, []);
 

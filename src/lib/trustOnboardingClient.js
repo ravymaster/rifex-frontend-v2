@@ -31,12 +31,17 @@ export async function resolveTrustOnboardingRedirect(next) {
     if (!res.ok) return null; // fail-open en el helper de navegación — la autoridad real es el server-side gate en cada API sensible, esto solo mejora la UX
     const data = await res.json();
     if (!data?.ok) return null;
-    // Corrección canónica (2026-08-27): el cierre real ahora incluye
-    // Mercado Pago — `data.complete` solo describe TRUST-1, ya no basta
-    // para decidir si mandar (o no) al usuario de vuelta a
-    // /registro/continuar (que ahora también muestra el paso de
-    // conectar Mercado Pago cuando falta).
-    if (data.onboarding_complete_for_creators) return null;
+    // HOTFIX ONBOARDING PROGRESIVO (2026-09-10): revierte la corrección
+    // canónica (2026-08-27) de arriba — ese criterio hacía que ESTE
+    // helper compartido (usado por panel/index.js, no solo por
+    // auth/callback.js) mandara a cualquier usuario sin MP de vuelta a
+    // /registro/continuar solo por entrar al panel general, aunque solo
+    // quisiera usar Medidor QR o Inscripciones. Mercado Pago solo debe
+    // exigirse al intentar crear Rifas/Campañas/Eventos pagados — esa
+    // protección real ya vive, sin cambios, en resolveCreationGate()
+    // (creationGate.js) vía assertCreatorEligible en cada API de
+    // creación. Acá basta con TRUST-1 (`data.complete`).
+    if (data.complete) return null;
   } catch {
     return null;
   }
