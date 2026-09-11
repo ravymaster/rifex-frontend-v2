@@ -188,8 +188,13 @@ test('GALERIA 4: la imagen principal usa object-fit: contain (no recorta la foto
 });
 
 test('GALERIA 5: crear-rifa.jsx sigue capando la subida real a MAX_PHOTOS (5) en el upload real, no solo en el preview', () => {
+  // HOTFIX PORTADA/GALERÍA (2026-09-10): prizePhotos se reemplazó por
+  // coverPhoto + galleryPhotos, armados explícitamente (portada primero)
+  // antes de subir — el cap real a MAX_PHOTOS se conserva vía .slice().
   const src = read('src/pages/crear-rifa.jsx');
-  assert.match(src, /uploadPrizePhotos\(Array\.from\(prizePhotos\)\.slice\(0, MAX_PHOTOS\), token\)/);
+  assert.match(src, /orderedFiles = \[/);
+  assert.match(src, /\]\.slice\(0, MAX_PHOTOS\)/);
+  assert.match(src, /uploadPrizePhotos\(orderedFiles, token\)/);
 });
 
 // ---------------------------------------------------------------------
