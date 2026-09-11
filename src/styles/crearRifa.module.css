@@ -209,6 +209,7 @@
   display: flex;
   gap: 8px;
   margin-top: 10px;
+  flex-wrap: wrap;
 }
 .photoPreviewThumb {
   width: 64px;
@@ -216,6 +217,63 @@
   object-fit: cover;
   border-radius: 10px;
   border: 1px solid var(--borde);
+  display: block;
+}
+
+/* HOTFIX PORTADA/GALERÍA (2026-09-10) — preview de portada, más grande
+   que las miniaturas de galería para distinguirla claramente, con
+   badge "Portada" y botón para quitarla/reemplazarla. */
+.coverPreviewBox {
+  position: relative;
+  display: inline-block;
+  margin-top: 10px;
+}
+.coverPreviewImg {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--borde);
+  display: block;
+}
+.coverBadge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  letter-spacing: .2px;
+}
+.removeCoverBtn,
+.removeThumbBtn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--borde);
+  background: #fff;
+  color: var(--oscuro);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.removeCoverBtn:hover,
+.removeThumbBtn:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.galleryThumbWrap {
+  position: relative;
 }
 
 /* Tarjeta de perfil del organizador (solo lectura + link editar) */
