@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/colectaPublica.module.css';
 import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
+import { trackEvent } from '@/lib/analyticsClient';
 
 const SUGGESTED_AMOUNTS = [1000, 2000, 5000, 10000, 50000, 100000];
 const isValidEmail = (s) => typeof s === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
@@ -46,6 +47,7 @@ export default function ColectaPublica() {
   function openHelp() {
     setShowHelp(true);
     setIdemKey(crypto.randomUUID());
+    if (colecta?.id) trackEvent({ module: 'campaign', entityId: colecta.id, eventType: 'cta_click' });
   }
 
   async function onContribute() {
@@ -59,6 +61,7 @@ export default function ColectaPublica() {
     if (!isValidEmail(email)) { setHelpErr('Ese email no parece válido.'); return; }
 
     setSubmitting(true);
+    trackEvent({ module: 'campaign', entityId: colecta.id, eventType: 'checkout_start' });
     try {
       const res = await fetch('/api/checkout/colecta', {
         method: 'POST',
@@ -97,6 +100,11 @@ export default function ColectaPublica() {
     })();
     return () => { cancelled = true; };
   }, [id]);
+
+  useEffect(() => {
+    if (!colecta?.id) return;
+    trackEvent({ module: 'campaign', entityId: colecta.id, eventType: 'page_view' });
+  }, [colecta?.id]);
 
   if (loading) {
     return <section className={styles.page}><div className={styles.notFound}>Cargando…</div></section>;

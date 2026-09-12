@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/evento.module.css';
+import { trackEvent } from '@/lib/analyticsClient';
 
 function fmtDate(iso, timezone) {
   if (!iso) return '';
@@ -69,6 +70,11 @@ export default function EventoPublico() {
 
   useEffect(() => { if (id) load(); }, [id, load]);
 
+  useEffect(() => {
+    if (!event?.id) return;
+    trackEvent({ module: 'event', entityId: event.id, eventType: 'page_view' });
+  }, [event?.id]);
+
   // EVENT-2 (Fase 21): liberar reservas vencidas de ESTE evento — mismo
   // patrón lazy ya certificado en rifas/[id].jsx (fetch al cargar +
   // setInterval cada 30s mientras la página sigue abierta). Usa
@@ -115,6 +121,7 @@ export default function EventoPublico() {
       return;
     }
     setBuying(true);
+    trackEvent({ module: 'event', entityId: event.id, eventType: 'checkout_start' });
     try {
       const res = await fetch(`/api/events/${event.id}/checkout`, {
         method: 'POST',

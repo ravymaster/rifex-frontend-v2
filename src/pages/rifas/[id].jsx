@@ -13,6 +13,7 @@ import PrizeGallery from "../../components/rifex/PrizeGallery";
 import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
 import { idOrSlugColumn, isUuid } from "../../lib/idOrSlug";
+import { trackEvent } from "../../lib/analyticsClient";
 
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
@@ -267,6 +268,15 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
     // real de la rifa, para no consultar /api/raffles/winner con un slug.
     loadData(id);
   }, [id]);
+
+  // Analítica propia (ver src/lib/analyticsClient.js): siempre con el
+  // UUID real ya resuelto por loadData, nunca con el slug/id crudo de la
+  // URL — así una rifa vista por /rifas/<slug> y por /rifas/<uuid> suma al
+  // mismo entity_id en el dashboard admin.
+  useEffect(() => {
+    if (!raffle?.id) return;
+    trackEvent({ module: "raffle", entityId: raffle.id, eventType: "page_view" });
+  }, [raffle?.id]);
 
   // helpers ganador
   async function loadWinner(rid) {
@@ -950,6 +960,7 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
               quantity={quantity}
               setQuantity={setQuantity}
               onContinue={(qty) => {
+                if (raffle?.id) trackEvent({ module: "raffle", entityId: raffle.id, eventType: "checkout_start" });
                 router.push({ pathname: "/rifas/[id]/checkout", query: { id, qty } });
               }}
             />

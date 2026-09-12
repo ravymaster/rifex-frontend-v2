@@ -17,7 +17,8 @@
     "test:cumplimiento-2": "node --test tests/drawFulfillmentIntegration.test.mjs",
     "test:cumplimiento-3": "node --test tests/fulfillmentCommunications.test.mjs",
     "test:cumplimiento-4": "node --test tests/fulfillmentTimeline.test.mjs",
-    "test:medidor-qr": "node --test tests/medidorQr.test.mjs"
+    "test:medidor-qr": "node --test tests/medidorQr.test.mjs",
+    "test:admin-analytics-dev-door": "node --test tests/analyticsEvents.test.mjs tests/devAdminDoorProdStage.test.mjs && NEXT_PUBLIC_STAGE=development node --test tests/devAdminDoor.test.mjs"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",

@@ -11,6 +11,7 @@
 // reconcile-colecta-payments.js): esa es otra autoridad, ya certificada,
 // para jobs de reconciliación financiera — no se toca ni se reemplaza acá.
 import { createClient } from "@supabase/supabase-js";
+import { isDevDoorEligible, validateDevDoorSession, devDoorCookieName } from "./devAdminDoor.js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -24,7 +25,21 @@ const supabase = createClient(
 export async function resolveAdmin(req) {
   const authz = req.headers.authorization || "";
   const token = authz.startsWith("Bearer ") ? authz.slice(7) : null;
-  if (!token) return { ok: false, status: 401, error: "missing_auth" };
+
+  if (!token) {
+    // Puerta temporal DEV (ver src/lib/devAdminDoor.js): rama ADICIONAL,
+    // nunca un reemplazo de la autoridad real de arriba. isDevDoorEligible()
+    // es hard-false en cualquier runtime que no sea el proyecto Vercel
+    // rifex-frontend-main con la variable privada activada -- en PROD esta
+    // rama es código muerto sin excepción, la cookie ni siquiera se mira.
+    if (isDevDoorEligible()) {
+      const sessionId = req.cookies?.[devDoorCookieName()];
+      if (sessionId && (await validateDevDoorSession(sessionId))) {
+        return { ok: true, admin: { id: "dev-door", email: null, viaDevDoor: true } };
+      }
+    }
+    return { ok: false, status: 401, error: "missing_auth" };
+  }
 
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data?.user) return { ok: false, status: 401, error: "invalid_auth" };

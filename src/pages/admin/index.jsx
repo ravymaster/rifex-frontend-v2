@@ -14,6 +14,7 @@ import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import { COUNTRY_CODES, COUNTRY_POLICY } from "@/lib/countryPolicy";
 import { FEATURE_FLAGS } from "@/lib/featureFlags";
+import { isDevDoorEligible, validateDevDoorSession, devDoorCookieName } from "@/lib/devAdminDoor";
 
 // RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — /admin tenía cero
 // boundary SSR: la protección era 100% client-side (useEffect abajo,
@@ -45,12 +46,32 @@ export async function getServerSideProps(ctx) {
     user = null;
   }
   if (!user) {
+    // Puerta temporal DEV (ver src/lib/devAdminDoor.js): rama ADICIONAL,
+    // dead code fuera del proyecto Vercel rifex-frontend-main con la
+    // variable privada activada -- en PROD isDevDoorEligible() es
+    // hard-false y este bloque nunca se ejecuta, el redirect a /login de
+    // abajo sigue siendo el único desenlace posible.
+    if (isDevDoorEligible()) {
+      const sessionId = ctx.req.cookies?.[devDoorCookieName()];
+      if (sessionId && (await validateDevDoorSession(sessionId))) {
+        return { props: {} };
+      }
+    }
     return { redirect: { destination: "/login?next=/admin", permanent: false } };
   }
   if (user.app_metadata?.role !== "admin") {
     return { redirect: { destination: "/", permanent: false } };
   }
   return { props: {} };
+}
+
+// Cookie de la puerta DEV ya viene HttpOnly -- el fetch del cliente nunca
+// la lee ni la manda a mano, el navegador la adjunta solo por ser
+// same-origin. authHeaders() solo agrega el Bearer cuando sí hay sesión
+// Supabase real; sin token, la request igual llega autenticada si la
+// cookie de la puerta es válida (o llega anónima, exactamente como hoy).
+function authHeaders(token) {
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 function clp(cents) {
@@ -97,6 +118,26 @@ const STATUS_LABEL = { active: "Activa", closed: "Cerrada", deleted: "Eliminada"
 const FLAG_LABEL = { on: "ON", off: "OFF", review: "REVIEW" };
 const FLAG_COLOR = { on: "#166534", off: "#6B7280", review: "#92400E" };
 
+// ---- Analítica (ADMIN ANALYTICS) ----
+const ANALYTICS_MODULE_LABEL = {
+  raffle: "Rifas",
+  campaign: "Campañas",
+  event: "Eventos",
+  registration: "Inscripciones",
+  medidor_qr: "Medidor QR",
+};
+const ANALYTICS_MODULE_PATH = {
+  raffle: "/rifas",
+  campaign: "/colectas",
+  event: "/eventos",
+  registration: "/inscripcion",
+};
+const ANALYTICS_RANGES = [
+  { key: "today", label: "Hoy" },
+  { key: "7d", label: "7 días" },
+  { key: "30d", label: "30 días" },
+];
+
 export default function AdminHome() {
   const router = useRouter();
   const [state, setState] = useState("checking"); // checking | denied | ok
@@ -106,6 +147,11 @@ export default function AdminHome() {
   const [cumplimiento, setCumplimiento] = useState(null);
   const [errMsg, setErrMsg] = useState("");
   const [accessToken, setAccessToken] = useState(null);
+
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsRange, setAnalyticsRange] = useState("30d");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsErr, setAnalyticsErr] = useState("");
 
   const [q, setQ] = useState("");
   const [searching, setSearching] = useState(false);
@@ -117,17 +163,22 @@ export default function AdminHome() {
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      if (!token) {
-        router.replace(`/login?next=${encodeURIComponent("/admin")}`);
-        return;
-      }
+      const token = data?.session?.access_token || null;
       setAccessToken(token);
 
       try {
-        const r = await fetch("/api/admin/me", { headers: { Authorization: `Bearer ${token}` } });
+        // Sin token de sesión Supabase, esta llamada igual puede resultar
+        // autorizada: el navegador adjunta automáticamente (same-origin)
+        // la cookie HttpOnly de la puerta DEV si existe. En PROD y para
+        // cualquier visitante normal sin sesión, /api/admin/me siempre
+        // responde 401 acá -- comportamiento idéntico al de antes.
+        const r = await fetch("/api/admin/me", { headers: authHeaders(token) });
         const j = await r.json().catch(() => ({ ok: false }));
         if (!(r.ok && j?.ok && j?.admin)) {
+          if (!token) {
+            router.replace(`/login?next=${encodeURIComponent("/admin")}`);
+            return;
+          }
           setState("denied");
           return;
         }
@@ -135,9 +186,9 @@ export default function AdminHome() {
         setState("ok");
 
         const [mr, or_, cr] = await Promise.all([
-          fetch("/api/admin/metrics", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("/api/admin/overview", { headers: { Authorization: `Bearer ${token}` } }),
-          fetch("/api/admin/cumplimiento", { headers: { Authorization: `Bearer ${token}` } }),
+          fetch("/api/admin/metrics", { headers: authHeaders(token) }),
+          fetch("/api/admin/overview", { headers: authHeaders(token) }),
+          fetch("/api/admin/cumplimiento", { headers: authHeaders(token) }),
         ]);
         const [mj, oj, cj] = await Promise.all([
           mr.json().catch(() => ({ ok: false })),
@@ -165,7 +216,7 @@ export default function AdminHome() {
     setSearchResults(null);
     try {
       const r = await fetch(`/api/admin/search?q=${encodeURIComponent(query)}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: authHeaders(accessToken),
       });
       const j = await r.json().catch(() => ({ ok: false }));
       if (r.ok && j?.ok) setSearchResults(j);
@@ -183,7 +234,7 @@ export default function AdminHome() {
     try {
       const r = await fetch("/api/admin/reconcile", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        headers: { "Content-Type": "application/json", ...authHeaders(accessToken) },
         body: JSON.stringify({ product, id }),
       });
       const j = await r.json().catch(() => ({ ok: false }));
@@ -195,6 +246,28 @@ export default function AdminHome() {
       setReconcileBusy((s) => ({ ...s, [id]: false }));
     }
   }
+
+  async function loadAnalyticsOverview(range) {
+    setAnalyticsLoading(true);
+    setAnalyticsErr("");
+    try {
+      const r = await fetch(`/api/admin/analytics-overview?range=${encodeURIComponent(range)}`, { headers: authHeaders(accessToken) });
+      const j = await r.json().catch(() => ({ ok: false }));
+      if (r.ok && j?.ok) setAnalyticsData(j);
+      else setAnalyticsErr("No se pudo cargar la analítica.");
+    } catch (err) {
+      console.error("[admin] analytics-overview error", err);
+      setAnalyticsErr("No se pudo cargar la analítica.");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (state !== "ok") return;
+    loadAnalyticsOverview(analyticsRange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, analyticsRange]);
 
   const gapRaffles = metrics?.data_gaps?.raffles_approved_without_fee || 0;
   const gapCampaigns = metrics?.data_gaps?.campaigns_approved_without_fee || 0;
@@ -381,6 +454,94 @@ export default function AdminHome() {
                 </div>
               </section>
             )}
+
+            {/* ---- Analítica (visitas/interacción propia + métricas por módulo) ---- */}
+            <section style={section}>
+              <div style={{ ...sectionTitle, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                <span>Analítica</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {ANALYTICS_RANGES.map((r) => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => setAnalyticsRange(r.key)}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        border: "1px solid var(--borde, #E5E7EB)",
+                        background: analyticsRange === r.key ? "#111827" : "#fff",
+                        color: analyticsRange === r.key ? "#fff" : "#374151",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {analyticsLoading && <p style={{ fontSize: 13, color: "#6B7280" }}>Cargando analítica…</p>}
+              {analyticsErr && <p style={{ fontSize: 13, color: "#b91c1c" }}>{analyticsErr}</p>}
+
+              {analyticsData && Object.entries(analyticsData.modules).map(([mod, data]) => (
+                <div key={mod} style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{ANALYTICS_MODULE_LABEL[mod] || mod}</div>
+                  <div style={grid}>
+                    <Kpi label="Iniciativas totales" value={data.entities.total} sub={`${data.entities.active} activas · ${data.entities.new_in_range} nuevas en el período`} />
+                    {data.analytics && (
+                      <>
+                        <Kpi label="Visitas (page_view)" value={data.analytics.events_by_type.page_view || 0} sub={`${data.analytics.unique_visitors} visitantes únicos`} />
+                        {mod !== "registration" && (
+                          <Kpi label="Checkouts iniciados" value={data.analytics.events_by_type.checkout_start || 0} />
+                        )}
+                        {mod === "registration" && (
+                          <>
+                            <Kpi label="Formularios iniciados" value={data.analytics.events_by_type.form_start || 0} />
+                            <Kpi label="Inscripciones confirmadas" value={data.registrations_in_range ?? 0} />
+                          </>
+                        )}
+                      </>
+                    )}
+                    {data.payments_approved_in_range && (
+                      <Kpi
+                        label="Pagos aprobados en el período"
+                        value={data.payments_approved_in_range.count}
+                        sub={clp(data.payments_approved_in_range.amount_cents)}
+                      />
+                    )}
+                    {mod === "medidor_qr" && (
+                      <>
+                        <Kpi label="Escaneos totales" value={data.scan_count_total} />
+                        <Kpi label="Visitas únicas en el período" value={data.visits_in_range} />
+                        <Kpi label="Respuestas en el período" value={data.responses_in_range} />
+                        <Kpi label="Clics a destino en el período" value={data.destination_clicks_in_range} />
+                      </>
+                    )}
+                  </div>
+
+                  {data.top_entities && data.top_entities.length > 0 && ANALYTICS_MODULE_PATH[mod] && (
+                    <div style={{ ...tableWrap, marginTop: 8 }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <tbody>
+                          {data.top_entities.map((t) => (
+                            <tr key={t.entity_id}>
+                              <td style={td}>
+                                <a href={`${ANALYTICS_MODULE_PATH[mod]}/${t.entity_id}`} target="_blank" rel="noreferrer">
+                                  {t.entity_id.slice(0, 8)}…
+                                </a>
+                              </td>
+                              <td style={td}>{t.page_views} visitas</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </section>
 
             {/* ---- Cumplimiento (CUMPLIMIENTO-5) ---- */}
             {cumplimiento && (

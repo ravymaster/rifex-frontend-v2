@@ -5,8 +5,9 @@
 // convierta las actividades de los usuarios en un catálogo indexable
 // (sección 5/14 del mandato). Nunca exige login al participante.
 import { useRouter } from 'next/router';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Layout from '@/components/Layout';
+import { trackEvent } from '@/lib/analyticsClient';
 
 const MODALITY_LABEL = { presencial: 'Presencial', online: 'Online', hibrida: 'Híbrida' };
 
@@ -46,6 +47,7 @@ export default function InscripcionPublica() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const formStartedRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -61,6 +63,17 @@ export default function InscripcionPublica() {
   }, [id]);
 
   useEffect(() => { if (id) load(); }, [id, load]);
+
+  useEffect(() => {
+    if (!activity?.id) return;
+    trackEvent({ module: 'registration', entityId: activity.id, eventType: 'page_view' });
+  }, [activity?.id]);
+
+  function markFormStarted() {
+    if (formStartedRef.current || !activity?.id) return;
+    formStartedRef.current = true;
+    trackEvent({ module: 'registration', entityId: activity.id, eventType: 'form_start' });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -84,6 +97,7 @@ export default function InscripcionPublica() {
         throw new Error(REGISTER_ERROR_LABEL[data.error] || 'No se pudo completar la inscripción.');
       }
       setSuccess(data.qr_link);
+      trackEvent({ module: 'registration', entityId: activity.id, eventType: 'form_complete' });
       await load();
     } catch (e) {
       setSubmitError(e.message || 'No se pudo completar la inscripción.');
@@ -154,15 +168,15 @@ export default function InscripcionPublica() {
             <h2 style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 14px' }}>Inscribirme</h2>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 4 }}>Nombre completo *</label>
-              <input value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={140} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }} />
+              <input value={fullName} onChange={(e) => { markFormStarted(); setFullName(e.target.value); }} maxLength={140} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }} />
             </div>
             <div style={{ marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 4 }}>Email *</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={200} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }} />
+              <input type="email" value={email} onChange={(e) => { markFormStarted(); setEmail(e.target.value); }} maxLength={200} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }} />
             </div>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#334155', marginBottom: 4 }}>Teléfono (opcional)</label>
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={40} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }} />
+              <input value={phone} onChange={(e) => { markFormStarted(); setPhone(e.target.value); }} maxLength={40} style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }} />
             </div>
             {submitError && <p style={{ color: '#b91c1c', fontSize: 13, marginBottom: 12 }}>{submitError}</p>}
             <button type="submit" disabled={submitting} style={{ width: '100%', padding: '12px 0', borderRadius: 999, border: 'none', background: 'linear-gradient(135deg, #1e3a8a 0%, #18a957 100%)', color: '#fff', fontWeight: 800, fontSize: 14.5, cursor: submitting ? 'wait' : 'pointer' }}>
