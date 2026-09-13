@@ -126,11 +126,23 @@ test('PAGE 4: inscripcion/[id].jsx registra con activity.id (resuelto), no con e
   assert.match(src, /fetch\(`\/api\/inscripciones\/\$\{activity\.id\}\/register`/);
 });
 
-test('PAGE 5: colectas/[id].jsx no requirió cambios — ya usaba colecta.id en checkout/publicUrl/qrUrl antes de esta misión', () => {
-  const current = read('src/pages/colectas/[id].jsx');
-  const before = developBlob('src/pages/colectas/[id].jsx');
-  assert.ok(before, 'no se pudo leer la versión previa de origin/develop');
-  assert.equal(current, before, 'colectas/[id].jsx debe permanecer byte-a-byte idéntico — protegido, no tocado esta misión');
+test('PAGE 5: colectas/[id].jsx sigue usando colecta.id (resuelto) en checkout/publicUrl/qrUrl, nunca el id/slug crudo de la URL', () => {
+  // NOTA (ADMIN ANALYTICS, 2026-09-12): esta prueba certificaba
+  // originalmente que el archivo quedara byte-a-byte intacto durante la
+  // misión HUMAN URL STANDARD 2026 (no necesitaba tocarse para esa
+  // migración de slugs). Una misión posterior y separada (analítica
+  // propia de visitas/interacción) sí tiene motivo legítimo para tocar
+  // este archivo — agrega tracking client-side, no toca resolución de
+  // slug/UUID. La comparación byte-a-byte contra origin/develop ya no
+  // aplica; lo que sigue importando (y lo que esta prueba certifica
+  // ahora) es que el criterio real de la migración de slugs -- usar
+  // SIEMPRE colecta.id ya resuelto, nunca el id/slug crudo de la URL --
+  // se mantenga intacto.
+  const src = read('src/pages/colectas/[id].jsx');
+  assert.match(src, /fetch\('\/api\/checkout\/colecta'/);
+  assert.match(src, /colecta_id: colecta\.id/);
+  assert.match(src, /const publicUrl = `\$\{base\}\/colectas\/\$\{colecta\.id\}`/);
+  assert.match(src, /const qrUrl = `\/api\/colectas\/\$\{colecta\.id\}\/qr\.png`/);
 });
 
 // ---------------------------------------------------------------------
