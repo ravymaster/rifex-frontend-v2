@@ -1,0 +1,29 @@
+name: DRAW scheduler (DEV — manual)
+
+# DEV NO tiene scheduler automático real todavía: el trigger `schedule` de
+# GitHub Actions solo se ejecuta desde la rama default del repo (main), y
+# DRAW vive en `develop` hasta su promoción consciente. Este workflow es
+# EXCLUSIVAMENTE workflow_dispatch (manual) — sirve para certificar el
+# endpoint DEV antes de promover a PROD, no para automatizar sorteos DEV.
+#
+# Apunta EXCLUSIVAMENTE al proyecto Vercel DEV (rifex-frontend-main) vía
+# la variable de repo DRAW_SCHEDULER_URL_DEV, y usa el secret
+# CRON_SECRET_DEV — nunca DRAW_SCHEDULER_URL_PROD ni CRON_SECRET_PROD.
+# Nombres deliberadamente distintos a su contraparte PROD (ver
+# draw-scheduler-prod.yml) para que sea imposible confundirlos o que un
+# secret funcione en el entorno equivocado.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  trigger-draw-scheduler-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call DEV draw scheduler endpoint
+        run: |
+          curl --fail-with-body -sS \
+            -H "Authorization: Bearer ${CRON_SECRET_DEV}" \
+            "${DRAW_SCHEDULER_URL_DEV}"
+        env:
+          CRON_SECRET_DEV: ${{ secrets.CRON_SECRET_DEV }}
+          DRAW_SCHEDULER_URL_DEV: ${{ vars.DRAW_SCHEDULER_URL_DEV }}

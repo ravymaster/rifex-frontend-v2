@@ -1,5 +1,6 @@
 // pages/icons.js
 import dynamic from "next/dynamic";
+import Layout from "@/components/Layout";
 const IconsGrid = dynamic(() => import("../components/IconsGrid"), { ssr: false });
 
 export default function IconsPage() {
@@ -9,3 +10,5 @@ export default function IconsPage() {
     </main>
   );
 }
+
+IconsPage.getLayout = (page) => <Layout>{page}</Layout>;

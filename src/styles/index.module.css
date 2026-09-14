@@ -1,76 +1,281 @@
-.page {}
+/* PUBLIC HOME V1 — identidad Eventos/Entradas/Campañas, nunca rifas.
+   Paleta: navy oscuro (--homeNavy) + acentos verde (--trebol) / turquesa
+   (--turquesa) / violeta (--homeViolet, local a este módulo — no se toca
+   la paleta global de globals.css). Mobile-first: bloques base son la
+   versión mobile, min-width:768px ajusta tablet, min-width:1024px arma
+   el layout de dos columnas del Hero. */
 
-/* HERO con gradiente Rifex suave */
+.page {
+  --homeNavy: #0b1330;
+  --homeNavy2: #10193d;
+  --homeViolet: #7c6fe8;
+}
+
+/* =========================================================
+   HERO
+   ========================================================= */
+/* FIX DESKTOP CROSS-BROWSER, segunda pasada (2026-09-09/10): Layout.jsx
+   envuelve TODA página en `<main className="container">` (max-width:1200px,
+   margin:0 auto) — un dato que la primera pasada de este fix pasó por
+   alto (solo se auditó el JSX de index.js, no el de Layout.jsx). Por lo
+   tanto `.hero` SÍ vive dentro de un contenedor angosto y necesita
+   escapar de él para lograr "casi todo el ancho de pantalla". El breakout
+   real correcto vive acá (a nivel de sección, no en `.heroPictureWrap`
+   como antes): técnica estándar `width:100vw` + `margin-left/right:
+   calc(50% - 50vw)` (sin `left`/`transform`, evita crear un desfase
+   extra) — funciona porque `.container` está centrado (`margin:0 auto`)
+   en el viewport, así que el centro de `.hero` coincide con el centro
+   real del viewport. Antes, el breakout vivía en `.heroPictureWrap`
+   (hijo de `.hero`) — pero como `.hero` mismo NUNCA rompía su propio
+   contenedor y tiene `overflow:hidden`, ese breakout interno quedaba
+   recortado por los propios límites (angostos) de `.hero`, cortando
+   ~266px de cada lado del asset en pantallas anchas: la causa real de
+   las letras perdidas en Firefox y del ajuste "muy justo" en Chrome/Edge
+   — no una discrepancia de cálculo de `vw`. Con el breakout ahora en
+   `.hero`, `.heroPictureWrap` ya no necesita escapar nada — ver su
+   propio comentario más abajo. */
 .hero {
-  padding: 36px 0 40px;
-  background:
-    linear-gradient(135deg, rgba(30,58,138,0.10) 0%, rgba(24,169,87,0.10) 100%),
-    var(--fondo);
-  border-bottom: 1px solid var(--borde);
-}
-.heroInner { }
-.heroTitle {
-  margin: 0 0 8px;
-  font-weight: 800;
-  line-height: 1.15;
-  font-size: 28px;
-  letter-spacing: -0.3px;
-  color: var(--oscuro);
-}
-.heroTitle span { color: var(--ultramar); }
-.heroSub {
-  margin: 0 0 18px;
-  color: var(--gris);
+  position: relative;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  background: linear-gradient(180deg, var(--homeNavy) 0%, var(--homeNavy2) 100%);
+  overflow: hidden;
+  padding: 24px 0 0;
 }
 
-/* CTAs del hero (estilos locales encima de .btn global) */
-.ctaRow {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.ctaPrimary {
-  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
-  color: #fff;
-  border: none;
-  box-shadow: 0 6px 16px rgba(24,169,87,.25);
-}
-.ctaSecondary {
-  background: #fff;
-  color: var(--ultramar);
-  border: 1px solid var(--ultramar);
+/* Utilidad estándar "visualmente oculto, accesible a lectores de
+   pantalla" — el <h1> real vive acá para SEO/estructura semántica sin
+   duplicar visualmente el mensaje que ya está en el asset del Hero. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-/* FEATURES */
-.features {
-  padding: 28px 0 40px;
+/* =========================================================
+   HERO — RIFEX HOME HERO 2026. `.heroPictureWrap` es hijo directo de
+   `.hero`, que ahora sí rompe su propio contenedor (ver el comentario
+   junto a `.hero` arriba) y ocupa el viewport casi completo — así que
+   `.heroPictureWrap` NO necesita ningún breakout propio, solo centrarse
+   dentro del `.hero` ya ancho: `width:min(95%,1700px)` con tope en
+   1700px para no agrandar la imagen mucho más allá de su resolución
+   nativa (1672px) en monitores ultra anchos.
+   FIX DESKTOP CROSS-BROWSER, primera pasada (2026-09-09): esta clase
+   solía llevar el breakout completo (`left:50%; transform:
+   translateX(-50%); width:95vw`) que hoy vive en `.hero`. Se retiró de
+   acá porque, anidado dentro de `.hero{overflow:hidden}` sin que `.hero`
+   mismo escapara su contenedor, ese breakout quedaba recortado por los
+   límites (angostos) del propio `.hero` — cortando ~266px de cada lado
+   del asset en pantallas anchas. Esa es la causa real de las letras
+   perdidas en Firefox y del ajuste "muy justo" en Chrome/Edge; la
+   primera pasada de este fix diagnosticó mal la causa (atribuyéndola a
+   un desfase de cálculo `vw`-vs-scrollbar) y, al solo remover el
+   breakout sin moverlo a `.hero`, arregló el corte pero introdujo una
+   regresión real: el Hero quedaba angosto (~1200px) en pantallas
+   anchas, violando el requisito de "casi todo el ancho de pantalla".
+   Esta segunda pasada mueve el breakout a `.hero` (su lugar
+   arquitectónicamente correcto) y deja esta clase simple. */
+.heroPictureWrap {
+  width: min(95%, 1700px);
+  margin: 0 auto 8px;
 }
-.featuresGrid {
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0,1fr));
-  gap: 16px;
-}
-@media (min-width: 768px){
-  .featuresGrid { grid-template-columns: repeat(3, minmax(0,1fr)); }
-}
-.featureCard {
-  background: #fff;
-  border: 1px solid var(--borde);
+
+/* Proporción por breakpoint: el <img> de fallback declara las
+   dimensiones del asset mobile (941×1672, mobile-first) — a partir de
+   1024px el <source> desktop (1672×941) es el que realmente carga, así
+   que el aspect-ratio se redeclara acá para reservar el alto correcto
+   y evitar layout shift en ambos sentidos. object-fit no hace falta:
+   el contenedor siempre respeta la proporción real del asset activo,
+   nunca recorta ni deforma. */
+.heroImg {
+  display: block;
+  width: 100%;
+  height: auto;
   border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 10px 20px rgba(0,0,0,.03);
 }
-.featureIcon {
-  font-size: 22px;
-  line-height: 1;
-  margin-bottom: 8px;
+@media (min-width: 1024px) {
+  .heroImg {
+    aspect-ratio: 1672 / 941;
+    border-radius: 20px;
+  }
 }
-.featureTitle {
-  margin: 0 0 6px;
+
+/* =========================================================
+   TRUST STRIP
+   ========================================================= */
+/* FIX (stacking, permitido explícitamente sin rediseñar el bloque):
+   .heroPhotoWrap es position:absolute en desktop — por las reglas de
+   stacking de CSS2.1 (§E.2), un elemento posicionado con z-index:auto
+   SIEMPRE pinta después del contenido no-posicionado en flujo normal,
+   sin importar el orden en el DOM. Sin position+z-index acá, la foto
+   taparía los 5 ítems del trust strip en desktop. Nunca se tocó el
+   contenido/diseño del bloque, solo su stacking context. */
+.trust {
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 40px;
+  padding-top: 28px;
+}
+@media (min-width: 1024px) {
+  .trust { margin-top: 88px; }
+}
+.trustGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+@media (min-width: 640px) {
+  .trustGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .trustGrid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+.trustItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.trustIcon {
+  width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  display: grid; place-items: center;
+  font-size: 14px;
+}
+.trustLabel { margin: 0; font-size: 13.5px; font-weight: 600; color: rgba(255, 255, 255, 0.82); line-height: 1.4; }
+
+/* =========================================================
+   SECCIÓN "TODO LO QUE NECESITAS" — capability cards premium.
+   Fondo gris azulado (nunca blanco puro) para hacer de transición entre
+   el navy del Hero y el navy del footer; las cards INVIERTEN ese
+   contraste (navy oscuro sobre fondo claro) para seguir el lenguaje
+   visual del Hero sin repetirlo literalmente. Cada card recibe su
+   accent (turquesa/violeta/verde/azul) vía custom properties inline
+   (--accent/--accentSoft/--accentBorder, ver CAPABILITIES en index.js)
+   — un solo bloque de CSS para las cuatro, nunca cuatro copias.
+   ========================================================= */
+.capabilities {
+  --capBg: #eef1f8;
+  background: var(--capBg);
+  padding: 64px 0 16px;
+}
+
+.sectionHead { max-width: 620px; margin: 0 0 36px; }
+.capEyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 12px;
   font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
   color: var(--ultramar);
 }
-.featureText {
-  margin: 0;
-  color: var(--gris);
+.capEyebrow::before {
+  content: '';
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--turquesa);
+}
+.sectionTitle {
+  margin: 0 0 10px;
+  font-weight: 800;
+  font-size: clamp(24px, 3.2vw, 32px);
+  color: var(--oscuro);
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+}
+.sectionSub { margin: 0; color: var(--gris); font-size: 15.5px; line-height: 1.6; }
+
+.capGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  align-items: stretch;
+}
+@media (min-width: 640px) {
+  .capGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .capGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+}
+
+.capCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: linear-gradient(160deg, #131c46 0%, #0c1534 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 20px;
+  padding: 28px 24px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(11, 19, 48, 0.16);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  /* RIFEX FINAL PUBLIC SURFACE CLOSURE — el card de Inscripciones se
+     renderiza como <a> (next/link) en vez de <div>; sin esto heredaría
+     el subrayado/color azul de enlace por defecto del navegador. */
+  text-decoration: none;
+  color: inherit;
+}
+.capCard::before {
+  /* borde superior — el accent diferenciador de cada capacidad */
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 22px;
+  right: 22px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
+  opacity: 0.9;
+}
+.capCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 22px 46px rgba(11, 19, 48, 0.24);
+}
+
+.capIconBox {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  color: var(--accent);
+  background: var(--accentSoft);
+  border: 1px solid var(--accentBorder);
+  box-shadow: 0 0 0 6px var(--accentSoft);
+}
+.capIconBox svg { width: 23px; height: 23px; }
+
+.capTitle { margin: 0 0 8px; font-weight: 800; font-size: 17px; color: #fff; letter-spacing: -0.2px; }
+.capText { margin: 0; color: rgba(255, 255, 255, 0.72); font-size: 14px; line-height: 1.55; flex-grow: 1; }
+.capDetail {
+  display: inline-block;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capCard { transition: none; }
+  .capCard:hover { transform: none; }
 }

@@ -1,9 +1,53 @@
 // src/pages/panel/index.jsx
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/router';
 import Link from 'next/link';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
-import '@/styles/panel.module.css';
+import { getSupabaseServer } from '@/lib/supabaseServer';
+import { resolveCountryOnboardingRedirect } from '@/lib/countryOnboarding';
+import { resolveTrustOnboardingRedirect } from '@/lib/trustOnboardingClient';
+import { formatDrawAt, toZonedInputParts } from '@/lib/raffleTime';
+
+// AUTH UX 2026 — auth boundary real: el componente Panel() rendereaba su
+// shell completo (KPIs, "Crear rifa", "Rifas activas", etc.) en el HTML
+// inicial para cualquier anónimo o crawler antes de que el useEffect de
+// abajo pudiera correr. Esto solo cierra el acceso a la página; los datos
+// reales del panel siguen viniendo, como siempre, de endpoints
+// autenticados server-side.
+export async function getServerSideProps(ctx) {
+  const s = getSupabaseServer(ctx.req, ctx.res);
+  let user = null;
+  try {
+    const { data } = await s.auth.getUser();
+    user = data?.user || null;
+  } catch (_) {
+    user = null;
+  }
+  if (!user) {
+    return { redirect: { destination: '/login?next=/panel', permanent: false } };
+  }
+  return { props: {} };
+}
+
+// EXT-1: espejo informativo del MAX_EXTENSION_DAYS real, que vive en la RPC
+// extend_raffle_draw (migración 2026-08-22_draw1c_extension_max_days.sql).
+// Este valor es solo para copy/límites de UI — nunca la autoridad.
+const MAX_EXTENSION_DAYS = 15;
+
+const EXTEND_ERROR_MESSAGES = {
+  extension_too_long: `La nueva fecha supera el máximo permitido de ${MAX_EXTENSION_DAYS} días desde el sorteo actual.`,
+  extension_limit_reached: 'Ya usaste todas las extensiones disponibles para esta rifa.',
+  new_draw_at_too_soon: 'La nueva fecha debe tener al menos 10 minutos de anticipación.',
+  new_draw_at_must_be_later: 'La nueva fecha debe ser posterior a la fecha actual del sorteo.',
+  winner_already_exists: 'Esta rifa ya tiene un ganador — no se puede extender.',
+  draw_at_already_passed: 'El sorteo ya pasó — no se puede extender.',
+};
+
+const TZ_LABELS_PANEL = {
+  'America/Santiago': 'Chile',
+  'America/Argentina/Buenos_Aires': 'Argentina',
+};
 
 // -------------------- UI helpers --------------------
 function PesoCLP({ cents }) {
@@ -77,9 +121,10 @@ function EditModal({ open, onClose, raffle, onSaved }) {
     e.preventDefault();
     setBusy(true);
     try {
+      const { data: sres } = await supabase.auth.getSession();
       const r = await fetch(`/api/rifas/${raffle.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
         body: JSON.stringify({
           prize_type: prizeType,
           prize_amount_cents: prizeType === 'money' ? Math.round(Number(prizeAmount || 0) * 100) : null,
@@ -137,9 +182,10 @@ function CloseDialog({ open, onClose, raffle, onClosed }) {
   async function doClose() {
     setBusy(true);
     try {
+      const { data: sres } = await supabase.auth.getSession();
       const r = await fetch(`/api/rifas/${raffle.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
         body: JSON.stringify({ status: 'closed', end_date: raffle.end_date || new Date().toISOString().slice(0, 10) })
       });
       const j = await r.json();
@@ -155,13 +201,138 @@ function CloseDialog({ open, onClose, raffle, onClosed }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
-        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Terminar rifa</h3>
-        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>Al cerrar la rifa, no se podrán comprar más números.</p>
+        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Cerrar ventas</h3>
+        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
+          Al cerrar, no se podrán comprar más números. Esto <b>no</b> elige un ganador todavía — para eso, usa
+          &quot;Sortear ganador ahora&quot; una vez que las ventas estén cerradas.
+        </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <ActionButton tone="ghost" onClick={onClose}>Cancelar</ActionButton>
-          <ActionButton tone="danger" onClick={doClose}>{busy ? 'Cerrando…' : 'Terminar ahora'}</ActionButton>
+          <ActionButton tone="danger" onClick={doClose}>{busy ? 'Cerrando…' : 'Cerrar ventas'}</ActionButton>
         </div>
       </div>
+    </div>
+  );
+}
+
+function DrawDialog({ open, onClose, raffle, onDrawn }) {
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+  async function doDraw() {
+    setBusy(true);
+    try {
+      const { data: sres } = await supabase.auth.getSession();
+      const r = await fetch(`/api/rifas/${raffle.id}/draw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'draw_failed');
+      onDrawn?.(raffle.id);
+      onClose();
+    } catch (err) {
+      alert(err.message || 'draw_failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Sortear ganador ahora</h3>
+        <p style={{ margin: '0 0 12px', color: '#6B7280' }}>
+          Esta acción elige un ganador entre los números vendidos de esta rifa <b>ahora mismo, de forma
+          definitiva</b>. No se puede deshacer y le llegará un correo al ganador y a vos.
+        </p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <ActionButton tone="ghost" onClick={onClose}>Cancelar</ActionButton>
+          <ActionButton tone="danger" onClick={doDraw}>{busy ? 'Sorteando…' : 'Sí, sortear ahora'}</ActionButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ExtendDialog({ open, onClose, raffle, onExtended }) {
+  const [newDate, setNewDate] = useState('');
+  const [newTime, setNewTime] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+
+  const hasDrawInfo = !!(raffle?.draw_at && raffle?.timezone);
+  const currentInfo = hasDrawInfo ? formatDrawAt(raffle.draw_at, raffle.timezone) : null;
+  const maxAllowedIso = hasDrawInfo
+    ? new Date(new Date(raffle.draw_at).getTime() + MAX_EXTENSION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+    : null;
+  const maxAllowedInfo = maxAllowedIso && hasDrawInfo ? formatDrawAt(maxAllowedIso, raffle.timezone) : null;
+  // Guía visual únicamente — el rango exacto (incluyendo la hora) lo sigue
+  // validando la RPC extend_raffle_draw, nunca el input HTML.
+  const minInputParts = hasDrawInfo ? toZonedInputParts(raffle.draw_at, raffle.timezone) : null;
+  const maxInputParts = maxAllowedIso && hasDrawInfo ? toZonedInputParts(maxAllowedIso, raffle.timezone) : null;
+
+  async function doExtend(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const { data: sres } = await supabase.auth.getSession();
+      const r = await fetch(`/api/rifas/${raffle.id}/extend`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
+        body: JSON.stringify({ new_draw_date: newDate, new_draw_time: newTime, reason: reason || null }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'extend_failed');
+      onExtended?.(j.data);
+      onClose();
+    } catch (err) {
+      alert(EXTEND_ERROR_MESSAGES[err.message] || err.message || 'extend_failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+  const usedSoFar = raffle?.extensions_used ?? 0;
+  const limit = raffle?.extension_limit ?? 0;
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.35)', display: 'grid', placeItems: 'center', zIndex: 50 }}>
+      <form onSubmit={doExtend} style={{ background: '#fff', borderRadius: 16, padding: 20, width: 'min(520px, 92vw)', border: '1px solid #E5E7EB' }}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 18 }}>Extender fecha de sorteo</h3>
+        <p style={{ margin: '0 0 8px', color: '#6B7280' }}>
+          {usedSoFar} de {limit} extensiones utilizadas. Cada extensión puede aplazar el sorteo como máximo {MAX_EXTENSION_DAYS} días.
+        </p>
+        {currentInfo && (
+          <p style={{ margin: '0 0 4px', fontSize: 14 }}>
+            Sorteo actual: <b>{currentInfo.date} · {currentInfo.time}</b>
+          </p>
+        )}
+        {maxAllowedInfo && (
+          <p style={{ margin: '0 0 12px', fontSize: 14 }}>
+            Puedes aplazarlo como máximo hasta: <b>{maxAllowedInfo.date} · {maxAllowedInfo.time}</b>
+          </p>
+        )}
+        <div style={{ display: 'grid', gap: 12 }}>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Nueva fecha</span>
+            <input
+              type="date" required value={newDate} onChange={(e) => setNewDate(e.target.value)}
+              min={minInputParts?.date} max={maxInputParts?.date}
+              style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }}
+            />
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Nueva hora</span>
+            <input type="time" required value={newTime} onChange={(e) => setNewTime(e.target.value)} style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }} />
+          </label>
+          <label style={{ display: 'grid', gap: 6 }}>
+            <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>Motivo (opcional)</span>
+            <input type="text" value={reason} onChange={(e) => setReason(e.target.value)} style={{ padding: '10px 12px', border: '1px solid #E5E7EB', borderRadius: 10 }} />
+          </label>
+        </div>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
+          <ActionButton tone="ghost" onClick={onClose}>Cancelar</ActionButton>
+          <ActionButton tone="default" type="submit">{busy ? 'Guardando…' : 'Extender fecha'}</ActionButton>
+        </div>
+      </form>
     </div>
   );
 }
@@ -176,9 +347,12 @@ function DeleteDialog({ open, onClose, raffle, onDeleted }) {
   async function doDelete() {
     setBusy(true);
     try {
+      // PRE-LAUNCH-FIX-1 (P0-1): /api/rifas/delete ahora exige ownership
+      // real, derivado del token de sesión — igual que Extender/Sortear.
+      const { data: sres } = await supabase.auth.getSession();
       const r = await fetch('/api/rifas/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${sres?.session?.access_token || ''}` },
         body: JSON.stringify({ id: raffle.id, force: !mustArchive && !!hard })
       });
       const j = await r.json().catch(() => ({}));
@@ -222,12 +396,15 @@ function DeleteDialog({ open, onClose, raffle, onDeleted }) {
 
 // -------------------- Página Panel --------------------
 export default function Panel() {
+  const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [editRaffle, setEditRaffle] = useState(null);
   const [closeRaffle, setCloseRaffle] = useState(null);
   const [deleteRaffle, setDeleteRaffle] = useState(null);
+  const [drawRaffle, setDrawRaffle] = useState(null);
+  const [extendRaffle, setExtendRaffle] = useState(null);
 
   const [status, setStatus] = useState('all'); // all|active|draft|closed|deleted
   const [q, setQ] = useState('');
@@ -278,7 +455,30 @@ export default function Panel() {
       } catch (e) {
         console.warn('profile bootstrap:', e?.message);
       }
+
+      // G1: red de seguridad para el caso registro-manual (aterriza directo
+      // acá tras confirmar el email, sin pasar por auth/callback ni login.jsx).
+      // Si falta país, onboarding antes de dejar ver el panel.
+      try {
+        const onboardingUrl = await resolveCountryOnboardingRedirect('/panel');
+        if (onboardingUrl) { router.replace(onboardingUrl); return; }
+      } catch (e) {
+        console.warn('country onboarding check:', e?.message);
+      }
+
+      // TRUST-1: misma red de seguridad para el onboarding universal —
+      // esto es solo UX (evita mostrar el panel un instante antes de
+      // redirigir); la autoridad real que bloquea crear/publicar/
+      // recaudar vive server-side en cada endpoint sensible
+      // (assertOnboardingComplete), nunca acá.
+      try {
+        const trustUrl = await resolveTrustOnboardingRedirect('/panel');
+        if (trustUrl) router.replace(trustUrl);
+      } catch (e) {
+        console.warn('trust onboarding check:', e?.message);
+      }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Carga del panel con auth Bearer
@@ -343,9 +543,15 @@ export default function Panel() {
   function onRaffleDeleted(id) {
     setData((d) => ({ ...d, items: d.items.filter((x) => x.id !== id) }));
   }
+  function onRaffleDrawn(raffleId) {
+    setData((d) => ({ ...d, items: d.items.map((x) => (x.id === raffleId ? { ...x, has_winner: true } : x)) }));
+  }
+  function onRaffleExtended(updated) {
+    setData((d) => ({ ...d, items: d.items.map((x) => (x.id === updated.id ? { ...x, ...updated } : x)) }));
+  }
 
   return (
-    <Layout>
+    <Layout noindex>
       <main className="container" style={{ padding: '24px' }}>
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <h1 style={{ margin: 0 }}>Panel</h1>
@@ -362,7 +568,7 @@ export default function Panel() {
         )}
 
         {/* Filtros */}
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <div data-panel="filters" style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
           {['all', 'active', 'draft', 'closed', 'deleted'].map((s) => (
             <button
               key={s}
@@ -379,7 +585,7 @@ export default function Panel() {
               {s}
             </button>
           ))}
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <div data-panel="search" style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -392,7 +598,7 @@ export default function Panel() {
         </div>
 
         {/* KPIs */}
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12, marginBottom: 16 }}>
+        <section data-panel="kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12, marginBottom: 16 }}>
           <Kpi label="Recaudado (CLP)"><PesoCLP cents={totals.revenueCents} /></Kpi>
           <Kpi label="Rifas activas">{totals.active}</Kpi>
           <Kpi label="Participantes (aprox.)">{totals.participants.toLocaleString('es-CL')}</Kpi>
@@ -440,17 +646,35 @@ export default function Panel() {
                 <div style={{ fontWeight: 600 }}>{row.title || '(sin título)'}</div>
                 <div style={{ fontSize: 12, color: '#6B7280' }}>ID: {row.id}</div>
                 <div style={{ marginTop: 8 }}><Progress value={row.sold} max={row.total_numbers || 1} /></div>
+                {row.draw_at && row.timezone && (() => {
+                  const info = formatDrawAt(row.draw_at, row.timezone);
+                  const tz = TZ_LABELS_PANEL[row.timezone] || row.timezone;
+                  return info ? (
+                    <div style={{ marginTop: 6, fontSize: 12, color: '#6B7280' }}>
+                      Sorteo: {info.date} · {info.time} ({tz})
+                      {(row.extension_limit ?? 0) > 0 && ` · ${row.extensions_used ?? 0}/${row.extension_limit} extensiones`}
+                    </div>
+                  ) : null;
+                })()}
               </div>
               <div><Badge tone={row.status === 'active' ? 'green' : row.status === 'closed' ? 'red' : 'gray'}>{row.status}</Badge></div>
               <div>{row.sold}/{row.total_numbers}</div>
               <div><PesoCLP cents={row.price_cents} /></div>
               <div>{row.end_date || '—'}</div>
               {/* ⬇️ Celda de acciones con data-cell="actions" */}
-              <div data-cell="actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <div data-cell="actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <LinkButtonGhost href={`/rifas/${row.id}`}>Ver</LinkButtonGhost>
+                <a href={`/api/rifas/${row.id}/qr.png`} download style={{ background: '#fff', color: '#111827', border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 8, fontWeight: 600, display: 'inline-block', textDecoration: 'none' }}>Descargar QR</a>
                 <ActionButton tone="ghost" onClick={() => setEditRaffle(row)}>Editar</ActionButton>
                 {row.status !== 'closed' && (
-                  <ActionButton tone="danger" onClick={() => setCloseRaffle(row)}>Terminar</ActionButton>
+                  <ActionButton tone="danger" onClick={() => setCloseRaffle(row)}>Cerrar ventas</ActionButton>
+                )}
+                {row.status === 'closed' && !row.has_winner && (
+                  <ActionButton tone="danger" onClick={() => setDrawRaffle(row)}>Sortear ganador ahora</ActionButton>
+                )}
+                {(row.extension_limit ?? 0) > 0 && (row.extensions_used ?? 0) < row.extension_limit && !row.has_winner
+                  && row.draw_at && new Date(row.draw_at).getTime() > Date.now() && (
+                  <ActionButton tone="ghost" onClick={() => setExtendRaffle(row)}>Extender fecha</ActionButton>
                 )}
                 <ActionButton tone="danger" onClick={() => setDeleteRaffle(row)}>Eliminar</ActionButton>
               </div>
@@ -461,6 +685,8 @@ export default function Panel() {
 
       <EditModal   open={!!editRaffle}   onClose={() => setEditRaffle(null)}   raffle={editRaffle}   onSaved={onRaffleSaved} />
       <CloseDialog open={!!closeRaffle}  onClose={() => setCloseRaffle(null)}  raffle={closeRaffle}  onClosed={onRaffleClosed} />
+      <DrawDialog  open={!!drawRaffle}   onClose={() => setDrawRaffle(null)}   raffle={drawRaffle}   onDrawn={onRaffleDrawn} />
+      <ExtendDialog open={!!extendRaffle} onClose={() => setExtendRaffle(null)} raffle={extendRaffle} onExtended={onRaffleExtended} />
       <DeleteDialog open={!!deleteRaffle} onClose={() => setDeleteRaffle(null)} raffle={deleteRaffle} onDeleted={(id) => onRaffleDeleted(id)} />
 
       {/* CSS responsive móvil-only */}
@@ -468,6 +694,19 @@ export default function Panel() {
         /* ===== Panel: Mobile polish ===== */
         @media (max-width: 640px) {
           main.container { font-size: 17px; line-height: 1.45; }
+
+          main.container [data-panel="search"]{
+            margin-left: 0 !important;
+            width: 100%;
+          }
+          main.container [data-panel="search"] input{
+            flex: 1 1 auto;
+            min-width: 0 !important;
+          }
+
+          main.container [data-panel="kpis"]{
+            grid-template-columns: 1fr !important;
+          }
 
           main.container section[data-panel="list"]{
             border: none !important;

@@ -3,38 +3,106 @@
    ========================= */
 
 /* --- Página / Card --- */
+/* RIFEX RAFFLE EXPERIENCE 2026 — FINAL VISUAL LOCK (2026-09-08) — fondo
+   off-white extremadamente suave (nunca gris visible), contenedor amplio
+   (~95vw, tope ~1700px) para que la ficha use casi todo el ancho
+   disponible en vez de flotar en un océano vacío. Separación del
+   contenedor vía borde ultratenue + sombra difusa, nunca contraste de
+   color. */
 .page {
   min-height: 100vh;
-  padding: 24px 16px;
-  background: #f6f8fb;
+  padding: 24px 0;
+  background: #FAFAFA;
 }
+/* FINAL VISUAL LOCK fix (2026-09-08) — esta página se renderiza dentro
+   de <main class="container"> (Layout.jsx: max-width 1200px, margin: 0
+   auto), que `width: 95vw` ignora por completo (vw se calcula contra el
+   viewport real, no contra ese contenedor ya angostado a 1200px). Eso
+   hacía que .card se desbordara ~200px a la derecha del contenedor
+   padre y quedara recortado por el overflow-x:hidden global de
+   html/body — visualmente, un hueco enorme a la izquierda y la imagen
+   cortada a la derecha. Fix: técnica estándar de "breakout" (left:50%
+   + translateX(-50%)) para centrar .card contra el viewport real en
+   vez de contra el contenedor padre — válida porque ese padre ya está
+   centrado en el viewport vía margin:0 auto. */
 .card {
-  max-width: 1100px;
-  margin: 0 auto;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 95vw;
+  max-width: 1700px;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 18px 18px 8px;
   box-shadow: 0 12px 32px rgba(20, 30, 50, 0.06);
 }
+@media (max-width: 480px) {
+  .card { padding: 14px 12px 6px; border-radius: 14px; }
+}
+
+/* RIFEX CLOSURE PASS (2026-08-29) — bloque público "Información del
+   premio". Ámbar = costo a cargo del ganador, verde = incluido por el
+   creador, neutro = sin alerta económica (ej. retiro presencial). */
+.alertAmber {
+  background: #FFFBEB;
+  border: 1px solid #FDE68A;
+  color: #92400E;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alertGreen {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #14532D;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.alertNeutral {
+  background: #F8FAFC;
+  border: 1px solid #E5E7EB;
+  color: #0F172A;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
 
 /* --- Encabezado --- */
-.head { margin-bottom: 0; }
+.head { margin-bottom: 10px; }
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #173404;
+  background: #EAF3DE;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+}
 .title {
   margin: 0 0 4px;
-  font-size: 30px;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
   color: #0f172a;
   /* el título ya viene capitalizado desde JS */
   text-transform: none;
 }
 .sub { margin: 0 0 8px; color: #334155; }
 
-/* --- Info superior (premio, precio, fecha, enlaces) --- */
+/* --- Info superior (premio, precio, fecha) --- */
 .topInfo {
   display: grid;
-  grid-template-columns: repeat(3, 1fr) 260px;
-  gap: 16px;
-  margin: 6px 0 16px;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 10px;
+  margin: 6px 0 12px;
 }
 @media (max-width: 900px) {
   .topInfo { grid-template-columns: 1fr; }
@@ -42,10 +110,14 @@
 .infoItem {
   background: #f8fafc;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 14px;
   display: grid;
   gap: 4px;
+}
+.infoItemHi {
+  background: #EAF3DE;
+  border-color: #C0DD97;
 }
 .infoLabel {
   font-size: 12px;
@@ -53,17 +125,39 @@
   text-transform: uppercase;
   letter-spacing: .5px;
 }
-.infoValue { font-weight: 800; color: #0f172a; font-size: 18px; }
+.infoItemHi .infoLabel { color: #3B6D11; }
+.infoValue { font-weight: 800; color: #0f172a; font-size: 19px; }
+.infoItemHi .infoValue { color: #173404; }
 .infoSub   { color: #334155; font-size: 13px; }
 
-.linksCol { display: grid; align-content: start; gap: 6px; }
-.linkPrimary   { color: #1E3A8A; font-weight: 800; text-decoration: underline; }
-.linkSecondary { color: #18A957; font-weight: 800; text-decoration: underline; }
-.linkMuted     { color: #334155; text-decoration: underline; }
+/* --- Barra de links (chat / términos) --- */
+.linksRow {
+  display: flex;
+  gap: 20px;
+  padding: 10px 2px 14px;
+  border-bottom: 1px solid #eef2f7;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.linkPrimary   { color: #1E3A8A; font-weight: 700; text-decoration: none; font-size: 13.5px; }
+.linkSecondary { color: #18A957; font-weight: 700; text-decoration: none; font-size: 13.5px; }
+.linkMuted     { color: #6B7280; text-decoration: none; font-size: 13.5px; }
+.linkPrimary:hover, .linkSecondary:hover, .linkMuted:hover { text-decoration: underline; }
 
 /* --- Números --- */
 .numbersWrap { margin: 6px 0 12px; }
-.numbersTitle { margin: 0 0 8px; font-size: 18px; color: #0f172a; }
+.numbersHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.numbersTitle { margin: 0; font-size: 16px; font-weight: 700; color: #0f172a; }
+.legend { display: flex; gap: 14px; font-size: 11.5px; color: #6B7280; }
+.legendItem { display: inline-flex; align-items: center; gap: 5px; }
+.legendDot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 .numbersBlock { background: transparent; }
 
 .numsGrid {
@@ -139,27 +233,84 @@
   font-size: 13px;
 }
 
-/* --- CTA inferior --- */
-.bottomCta {
-  display: grid;
-  gap: 6px;
-  padding: 10px 0 16px;
+/* RIFEX CHECKOUT V2 — UX CORRECTION PASS (2026-09-07) — Buy Box
+   photo-first, siempre visible en el sidebar (reemplaza el panel
+   comprimido de la misión anterior y el modal QuantitySelector
+   original). Composición como superficie de compra de producto, no
+   como widget administrativo: foto real del premio, selector grande,
+   filas de precio/cantidad/total, CTA dominante. Sin chips de cantidad
+   rápida, sin botón Cancelar. "Continuar" navega a /rifas/[id]/checkout
+   — la reserva real de números sigue ocurriendo 100% en checkout/mp.js,
+   sin cambios, exactamente al hacer clic en "Continuar al pago" ahí. */
+.buyBox {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 20px 40px -22px rgba(24,169,87,.28);
 }
-.cta {
-  width: 100%;
-  height: 48px;
-  border: none;
-  border-radius: 999px;
+/* FINAL VISUAL LOCK (2026-09-08) — la Buy Box ya no repite la foto hero
+   (esa vive grande en la columna izquierda): usa una miniatura real de
+   la portada + título/tipo, y consolida en una sola tarjeta la
+   información que antes vivía repartida en drawCard/statCardsRow
+   (sorteo, disponibles, valor por número), manteniéndola siempre
+   visible tanto si se puede comprar como si las ventas están cerradas o
+   agotadas. */
+.buyBoxHead { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.buyBoxThumb {
+  width: 56px; height: 56px; flex-shrink: 0; border-radius: 12px; overflow: hidden;
+  background: linear-gradient(135deg, #1E3A8A, #18A957);
+}
+.buyBoxThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.buyBoxHeadText { min-width: 0; }
+.buyBoxHeadTitle {
+  margin: 0; font-size: 14.5px; font-weight: 800; color: #0f172a;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.buyBoxHeadType { margin: 2px 0 0; font-size: 12px; color: #64748b; }
+.buyBoxInfoRow {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px; color: #64748b; padding: 5px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.buyBoxInfoRow:last-of-type { border-bottom: none; margin-bottom: 12px; }
+.buyBoxInfoRow b { color: #0f172a; font-weight: 700; }
+.buyBoxTrust { margin: 0 0 14px; font-size: 12.5px; font-weight: 700; color: #18A957; text-align: center; }
+.buyBoxTitle { margin: 0 0 2px; font-size: 16px; font-weight: 800; color: #0f172a; }
+.buyBoxSub { margin: 0 0 16px; font-size: 12.5px; color: #64748b; }
+.buyBoxStepperRow { display: flex; align-items: center; justify-content: center; gap: 22px; margin-bottom: 18px; }
+.buyBoxStepBtn {
+  width: 46px; height: 46px; border-radius: 999px; border: 1px solid #e5e7eb;
+  background: #f8fafc; font-size: 20px; font-weight: 800; color: #0f172a;
+  cursor: pointer; transition: background .15s ease;
+}
+.buyBoxStepBtn:not(:disabled):hover { background: #EAF3DE; }
+.buyBoxStepBtn:disabled { opacity: .4; cursor: not-allowed; }
+.buyBoxStepValue { min-width: 36px; text-align: center; font-size: 22px; font-weight: 800; color: #0f172a; }
+.buyBoxRow {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 13.5px; color: #334155; padding: 7px 0;
+}
+.buyBoxRow b { color: #0f172a; font-weight: 800; }
+.buyBoxTotalRow {
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid #e5e7eb; margin-top: 4px; padding-top: 12px;
+  font-size: 14px; font-weight: 700; color: #334155;
+}
+.buyBoxTotalRow b { font-size: 21px; font-weight: 800; color: #173404; }
+.buyBoxCta {
+  width: 100%; height: 50px; margin-top: 16px; border: none; border-radius: 999px;
   background: linear-gradient(90deg, #1E3A8A 0%, #18A957 100%);
-  color: #fff;
-  font-weight: 800;
-  letter-spacing: .2px;
-  box-shadow: 0 10px 28px rgba(24, 169, 87, 0.25);
-  transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease;
-  cursor: pointer;
+  color: #fff; font-weight: 800; font-size: 15px; cursor: pointer;
+  box-shadow: 0 12px 30px rgba(24, 169, 87, 0.3);
+  transition: transform .15s ease, box-shadow .15s ease;
 }
-.cta:not(:disabled):hover { transform: translateY(-1px); }
-.cta:disabled { opacity: .55; box-shadow: none; cursor: not-allowed; }
+.buyBoxCta:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(24,169,87,.4); }
+.buyBoxCta:disabled {
+  opacity: .55; cursor: not-allowed; box-shadow: none; transform: none;
+  background: linear-gradient(90deg, #1E3A8A 0%, #18A957 100%);
+}
+.buyBoxFootnote { margin: 10px 0 0; font-size: 11.5px; color: #94a3b8; text-align: center; }
 
 /* --- Estados de página --- */
 .loading, .error {
@@ -182,4 +333,232 @@
 
 .iconImg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:16px}
 .numBadge{position:absolute;right:8px;bottom:8px;font:800 14px/1 system-ui;color:#00F0FF;text-shadow:0 0 6px rgba(0,0,0,.6)}
+
+/* --- RIFEX RAFFLE EXPERIENCE 2026 — Hero con galería --- */
+.heroGrid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+  margin-bottom: 12px;
+}
+@media (max-width: 900px) {
+  .heroGrid { grid-template-columns: 1fr; }
+}
+.heroMedia { min-width: 0; }
+.heroSide { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.soldOutNote {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.trustRow { margin-top: 2px; }
+
+/* --- Bloque del organizador --- */
+.organizerBlock {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 14px 0;
+}
+.organizerHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.organizerAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1E3A8A, #18A957);
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.organizerAvatar img { width: 100%; height: 100%; object-fit: cover; }
+.organizerLabel { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
+.organizerName { font-weight: 800; color: #0f172a; font-size: 15px; }
+.organizerLink {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E3A8A;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.organizerLink:hover { text-decoration: underline; }
+.organizerBio {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  color: #334155;
+  font-style: italic;
+}
+
+/* =========================
+   RAFFLE VISUAL POLISH (2026-09-07)
+   Layout de 2 columnas + pestañas + sidebar de compra, acercándose al
+   diseño aprobado. Todas las clases de abajo son puramente visuales —
+   ninguna cambia qué datos se piden ni cómo se procesan.
+   ========================= */
+
+.headTop { margin-bottom: 14px; }
+
+/* FINAL VISUAL LOCK (2026-09-08) — columna izquierda (foto/galería)
+   claramente dominante (~65-70%), derecha compacta (~30-35%), acorde a
+   "photo-first" con el contenedor ahora mucho más ancho. */
+.layout2col {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout2col { grid-template-columns: 1fr; }
+}
+
+.mainCol { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.sideCol { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+/* --- Pestañas --- */
+.tabsNav {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0;
+}
+.tabBtn {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+.tabBtn:hover { color: #0f172a; }
+.tabBtnActive { color: #18A957; border-bottom-color: #18A957; }
+
+.tabPanel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px;
+}
+.tabPanelTitle { margin: 0 0 10px; font-size: 17px; font-weight: 800; color: #0f172a; }
+/* INCIDENTE 2026-09-10: la descripción se guarda con saltos de línea y
+   párrafos reales, pero white-space:normal (default) los colapsaba
+   visualmente en un solo bloque. pre-wrap preserva tanto los saltos
+   simples como las líneas en blanco entre premios (a diferencia de
+   pre-line, que las colapsaría) sin tocar el texto ya guardado ni
+   usar dangerouslySetInnerHTML — sigue siendo texto plano escapado
+   por React, cero riesgo XSS. overflow-wrap+word-break evitan que una
+   palabra/URL larga sin espacios fuerce overflow horizontal mobile. */
+.tabPanelText {
+  margin: 0; color: #334155; line-height: 1.6; font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* --- Características (rifas con features declaradas) --- */
+.featuresTitle { margin: 18px 0 10px; font-size: 14px; font-weight: 800; color: #0f172a; }
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (max-width: 560px) {
+  .featuresGrid { grid-template-columns: 1fr; }
+}
+.featureCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.featureCardIcon { font-size: 16px; color: #18A957; flex-shrink: 0; }
+.featureCardLabel { font-size: 11.5px; color: #64748b; text-transform: uppercase; letter-spacing: .03em; }
+.featureCardValue { font-size: 14px; font-weight: 700; color: #0f172a; }
+
+/* --- Cómo participar --- */
+.stepsList { display: flex; flex-direction: column; gap: 14px; }
+.stepItem { display: flex; gap: 12px; align-items: flex-start; }
+.stepNum {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1E3A8A, #18A957);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.stepTitle { font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 2px; }
+.stepText { color: #64748b; font-size: 13.5px; line-height: 1.5; }
+
+/* --- Preguntas frecuentes --- */
+.faqList { display: flex; flex-direction: column; gap: 14px; }
+.faqItem { border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; }
+.faqItem:last-child { border-bottom: none; padding-bottom: 0; }
+.faqQ { font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 4px; }
+.faqA { color: #64748b; font-size: 13.5px; line-height: 1.5; }
+
+/* --- Sidebar de compra --- */
+.staticTrustRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.staticTrustBadge {
+  font-size: 12.5px;
+  color: #334155;
+  font-weight: 600;
+}
+
+.safetyNote {
+  background: #F0FDF4;
+  border: 1px solid #BBF7D0;
+  color: #14532D;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sideOrganizerCard {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.sideDeliveryCard {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.sideDeliveryTitle { font-weight: 700; color: #0f172a; font-size: 13.5px; margin-bottom: 4px; }
+.sideDeliveryText { color: #334155; font-size: 13px; line-height: 1.5; }
+.sideDeliveryNotice { margin-top: 6px; color: #92400E; font-size: 12.5px; font-weight: 600; }
 

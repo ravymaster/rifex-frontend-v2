@@ -1,0 +1,368 @@
+/* RIFEX PRODUCT LANDINGS V1 — shared visual language for the four
+   product landings (Eventos, Campañas, Inscripciones, Rifas). Reuses the
+   existing global palette (src/styles/globals.css: --ultramar/--trebol/
+   --turquesa/--oscuro/--gris/--borde/--fondo). Each page sets its own
+   accent via the --pl-accent custom property on the outermost wrapper —
+   nothing here hardcodes a single product's color. Mobile-first: base
+   rules target the smallest screens, breakpoints widen the layout. */
+
+.page {
+  --pl-accent: var(--ultramar);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px 64px;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 40px 0 36px;
+  text-align: center;
+}
+.eyebrow {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pl-accent) 12%, white);
+  color: var(--pl-accent);
+  font-weight: 800;
+  font-size: 12.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.heroTitle {
+  font-size: clamp(28px, 5vw, 44px);
+  line-height: 1.1;
+  font-weight: 900;
+  color: var(--oscuro);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.heroSubtitle {
+  font-size: clamp(15px, 2vw, 18px);
+  line-height: 1.6;
+  color: var(--gris);
+  max-width: 620px;
+  margin: 0 auto;
+}
+.heroCtas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+.heroVisual {
+  margin-top: 8px;
+  display: grid;
+  /* minmax(140px,...) desbordaba en viewports angostos (375px con 3
+     chips + gaps supera 375px y el overflow-x:hidden global recorta el
+     contenido en vez de reflow) — 96px cabe 3 columnas incluso en el
+     mobile más chico que soportamos. */
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 10px;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.heroChip {
+  background: var(--white);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  padding: 16px 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+.heroChipValue {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--pl-accent);
+  margin: 0 0 2px;
+}
+.heroChipLabel {
+  font-size: 12.5px;
+  color: var(--gris);
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* ---------- Buttons ---------- */
+.btnPrimary,
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 26px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 15px;
+  text-decoration: none;
+  border: 1.5px solid transparent;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.15s ease;
+  min-height: 48px;
+}
+.btnPrimary {
+  background: var(--pl-accent);
+  color: #fff;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--pl-accent) 32%, transparent);
+}
+.btnPrimary:hover { transform: translateY(-1px); }
+.btnSecondary {
+  background: var(--white);
+  color: var(--pl-accent);
+  border-color: color-mix(in srgb, var(--pl-accent) 35%, var(--borde));
+}
+.btnSecondary:hover { background: color-mix(in srgb, var(--pl-accent) 6%, white); }
+
+/* ---------- Section shell ---------- */
+.section {
+  padding: 40px 0;
+  border-top: 1px solid var(--borde);
+}
+.sectionHead {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 28px;
+}
+.sectionTitle {
+  font-size: clamp(22px, 3.4vw, 30px);
+  font-weight: 900;
+  color: var(--oscuro);
+  margin: 0 0 10px;
+}
+.sectionSubtitle {
+  font-size: 15px;
+  color: var(--gris);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* ---------- Feature / use-case grids ---------- */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 560px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 960px) {
+  .grid3 { grid-template-columns: repeat(3, 1fr); }
+  .grid4 { grid-template-columns: repeat(4, 1fr); }
+}
+.card {
+  background: var(--white);
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  padding: 22px 20px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cardIcon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pl-accent) 12%, white);
+  font-size: 20px;
+}
+.cardTitle {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: var(--oscuro);
+  margin: 0;
+}
+.cardDesc {
+  font-size: 13.5px;
+  color: var(--gris);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ---------- Steps ---------- */
+.steps {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  counter-reset: pl-step;
+}
+@media (min-width: 720px) {
+  .steps { grid-template-columns: repeat(var(--pl-step-cols, 4), 1fr); }
+}
+.step {
+  background: var(--white);
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  padding: 20px 18px;
+  position: relative;
+}
+.stepNum {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--pl-accent);
+  color: #fff;
+  font-weight: 900;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+}
+.stepTitle {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--oscuro);
+  margin: 0 0 6px;
+}
+.stepDesc {
+  font-size: 13px;
+  color: var(--gris);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* ---------- Operational band (highlighted) ---------- */
+.operational {
+  border-radius: 24px;
+  padding: 32px 20px;
+  background: color-mix(in srgb, var(--pl-accent) 7%, var(--fondo));
+  border: 1px solid color-mix(in srgb, var(--pl-accent) 18%, var(--borde));
+}
+.operationalGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin-top: 22px;
+}
+@media (min-width: 640px) {
+  .operationalGrid { grid-template-columns: repeat(2, 1fr); }
+}
+.operationalItem {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--white);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid var(--borde);
+}
+.operationalIcon {
+  font-size: 20px;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--pl-accent) 14%, white);
+}
+
+/* ---------- Security list ---------- */
+.securityList {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+@media (min-width: 640px) {
+  .securityList { grid-template-columns: repeat(2, 1fr); }
+}
+.securityItem {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 13.5px;
+  color: #334155;
+  line-height: 1.55;
+  background: var(--white);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+.securityCheck {
+  color: var(--pl-accent);
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+/* ---------- FAQ ---------- */
+.faqList {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.faqItem {
+  background: var(--white);
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 4px 18px;
+}
+.faqItem summary {
+  cursor: pointer;
+  padding: 14px 0;
+  font-weight: 700;
+  font-size: 14.5px;
+  color: var(--oscuro);
+  list-style: none;
+}
+.faqItem summary::-webkit-details-marker { display: none; }
+.faqItem summary::after {
+  content: '+';
+  float: right;
+  font-weight: 900;
+  color: var(--pl-accent);
+}
+.faqItem[open] summary::after { content: '−'; }
+.faqAnswer {
+  font-size: 13.5px;
+  color: var(--gris);
+  line-height: 1.6;
+  padding: 0 0 16px;
+  margin: 0;
+}
+
+/* ---------- Final CTA ---------- */
+.finalCta {
+  border-radius: 28px;
+  padding: 44px 24px;
+  text-align: center;
+  background: linear-gradient(135deg, var(--pl-accent) 0%, color-mix(in srgb, var(--pl-accent) 55%, #0c1636) 100%);
+  color: #fff;
+}
+.finalCtaTitle {
+  font-size: clamp(22px, 3.6vw, 30px);
+  font-weight: 900;
+  margin: 0 0 10px;
+}
+.finalCtaSubtitle {
+  font-size: 14.5px;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 520px;
+  margin: 0 auto 22px;
+  line-height: 1.6;
+}
+.finalCta .btnPrimary {
+  background: #fff;
+  color: var(--pl-accent);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.finalCtaNote {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.75);
+}
+.finalCtaNote a { color: #fff; text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .btnPrimary, .btnSecondary { width: 100%; }
+  .heroCtas { flex-direction: column; }
+}

@@ -1,0 +1,31 @@
+.wrap{
+  border-top:1px dashed var(--borde); margin-top:12px; padding-top:12px;
+}
+.list{
+  max-height:220px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;
+  padding-right:4px; margin-bottom:10px;
+}
+.empty{ color:var(--gris); font-size:12.5px; text-align:center; padding:10px 0; margin:0; }
+
+.msg{ align-self:flex-start; max-width:85%; }
+.msg.me{ align-self:flex-end; }
+.meta{ display:flex; gap:6px; align-items:baseline; margin-bottom:2px; }
+.msg.me .meta{ flex-direction:row-reverse; }
+.name{ font-size:11px; font-weight:700; color:var(--oscuro); }
+.guestTag{
+  font-size:9.5px; font-weight:700; color:var(--gris); background:var(--fondo);
+  border:1px solid var(--borde); padding:1px 6px; border-radius:999px;
+}
+.time{ font-size:10.5px; color:var(--gris); }
+.bubble{
+  background:var(--fondo); border:1px solid var(--borde); border-radius:12px;
+  padding:7px 11px; font-size:13px; color:#374151; line-height:1.4;
+}
+.msg.me .bubble{ background:var(--trebol); border-color:var(--trebol); color:#fff; }
+
+.inputBar{ display:flex; gap:8px; flex-wrap:wrap; }
+.inputBar .input{ flex:1; min-width:120px; font-size:13px; padding:8px 12px; }
+.inputBar button{ padding:8px 16px; font-size:13px; }
+.guestNameInput{ flex:0 0 120px !important; }
+
+.err{ color:#b91c1c; font-size:12px; margin:6px 0 0; }

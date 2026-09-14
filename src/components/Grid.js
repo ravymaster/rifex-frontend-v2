@@ -34,18 +34,44 @@ export default function Grid({ raffleId, priceCLP, buyerEmail }) {
     setSelected(s => (s.includes(n) ? s.filter(x => x !== n) : [...s, n]));
   }
 
+  // === ÚNICO CAMBIO: usar el endpoint /api/mp/preference y redirigir con 'redirect' ===
   async function pay() {
     if (!selected.length) return;
     setLoading(true);
-    const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ raffleId, numbers: selected, buyerEmail })
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (data?.init_point) window.location.href = data.init_point;
-    else alert('No se pudo iniciar el pago');
+    try {
+      // Fee Rifex 7% del total (redondeado a entero CLP)
+      const rifexFeeCLP = Math.round((total || 0) * 0.07);
+
+      const res = await fetch('/api/mp/preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          raffleId,                    // el backend resuelve sellerUid dueño de la rifa
+          numbers: selected,           // por si reservan/registran los números
+          buyerEmail: buyerEmail || null,
+          amountCLP: total,            // total de la compra
+          rifexFeeCLP,                 // comisión Rifex (opcional, el backend puede ignorarla si aún no la usa)
+        }),
+      });
+
+      const data = await res.json();
+      setLoading(false);
+
+      if (data?.ok && data?.redirect) {
+        // data.redirect ya considera sandbox_init_point o init_point según live_mode del vendedor
+        window.location.href = data.redirect;
+      } else if (data?.init_point) {
+        // compatibilidad por si tu backend actual devuelve init_point
+        window.location.href = data.init_point;
+      } else {
+        console.error('Preferencia MP falló:', data);
+        alert('No se pudo iniciar el pago');
+      }
+    } catch (err) {
+      setLoading(false);
+      console.error('Error iniciando pago MP:', err);
+      alert('No se pudo iniciar el pago');
+    }
   }
 
   return (

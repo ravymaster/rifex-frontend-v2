@@ -1,0 +1,50 @@
+-- db/migrations/2026-09-14_hotfix_event_photos_bucket.sql
+-- HOTFIX PROD — EVENTOS: PORTADA + CTA DE COMPRA (2026-09-14).
+--
+-- CAUSA RAÍZ del "Bucket not found" en /crear-evento: el bucket
+-- `event-photos` (src/pages/api/events/upload-photo.js, const BUCKET =
+-- 'event-photos') nunca existió en el proyecto Supabase de PROD
+-- (wrdkdfuiwlujfxxijpao) -- se creó a mano en rifex-dev durante EVENT-1
+-- (Fase 14) y esa creación nunca se replicó a PROD, porque ningún bucket
+-- de este repo se ha creado vía migración SQL hasta ahora (confirmado:
+-- raffle-prizes/colecta-photos/avatars tampoco tienen migración de
+-- bucket -- se crearon a mano en su momento, en ambos proyectos, por
+-- fuera de este repo). Verificado empíricamente vía
+-- GET /storage/v1/bucket en ambos proyectos antes de escribir esta
+-- migración: PROD solo tenía raffle-prizes/avatars/colecta-photos/
+-- trust-documents -- event-photos ausente. DEV sí lo tenía.
+--
+-- Este es el PRIMER bucket de este repo que se crea vía migración
+-- versionada (sigue el patrón ya usado para la tabla/caso de uso de
+-- trust-documents en 2026-08-27b, que sí creó su bucket así) --
+-- deliberado, para que esto no vuelva a pasar: cualquier promoción
+-- futura a PROD que corra este archivo de migraciones deja el bucket
+-- ya creado, sin depender de un paso manual en el dashboard.
+--
+-- Privilegio mínimo, mismo modelo ya certificado y en producción para
+-- colecta-photos/raffle-prizes/avatars (los tres son "public: true" sin
+-- ninguna policy de storage.objects propia):
+--   - Lectura pública: necesaria porque la portada del evento se sirve
+--     directo desde este bucket en la página pública (getPublicUrl),
+--     visible para cualquier visitante sin sesión -- igual que las
+--     portadas de Colectas y las fotos de premios de Rifas.
+--   - Escritura: NUNCA directa desde el navegador. El único camino de
+--     escritura es src/pages/api/events/upload-photo.js, que exige un
+--     Bearer token válido (auth.getUser) y usa el service_role
+--     (bypassa RLS) -- el cliente jamás recibe una URL firmada de
+--     Storage ni credenciales para escribir directo. Por eso, igual que
+--     colecta-photos/raffle-prizes/avatars, NO se agrega ninguna policy
+--     de storage.objects para este bucket: storage.objects ya tiene RLS
+--     habilitado por defecto y sin una policy que mencione
+--     bucket_id='event-photos', anon/authenticated no pueden escribir
+--     ni listar directo -- toda escritura real pasa server-side.
+--   - Rutas de objeto no predecibles: upload-photo.js genera
+--     `${userId}/${Date.now()}-${randomUUID()}-${safeName}.jpg` -- un
+--     usuario no puede adivinar ni sobrescribir el archivo de otro
+--     (siempre con upsert:false, además).
+--
+-- Idempotente: `on conflict (id) do nothing` -- correrla de nuevo (en
+-- PROD o en DEV, donde el bucket ya existe) no hace nada.
+insert into storage.buckets (id, name, public)
+values ('event-photos', 'event-photos', true)
+on conflict (id) do nothing;

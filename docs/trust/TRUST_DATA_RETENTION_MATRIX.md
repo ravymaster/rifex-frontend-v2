@@ -1,0 +1,51 @@
+# Trust — Matriz de Retención de Datos
+
+> **Actualización — TRUST-3A implementado en `rifex-dev` (2026-08-27),
+> desviación honesta respecto del "ideal" de la fila de abajo.** La
+> imagen del documento de identidad SÍ se conserva hoy en el bucket
+> privado `trust-documents` — no solo el resultado — porque un revisor
+> humano necesita poder volver a abrir un caso `under_review` para
+> decidir, y una eliminación inmediata post-procesamiento le impediría
+> revisar. No existe todavía ningún job de expiración/purga automática:
+> `trust_identity_verifications.expires_at` se fija a 2 años tras la
+> aprobación (valor provisional, sin política de retención real
+> detrás), y nada borra las imágenes de Storage cuando ese plazo se
+> cumple, ni cuando un caso queda `rejected`/`revoked`. Esto es un gap
+> real, explícito, pendiente para TRUST-3B o una fase de retención
+> dedicada — no una decisión de que "está bien conservarlas para
+> siempre". El resultado de verificación (`identity_verified`/
+> `age_verified`/método/revisor/fecha) SÍ vive donde esta matriz ya
+> preveía, en `trust_onboarding`. El historial append-only
+> (`trust_identity_audit_log`) sobrevive intencionalmente incluso a la
+> eliminación de la cuenta (decisión tomada al corregir un bug real de
+> FK durante esta misión — ver `TRUST_IMPLEMENTATION_ROADMAP.md`,
+> sección TRUST-3A) — nunca contiene RUT/nombre/nacimiento/contenido del
+> documento, solo acción/estado/motivo/fecha.
+
+Principio rector (Ley 19.628/21.719, ver `TRUST_LEGAL_PRIVACY_MATRIX_CHILE.md`, sección 1.3): ningún dato se conserva indefinidamente sin una razón declarada. Cada categoría de dato tiene una retención propia, nunca "todo para siempre por si acaso".
+
+| Categoría de dato | Dónde vive (propuesto) | Retención mientras la cuenta está activa | Tras eliminación de cuenta / solicitud de derecho de cancelación | Justificación de la retención |
+|---|---|---|---|---|
+| Datos públicos de perfil (nombre visible, foto, descripción) | `users_profile` (extendido) | Mientras la cuenta exista | Eliminados o anonimizados al confirmar la baja | Finalidad activa: mostrar el perfil público |
+| Datos privados de identidad (nombre legal, RUT, fecha de nacimiento, teléfono) | Tabla privada nueva, nunca en `users_profile` sin control de acceso | Mientras la cuenta esté activa y mientras exista una obligación legal/contable que la justifique | Anonimización tras el período mínimo exigido por obligaciones tributarias/contables (a confirmar con abogado — no asumido en este documento) | Verificación de identidad, prevención de fraude, requisitos de facturación |
+| Imagen del documento de identidad subido | Idealmente: **no conservada** — solo el resultado (ver `TRUST_AGE_IDENTITY_VERIFICATION.md`) | Solo durante el procesamiento activo de la verificación (minutos/horas, no días) | Eliminación inmediata al emitir el resultado, salvo que el proveedor KYC exija retención propia (a verificar por proveedor si se adopta TRUST-8) | Minimizar la superficie de un eventual incidente — no se puede filtrar lo que no se guarda |
+| Resultado de verificación (aprobado/rechazado, método, fecha, expiración) | Tabla de evidencia de verificación (ver `TRUST_UNIFIED_ONBOARDING.md`) | Mientras la cuenta esté activa | Conservado de forma anonimizada por el período que la política de prevención de fraude/evasión de suspensión justifique (ver amenaza #9 en `TRUST_THREAT_MODEL.md`) — el resultado, no el documento | Prevenir evasión de suspensión, auditoría histórica |
+| Datos biométricos (si se adopta *liveness*/*face match*, TRUST-8) | **Preferiblemente nunca almacenados por Rifex** — procesados por el proveedor, Rifex recibe solo el resultado | No aplica si no se almacenan | No aplica | Categoría sensible bajo Ley 21.719 — la política por defecto es no retenerlos |
+| Aceptación de términos y privacidad (versión + fecha) | Tabla append-only | Indefinida mientras la cuenta exista — es evidencia de consentimiento, no un dato a minimizar agresivamente | Conservada como evidencia de que hubo consentimiento en su momento, incluso tras la baja de la cuenta, con acceso restringido | Evidencia legal de consentimiento informado |
+| Historial de Trust (aprobaciones, rechazos, suspensiones, apelaciones) | Tabla append-only, nunca editable ni borrable | Indefinida mientras la cuenta exista | Conservado anonimizado tras la baja, como evidencia de que el proceso fue correcto y auditable | Auditoría, defensa ante reclamos, prevención de evasión de suspensión |
+| Denuncias recibidas | Tabla propia, acceso restringido a roles de revisión | Mientras sea relevante para la cuenta denunciada | Conservadas de forma anonimizada respecto del denunciante si corresponde protegerlo, nunca eliminadas silenciosamente si hubo una acción basada en ellas | Auditoría de decisiones de moderación |
+| Evidencia posterior a la transacción (entrega de premio, confirmación de evento, rendición de colecta) | Tabla propia, ver `TRUST_POST_TRANSACTION_EVIDENCE.md` | Mientras exista valor probatorio razonable (ej. período de disputa/reclamo) | Conservada más allá de la baja de cuenta si protege a terceros (compradores/aportantes) que no dieron de baja su propia cuenta | Protección de terceros, resolución de disputas |
+| Señales del motor de riesgo (dispositivo, IP, patrones) | Tabla propia, nunca expuesta al usuario ni en logs generales | Ventana corta y explícita (ej. 90 días, a definir en TRUST-7) | Eliminadas tras la ventana, salvo que estén vinculadas a un caso de fraude activo | Detección de patrones, minimizado por diseño — no es un perfil permanente de vigilancia |
+| Logs de aplicación / analytics | Infraestructura existente (Vercel, etc.) | Según política ya vigente del proyecto, no modificada por este diseño | N/A | Fuera del alcance de este diseño — **nunca deben contener PII de Trust**, ver invariante en `RIFEX_TRUST_CANONICAL_DESIGN.md` |
+
+## Derechos del titular (ARCO + portabilidad bajo Ley 21.719)
+
+- **Acceso**: el usuario puede solicitar qué datos privados y de evidencia tiene Rifex sobre él — mecanismo concreto a diseñar en TRUST-3/TRUST-4, no implementado aún.
+- **Rectificación**: corregir un dato privado incorrecto — debe re-disparar verificación si el campo es identitario central (ver amenaza #12 del threat model).
+- **Cancelación**: eliminar datos cuando ya no exista una base legal/contractual para conservarlos — sujeto a las excepciones de esta tabla (evidencia de consentimiento, evidencia post-transacción que protege a terceros).
+- **Oposición**: el usuario puede oponerse a un tratamiento no esencial (ej. uso de sus datos para señales del motor de riesgo más allá de lo estrictamente necesario) — a definir el mecanismo exacto en una etapa posterior.
+- **Portabilidad** (nueva bajo Ley 21.719): exportar sus propios datos en un formato estructurado — no implementado en el roadmap actual, marcado como pendiente para una etapa posterior a TRUST-9.
+
+## Nota
+
+Esta matriz es un diseño de referencia, no una política legal finalizada. Los períodos exactos de retención (ej. "90 días" para señales de riesgo) son propuestas razonables, no cifras exigidas por ley verificadas en esta sesión — deben confirmarse con un abogado antes de convertirse en política pública de Rifex, especialmente para las categorías marcadas como "a confirmar con abogado" arriba.
