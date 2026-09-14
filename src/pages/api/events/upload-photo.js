@@ -71,12 +71,22 @@ export default async function handler(req, res) {
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
       .upload(path, buffer, { contentType: 'image/jpeg', upsert: false });
-    if (upErr) throw upErr;
+    if (upErr) {
+      // HOTFIX 2026-09-14: nunca reenviar el mensaje crudo del driver de
+      // Storage al cliente (p.ej. "Bucket not found") -- acá se distingue
+      // el único caso realmente accionable (bucket ausente, causa raíz
+      // del incidente) de cualquier otro fallo de infraestructura, ambos
+      // con un código estable que el cliente puede mapear a un mensaje
+      // legible, sin filtrar detalles internos de Supabase.
+      console.error('[api/events/upload-photo] storage upload failed', upErr);
+      const code = /bucket not found/i.test(upErr.message || '') ? 'bucket_not_found' : 'storage_error';
+      return res.status(502).json({ ok: false, error: code });
+    }
 
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
     return res.status(200).json({ ok: true, url: pub.publicUrl });
   } catch (e) {
     console.error('[api/events/upload-photo] error', e);
-    return res.status(500).json({ ok: false, error: String(e?.message || e) });
+    return res.status(500).json({ ok: false, error: 'unexpected_error' });
   }
 }
