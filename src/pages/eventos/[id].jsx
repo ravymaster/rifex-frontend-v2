@@ -105,6 +105,14 @@ export default function EventoPublico() {
   const mpConnected = event?.mp_connected !== false; // undefined (owner-not-included edge) trata como conectado hasta que el checkout lo re-valide server-side
 
   async function handleBuy() {
+    // HOTFIX 2026-09-14: guardia síncrona de doble-toque -- `disabled`
+    // en el JSX ya evita esto en el caso normal, pero React actualiza el
+    // atributo `disabled` real recién en el siguiente render, así que un
+    // doble-tap muy rápido (común en Android) podía alcanzar a disparar
+    // handleBuy() dos veces antes de que el botón se deshabilitara
+    // visualmente. Este chequeo corta la segunda ejecución de inmediato,
+    // sin tocar la llamada de checkout/creación de preferencia en sí.
+    if (buying) return;
     setBuyError(null);
     if (selectedItems.length === 0) {
       setBuyError('Elige al menos una entrada.');
@@ -114,6 +122,7 @@ export default function EventoPublico() {
       setBuyError('Ingresa un email válido.');
       return;
     }
+    const trimmedName = buyerName.trim();
     setBuying(true);
     try {
       const res = await fetch(`/api/events/${event.id}/checkout`, {
@@ -122,7 +131,7 @@ export default function EventoPublico() {
         body: JSON.stringify({
           items: selectedItems.map((x) => ({ ticket_type_id: x.t.id, quantity: x.quantity })),
           buyer_email: buyerEmail,
-          buyer_name: buyerName || undefined,
+          buyer_name: trimmedName || undefined,
         }),
       });
       const data = await res.json();
@@ -217,7 +226,7 @@ export default function EventoPublico() {
               style={{ display: 'block', width: '100%', maxWidth: 320, margin: '0 auto 12px', padding: '10px 14px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }}
             />
             {buyError && <p style={{ color: '#b91c1c', fontSize: 13.5, marginBottom: 10 }}>{buyError}</p>}
-            <button type="button" onClick={handleBuy} disabled={buying} className={styles.ctaBtn} style={{ cursor: buying ? 'wait' : 'pointer', border: 'none' }}>
+            <button type="button" onClick={handleBuy} disabled={buying} aria-busy={buying} className={styles.ctaBtn}>
               {buying ? 'Redirigiendo a Mercado Pago…' : 'Comprar entradas'}
             </button>
           </div>

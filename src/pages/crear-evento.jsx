@@ -23,11 +23,36 @@ export async function getServerSideProps(ctx) {
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 const COVER_TARGET = { w: 1600, h: 700 };
+// HOTFIX 2026-09-14: tope de dimensiones ANTES de dibujar en el canvas --
+// nunca de tamaño de archivo (una foto real de ~50MB debe poder
+// procesarse igual, ver mandato del hotfix). Esto es la defensa contra
+// "bombas de descompresión"/dimensiones absurdas: el canvas de destino
+// siempre es COVER_TARGET (chico), así que el único riesgo real es que
+// el navegador falle al decodificar una imagen con un lado extremo --
+// se corta acá con un mensaje claro en vez de dejar que el navegador
+// intente y falle de forma menos predecible.
+const MAX_SOURCE_DIMENSION = 12000;
+// HOTFIX 2026-09-14: mapeo de códigos de error del servidor (nunca el
+// mensaje crudo del driver) a texto legible -- mismo criterio que
+// EVENT_ERROR_LABEL más abajo para errores de aforo.
+const COVER_ERROR_LABEL = {
+  bucket_not_found: 'No se pudo guardar la portada por un problema de configuración del servidor. Ya quedó registrado — intenta de nuevo en unos minutos.',
+  storage_error: 'No se pudo guardar la portada. Intenta de nuevo en unos minutos.',
+  invalid_image: 'Ese archivo no es una imagen válida (puede estar dañado o corrupto).',
+  invalid_type: 'Formato no permitido.',
+  missing_auth: 'Tu sesión expiró — vuelve a iniciar sesión e intenta de nuevo.',
+  unexpected_error: 'No se pudo guardar la portada. Intenta de nuevo.',
+};
 
 function resizeToBlob(file, { w, h, quality = 0.82 }) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
+      if (img.width > MAX_SOURCE_DIMENSION || img.height > MAX_SOURCE_DIMENSION) {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('La imagen tiene dimensiones demasiado grandes. Prueba con otra foto.'));
+        return;
+      }
       const canvas = document.createElement('canvas');
       canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
@@ -38,9 +63,12 @@ function resizeToBlob(file, { w, h, quality = 0.82 }) {
       else { sw = img.width; sh = sw / dstRatio; sx = 0; sy = (img.height - sh) / 2; }
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
       URL.revokeObjectURL(img.src);
-      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo procesar la imagen'))), 'image/jpeg', quality);
+      canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('No se pudo procesar la imagen. Puede estar dañada o el navegador se quedó sin memoria — prueba con otra foto.'))), 'image/jpeg', quality);
     };
-    img.onerror = () => reject(new Error('Archivo de imagen inválido'));
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error('Archivo de imagen inválido'));
+    };
     img.src = URL.createObjectURL(file);
   });
 }
@@ -134,6 +162,7 @@ export default function CrearEvento() {
     if (!ALLOWED_PHOTO_TYPES.has(file.type)) { setErr(`Formato no permitido: ${file.name}`); return; }
     setErr(null);
     setCoverFile(file);
+    setCoverUrl(null);
 
     if (!token) return;
     setUploadingCover(true);
@@ -146,9 +175,18 @@ export default function CrearEvento() {
         body: JSON.stringify({ filename: file.name.replace(/\.[a-zA-Z0-9]+$/, '.jpg'), contentType: 'image/jpeg', dataBase64, kind: 'cover' }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo subir la portada');
+      if (!res.ok || !data.ok) throw new Error(COVER_ERROR_LABEL[data.error] || data.error || 'No se pudo subir la portada');
       setCoverUrl(data.url);
     } catch (e) {
+      // HOTFIX 2026-09-14: la previsualización local (URL.createObjectURL
+      // del archivo elegido) es independiente de si la subida real al
+      // servidor funcionó -- por eso antes se veía "la foto" mientras el
+      // servidor devolvía "Bucket not found" sin que el usuario supiera
+      // que en realidad no se había guardado nada. Ahora, si la subida
+      // falla, se limpia la selección/previsualización para que nunca
+      // quede una foto visible que en realidad no se persistió.
+      setCoverFile(null);
+      setCoverUrl(null);
       setErr(e.message || 'No se pudo subir la portada');
     } finally {
       setUploadingCover(false);
