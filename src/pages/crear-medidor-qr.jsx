@@ -9,7 +9,7 @@
 // mantener consistente, mismo criterio que crear-inscripcion.jsx).
 import Head from 'next/head';
 import { useRouter } from 'next/router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Layout from '@/components/Layout';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { getSupabaseServer } from '@/lib/supabaseServer';
@@ -48,6 +48,12 @@ function toLocalInputValue(d) {
 export default function CrearMedidorQr() {
   const router = useRouter();
   const [token, setToken] = useState(null);
+  // INCIDENTE 2026-09-10 — guardia sincrónica anti doble-clic: `saving`
+  // (estado de React) recién deshabilita el botón en el siguiente
+  // render, dejando una ventana breve donde un segundo clic muy rápido
+  // puede disparar otro submit antes de que el botón se vea deshabilitado.
+  // Un ref se lee/escribe de forma síncrona, sin esperar el re-render.
+  const submittingRef = useRef(false);
 
   const [templateKey, setTemplateKey] = useState(null);
   const [name, setName] = useState('');
@@ -126,6 +132,10 @@ export default function CrearMedidorQr() {
       return;
     }
 
+    // Guardia sincrónica: recién acá, justo antes de la llamada real al
+    // servidor, para no bloquear reintentos tras un error de validación.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch('/api/medidor-qr', {
@@ -144,8 +154,18 @@ export default function CrearMedidorQr() {
       const data = await res.json();
       if (!res.ok || !data.ok) {
         if (data.error === 'free_quota_already_used') {
-          const nextDate = new Date(data.next_available_at).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', timeZone: 'America/Santiago' });
-          setQuotaMessage(`${data.message} Podrás crear nuevos Medidores QR a partir del ${nextDate}.`);
+          // INCIDENTE 2026-09-10: si el backend responde este código de
+          // error sin "message"/"next_available_at" (p.ej. una excepción
+          // cruda en vez del contrato estructurado), nunca se debe
+          // mostrar "undefined" ni "Invalid Date" — se arma un mensaje
+          // seguro con lo que sí vino, o un texto genérico de respaldo.
+          const rawDate = data.next_available_at ? new Date(data.next_available_at) : null;
+          const hasValidDate = rawDate && !Number.isNaN(rawDate.getTime());
+          const baseMsg = data.message || 'Ya utilizaste tus Medidores QR gratuitos de este período.';
+          const dateSuffix = hasValidDate
+            ? ` Podrás crear nuevos Medidores QR a partir del ${rawDate.toLocaleDateString('es-CL', { day: 'numeric', month: 'long', timeZone: 'America/Santiago' })}.`
+            : '';
+          setQuotaMessage(`${baseMsg}${dateSuffix}`);
           setQuota((q) => (q ? { ...q, used: q.limit, remaining: 0 } : q));
           return;
         }
@@ -157,6 +177,7 @@ export default function CrearMedidorQr() {
       setErr(e.message || 'No se pudo crear el Medidor QR');
     } finally {
       setSaving(false);
+      submittingRef.current = false;
     }
   }
 

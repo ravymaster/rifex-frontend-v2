@@ -139,8 +139,26 @@ export default async function handler(req, res) {
         // Defensivo: con el mecanismo actual (conteo bajo advisory lock
         // ANTES de insertar nada, ver la migración) la RPC ya no
         // levanta una excepción de Postgres por cuota agotada — la
-        // rechaza con un {ok:false} normal, manejado más abajo. Esta
-        // rama queda solo para errores realmente inesperados.
+        // rechaza con un {ok:false} normal, manejado más abajo.
+        //
+        // INCIDENTE 2026-09-10: durante una ventana en la que la
+        // migración del mecanismo nuevo no estaba aplicada en la base,
+        // esta rama SÍ se alcanzó (la RPC vieja levantaba una excepción
+        // cruda con mensaje literal 'free_quota_already_used') y caía
+        // al catch genérico de abajo, devolviendo un 500 sin "message"
+        // ni "next_available_at" — el frontend terminaba mostrando
+        // "undefined ... Invalid Date". Se blinda acá también, para
+        // que ese mismo texto de error (venga como excepción o como
+        // resultado normal) siempre entregue el contrato completo.
+        if (String(rpcErr.message || '').includes('free_quota_already_used')) {
+          return res.status(409).json({
+            ok: false,
+            error: 'free_quota_already_used',
+            message: `Ya utilizaste tus ${MEDIDOR_QR_FREE_QUOTA_LIMIT} Medidores QR gratuitos de este período.`,
+            quota_limit: MEDIDOR_QR_FREE_QUOTA_LIMIT,
+            next_available_at: nextFreePeriodStartsAt(new Date()).toISOString(),
+          });
+        }
         throw rpcErr;
       }
 

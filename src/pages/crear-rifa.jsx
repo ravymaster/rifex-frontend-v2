@@ -1,5 +1,5 @@
 // src/pages/crear-rifa.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
@@ -110,7 +110,15 @@ export default function CrearRifaPage() {
   const [prizeAmount, setPrizeAmount] = useState("");  // CLP
   const PAYOUT_METHOD = "creator_direct";
   const [deliveryMethod, setDeliveryMethod] = useState("");
-  const [prizePhotos, setPrizePhotos] = useState([]); // File[]
+  // HOTFIX PORTADA/GALERÍA (2026-09-10): reemplaza el único selector
+  // multi-archivo (donde la portada era implícitamente el primer
+  // archivo, en el orden que reportara el picker nativo del SO — de
+  // ahí la necesidad de renombrar fotos "0,1,2..." para controlarlo)
+  // por dos controles explícitos. El orden final que se envía al
+  // backend se arma en el momento de subir (ver onSubmit): portada
+  // primero, galería después — nunca depende del nombre de archivo.
+  const [coverPhoto, setCoverPhoto] = useState(null); // File | null
+  const [galleryPhotos, setGalleryPhotos] = useState([]); // File[]
 
   // RIFEX CLOSURE PASS (2026-08-29): transparencia de premios físicos que
   // requieren transferencia/trámites (ej. vehículo, propiedad). Progressive
@@ -166,12 +174,45 @@ export default function CrearRifaPage() {
 
   // Previews locales de las fotos elegidas — nunca se suben hasta enviar
   // el formulario, pero el creador debe poder ver qué eligió.
-  const [photoPreviews, setPhotoPreviews] = useState([]);
+  const [coverPreview, setCoverPreview] = useState(null);
   useEffect(() => {
-    const urls = Array.from(prizePhotos || []).slice(0, MAX_PHOTOS).map((f) => URL.createObjectURL(f));
-    setPhotoPreviews(urls);
+    if (!coverPhoto) { setCoverPreview(null); return; }
+    const url = URL.createObjectURL(coverPhoto);
+    setCoverPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverPhoto]);
+
+  const [galleryPreviews, setGalleryPreviews] = useState([]);
+  useEffect(() => {
+    const urls = galleryPhotos.map((f) => URL.createObjectURL(f));
+    setGalleryPreviews(urls);
     return () => { urls.forEach((u) => URL.revokeObjectURL(u)); };
-  }, [prizePhotos]);
+  }, [galleryPhotos]);
+
+  function onCoverSelect(e) {
+    const file = (e.target.files || [])[0] || null;
+    if (file) setCoverPhoto(file);
+    e.target.value = ""; // permite re-seleccionar el mismo archivo (reemplazar)
+  }
+  function removeCoverPhoto() {
+    setCoverPhoto(null);
+  }
+  // GALLERY_MAX fijo (no depende de si hay portada) para que el total
+  // nunca supere MAX_PHOTOS sin importar en qué orden el creador llene
+  // los dos controles.
+  const GALLERY_MAX = MAX_PHOTOS - 1;
+  function onGalleryAdd(e) {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!picked.length) return;
+    setGalleryPhotos((prev) => {
+      const room = Math.max(0, GALLERY_MAX - prev.length);
+      return room > 0 ? [...prev, ...picked.slice(0, room)] : prev;
+    });
+  }
+  function removeGalleryPhoto(idx) {
+    setGalleryPhotos((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   // RAFFLE VISUAL POLISH (2026-09-07) — "Características dinámicas":
   // pares clave/valor que el creador declara (ej. Marca/Lamborghini,
@@ -191,6 +232,14 @@ export default function CrearRifaPage() {
   }
 
   const profileIncomplete = myProfileLoaded && !myProfile?.nombre;
+
+  // HOTFIX PORTADA/GALERÍA (2026-09-10): guardia sincrónica anti
+  // doble-envío — mismo patrón usado en Medidor QR tras el incidente
+  // 2026-09-10 (ver crear-medidor-qr.jsx). Se activa recién después de
+  // pasar todas las validaciones, para no bloquear un reintento tras un
+  // error de formulario.
+  const submittingRef = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -243,18 +292,34 @@ export default function CrearRifaPage() {
       }
     }
 
-    const { data: sres } = await supabase.auth.getSession();
-    const token = sres?.session?.access_token;
-    if (!token) {
-      alert("Debes iniciar sesión para crear una rifa.");
-      router.push("/login");
-      return;
-    }
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setSubmitting(true);
 
     try {
+      const { data: sres } = await supabase.auth.getSession();
+      const token = sres?.session?.access_token;
+      if (!token) {
+        alert("Debes iniciar sesión para crear una rifa.");
+        router.push("/login");
+        return;
+      }
+
       let photos = [];
-      if (prizeType === "physical" && prizePhotos?.length) {
-        photos = await uploadPrizePhotos(Array.from(prizePhotos).slice(0, MAX_PHOTOS), token);
+      if (prizeType === "physical") {
+        // Orden explícito: portada primero, galería después — nunca
+        // depende del nombre de archivo ni del orden que reporte el
+        // selector nativo del sistema operativo. Si el creador solo
+        // usó la galería sin definir portada, la primera foto de la
+        // galería queda como portada de facto (mismo comportamiento
+        // implícito de siempre, sin exigir un requisito nuevo).
+        const orderedFiles = [
+          ...(coverPhoto ? [coverPhoto] : []),
+          ...galleryPhotos,
+        ].slice(0, MAX_PHOTOS);
+        if (orderedFiles.length) {
+          photos = await uploadPrizePhotos(orderedFiles, token);
+        }
       }
 
       const payload = {
@@ -312,7 +377,13 @@ export default function CrearRifaPage() {
       }
     } catch (err) {
       console.error(err);
+      // Recuperable: no se limpian coverPhoto/galleryPhotos ni el resto
+      // del formulario — el creador puede corregir y reintentar sin
+      // volver a elegir fotos.
       alert(err?.message || "No se pudo crear la rifa.");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
     }
   }
 
@@ -360,7 +431,8 @@ export default function CrearRifaPage() {
                       setRequiresTransfer(false);
                       setTransferOwner("");
                       setTransferConditions("");
-                      setPrizePhotos([]);
+                      setCoverPhoto(null);
+                      setGalleryPhotos([]);
                     }}
                   >
                     Dinero
@@ -378,12 +450,36 @@ export default function CrearRifaPage() {
                 {prizeType==="physical" && (
                   <>
                     <div className={styles.field} style={{ marginBottom: 16 }}>
-                      <span className={styles.fieldLabel}>Fotos del premio (hasta {MAX_PHOTOS})</span>
-                      <input type="file" accept="image/*" multiple onChange={e=>setPrizePhotos(Array.from(e.target.files||[]))} />
-                      {photoPreviews.length > 0 && (
+                      <span className={styles.fieldLabel}>Portada</span>
+                      <p style={{ fontSize: 12, color: "var(--gris)", margin: "2px 0 8px" }}>
+                        Es la foto principal: aparece primero en la tarjeta, la ficha pública y el checkout. Podés reemplazarla eligiendo otra imagen.
+                      </p>
+                      <input type="file" accept="image/*" onChange={onCoverSelect} />
+                      {coverPreview && (
+                        <div className={styles.coverPreviewBox}>
+                          <img src={coverPreview} alt="" className={styles.coverPreviewImg} />
+                          <span className={styles.coverBadge}>Portada</span>
+                          <button type="button" className={styles.removeCoverBtn} onClick={removeCoverPhoto} aria-label="Quitar portada">×</button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className={styles.field} style={{ marginBottom: 16 }}>
+                      <span className={styles.fieldLabel}>Fotos de la galería (hasta {GALLERY_MAX} más)</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={onGalleryAdd}
+                        disabled={galleryPhotos.length >= GALLERY_MAX}
+                      />
+                      {galleryPreviews.length > 0 && (
                         <div className={styles.photoPreviewRow}>
-                          {photoPreviews.map((url, i) => (
-                            <img key={i} src={url} alt="" className={styles.photoPreviewThumb} />
+                          {galleryPreviews.map((url, i) => (
+                            <div key={i} className={styles.galleryThumbWrap}>
+                              <img src={url} alt="" className={styles.photoPreviewThumb} />
+                              <button type="button" className={styles.removeThumbBtn} onClick={() => removeGalleryPhoto(i)} aria-label="Quitar foto">×</button>
+                            </div>
                           ))}
                         </div>
                       )}
@@ -595,12 +691,13 @@ export default function CrearRifaPage() {
                 <button
                   type="submit"
                   className={styles.btnCreate}
+                  disabled={submitting}
                   style={{
                     background: "linear-gradient(135deg, var(--ultramar), var(--trebol))",
                     boxShadow: "0 6px 14px rgba(24,169,87,.22)"
                   }}
                 >
-                  Crear rifa
+                  {submitting ? "Creando…" : "Crear rifa"}
                 </button>
 
                 <a

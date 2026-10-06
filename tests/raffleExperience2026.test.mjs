@@ -34,13 +34,15 @@ test('CREAR RIFA 2: soporta premio en dinero (prizeAmount, sin pedir campos fís
   assert.match(src, /prizeAmount/);
 });
 
-test('CREAR RIFA 3: permite subir imagen principal + preview local antes de enviar', () => {
+test('CREAR RIFA 3: permite subir imagen principal (portada) + preview local antes de enviar', () => {
+  // HOTFIX PORTADA/GALERÍA (2026-09-10): photoPreviews (arreglo único) se
+  // reemplazó por coverPreview (portada) + galleryPreviews (galería).
   const src = read('src/pages/crear-rifa.jsx');
-  assert.match(src, /photoPreviews/);
+  assert.match(src, /coverPreview/);
   assert.match(src, /URL\.createObjectURL/);
 });
 
-test('CREAR RIFA 4: permite galería (hasta 5 fotos, no solo una — límite ampliado por RAFFLE VISUAL POLISH 2026-09-07)', () => {
+test('CREAR RIFA 4: permite galería (hasta 5 fotos totales incl. portada — límite ampliado por RAFFLE VISUAL POLISH 2026-09-07)', () => {
   const src = read('src/pages/crear-rifa.jsx');
   assert.match(src, /slice\(0,\s*MAX_PHOTOS\)/);
   assert.match(src, /MAX_PHOTOS\s*=\s*5/);

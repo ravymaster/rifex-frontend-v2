@@ -459,7 +459,20 @@
   padding: 18px;
 }
 .tabPanelTitle { margin: 0 0 10px; font-size: 17px; font-weight: 800; color: #0f172a; }
-.tabPanelText { margin: 0; color: #334155; line-height: 1.6; font-size: 14px; }
+/* INCIDENTE 2026-09-10: la descripción se guarda con saltos de línea y
+   párrafos reales, pero white-space:normal (default) los colapsaba
+   visualmente en un solo bloque. pre-wrap preserva tanto los saltos
+   simples como las líneas en blanco entre premios (a diferencia de
+   pre-line, que las colapsaría) sin tocar el texto ya guardado ni
+   usar dangerouslySetInnerHTML — sigue siendo texto plano escapado
+   por React, cero riesgo XSS. overflow-wrap+word-break evitan que una
+   palabra/URL larga sin espacios fuerce overflow horizontal mobile. */
+.tabPanelText {
+  margin: 0; color: #334155; line-height: 1.6; font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
 
 /* --- Características (rifas con features declaradas) --- */
 .featuresTitle { margin: 18px 0 10px; font-size: 14px; font-weight: 800; color: #0f172a; }

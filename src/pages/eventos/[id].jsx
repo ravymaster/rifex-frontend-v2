@@ -4,11 +4,13 @@
 // nunca exige login. CTA se deshabilita explícitamente si el organizador
 // no tiene Mercado Pago conectado (mp_connected=false) — nunca se ofrece
 // una compra que no se puede cobrar.
+import Head from 'next/head';
 import { useRouter } from 'next/router';
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/evento.module.css';
 import { trackEvent } from '@/lib/analyticsClient';
+import { DEFAULT_OG_IMAGE, canonicalUrl } from '@/lib/publicMetadata';
 
 function fmtDate(iso, timezone) {
   if (!iso) return '';
@@ -111,6 +113,14 @@ export default function EventoPublico() {
   const mpConnected = event?.mp_connected !== false; // undefined (owner-not-included edge) trata como conectado hasta que el checkout lo re-valide server-side
 
   async function handleBuy() {
+    // HOTFIX 2026-09-14: guardia síncrona de doble-toque -- `disabled`
+    // en el JSX ya evita esto en el caso normal, pero React actualiza el
+    // atributo `disabled` real recién en el siguiente render, así que un
+    // doble-tap muy rápido (común en Android) podía alcanzar a disparar
+    // handleBuy() dos veces antes de que el botón se deshabilitara
+    // visualmente. Este chequeo corta la segunda ejecución de inmediato,
+    // sin tocar la llamada de checkout/creación de preferencia en sí.
+    if (buying) return;
     setBuyError(null);
     if (selectedItems.length === 0) {
       setBuyError('Elige al menos una entrada.');
@@ -120,6 +130,7 @@ export default function EventoPublico() {
       setBuyError('Ingresa un email válido.');
       return;
     }
+    const trimmedName = buyerName.trim();
     setBuying(true);
     trackEvent({ module: 'event', entityId: event.id, eventType: 'checkout_start' });
     try {
@@ -129,7 +140,7 @@ export default function EventoPublico() {
         body: JSON.stringify({
           items: selectedItems.map((x) => ({ ticket_type_id: x.t.id, quantity: x.quantity })),
           buyer_email: buyerEmail,
-          buyer_name: buyerName || undefined,
+          buyer_name: trimmedName || undefined,
         }),
       });
       const data = await res.json();
@@ -145,23 +156,58 @@ export default function EventoPublico() {
     }
   }
 
+  // RIFEX HUMAN URL STANDARD 2026 — HOTFIX (2026-09-14): esta página no
+  // pasaba disableAutoMeta a Layout, así que su <title>/canonical/og:url
+  // per-evento nunca ganaban: next/head en Next 14 conserva la PRIMERA
+  // ocurrencia de un tag con una key dada, no la última, y el <Head> de
+  // Layout siempre se renderiza antes que el de esta página en el árbol.
+  // Resultado en PROD: todo evento (por UUID o por slug real) servía
+  // canonical/og:url con el literal "/eventos/[id]" (el patrón de ruta de
+  // Next, nunca reemplazado) y título genérico "Evento — Rifex", para
+  // cualquier visitante, no solo crawlers. Mismo bug ya identificado y
+  // corregido en su momento para Rifas (rifas/[id].jsx) y Colectas
+  // (colectas/[id].jsx) — ambas usan getLayout con disableAutoMeta para
+  // que el <Head> propio de la página sea la única fuente. Este hotfix
+  // aplica el mismo patrón acá, con canonical/og:url reales apuntando al
+  // slug humano una vez que el evento carga (event.slug || id crudo de
+  // la URL como fallback mientras carga).
   if (loading) {
     return (
-      <Layout title="Evento — Rifex">
+      <>
+        <Head><title key="title">Evento — Rifex</title></Head>
         <div className={styles.wrap}><p>Cargando…</p></div>
-      </Layout>
+      </>
     );
   }
   if (error || !event) {
     return (
-      <Layout title="Evento no encontrado — Rifex">
+      <>
+        <Head><title key="title">Evento no encontrado — Rifex</title></Head>
         <div className={styles.wrap}><p>{error || 'Evento no encontrado.'}</p></div>
-      </Layout>
+      </>
     );
   }
 
+  const metaTitle = `${event.title} — Rifex Eventos`;
+  const metaDescription = event.description || 'Evento en Rifex.';
+  const canonical = canonicalUrl(`/eventos/${event.slug || event.id}`);
+
   return (
-    <Layout title={`${event.title} — Rifex Eventos`} description={event.description || 'Evento en Rifex.'}>
+    <>
+      <Head>
+        <title key="title">{metaTitle}</title>
+        <meta key="description" name="description" content={metaDescription} />
+        <link key="canonical" rel="canonical" href={canonical} />
+        <meta key="og:title" property="og:title" content={metaTitle} />
+        <meta key="og:description" property="og:description" content={metaDescription} />
+        <meta key="og:url" property="og:url" content={canonical} />
+        <meta key="og:type" property="og:type" content="website" />
+        <meta key="og:image" property="og:image" content={event.cover_image_url || DEFAULT_OG_IMAGE} />
+        <meta key="twitter:card" name="twitter:card" content="summary_large_image" />
+        <meta key="twitter:title" name="twitter:title" content={metaTitle} />
+        <meta key="twitter:description" name="twitter:description" content={metaDescription} />
+        <meta key="twitter:image" name="twitter:image" content={event.cover_image_url || DEFAULT_OG_IMAGE} />
+      </Head>
       <div className={styles.wrap}>
         {event.cover_image_url && <img className={styles.cover} src={event.cover_image_url} alt="" />}
         <h1 className={styles.title}>{event.title}</h1>
@@ -224,12 +270,14 @@ export default function EventoPublico() {
               style={{ display: 'block', width: '100%', maxWidth: 320, margin: '0 auto 12px', padding: '10px 14px', borderRadius: 10, border: '1px solid #d1d5db', fontSize: 14 }}
             />
             {buyError && <p style={{ color: '#b91c1c', fontSize: 13.5, marginBottom: 10 }}>{buyError}</p>}
-            <button type="button" onClick={handleBuy} disabled={buying} className={styles.ctaBtn} style={{ cursor: buying ? 'wait' : 'pointer', border: 'none' }}>
+            <button type="button" onClick={handleBuy} disabled={buying} aria-busy={buying} className={styles.ctaBtn}>
               {buying ? 'Redirigiendo a Mercado Pago…' : 'Comprar entradas'}
             </button>
           </div>
         )}
       </div>
-    </Layout>
+    </>
   );
 }
+
+EventoPublico.getLayout = (page) => <Layout disableAutoMeta>{page}</Layout>;
