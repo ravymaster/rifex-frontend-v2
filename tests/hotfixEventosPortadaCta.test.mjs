@@ -19,12 +19,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
-function mainBlob(p) {
+// Las protecciones de alcance de este hotfix ("este archivo no se tocó",
+// "Admin Analytics no se mezcló") se verifican contra la historia
+// inmutable — el commit del hotfix en main — y no contra ramas móviles.
+// Antes comparaban el archivo actual contra origin/main y exigían que los
+// archivos de Admin Analytics no existieran en el working tree: eso solo
+// podía quedar verde en main, nunca en develop (REALIGN 2026-10-06).
+const HOTFIX_COMMIT = '2e2f9055cfeb9b622cfb1f7712d3d689a0cd78e7'; // tag v3.4-rifex-prod-eventos-portada-cta
+
+function blobAt(rev, p) {
   try {
-    return execSync(`git show origin/main:${p}`, { cwd: ROOT, encoding: 'utf8' });
+    return execSync(`git show ${rev}:${p}`, { cwd: ROOT, encoding: 'utf8' });
   } catch {
     return null;
   }
+}
+
+function assertUntouchedByHotfix(p, message) {
+  const before = blobAt(`${HOTFIX_COMMIT}^`, p);
+  const after = blobAt(HOTFIX_COMMIT, p);
+  assert.ok(before, `no se pudo leer ${p} en ${HOTFIX_COMMIT.slice(0, 7)}^ (¿historia git incompleta?)`);
+  assert.equal(after, before, `${p} (${HOTFIX_COMMIT.slice(0, 7)}): ${message}`);
 }
 
 // ---------------------------------------------------------------------
@@ -179,10 +194,7 @@ test('ACCESIBILIDAD 1: el botón expone aria-busy durante la compra, y sigue usa
 });
 
 test('NO REGRESIÓN: creación de preferencia de pago (checkout.js) permanece completamente intacta — el bloqueo estaba en el cliente, no ahí', () => {
-  const current = read('src/pages/api/events/[id]/checkout.js');
-  const before = mainBlob('src/pages/api/events/[id]/checkout.js');
-  assert.ok(before, 'no se pudo leer la versión previa de origin/main');
-  assert.equal(current, before, 'checkout.js debe permanecer byte-a-byte idéntico — el ajuste fue client-side');
+  assertUntouchedByHotfix('src/pages/api/events/[id]/checkout.js', 'checkout.js debe permanecer byte-a-byte idéntico — el ajuste fue client-side');
 });
 
 // ---------------------------------------------------------------------
@@ -205,10 +217,7 @@ test('PROTEGIDO 1: Payment Engine / checkout / webhook / reconciliación / OAuth
     'src/pages/api/admin/reconcile-payments.js',
     'src/pages/api/admin/reconcile-colecta-payments.js',
   ]) {
-    const current = read(p);
-    const before = mainBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/main`);
-    assert.equal(current, before, `${p} debe permanecer byte-a-byte idéntico — fuera de alcance de este hotfix`);
+    assertUntouchedByHotfix(p, 'debe permanecer byte-a-byte idéntico — fuera de alcance de este hotfix');
   }
 });
 
@@ -218,10 +227,7 @@ test('PROTEGIDO 2: Medidor QR permanece completamente intacto', () => {
     'src/pages/api/medidor-qr/[id]/index.js',
     'src/pages/m/[slug].jsx',
   ]) {
-    const current = read(p);
-    const before = mainBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/main`);
-    assert.equal(current, before, `${p} debe permanecer byte-a-byte idéntico — Medidor QR es baseline protegido`);
+    assertUntouchedByHotfix(p, 'debe permanecer byte-a-byte idéntico — Medidor QR es baseline protegido');
   }
 });
 
@@ -234,14 +240,14 @@ test('PROTEGIDO 3: Campañas, Rifas e Inscripciones (creación y páginas públi
     'src/pages/crear-inscripcion.jsx',
     'src/pages/inscripcion/[id].jsx',
   ]) {
-    const current = read(p);
-    const before = mainBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/main`);
-    assert.equal(current, before, `${p} debe permanecer byte-a-byte idéntico — fuera de alcance de este hotfix`);
+    assertUntouchedByHotfix(p, 'debe permanecer byte-a-byte idéntico — fuera de alcance de este hotfix');
   }
 });
 
-test('PROTEGIDO 4: Admin Analytics y la puerta temporal DEV nunca se mezclan en este hotfix (no existen en main, y no deben aparecer acá)', () => {
+test('PROTEGIDO 4: Admin Analytics y la puerta temporal DEV nunca se mezclaron en este hotfix (no existen en el árbol del commit del hotfix)', () => {
+  // Resguardo: sin la historia de 2e2f905, blobAt devolvería null y las
+  // aserciones de ausencia de abajo pasarían sin verificar nada.
+  assert.ok(blobAt(HOTFIX_COMMIT, 'src/pages/eventos/[id].jsx'), `historia de ${HOTFIX_COMMIT.slice(0, 7)} no disponible — no se puede verificar PROTEGIDO 4`);
   for (const p of [
     'src/lib/devAdminDoor.js',
     'src/lib/analyticsEvents.js',
@@ -250,7 +256,7 @@ test('PROTEGIDO 4: Admin Analytics y la puerta temporal DEV nunca se mezclan en 
     'src/pages/api/analytics/track.js',
     'src/pages/api/admin/analytics-overview.js',
   ]) {
-    assert.equal(fs.existsSync(path.join(ROOT, p)), false, `${p} no debe existir en este hotfix — es de otra misión (ADMIN ANALYTICS)`);
+    assert.equal(blobAt(HOTFIX_COMMIT, p), null, `${p} no debe existir en el hotfix ${HOTFIX_COMMIT.slice(0, 7)} — es de otra misión (ADMIN ANALYTICS)`);
   }
 });
 
