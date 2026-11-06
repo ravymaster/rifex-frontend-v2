@@ -13,6 +13,7 @@ import PrizeGallery from "../../components/rifex/PrizeGallery";
 import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
 import { idOrSlugColumn, isUuid } from "../../lib/idOrSlug";
+import { PUBLIC_RAFFLE_SELECT, LEGACY_RIFAS_SELECT } from "../../lib/publicRaffleFields";
 
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
@@ -276,23 +277,15 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
       if (j?.ok) setWinner(j.winner || null);
     } catch {}
   }
-  async function ensureWinner(rid) {
+  // RIFEX RAFFLE EXPERIENCE 2026 — perfil del organizador. Limitar campos
+  // públicos (2026-11-06): llega armado por GET /api/rifas/[id] (nombre,
+  // bio, avatar), sin que el navegador necesite el id interno del creador.
+  async function loadOrganizer(rid) {
+    if (!rid) return;
     try {
-      const r = await fetch(`/api/raffles/winner?rid=${rid}&ensure=1`);
+      const r = await fetch(`/api/rifas/${rid}`);
       const j = await r.json().catch(() => null);
-      if (j?.ok && j.winner) setWinner(j.winner);
-    } catch {}
-  }
-
-  // RIFEX RAFFLE EXPERIENCE 2026 — perfil del organizador vía la misma
-  // autoridad pública ya existente (GET /api/perfil/[id], usada por
-  // "Ver perfil del creador"), nunca datos copiados a mano en la rifa.
-  async function loadOrganizer(uid) {
-    if (!uid) return;
-    try {
-      const r = await fetch(`/api/perfil/${uid}`);
-      const j = await r.json().catch(() => null);
-      if (j?.ok) setOrganizer(j.profile || null);
+      if (j?.ok) setOrganizer(j.data?.organizer || null);
     } catch {}
   }
 
@@ -338,7 +331,10 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
 
       if (final === "approved") {
         // UUID real ya resuelto por loadData — nunca el slug de la URL.
-        await ensureWinner(raffle?.id);
+        // Solo lectura: si esta compra agotó la rifa, el sorteo lo ejecuta
+        // la conciliación del pago en el servidor; aquí solo se refresca.
+        await loadWinner(raffle?.id);
+        setTimeout(() => loadWinner(raffle?.id), 3000);
       }
 
       setTimeout(() => setPaymentResult(null), MODAL_AUTO_HIDE_MS);
@@ -409,7 +405,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
       status: r.estado ?? r.status ?? "active",
       end_date: r.termino ?? r.end_date ?? null,
       start_date: r.inicio ?? r.start_date ?? null,
-      creator_id: r.creador_id ?? r.creator_id ?? null,
       creator_trust_level: r.creator_trust_level ?? null,
       created_at: r.created_at,
       _legacy: true,
@@ -452,14 +447,14 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
       // el slug amigable nuevo (/rifas/lambo): nunca se asume uno u otro.
       const col = idOrSlugColumn(rid);
 
-      { const { data, error } = await supabase.from("raffles").select("*").eq(col, rid).limit(1);
+      // Limitar campos públicos (2026-11-06): solo columnas públicas; el
+      // organizador llega por GET /api/rifas/[id] (loadOrganizer).
+      { const { data, error } = await supabase.from("raffles").select(PUBLIC_RAFFLE_SELECT).eq(col, rid).limit(1);
         if (!error && Array.isArray(data) && data.length) raffleData = data[0]; }
+      // Rifas heredadas: se leen directo de `rifas` con columnas permitidas
+      // (la vista raffles_compat sale de la misma tabla y ya no se consulta).
       if (!raffleData && col === "id") {
-        const { data, error } = await supabase.from("raffles_compat").select("*").eq("id", rid).limit(1);
-        if (!error && Array.isArray(data) && data.length) raffleData = data[0];
-      }
-      if (!raffleData && col === "id") {
-        const { data, error } = await supabase.from("rifas").select("*").eq("id", rid).limit(1);
+        const { data, error } = await supabase.from("rifas").select(LEGACY_RIFAS_SELECT).eq("id", rid).limit(1);
         if (!error && Array.isArray(data) && data.length) raffleData = mapRaffleFromOld(data[0]);
       }
 
@@ -468,8 +463,8 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
         await loadCounts(raffleData.id, raffleData?._legacy);
         // Siempre con el UUID real ya resuelto — nunca con el slug de la URL.
         loadWinner(raffleData.id);
+        if (!raffleData._legacy) loadOrganizer(raffleData.id);
       }
-      if (raffleData?.creator_id) loadOrganizer(raffleData.creator_id);
       setError(null);
     } catch (e) {
       console.error("[rifa load error]", e);
@@ -651,8 +646,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
     );
   }
 
-  const creatorId = raffle?.creator_id || raffle?.creador_id || raffle?.user_id || null;
-
   // Si hay cualquier overlay/modal/banner/redirect, ocultamos el CTA.
   // La Buy Box no es un overlay — vive inline dentro del propio sidebar,
   // nunca cubre la foto/hero.
@@ -742,7 +735,7 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
           <div style={winnerStyle}>
             🏆 Número ganador: <b>{winner.number}</b>
             {" — "}
-            {winner.buyer_name || winner.buyer_email || "Comprador"}
+            {winner.display_name || "Comprador"}
             <div style={winnerSmall}>
               Seleccionado el {new Date(winner.created_at).toLocaleString("es-CL")}
             </div>
@@ -897,9 +890,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
                         <div className={styles.organizerLabel}>Organizador</div>
                         <div className={styles.organizerName}>{organizer?.nombre || "Organizador de Rifex"}</div>
                       </div>
-                      {creatorId && (
-                        <a className={styles.organizerLink} href={`/perfil/${creatorId}`}>Ver perfil</a>
-                      )}
                     </div>
                     {organizer?.bio && <p className={styles.organizerBio}>"{organizer.bio}"</p>}
                   </div>
@@ -990,9 +980,6 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
                   <div className={styles.organizerLabel}>Organizador</div>
                   <div className={styles.organizerName}>{organizer?.nombre || "Organizador de Rifex"}</div>
                 </div>
-                {creatorId && (
-                  <a className={styles.organizerLink} href={`/perfil/${creatorId}`}>Ver perfil</a>
-                )}
               </div>
             </div>
 
