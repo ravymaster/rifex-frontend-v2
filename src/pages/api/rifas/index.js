@@ -7,6 +7,7 @@ import { zonedTimeToUtcISOString, computeSalesEndAt } from '@/lib/raffleTime';
 import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { slugify } from '@/lib/slugify';
+import { PUBLIC_RAFFLE_SELECT, toPublicRaffle } from '@/lib/publicRaffleFields';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -68,11 +69,12 @@ const MAX_TRANSFER_CONDITIONS_LENGTH = 500;
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
-      // Listado público simple (útil para /rifas)
+      // Listado público simple (útil para /rifas): solo columnas públicas
+      // (src/lib/publicRaffleFields.js).
       const { status, q } = req.query || {};
       let query = supabase
         .from('raffles')
-        .select('*')
+        .select(PUBLIC_RAFFLE_SELECT)
         .order('created_at', { ascending: false });
 
       if (status && status !== 'all') {
@@ -91,7 +93,7 @@ export default async function handler(req, res) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return res.status(200).json({ ok: true, items: data || [] });
+      return res.status(200).json({ ok: true, items: (data || []).map(toPublicRaffle) });
     }
 
     if (req.method === 'POST') {

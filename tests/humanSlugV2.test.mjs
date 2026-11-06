@@ -192,17 +192,21 @@ test('IDENTIDAD-V2 2: el canal realtime de tickets sigue dependiendo de raffle?.
   assert.match(src, /\}, \[raffle\?\.id\]\);/);
 });
 
-test('IDENTIDAD-V2 3: release-expired y ensureWinner siguen usando el UUID real ya resuelto', () => {
+test('IDENTIDAD-V2 3: release-expired y la consulta del ganador siguen usando el UUID real ya resuelto', () => {
+  // 2026-11-06: ensureWinner pasó a ser una lectura (loadWinner).
   const src = read('src/pages/rifas/[id].jsx');
   assert.match(src, /fetch\(`\/api\/tickets\/release-expired\?rid=\$\{rid\}`\)/);
-  assert.match(src, /await ensureWinner\(raffle\?\.id\);/);
+  assert.match(src, /await loadWinner\(raffle\?\.id\);/);
 });
 
-test('IDENTIDAD-V2 4: checkout/mp.js, api/raffles/winner.js y el draw no fueron tocados por esta misión (siguen operando solo sobre el raffle_id/rid que reciben, agnósticos a slug)', () => {
+test('IDENTIDAD-V2 4: checkout/mp.js y api/raffles/winner.js siguen operando solo sobre el raffle_id/rid que reciben, agnósticos a slug', () => {
   const mp = read('src/pages/api/checkout/mp.js');
   assert.match(mp, /async function assignRandomAvailableNumbers/);
+  // 2026-11-06: winner.js es solo lectura (el sorteo quedó en el servidor);
+  // sigue filtrando exclusivamente por el rid recibido, validado como UUID.
   const winner = read('src/pages/api/raffles/winner.js');
-  assert.match(winner, /drawWinner\(rid,/);
+  assert.match(winner, /\.eq\("raffle_id", rid\)/);
+  assert.match(winner, /if \(!isUuid\(rid\)\)/);
 });
 
 test('IDENTIDAD-V2 5: el QR de rifa (qr.png.js) sigue resolviendo exclusivamente por UUID real, sin soporte de slug (fuera de alcance, sin cambios)', () => {

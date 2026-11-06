@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { idOrSlugColumn } from '@/lib/idOrSlug';
+import { PUBLIC_RAFFLE_SELECT, toPublicRaffle } from '@/lib/publicRaffleFields';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -31,7 +32,14 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       // RAFFLE VISUAL POLISH (2026-09-07): `id` puede ser el UUID real o
       // el slug amigable nuevo (/rifas/lambo) — nunca se asume uno u otro.
-      const { data, error } = await supabase.from('raffles').select('*').eq(idOrSlugColumn(id), id).maybeSingle();
+      // Columnas públicas + `creator_id`, este último solo para los
+      // cálculos del servidor (nivel de confianza y tarjeta del
+      // organizador); la respuesta se arma con toPublicRaffle.
+      const { data, error } = await supabase
+        .from('raffles')
+        .select(`${PUBLIC_RAFFLE_SELECT},creator_id`)
+        .eq(idOrSlugColumn(id), id)
+        .maybeSingle();
       if (error) throw error;
       if (!data) return res.status(404).json({ ok: false, error: 'not_found' });
 
@@ -53,7 +61,20 @@ export default async function handler(req, res) {
         }
       }
 
-      return res.status(200).json({ ok: true, data: { ...data, creator_trust_level: creatorTrustLevel } });
+      // Tarjeta pública del organizador, armada aquí con los mismos campos
+      // que ya publica GET /api/perfil/[id] — sin ningún identificador
+      // interno, para que la ficha no necesite leer creator_id.
+      let organizer = null;
+      if (data.creator_id) {
+        const { data: profile } = await supabase
+          .from('users_profile')
+          .select('nombre, bio, avatar_url')
+          .eq('user_id', data.creator_id)
+          .maybeSingle();
+        if (profile) organizer = { nombre: profile.nombre ?? null, bio: profile.bio ?? null, avatar_url: profile.avatar_url ?? null };
+      }
+
+      return res.status(200).json({ ok: true, data: { ...toPublicRaffle(data), creator_trust_level: creatorTrustLevel, organizer } });
     }
 
     if (req.method === 'PATCH') {

@@ -114,9 +114,11 @@ test('IDENTIDAD 4: loadData resuelve por columna id-o-slug y dispara loadWinner 
   assert.match(src, /if \(raffleData\?\.id\) \{\s*\n\s*await loadCounts\(raffleData\.id, raffleData\?\._legacy\);\s*\n\s*\/\/[^\n]*\n\s*loadWinner\(raffleData\.id\);/);
 });
 
-test('IDENTIDAD 5: ensureWinner tras pago aprobado usa raffle?.id, no el slug de la URL', () => {
+test('IDENTIDAD 5: la consulta del ganador tras pago aprobado usa raffle?.id, no el slug de la URL', () => {
+  // 2026-11-06: ensureWinner pasó a ser una lectura (loadWinner); el
+  // sorteo lo ejecuta el servidor. La protección se mantiene: UUID real.
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /await ensureWinner\(raffle\?\.id\);/);
+  assert.match(src, /await loadWinner\(raffle\?\.id\);/);
 });
 
 // ---------------------------------------------------------------------

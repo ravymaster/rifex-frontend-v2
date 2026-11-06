@@ -11,6 +11,7 @@ import { useRouter } from "next/router";
 import Head from "next/head";
 import { supabaseBrowser as supabase } from "../../../lib/supabaseClient";
 import { idOrSlugColumn } from "../../../lib/idOrSlug";
+import { PUBLIC_RAFFLE_SELECT } from "../../../lib/publicRaffleFields";
 import { humanPrizeType } from "../../../lib/raffleLabels";
 import { formatDrawAt } from "../../../lib/raffleTime";
 import styles from "../../../styles/checkoutV2.module.css";
@@ -44,7 +45,8 @@ export default function RaffleCheckout() {
     (async () => {
       setLoading(true);
       const col = idOrSlugColumn(id);
-      const { data, error } = await supabase.from("raffles").select("*").eq(col, id).limit(1);
+      // Solo columnas públicas (src/lib/publicRaffleFields.js).
+      const { data, error } = await supabase.from("raffles").select(PUBLIC_RAFFLE_SELECT).eq(col, id).limit(1);
       if (error || !Array.isArray(data) || !data.length) {
         setNotFound(true);
         setLoading(false);
