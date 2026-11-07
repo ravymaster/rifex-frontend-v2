@@ -23,6 +23,7 @@ import { createClient } from '@supabase/supabase-js';
 import { useEffect, useState } from 'react';
 import MedidorQrPublicShell from '@/components/MedidorQrPublicShell';
 import { getOrCreateVisitorKey } from '@/lib/medidorQrVisitor';
+import { PUBLIC_MEDIDOR_COLUMNS, toSelect, pickPublic } from '@/lib/publicInitiativeFields';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -34,11 +35,12 @@ export async function getServerSideProps(ctx) {
   const slug = String(ctx.params?.slug || '');
   const { data: medidor } = await supabaseAdmin
     .from('medidores_qr')
-    .select('id, question, options, status, measurement_start, measurement_end, destination_url, destination_button_label, slug')
+    // Campos públicos (2026-11): lista compartida PUBLIC_MEDIDOR_COLUMNS.
+    .select(toSelect(PUBLIC_MEDIDOR_COLUMNS))
     .eq('slug', slug)
     .maybeSingle();
 
-  return { props: { medidor: medidor || null } };
+  return { props: { medidor: pickPublic(medidor, PUBLIC_MEDIDOR_COLUMNS) } };
 }
 
 function safeHostname(url) {

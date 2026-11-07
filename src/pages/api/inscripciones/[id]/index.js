@@ -12,6 +12,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { assertOnboardingComplete } from '@/lib/trustOnboardingGate';
 import { idOrSlugColumn } from '@/lib/idOrSlug';
+import { PUBLIC_ACTIVITY_COLUMNS, toSelect, pickPublic } from '@/lib/publicInitiativeFields';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -48,32 +49,35 @@ export default async function handler(req, res) {
   if (!id) return res.status(400).json({ ok: false, error: 'missing_id' });
 
   try {
+    // Campos públicos (2026-11): en GET se piden solo las columnas
+    // públicas + organizer_id (solo para verificar al dueño en el
+    // servidor). El dueño autenticado recibe la fila completa, como antes.
     const { data: activity, error: fetchErr } = await supabase
       .from('registration_activities')
-      .select('*')
+      .select(req.method === 'GET' ? `${toSelect(PUBLIC_ACTIVITY_COLUMNS)},organizer_id` : '*')
       .eq(idOrSlugColumn(id), id)
       .maybeSingle();
     if (fetchErr) throw fetchErr;
     if (!activity) return res.status(404).json({ ok: false, error: 'not_found' });
 
     if (req.method === 'GET') {
-      if (activity.status === 'active') {
-        const registeredCount = await countRegistered(activity.id);
-        return res.status(200).json({
-          ok: true,
-          activity: { ...activity, registered_count: registeredCount, available_slots: Math.max(0, activity.capacity - registeredCount) },
-        });
-      }
+      const user = await getRequester(req);
+      const isOwner = !!user && user.id === activity.organizer_id;
       // No activa: solo el dueño puede verla (mismo criterio anti-
       // enumeration que Eventos — 404 neutro, nunca 403).
-      const user = await getRequester(req);
-      if (!user || user.id !== activity.organizer_id) {
+      if (!isOwner && activity.status !== 'active') {
         return res.status(404).json({ ok: false, error: 'not_found' });
       }
       const registeredCount = await countRegistered(activity.id);
+      const availableSlots = Math.max(0, activity.capacity - registeredCount);
+      if (isOwner) {
+        const { data: full, error: fullErr } = await supabase.from('registration_activities').select('*').eq('id', activity.id).maybeSingle();
+        if (fullErr) throw fullErr;
+        return res.status(200).json({ ok: true, activity: { ...full, registered_count: registeredCount, available_slots: availableSlots } });
+      }
       return res.status(200).json({
         ok: true,
-        activity: { ...activity, registered_count: registeredCount, available_slots: Math.max(0, activity.capacity - registeredCount) },
+        activity: { ...pickPublic(activity, PUBLIC_ACTIVITY_COLUMNS), registered_count: registeredCount, available_slots: availableSlots },
       });
     }
 
