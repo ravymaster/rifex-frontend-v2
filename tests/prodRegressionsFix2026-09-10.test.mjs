@@ -56,7 +56,7 @@ test('CSS 5: .summaryThumb conserva tamaño fijo + flex-shrink:0 (no se deforma)
 // ---------------------------------------------------------------------
 test('SLUG 1: getServerSideProps redirige (308 permanent) cuando isUuid(params.id) y la rifa tiene slug', () => {
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /import \{ idOrSlugColumn, isUuid \} from "\.\.\/\.\.\/lib\/idOrSlug"/);
+  assert.match(src, /import \{ isUuid \} from "\.\.\/\.\.\/lib\/idOrSlug"/);
   assert.match(src, /if \(isUuid\(params\.id\) && raffle\?\.slug\)/);
   assert.match(src, /destination: `\/rifas\/\$\{raffle\.slug\}\$\{suffix\}`/);
   assert.match(src, /permanent: true/);

@@ -16,7 +16,7 @@ import sharp from 'sharp';
 import satori from 'satori';
 import fs from 'fs';
 import path from 'path';
-import { requireRaffleApiAccess } from '@/lib/raffleShareAccess';
+import { requireRaffleApiAccess, shareLinkPath } from '@/lib/raffleShareAccess';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
   try {
     const { data: raffle, error } = await supabase
       .from('raffles')
-      .select('id, title, status')
+      .select('id, title, status, share_token')
       .eq('id', id)
       .maybeSingle();
     if (error) throw error;
@@ -73,7 +73,11 @@ export default async function handler(req, res) {
     }
 
     const base = (process.env.NEXT_PUBLIC_BASE_URL || `https://${req.headers.host}`).replace(/\/+$/, '');
-    const url = `${base}/rifas/${raffle.id}`;
+    // El QR siempre lleva el enlace compartible neutral (/c/<token>),
+    // nunca el slug ni el id interno.
+    const sharePath = shareLinkPath(raffle.share_token);
+    if (!sharePath) return res.status(404).json({ ok: false, error: 'not_found' });
+    const url = `${base}${sharePath}`;
 
     const qrBuffer = await QRCode.toBuffer(url, {
       type: 'png',

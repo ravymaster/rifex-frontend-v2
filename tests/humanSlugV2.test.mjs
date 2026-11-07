@@ -166,9 +166,10 @@ test('COMPAT 4: GET /api/rifas/[id] sigue resolviendo por id-o-slug indistintame
 });
 
 test('COMPAT 5: la carga inicial de la ficha pública (loadData) sigue resolviendo por id-o-slug indistintamente', () => {
+  // La ficha carga por GET /api/rifas/[id], que resuelve id o slug en el servidor.
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /const col = idOrSlugColumn\(rid\)/);
-  assert.match(src, /\.eq\(col, rid\)/);
+  assert.match(src, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(rid\)\}`\)/);
+  assert.match(read('src/pages/api/rifas/[id]/index.js'), /\.eq\(idOrSlugColumn\(id\), id\)/);
 });
 
 // ---------------------------------------------------------------------
@@ -186,9 +187,10 @@ test('IDENTIDAD-V2 1: checkout sigue usando raffle.id (UUID real), nunca el par�
   assert.doesNotMatch(src, /raffle_id:\s*id,/);
 });
 
-test('IDENTIDAD-V2 2: el canal realtime de tickets sigue dependiendo de raffle?.id, nunca del id crudo de la URL', () => {
+test('IDENTIDAD-V2 2: el refresco periódico de totales sigue dependiendo de raffle?.id, nunca del id crudo de la URL', () => {
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /const rid = raffle\?\.id;\s*\n\s*if \(!rid\) return;\s*\n\s*const channel = supabase/);
+  assert.match(src, /const rid = raffle\?\.id;\s*\n\s*if \(!rid\) return;\s*\n\s*const refresh = async/);
+  assert.match(src, /fetch\(`\/api\/rifas\/\$\{rid\}\/tickets\?summary=1`\)/);
   assert.match(src, /\}, \[raffle\?\.id\]\);/);
 });
 

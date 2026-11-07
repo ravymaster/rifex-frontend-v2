@@ -127,6 +127,28 @@ function QrDownloadButton({ raffleId }) {
   );
 }
 
+// Copia el enlace compartible neutral (/c/<token>) de la Rifa: no lleva
+// título, slug ni id interno. Es el enlace que el creador debe difundir.
+function CopyShareLinkButton({ sharePath }) {
+  const [copied, setCopied] = useState(false);
+  if (!sharePath) return null;
+  async function onClick() {
+    const url = `${window.location.origin}${sharePath}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      window.prompt('Copia este enlace:', url);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <button type="button" onClick={onClick} style={{ background: '#fff', color: '#111827', border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 8, fontWeight: 600, display: 'inline-block', cursor: 'pointer' }}>
+      {copied ? 'Enlace copiado' : 'Copiar enlace'}
+    </button>
+  );
+}
+
 function Progress({ value, max = 100 }) {
   const pct = Math.max(0, Math.min(100, (Number(value) / Number(max)) * 100 || 0));
   return (
@@ -698,6 +720,7 @@ export default function Panel() {
               {/* ⬇️ Celda de acciones con data-cell="actions" */}
               <div data-cell="actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <LinkButtonGhost href={`/rifas/${row.id}`}>Ver</LinkButtonGhost>
+                <CopyShareLinkButton sharePath={row.share_path} />
                 <QrDownloadButton raffleId={row.id} />
                 <ActionButton tone="ghost" onClick={() => setEditRaffle(row)}>Editar</ActionButton>
                 {row.status !== 'closed' && (

@@ -1,9 +1,9 @@
 // src/components/rifex/RaffleChat.jsx
 import { useEffect, useRef, useState } from "react";
-import { supabaseBrowser as supabase } from "@/lib/supabaseClient";
 import styles from "@/styles/raffleChat.module.css";
 
 const GUEST_NAME_KEY = "rifex_guest_chat_name";
+const REFRESH_MS = 10_000;
 
 function timeLabel(iso) {
   try {
@@ -13,7 +13,7 @@ function timeLabel(iso) {
   }
 }
 
-export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
+export default function RaffleChat({ raffleId, viewerToken }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
@@ -28,42 +28,26 @@ export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
     }
   }, [viewerToken]);
 
+  // Mensajes por la API del chat (campos públicos, sin ids internos);
+  // refresco periódico en vez de suscribirse a la base desde el navegador.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      setLoading(true);
+    const load = async (first) => {
+      if (first) setLoading(true);
       try {
-        const r = await fetch(`/api/chat/${raffleId}`);
-        const j = await r.json();
-        if (!cancelled && r.ok && j.ok) setMessages(j.messages || []);
+        const headers = viewerToken ? { Authorization: `Bearer ${viewerToken}` } : undefined;
+        const r = await fetch(`/api/chat/${raffleId}`, { headers });
+        const j = await r.json().catch(() => null);
+        if (!cancelled && r.ok && j?.ok) setMessages(j.messages || []);
+      } catch {
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && first) setLoading(false);
       }
-    })();
-    return () => { cancelled = true; };
-  }, [raffleId]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel(`raffle-chat-${raffleId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "raffle_messages", filter: `raffle_id=eq.${raffleId}` },
-        (payload) => {
-          const row = payload.new;
-          setMessages((prev) => (prev.some((m) => m.id === row.id)
-            ? prev
-            : [...prev, {
-                ...row,
-                is_guest: !row.user_id,
-                nombre: row.user_id ? "Usuario" : (row.guest_name || "Invitado"),
-                avatar_url: null,
-              }]));
-        }
-      )
-      .subscribe();
-    return () => { try { supabase.removeChannel(channel); } catch {} };
-  }, [raffleId]);
+    };
+    load(true);
+    const timer = setInterval(() => load(false), REFRESH_MS);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [raffleId, viewerToken]);
 
   useEffect(() => {
     if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -109,7 +93,7 @@ export default function RaffleChat({ raffleId, viewerToken, viewerId }) {
           <p className={styles.empty}>Cargando mensajes…</p>
         ) : messages.length ? (
           messages.map((m) => (
-            <div key={m.id} className={`${styles.msg} ${m.user_id && m.user_id === viewerId ? styles.me : ""}`}>
+            <div key={m.id} className={`${styles.msg} ${m.is_mine ? styles.me : ""}`}>
               <div className={styles.meta}>
                 <span className={styles.name}>{m.nombre}</span>
                 {m.is_guest && <span className={styles.guestTag}>Invitado</span>}

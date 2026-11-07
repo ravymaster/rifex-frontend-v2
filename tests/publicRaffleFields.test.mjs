@@ -99,9 +99,10 @@ test('API 1: GET /api/rifas pide solo columnas públicas y mapea con toPublicRaf
 test('API 2: GET /api/rifas/[id] resuelve slug o UUID y responde sin identificadores internos', () => {
   const get = block(code('src/pages/api/rifas/[id]/index.js'), "req.method === 'GET'", "req.method === 'PATCH'");
   assert.doesNotMatch(get, /select\(\s*['"`]\*['"`]\s*\)/);
-  assert.match(get, /\.select\(`\$\{PUBLIC_RAFFLE_SELECT\},creator_id`\)/, 'creator_id solo para cálculos del servidor');
+  assert.match(get, /\.select\(`\$\{PUBLIC_RAFFLE_SELECT\},creator_id,share_token`\)/, 'creator_id y share_token solo para el servidor');
   assert.match(get, /\.eq\(idOrSlugColumn\(id\), id\)/);
-  assert.match(get, /data: \{ \.\.\.toPublicRaffle\(data\), creator_trust_level: creatorTrustLevel, organizer \}/);
+  assert.match(get, /data: \{ \.\.\.toPublicRaffle\(data\), creator_trust_level: creatorTrustLevel, organizer, counts, share_path: shareLinkPath\(data\.share_token\) \}/);
+  assert.doesNotMatch(get, /share_token: |creator_id: /, 'nunca el token crudo ni el creador');
   assert.doesNotMatch(get, /\.\.\.data[,}\s]/, 'nunca se esparce la fila completa');
 });
 
@@ -124,21 +125,26 @@ test('PÁGINAS 1: la ficha y el checkout leen solo columnas públicas desde el n
   // El checkout sí envía buyer_email/buyer_name: son los datos que el
   // propio comprador escribe para su compra (POST /api/checkout/mp).
   assert.doesNotMatch(ficha, /buyer_email|buyer_name/);
-  assert.match(ficha, /from\("raffles"\)\.select\(PUBLIC_RAFFLE_SELECT\)/);
-  assert.match(ficha, /from\("rifas"\)\.select\(LEGACY_RIFAS_SELECT\)/);
-  assert.doesNotMatch(ficha, /raffles_compat/);
-  assert.match(checkout, /from\("raffles"\)\.select\(PUBLIC_RAFFLE_SELECT\)/);
+  // Sin lecturas directas de la base desde el navegador: todo pasa por
+  // GET /api/rifas/[id] (lista cerrada de campos, exposición y puerta).
+  for (const src of [ficha, checkout]) {
+    assert.doesNotMatch(src, /supabaseClient|supabase\.|\.from\(["']|postgres_changes/);
+  }
+  assert.doesNotMatch(ficha, /raffles_compat|tickets_compat/);
+  assert.match(ficha, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(rid\)\}`\)/);
+  assert.match(checkout, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(id\)\}`\)/);
 });
 
 test('PÁGINAS 2: la ficha no arma enlaces con el id interno del creador', () => {
   const ficha = code('src/pages/rifas/[id].jsx');
   assert.doesNotMatch(ficha, /\/perfil\/\$\{/);
-  assert.match(ficha, /fetch\(`\/api\/rifas\/\$\{rid\}`\)/, 'organizador desde el API de la rifa');
-  assert.match(ficha, /setOrganizer\(j\.data\?\.organizer \|\| null\)/);
+  assert.match(ficha, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(rid\)\}`\)/, 'organizador desde el API de la rifa');
+  assert.match(ficha, /setOrganizer\(raffleData\.organizer \|\| null\)/);
 });
 
 test('PÁGINAS 3: la lista blanca cubre todos los campos que leen la ficha y el checkout', () => {
-  const NOT_FROM_LIST = new Set(['creator_trust_level', '_legacy', 'titulo', 'user_id']);
+  // Campos que agrega el servidor en GET /api/rifas/[id], fuera de la lista de columnas.
+  const NOT_FROM_LIST = new Set(['creator_trust_level', 'titulo', 'user_id', 'organizer', 'counts', 'share_path']);
   for (const file of ['src/pages/rifas/[id].jsx', 'src/pages/rifas/[id]/checkout.jsx']) {
     const used = new Set([...code(file).matchAll(/\braffle(?:Data)?\??\.([a-z_]+)/g)].map((m) => m[1]));
     for (const field of used) {

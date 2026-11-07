@@ -35,7 +35,7 @@ function RaffleCard({ r, chatOpen, onToggleChat, viewerToken, viewerId }) {
       <button type="button" className={styles.chatToggle} onClick={() => onToggleChat(r.id)}>
         💬 {chatOpen ? "Ocultar chat" : "Ver chat"}
       </button>
-      {chatOpen && <RaffleChat raffleId={r.id} viewerToken={viewerToken} viewerId={viewerId} />}
+      {chatOpen && <RaffleChat raffleId={r.id} viewerToken={viewerToken} />}
     </div>
   );
 }

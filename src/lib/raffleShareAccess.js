@@ -15,6 +15,11 @@
 //   - rotar el secreto revoca todas las autorizaciones emitidas.
 // La decisión nunca mira el user-agent: con la misma cookie, la misma
 // respuesta; sin cookie, la misma puerta para personas y crawlers.
+//
+// Enlace compartible neutral: /c/<share_token>. El token es público
+// (forma parte del enlace), aleatorio de 128 bits y no se deriva de datos
+// de la Rifa (db/migrations/2026-11-08a_raffles_share_token.sql). Solo
+// sirve para llegar a la puerta: nunca reemplaza la cookie de acceso.
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { isUuid } from './idOrSlug.js';
@@ -31,8 +36,10 @@ export const SHARE_ACCESS_COOKIE_PREFIX = 'rfx_sa_';
 export const SHARE_ACCESS_ENDPOINT = '/api/acceso-compartido';
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/;
+const SHARE_TOKEN_RE = /^[A-Za-z0-9_-]{22}$/;
 const QUERY_RE = /^\?[A-Za-z0-9_.~%=&+-]{0,400}$/;
 const RETURN_PATH_RE = /^\/rifas\/([^/?#]+)(\/checkout)?(\?.*)?$/;
+const SHARE_LINK_RE = /^\/c\/([^/?#]+)(\?.*)?$/;
 
 let adminClient = null;
 function getAdminClient() {
@@ -51,11 +58,26 @@ export function isValidRaffleIdentifier(value) {
   return typeof value === 'string' && (isUuid(value) || SLUG_RE.test(value));
 }
 
-// Ruta de retorno del botón Continuar: solo rutas internas de Rifas
-// (/rifas/<id> y /rifas/<id>/checkout, con query string acotada). Nunca
-// una URL absoluta, `//`, `\` ni otra sección del sitio.
+export function isValidShareToken(value) {
+  return typeof value === 'string' && SHARE_TOKEN_RE.test(value);
+}
+
+export function shareLinkPath(token) {
+  return isValidShareToken(token) ? `/c/${token}` : null;
+}
+
+// Ruta de retorno del botón Continuar: solo el enlace neutral /c/<token>
+// o rutas internas de Rifas (/rifas/<id> y /rifas/<id>/checkout, con
+// query string acotada). Nunca una URL absoluta, `//`, `\` ni otra
+// sección del sitio. El enlace neutral vuelve siempre sin query string.
 export function parseShareReturnPath(value) {
   if (typeof value !== 'string' || value.length > 600) return null;
+  const link = SHARE_LINK_RE.exec(value);
+  if (link) {
+    const [, token, query = ''] = link;
+    if (!isValidShareToken(token) || (query && !QUERY_RE.test(query))) return null;
+    return { token, path: `/c/${token}` };
+  }
   const m = RETURN_PATH_RE.exec(value);
   if (!m) return null;
   const [, identifier, checkout = '', query = ''] = m;
@@ -137,6 +159,23 @@ export async function findRaffleForShare(identifier) {
   return data;
 }
 
+// Rifa por token del enlace neutral, con el mismo criterio.
+export async function findRaffleByShareToken(token) {
+  if (!isValidShareToken(token)) return null;
+  const { data, error } = await getAdminClient()
+    .from('raffles')
+    .select('id, slug, creator_id, status')
+    .eq('share_token', token)
+    .maybeSingle();
+  if (error || !data || data.status === 'deleted') return null;
+  return data;
+}
+
+// Destino de un retorno ya validado (parseShareReturnPath).
+export function findRaffleForReturnTarget(target) {
+  return target?.token ? findRaffleByShareToken(target.token) : findRaffleForShare(target?.identifier);
+}
+
 // Nombre público del organizador para la puerta: solo `nombre` del
 // perfil público, recortado, y descartado si parece un correo, un RUT o
 // un teléfono (7 o más dígitos). Nunca
@@ -175,6 +214,27 @@ export async function resolveRafflePageAccess({ req, res, resolvedUrl }, identif
   const returnTo = parsed && parsed.identifier === identifier ? parsed.path : `/rifas/${identifier}`;
   const organizerName = raffle ? await findGateOrganizerName(raffle.creator_id) : null;
   return { response: { props: { sharedGate: { organizerName, returnTo } } } };
+}
+
+// Enlace neutral /c/<token> (getServerSideProps). Devuelve la respuesta
+// completa de la página: 410, 404, la puerta o una redirección temporal a
+// la ficha cuando el acceso ya está autorizado (o en modo `on`).
+// Un token con formato inválido nunca consulta la base (404). En `gated`,
+// un token inexistente muestra la misma puerta que una Rifa sin nombre
+// público de organizador: antes de Continuar no se revela si existe.
+export async function resolveShareLinkPage({ req, res }, token) {
+  const mode = getRaffleExposureMode();
+  if (mode === 'off') return raffleGoneProps(res);
+  if (mode === 'gated') applyGatedHeaders(res);
+  if (!isValidShareToken(token)) return { notFound: true };
+
+  const raffle = await findRaffleByShareToken(token);
+  const toRaffle = raffle && { redirect: { destination: `/rifas/${raffle.slug || raffle.id}`, permanent: false } };
+  if (mode === 'on') return toRaffle || { notFound: true };
+  if (raffle && hasShareAccess(req, getGateSecret(), raffle.id)) return toRaffle;
+
+  const organizerName = raffle ? await findGateOrganizerName(raffle.creator_id) : null;
+  return { props: { sharedGate: { organizerName, returnTo: `/c/${token}` } } };
 }
 
 // Verifica un Bearer del dueño de la Rifa (panel del creador).
