@@ -9,8 +9,9 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { execFileSync } from 'child_process';
 import * as F from '../src/lib/publicInitiativeFields.js';
-import { isRafflePublicExposureEnabled, RAFFLE_GONE_HEADERS } from '../src/lib/raffleExposure.js';
+import { isRafflePublicExposureEnabled, RAFFLE_GONE_HEADERS, sendRaffleGone, raffleGoneProps } from '../src/lib/raffleExposure.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -118,12 +119,63 @@ test('MEDIDOR 1: la página pública usa la lista compartida y no publica datos 
 // ---------------------------------------------------------------------
 // Exposición pública de Rifas
 // ---------------------------------------------------------------------
-test('EXPOSICIÓN 1: habilitada por defecto; solo "off" la deshabilita', () => {
-  assert.equal(isRafflePublicExposureEnabled({}), true);
-  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: 'on' }), true);
-  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: 'off' }), false);
-  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: ' OFF ' }), false);
+test('EXPOSICIÓN 1: apagada por defecto; solo el valor exacto "on" la habilita', () => {
+  assert.equal(isRafflePublicExposureEnabled({}), false, 'variable ausente');
+  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: undefined }), false, 'undefined');
+  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: '' }), false, 'vacía');
+  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: '   ' }), false, 'solo espacios');
+  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: 'off' }), false, 'off');
+  for (const v of ['On', 'ON', 'yes', 'true', '1', 'enabled', 'onn', 'o n', 'off,on']) {
+    assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: v }), false, `valor desconocido "${v}"`);
+  }
+  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: 'on' }), true, 'on');
+  assert.equal(isRafflePublicExposureEnabled({ RIFEX_RAFFLES_PUBLIC: ' on ' }), true, 'on con espacios');
   assert.match(RAFFLE_GONE_HEADERS['X-Robots-Tag'], /noindex/);
+});
+
+test('EXPOSICIÓN 1b: variable privada del servidor, nunca NEXT_PUBLIC_', () => {
+  const lib = read('src/lib/raffleExposure.js');
+  assert.match(lib, /env\.RIFEX_RAFFLES_PUBLIC/);
+  let all = '';
+  try {
+    all = execFileSync('git', ['grep', '-l', 'NEXT_PUBLIC_RIFEX_RAFFLES', '--', 'src'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  } catch (e) {
+    if (e.status !== 1) throw e; // 1 = sin coincidencias, que es lo esperado
+  }
+  assert.equal(all, '', 'ninguna variable pública del navegador controla Rifas');
+});
+
+test('EXPOSICIÓN 1c: ninguna ruta pública de Rifas escapa al control', () => {
+  const GATED = new Set([
+    'src/pages/rifas.js', 'src/pages/rifas/[id].jsx', 'src/pages/rifas/[id]/checkout.jsx',
+    'src/pages/api/rifas/index.js', 'src/pages/api/rifas/[id]/index.js', 'src/pages/api/rifas/[id]/qr.png.js',
+    'src/pages/api/rifas/[id]/tickets.js',
+  ]);
+  // Rutas de Rifas que no publican datos de una rifa concreta.
+  const PRIVATE_OR_GENERIC = {
+    'src/pages/rifas/crear.jsx': 'alias que redirige a la creación autenticada',
+    'src/pages/api/rifas/delete.js': 'requiere autenticación del dueño',
+    'src/pages/api/rifas/upload-photo.js': 'requiere autenticación del dueño',
+    'src/pages/api/rifas/[id]/draw.js': 'sorteo manual del dueño autenticado',
+    'src/pages/api/rifas/[id]/extend.js': 'extensión del dueño autenticado',
+  };
+  const files = execFileSync('git', ['ls-files', 'src/pages/rifas.js', 'src/pages/rifas', 'src/pages/api/rifas'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
+  for (const f of files) {
+    if (GATED.has(f)) {
+      assert.match(code(f), /isRafflePublicExposureEnabled\(\)/, `${f} debe pasar por el control`);
+    } else {
+      assert.ok(f in PRIVATE_OR_GENERIC, `${f}: ruta de Rifas no clasificada`);
+      if (f.startsWith('src/pages/api/')) assert.match(code(f), /missing_auth|getUser\(/, `${f} debe exigir autenticación`);
+    }
+  }
+  // Páginas institucionales relacionadas: sin datos de ninguna rifa.
+  for (const f of ['src/pages/terminos-rifas.js', 'src/pages/soluciones/rifas.jsx', 'src/pages/reglas-iniciativas-premio.js']) {
+    assert.doesNotMatch(code(f), /\/api\/rifas|from\(["']raffles["']\)|raffle_results/, f);
+  }
+  // Otras lecturas públicas que muestran rifas.
+  for (const f of ['src/pages/api/raffles/winner.js', 'src/pages/api/chat/[raffleId].js', 'src/pages/api/perfil/[id].js']) {
+    assert.match(code(f), /isRafflePublicExposureEnabled\(\)/, f);
+  }
 });
 
 test('EXPOSICIÓN 2 (sin cloaking): la decisión nunca depende del visitante', () => {
@@ -163,9 +215,35 @@ test('EXPOSICIÓN 5: creación, edición del dueño y pagos no pasan por el cont
   assert.ok(block(list, "req.method === 'POST'").indexOf('isRafflePublicExposureEnabled') === -1, 'POST de creación sin cambios');
   const detail = code('src/pages/api/rifas/[id]/index.js');
   assert.ok(block(detail, "req.method === 'PATCH'").indexOf('isRafflePublicExposureEnabled') === -1, 'PATCH del dueño sin cambios');
-  for (const p of ['src/pages/api/checkout/mp.js', 'src/pages/api/checkout/webhook.js', 'src/lib/paymentReconcile.js', 'src/pages/api/cron/draw-scheduler.js']) {
-    assert.doesNotMatch(read(p), /raffleExposure/, p);
+  // Panel privado, scheduler, webhooks, conciliación, pagos y sorteo
+  // interno: nunca dependen del control de exposición pública.
+  for (const p of [
+    'src/pages/api/checkout/mp.js', 'src/pages/api/checkout/webhook.js', 'src/pages/api/checkout/webhook-events.js',
+    'src/pages/api/checkout/webhook-colecta.js', 'src/pages/api/checkout/confirm.js', 'src/lib/paymentReconcile.js',
+    'src/pages/api/admin/reconcile-payments.js', 'src/pages/api/cron/draw-scheduler.js', 'src/lib/drawWinner.js',
+    'src/pages/api/panel/raffles.js', 'src/pages/panel/index.js', 'src/pages/api/rifas/[id]/draw.js',
+  ]) {
+    assert.doesNotMatch(read(p), /raffleExposure|RIFEX_RAFFLES_PUBLIC/, p);
   }
+});
+
+test('EXPOSICIÓN 6 (sin cloaking): la respuesta 410 es idéntica para cualquier visitante', () => {
+  const visitors = ['Mozilla/5.0 Chrome/130', 'facebookexternalhit/1.1', 'Facebot', 'Mozilla/5.0 (compatible; Googlebot/2.1)', 'curl/8'];
+  const fakeRes = () => {
+    const r = { headers: {}, statusCode: 200, body: null };
+    r.setHeader = (k, v) => { r.headers[k] = v; };
+    r.status = (s) => { r.statusCode = s; return r; };
+    r.json = (b) => { r.body = b; return r; };
+    return r;
+  };
+  const apiOut = visitors.map(() => { const r = fakeRes(); sendRaffleGone(r); return JSON.stringify([r.statusCode, r.headers, r.body]); });
+  const pageOut = visitors.map(() => { const r = fakeRes(); const p = raffleGoneProps(r); return JSON.stringify([r.statusCode, r.headers, p]); });
+  assert.equal(new Set(apiOut).size, 1);
+  assert.equal(new Set(pageOut).size, 1);
+  assert.match(apiOut[0], /^\[410,/);
+  // La decisión solo recibe el entorno, nunca la petición.
+  assert.equal(isRafflePublicExposureEnabled.length, 0);
+  assert.doesNotMatch(isRafflePublicExposureEnabled.toString(), /req|header|agent|cookie/i);
 });
 
 // ---------------------------------------------------------------------
