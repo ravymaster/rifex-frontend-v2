@@ -21,7 +21,7 @@ Rifas, Eventos (incluidos los tipos de entrada), Inscripciones, Campañas y Medi
 Rifas en PROD; correos y teléfonos; identificadores internos; datos de participantes; respuestas y resultados del Medidor QR; pagos y Mercado Pago; webhooks; administración; check-in; información privada de organizadores; secretos; y cualquier mutación.
 
 ## Rutas históricas de Rifas
-Existe un control de exposición pública del lado del servidor. Está **habilitado por defecto**, sin cambio de comportamiento.
+Existe un control de exposición pública del lado del servidor, **apagado por defecto**. Solo se habilita con la variable privada del servidor `RIFEX_RAFFLES_PUBLIC=on`; ausente, vacía o con cualquier otro valor, queda deshabilitado. DEV se configura con `on` y PROD con `off`, ambos de forma explícita.
 - Deshabilitado, las rutas públicas de Rifas responden **410 Gone** con una página neutra, sin metadata ni redirecciones, y los perfiles públicos dejan de listar rifas.
 - **La respuesta es idéntica para personas y crawlers:** no se detecta el user-agent ni se aplica cloaking.
 - La gestión del creador, los pagos, los webhooks, la conciliación y el sorteo interno no cambian.
