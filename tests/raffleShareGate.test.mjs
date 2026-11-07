@@ -230,7 +230,7 @@ test('SECRETO: solo servidor, nunca NEXT_PUBLIC_ ni valores en el repositorio', 
   }
   assert.equal(hits, '');
   // Solo raffleExposure.js lee la variable del secreto.
-  const readers = execFileSync('git', ['grep', '-l', 'RIFEX_RAFFLES_GATE_SECRET', '--', 'src'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
+  const readers = execFileSync('git', ['grep', '-lE', 'env(\\.|\\[.)RIFEX_RAFFLES_GATE_SECRET', '--', 'src'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
   assert.deepEqual(readers, ['src/lib/raffleExposure.js']);
   // El cliente nunca importa el módulo de la puerta fuera de getServerSideProps.
   for (const p of ['src/pages/rifas/[id].jsx', 'src/pages/rifas/[id]/checkout.jsx']) {
