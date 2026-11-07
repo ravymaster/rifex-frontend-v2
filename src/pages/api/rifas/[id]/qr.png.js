@@ -16,6 +16,7 @@ import sharp from 'sharp';
 import satori from 'satori';
 import fs from 'fs';
 import path from 'path';
+import { isRafflePublicExposureEnabled, sendRaffleGone } from '@/lib/raffleExposure';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -52,6 +53,8 @@ function truncateTitle(title) {
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+  // Exposición pública de Rifas (src/lib/raffleExposure.js).
+  if (!isRafflePublicExposureEnabled()) return sendRaffleGone(res);
 
   const id = String(req.query.id || '').trim();
   if (!id) return res.status(400).json({ ok: false, error: 'missing_id' });

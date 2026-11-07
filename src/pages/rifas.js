@@ -11,7 +11,14 @@
 // un redirect real. Se convierte a getServerSideProps para que cualquier
 // cliente, con o sin JS, reciba el mismo 307 real — mismo destino, misma
 // lógica de sanitización de `next`, sin agregar ni quitar función.
+// Exposición pública de Rifas (2026-11, src/lib/raffleExposure.js): si
+// está deshabilitada, esta ruta histórica responde 410 neutro en vez de
+// redirigir.
+import { isRafflePublicExposureEnabled, raffleGoneProps } from '@/lib/raffleExposure';
+import RaffleGonePage from '@/components/RaffleGonePage';
+
 export async function getServerSideProps({ query, res }) {
+  if (!isRafflePublicExposureEnabled()) return raffleGoneProps(res);
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   const raw = (query?.next || '').toString();
   const next = raw.startsWith('/') ? raw : '/panel';
@@ -20,6 +27,7 @@ export async function getServerSideProps({ query, res }) {
   };
 }
 
-export default function RifasRedirect() {
+export default function RifasRedirect(props) {
+  if (props.raffleGone) return <RaffleGonePage />;
   return null;
 }

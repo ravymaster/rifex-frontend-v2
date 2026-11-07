@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { isRafflePublicExposureEnabled, sendRaffleGone } from '@/lib/raffleExposure';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -7,6 +8,8 @@ const supabase = createClient(
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
+  // Exposición pública de Rifas (src/lib/raffleExposure.js).
+  if (!isRafflePublicExposureEnabled()) return sendRaffleGone(res);
 
   try {
     const { id } = req.query;

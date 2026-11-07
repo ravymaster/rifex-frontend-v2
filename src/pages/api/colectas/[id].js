@@ -5,6 +5,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { deriveEffectiveStatus } from '@/lib/colectaStatus';
 import { idOrSlugColumn } from '@/lib/idOrSlug';
+import { PUBLIC_COLECTA_COLUMNS, toSelect } from '@/lib/publicInitiativeFields';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -23,7 +24,9 @@ export default async function handler(req, res) {
   try {
     const { data: colecta, error } = await supabase
       .from('colectas')
-      .select('id, creator_id, title, description, cover_image_url, gallery_urls, status, goal_cents, start_at, end_at, created_at, slug')
+      // Campos públicos (2026-11): columnas públicas + creator_id, este
+      // último solo para buscar el perfil público en el servidor.
+      .select(`${toSelect(PUBLIC_COLECTA_COLUMNS)},creator_id`)
       .eq(idOrSlugColumn(id), id)
       .in('status', ['active', 'closed'])
       .maybeSingle();
@@ -66,8 +69,8 @@ export default async function handler(req, res) {
         start_at: colecta.start_at,
         end_at: colecta.end_at,
         created_at: colecta.created_at,
+        // Tarjeta pública del organizador: sin identificadores internos.
         creator: {
-          id: colecta.creator_id,
           nombre: profile?.nombre || 'Creador de Rifex',
           avatar_url: profile?.avatar_url || null,
         },
