@@ -3,7 +3,7 @@
 // o invitado con solo nombre — los mensajes de invitado siempre se marcan
 // como tal para que nadie los confunda con el creador verificado.
 import { createClient } from '@supabase/supabase-js';
-import { isRafflePublicExposureEnabled, sendRaffleGone } from '@/lib/raffleExposure';
+import { requireRaffleApiAccess } from '@/lib/raffleShareAccess';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -19,9 +19,12 @@ export default async function handler(req, res) {
   const raffleId = String(req.query.raffleId || '').trim();
   if (!raffleId) return res.status(400).json({ ok: false, error: 'missing_raffle_id' });
 
+  // Exposición pública de Rifas (src/lib/raffleExposure.js) y puerta
+  // neutra del modo `gated` (src/lib/raffleShareAccess.js): leer y
+  // escribir en el chat requieren la misma autorización.
+  if ((req.method === 'GET' || req.method === 'POST') && !(await requireRaffleApiAccess(req, res, raffleId))) return;
+
   if (req.method === 'GET') {
-    // Exposición pública de Rifas (src/lib/raffleExposure.js).
-    if (!isRafflePublicExposureEnabled()) return sendRaffleGone(res);
     try {
       const { data: messages, error } = await supabase
         .from('raffle_messages')

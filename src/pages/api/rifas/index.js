@@ -70,7 +70,8 @@ const MAX_TRANSFER_CONDITIONS_LENGTH = 500;
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
-      // Exposición pública de Rifas (src/lib/raffleExposure.js).
+      // Exposición pública de Rifas (src/lib/raffleExposure.js): el listado
+      // solo existe con acceso directo (`on`); en `gated` no se enumeran.
       if (!isRafflePublicExposureEnabled()) return sendRaffleGone(res);
       // Listado público simple (útil para /rifas): solo columnas públicas
       // (src/lib/publicRaffleFields.js).

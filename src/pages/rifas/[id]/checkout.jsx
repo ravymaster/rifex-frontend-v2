@@ -15,8 +15,9 @@ import { PUBLIC_RAFFLE_SELECT } from "../../../lib/publicRaffleFields";
 import { humanPrizeType } from "../../../lib/raffleLabels";
 import { formatDrawAt } from "../../../lib/raffleTime";
 import styles from "../../../styles/checkoutV2.module.css";
-import { isRafflePublicExposureEnabled, raffleGoneProps } from "../../../lib/raffleExposure";
+import { resolveRafflePageAccess } from "../../../lib/raffleShareAccess";
 import RaffleGonePage from "../../../components/RaffleGonePage";
+import SharedAccessGate from "../../../components/SharedAccessGate";
 
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
@@ -27,14 +28,17 @@ const TERMS_VERSION = "v1.0";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Exposición pública de Rifas (src/lib/raffleExposure.js): solo decide si
-// la página existe; con la exposición habilitada todo sigue igual que antes.
-export async function getServerSideProps({ res }) {
-  if (!isRafflePublicExposureEnabled()) return raffleGoneProps(res);
+// la página existe (410) o si antes corresponde la puerta neutra (modo
+// `gated`, src/lib/raffleShareAccess.js); con acceso, todo sigue igual.
+export async function getServerSideProps({ params, req, res, resolvedUrl }) {
+  const access = await resolveRafflePageAccess({ req, res, resolvedUrl }, String(params?.id || ''));
+  if (access.response) return access.response;
   return { props: {} };
 }
 
 export default function RaffleCheckoutPage(props) {
   if (props.raffleGone) return <RaffleGonePage />;
+  if (props.sharedGate) return <SharedAccessGate {...props.sharedGate} />;
   return <RaffleCheckout />;
 }
 

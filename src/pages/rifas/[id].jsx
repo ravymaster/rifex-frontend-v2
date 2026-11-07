@@ -15,8 +15,9 @@ import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
 import { idOrSlugColumn, isUuid } from "../../lib/idOrSlug";
 import { PUBLIC_RAFFLE_SELECT, LEGACY_RIFAS_SELECT } from "../../lib/publicRaffleFields";
 import { trackEvent } from "../../lib/analyticsClient";
-import { isRafflePublicExposureEnabled, raffleGoneProps } from "../../lib/raffleExposure";
+import { resolveRafflePageAccess, shareAccessCookieHeader } from "../../lib/raffleShareAccess";
 import RaffleGonePage from "../../components/RaffleGonePage";
+import SharedAccessGate from "../../components/SharedAccessGate";
 
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
@@ -179,15 +180,19 @@ function BuyBox({
 // endpoint que ya usa el fetch client-side, sin duplicar su lógica) — el
 // resto de la página sigue funcionando exactamente igual que antes, con su
 // propio fetch client-side para la UI interactiva real.
-export async function getServerSideProps({ params, req, res, query }) {
-  // Exposición pública de Rifas (src/lib/raffleExposure.js): si está
-  // deshabilitada, 410 neutro para todos — sin consultar la rifa ni
-  // redirigir UUID→slug.
-  if (!isRafflePublicExposureEnabled()) return raffleGoneProps(res);
+export async function getServerSideProps({ params, req, res, query, resolvedUrl }) {
+  // Exposición pública de Rifas (src/lib/raffleExposure.js): deshabilitada
+  // → 410 neutro para todos, sin consultar la rifa ni redirigir UUID→slug.
+  // En modo `gated`, sin autorización para esta rifa → puerta neutra
+  // (src/lib/raffleShareAccess.js), también sin redirigir.
+  const access = await resolveRafflePageAccess({ req, res, resolvedUrl }, String(params.id || ''));
+  if (access.response) return access.response;
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const base = `${proto}://${req.headers.host}`;
   try {
-    const r = await fetch(`${base}/api/rifas/${params.id}`);
+    // En `gated`, la autorización de esta rifa viaja a la API interna.
+    const cookie = access.mode === 'gated' ? shareAccessCookieHeader(req) : '';
+    const r = await fetch(`${base}/api/rifas/${params.id}`, cookie ? { headers: { cookie } } : undefined);
     if (!r.ok) return { props: { metaTitle: null, metaTrustLevel: null } };
     const j = await r.json();
     const raffle = j?.data;
@@ -229,6 +234,7 @@ export async function getServerSideProps({ params, req, res, query }) {
 
 export default function RifaPage(props) {
   if (props.raffleGone) return <RaffleGonePage />;
+  if (props.sharedGate) return <SharedAccessGate {...props.sharedGate} />;
   return <Layout disableAutoMeta><RifaDetalle {...props} /></Layout>;
 }
 
