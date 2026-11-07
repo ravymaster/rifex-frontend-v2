@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     // Base query: rifas del usuario
     let query = supabase
       .from('raffles')
-      .select('id,title,price_cents,total_numbers,prize_type,prize_amount_cents,status,end_date,created_at')
+      .select('id,title,price_cents,total_numbers,prize_type,prize_amount_cents,status,end_date,created_at,draw_at,sales_end_at,timezone,extension_limit,extensions_used')
       .or(`creator_id.eq.${uid},creator_email.eq.${email}`)
       .order('created_at', { ascending: false });
 
@@ -67,7 +67,19 @@ export default async function handler(req, res) {
       }
     }
 
-    const items = (raffles || []).map(r => ({ ...r, sold: soldById[r.id] || 0 }));
+    // DRAW-1: para separar "Terminar" (cerrar ventas) de "Sortear ahora" en
+    // el panel, necesitamos saber si ya existe ganador por rifa.
+    const winnerIds = new Set();
+    if (ids.length) {
+      const { data: winnerRows, error: wErr } = await supabase
+        .from('raffle_results')
+        .select('raffle_id')
+        .in('raffle_id', ids);
+      if (wErr) throw wErr;
+      for (const w of winnerRows) winnerIds.add(w.raffle_id);
+    }
+
+    const items = (raffles || []).map(r => ({ ...r, sold: soldById[r.id] || 0, has_winner: winnerIds.has(r.id) }));
     return res.status(200).json({ items });
   } catch (e) {
     console.error('panel/raffles error', e);

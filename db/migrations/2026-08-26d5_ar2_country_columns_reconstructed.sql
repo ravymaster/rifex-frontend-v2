@@ -1,0 +1,56 @@
+-- 2026-08-26a_ar2_country_columns_reconstructed.sql
+-- RELEASE CANDIDATE (Stage 2) — reconstrucción de una migración real de
+-- AR2 que se aplicó directamente a rifex-dev pero cuyo archivo nunca
+-- quedó versionado en el repositorio (gap detectado en Stage 1 de esta
+-- misma promoción). `merchant_gateways.country` y `mp_oauth_state.country`
+-- son usadas activamente por src/pages/api/mp/oauth/start.js,
+-- src/pages/api/mp/oauth/callback.js y el enrutador de país
+-- (src/lib/paymentEngine/countryRouter.js) — sin esta migración, el
+-- flujo de conexión de Mercado Pago de CUALQUIER país (incluido Chile,
+-- el único país operativo) fallaría en PROD con un error SQL
+-- (42703, "column does not exist") en cada intento de conexión.
+--
+-- Evidencia de equivalencia con el estado real de rifex-dev — consulta
+-- read-only ejecutada contra la base viva antes de escribir este
+-- archivo (ver Stage 2, sección "country migration reconstructed" del
+-- reporte de esta promoción):
+--
+--   select table_name, column_name, data_type, column_default, is_nullable
+--   from information_schema.columns
+--   where table_schema='public' and table_name in ('merchant_gateways','mp_oauth_state')
+--     and column_name='country';
+--
+--   -> merchant_gateways.country: text, nullable, sin default, sin CHECK,
+--      sin FK, sin índice propio (no aparece en pg_indexes).
+--   -> mp_oauth_state.country:    text, nullable, sin default, sin CHECK,
+--      sin FK, sin índice propio.
+--
+-- Comparación read-only contra PROD (Supabase wrdkdfuiwlujfxxijpao),
+-- vía PostgREST, sin escribir nada: ambas columnas confirmadas
+-- ausentes (42703 en ambas tablas). merchant_gateways tiene 2 filas
+-- reales existentes en PROD hoy (conexiones de Mercado Pago ya
+-- vigentes, incluida la de Rodrigo) — mp_oauth_state tiene 0 filas
+-- (tabla efímera, se limpia al completar cada OAuth). Como la columna
+-- es nullable sin default, ambas filas existentes de merchant_gateways
+-- quedan con country=NULL tras este ALTER — exactamente el mismo
+-- comportamiento ya validado en rifex-dev para "state legado, anterior
+-- a este deploy" (ver comentario en oauth/callback.js: un country NULL
+-- se trata como 'CL', nunca bloquea ni corrompe una conexión existente).
+-- Ningún backfill es necesario ni deseable: no inventamos qué país
+-- tenía una conexión histórica, la dejamos NULL y el código ya sabe
+-- interpretarla como Chile (única opción real hasta hoy).
+--
+-- No se agrega CHECK ni FK: mismo criterio que rifex-dev, que tampoco
+-- los tiene — el valor válido real (solo 'CL' operativo, 'AR' modelada
+-- pero inerte por Country Gate) se gobierna en la capa de aplicación
+-- (countryPolicy.js), no en la base, igual que el resto de las
+-- columnas "country_code" ya existentes en el proyecto (users_profile).
+--
+-- Instalaciones donde la columna ya exista (ej. si alguna vez se
+-- ejecuta esto por error contra rifex-dev): IF NOT EXISTS hace que sea
+-- un no-op seguro, sin error ni duplicación.
+alter table public.merchant_gateways
+  add column if not exists country text;
+
+alter table public.mp_oauth_state
+  add column if not exists country text;

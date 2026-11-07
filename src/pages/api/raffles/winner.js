@@ -1,91 +1,47 @@
 // src/pages/api/raffles/winner.js
+// Lectura PÚBLICA del ganador de una rifa — solo lectura.
+//
+// Limitar campos públicos (2026-11-06):
+// - Responde solo número, fecha y nombre enmascarado (ver
+//   src/lib/publicWinner.js); nunca el correo ni el nombre completo.
+// - No sortea. El sorteo queda en las autoridades internas que ya
+//   existían: conciliación de pagos al agotarse
+//   la rifa (paymentReconcile.js, 'sold_out_auto'), el scheduler
+//   (api/cron/draw-scheduler.js, CRON_SECRET) y el sorteo manual del dueño
+//   (POST /api/rifas/[id]/draw, autenticado). Cualquier parámetro extra
+//   enviado por el navegador se ignora.
 import * as SB from "../../../lib/supabaseAdmin";
+import { isUuid } from "../../../lib/idOrSlug";
+import { PUBLIC_WINNER_SELECT, toPublicWinner } from "../../../lib/publicWinner";
 const supabaseAdmin = SB.default || SB.supabaseAdmin;
 
 export default async function handler(req, res) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ ok: false, error: "method_not_allowed" });
+  }
+
   try {
     if (!supabaseAdmin?.from) {
       throw new Error("Supabase admin no inicializado. Revisa SUPABASE_SERVICE_ROLE_KEY y la importación.");
     }
 
-    const { rid, ensure } = req.query || {};
+    const rid = String((req.query || {}).rid || "").trim();
     if (!rid) return res.status(400).json({ ok: false, error: "rid requerido" });
+    if (!isUuid(rid)) return res.status(400).json({ ok: false, error: "rid inválido" });
 
-    // 1) ¿ya existe resultado?
-    const { data: existing, error: e1 } = await supabaseAdmin
+    const { data: existing, error } = await supabaseAdmin
       .from("raffle_results")
-      .select("*")
+      .select(PUBLIC_WINNER_SELECT)
       .eq("raffle_id", rid)
       .maybeSingle();
-    if (e1) return res.status(500).json({ ok: false, error: e1.message });
-
-    if (existing) {
-      return res.status(200).json({ ok: true, winner: existing, ensured: !!ensure });
+    if (error) {
+      console.error("winner api error:", error);
+      return res.status(500).json({ ok: false, error: "read_failed" });
     }
-    if (!ensure) return res.status(200).json({ ok: true, winner: null });
-
-    // 2) ¿quedan libres o reservados?
-    const { count: remaining, error: e2 } = await supabaseAdmin
-      .from("tickets")
-      .select("id", { count: "exact", head: true })
-      .eq("raffle_id", rid)
-      .in("status", ["available", "free", "pending"]);
-    if (e2) return res.status(500).json({ ok: false, error: e2.message });
-    if ((remaining ?? 0) > 0) {
-      return res.status(200).json({ ok: true, ready: false, winner: null });
-    }
-
-    // 3) Elegir al azar entre vendidos
-    const { data: soldTickets, error: e3 } = await supabaseAdmin
-      .from("tickets")
-      .select("number")
-      .eq("raffle_id", rid)
-      .eq("status", "sold");
-    if (e3) return res.status(500).json({ ok: false, error: e3.message });
-    if (!soldTickets?.length) {
-      return res.status(200).json({ ok: true, ready: false, winner: null });
-    }
-    const winNum = soldTickets[Math.floor(Math.random() * soldTickets.length)].number;
-
-    // 4) Compra asociada (última approved/paid que contenga ese número)
-    const { data: purchase, error: e4 } = await supabaseAdmin
-      .from("purchases")
-      .select("id,buyer_email,buyer_name,created_at,status,numbers")
-      .eq("raffle_id", rid)
-      .in("status", ["approved", "paid"])
-      .contains("numbers", [winNum])
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (e4) return res.status(500).json({ ok: false, error: e4.message });
-
-    // 5) Guardar resultado
-    const insert = {
-      raffle_id: rid,
-      number: winNum,
-      buyer_email: purchase?.buyer_email ?? null,
-      buyer_name: purchase?.buyer_name ?? null,
-      purchase_id: purchase?.id ?? null,
-    };
-    const { data: saved, error: e5 } = await supabaseAdmin
-      .from("raffle_results")
-      .insert(insert)
-      .select("*")
-      .maybeSingle();
-    if (e5) {
-      // colisión de PK → re-lee
-      const { data: again } = await supabaseAdmin
-        .from("raffle_results")
-        .select("*")
-        .eq("raffle_id", rid)
-        .maybeSingle();
-      return res.status(200).json({ ok: true, winner: again || insert, ensured: true });
-    }
-
-    return res.status(200).json({ ok: true, winner: saved, ensured: true });
+    return res.status(200).json({ ok: true, winner: toPublicWinner(existing) });
   } catch (err) {
     console.error("winner api error:", err);
-    return res.status(500).json({ ok: false, error: err?.message || String(err) });
+    return res.status(500).json({ ok: false, error: "read_failed" });
   }
 }
-
