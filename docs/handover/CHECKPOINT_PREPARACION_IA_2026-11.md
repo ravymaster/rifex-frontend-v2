@@ -26,6 +26,7 @@ Existe un control de exposición pública del lado del servidor, **apagado por d
 - **La respuesta es idéntica para personas y crawlers:** no se detecta el user-agent ni se aplica cloaking.
 - La gestión del creador, los pagos, los webhooks, la conciliación y el sorteo interno no cambian.
 - Verificado en DEV con los dos estados.
+- **Enlace neutral (2026-11-08):** los enlaces compartibles son `/c/<token>`; la ficha, el checkout y el chat leen solo por API, y los roles de cliente no acceden directamente a las tablas de Rifas. Detalle en "ENLACE NEUTRAL Y LECTURAS POR API (2026-11-08)" de `docs/WOP.md`.
 - **Modo `gated` (2026-11-07):** confirmación humana previa con autorización temporal por Rifa (30 días), configuración prevista para PROD junto con `RIFEX_RAFFLES_GATE_SECRET`. Sin secreto válido equivale a `off`. Detalle en la entrada "RIFAS COMPARTIBLES CON CONFIRMACIÓN (2026-11-07)" de `docs/WOP.md`.
 
 ## Pruebas
@@ -39,6 +40,7 @@ Suite completa: 1371 tests, 1357 pass, 0 fail. Build OK. Smoke en DEV de listado
 
 ## Pendiente
 - Promoción selectiva a PROD (código primero, permisos después), con autorización explícita.
-- Configurar PROD en modo `gated`, con autorización explícita.
+- Configurar PROD en modo `gated`, con autorización explícita, y aplicar las migraciones `2026-11-08a` (antes del código) y `2026-11-08b` (después).
+- Warp IA: las Rifas, `/c/`, `/rifas/` y las APIs de Rifas quedan fuera de Discovery y del Connector.
 - Adaptaciones para los contratos: listados públicos, mapeo de campos y lectura del Medidor QR.
 - Revisión de función de creación de Rifas en DEV.
