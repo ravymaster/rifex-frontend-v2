@@ -191,8 +191,8 @@ test('ENDPOINT 1: solo POST, ruta validada, límite de intentos y 303 al mismo e
   assert.match(src, /checkRateLimit\(`shared-access:ip:\$\{ip\}`/);
   assert.match(src, /res\.redirect\(303, target\.path\)/);
   assert.ok(src.indexOf("mode === 'off'") < src.indexOf('parseShareReturnPath('), 'off responde 410 antes de todo');
-  assert.ok(src.indexOf('checkRateLimit(') < src.indexOf('findRaffleForShare('), 'límite antes de consultar');
-  assert.ok(src.indexOf('findRaffleForShare(') < src.indexOf('Set-Cookie'), 'cookie solo para Rifas existentes');
+  assert.ok(src.indexOf('checkRateLimit(') < src.indexOf('findRaffleForReturnTarget('), 'límite antes de consultar');
+  assert.ok(src.indexOf('findRaffleForReturnTarget(') < src.indexOf('Set-Cookie'), 'cookie solo para Rifas existentes');
   assert.doesNotMatch(src, /console\.|\.insert\(|\.update\(|\.upsert\(|\.delete\(/, 'sin registros ni escrituras');
 });
 
@@ -209,8 +209,11 @@ test('APIS: en gated, inexistente y sin autorización responden igual; el listad
   assert.match(code('src/pages/api/rifas/index.js'), /if \(!isRafflePublicExposureEnabled\(\)\) return sendRaffleGone\(res\);/);
   assert.match(code('src/pages/api/perfil/[id].js'), /if \(isRafflePublicExposureEnabled\(\)\) \{/);
   assert.match(code('src/pages/rifas.js'), /if \(!isRafflePublicExposureEnabled\(\)\) return raffleGoneProps\(res\);/);
-  assert.match(code('src/pages/api/chat/[raffleId].js'), /\(req\.method === 'GET' \|\| req\.method === 'POST'\) && !\(await requireRaffleApiAccess\(req, res, raffleId\)\)\) return;/);
-  for (const p of ['src/pages/api/rifas/[id]/index.js', 'src/pages/api/rifas/[id]/tickets.js', 'src/pages/api/raffles/winner.js']) {
+  // Chat y números: la misma verificación, guardando la Rifa resuelta.
+  for (const [p, arg] of [['src/pages/api/chat/[raffleId].js', 'raffleId'], ['src/pages/api/rifas/[id]/tickets.js', "String\\(id \\|\\| ''\\)"]]) {
+    assert.match(code(p), new RegExp(`const access = await requireRaffleApiAccess\\(req, res, ${arg}\\);\\s*\\n\\s*if \\(!access\\) return;`), p);
+  }
+  for (const p of ['src/pages/api/rifas/[id]/index.js', 'src/pages/api/raffles/winner.js']) {
     assert.match(code(p), /if \(!\(await requireRaffleApiAccess\(req, res, .+?\)\)\) return;/, p);
   }
   assert.match(code('src/pages/api/rifas/[id]/qr.png.js'), /requireRaffleApiAccess\(req, res, id, \{ allowOwner: true \}\)/);

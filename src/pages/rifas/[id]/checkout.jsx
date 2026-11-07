@@ -9,9 +9,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
-import { supabaseBrowser as supabase } from "../../../lib/supabaseClient";
-import { idOrSlugColumn } from "../../../lib/idOrSlug";
-import { PUBLIC_RAFFLE_SELECT } from "../../../lib/publicRaffleFields";
 import { humanPrizeType } from "../../../lib/raffleLabels";
 import { formatDrawAt } from "../../../lib/raffleTime";
 import styles from "../../../styles/checkoutV2.module.css";
@@ -62,19 +59,17 @@ function RaffleCheckout() {
     if (!router.isReady || !id) return;
     (async () => {
       setLoading(true);
-      const col = idOrSlugColumn(id);
-      // Solo columnas públicas (src/lib/publicRaffleFields.js).
-      const { data, error } = await supabase.from("raffles").select(PUBLIC_RAFFLE_SELECT).eq(col, id).limit(1);
-      if (error || !Array.isArray(data) || !data.length) {
+      // Ficha pública y totales por la API de Rifas (lista cerrada de
+      // campos; respeta la exposición pública y la puerta).
+      const res = await fetch(`/api/rifas/${encodeURIComponent(id)}`).catch(() => null);
+      const j = res ? await res.json().catch(() => null) : null;
+      if (!res?.ok || !j?.ok || !j.data) {
         setNotFound(true);
         setLoading(false);
         return;
       }
-      const r = data[0];
-      setRaffle(r);
-      const { count: availableCount } = await supabase.from("tickets").select("id", { count: "exact", head: true })
-        .eq("raffle_id", r.id).in("status", ["available", "free"]);
-      setAvailable(availableCount || 0);
+      setRaffle(j.data);
+      setAvailable(j.data.counts?.available || 0);
       setLoading(false);
     })();
   }, [router.isReady, id]);

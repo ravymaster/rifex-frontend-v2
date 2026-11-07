@@ -184,9 +184,9 @@ test('UX-CHECKOUT 9: "Volver a la rifa" es el único mecanismo de navegación ha
 // /rifas/[id]/checkout -> pantalla única -> mismo POST.
 // ---------------------------------------------------------------------
 
-test('FLUJO-CO 4: checkout.jsx resuelve la rifa por UUID o slug (idOrSlugColumn), igual que la ficha pública', () => {
-  assert.match(checkoutPage, /import \{ idOrSlugColumn \} from ["']\.\.\/\.\.\/\.\.\/lib\/idOrSlug["']/);
-  assert.match(checkoutPage, /idOrSlugColumn\(id\)/);
+test('FLUJO-CO 4: checkout.jsx resuelve la rifa por UUID o slug vía GET /api/rifas/[id] (idOrSlugColumn en el servidor), igual que la ficha pública', () => {
+  assert.match(checkoutPage, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(id\)\}`\)/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'src/pages/api/rifas/[id]/index.js'), 'utf8'), /\.eq\(idOrSlugColumn\(id\), id\)/);
 });
 
 test('FLUJO-CO 5: checkout.jsx envía el pago al MISMO endpoint ya certificado, sin ruta nueva de pagos', () => {

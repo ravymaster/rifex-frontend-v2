@@ -194,8 +194,10 @@ test('SIN-CAMBIOS-VL 3: la fórmula de cantidad/total de la Buy Box no cambió (
 });
 
 test('SIN-CAMBIOS-VL 4: idOrSlugColumn sigue resolviendo UUID/slug igual en ambas páginas — nunca se asume uno u otro', () => {
-  assert.match(rifaPageCode, /idOrSlugColumn\(rid\)/);
-  assert.match(checkoutPage, /idOrSlugColumn\(id\)/);
+  // Ambas páginas cargan por GET /api/rifas/[id], que resuelve UUID o slug.
+  assert.match(rifaPageCode, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(rid\)\}`\)/);
+  assert.match(checkoutPage, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(id\)\}`\)/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'src/pages/api/rifas/[id]/index.js'), 'utf8'), /\.eq\(idOrSlugColumn\(id\), id\)/);
 });
 
 test('SIN-CAMBIOS-VL 5: la pantalla ficticia "Método de pago" y el stepper 1-2-3 siguen ausentes de la UI del checkout', () => {

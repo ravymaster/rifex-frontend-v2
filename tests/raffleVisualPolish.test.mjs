@@ -76,9 +76,10 @@ test('SLUG 8: crear-rifa.jsx redirige preferiendo el slug, con fallback al UUID 
 
 test('SLUG 9: rifas/[id].jsx resuelve la carga inicial por id-o-slug (nunca solo .eq("id", rid))', () => {
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /import \{ idOrSlugColumn, isUuid \} from "\.\.\/\.\.\/lib\/idOrSlug"/);
-  assert.match(src, /const col = idOrSlugColumn\(rid\)/);
-  assert.match(src, /\.eq\(col, rid\)/);
+  // La carga inicial va por GET /api/rifas/[id], que resuelve id o slug.
+  assert.match(src, /fetch\(`\/api\/rifas\/\$\{encodeURIComponent\(rid\)\}`\)/);
+  assert.match(read('src/pages/api/rifas/[id]/index.js'), /\.eq\(idOrSlugColumn\(id\), id\)/);
+  assert.doesNotMatch(src, /\.eq\("id", rid\)/);
 });
 
 // ---------------------------------------------------------------------
@@ -97,11 +98,11 @@ test('IDENTIDAD 1: checkout usa raffle.id (UUID real ya resuelto), nunca el "id"
   assert.doesNotMatch(src, /raffle_id:\s*id,/);
 });
 
-test('IDENTIDAD 2: el canal realtime de tickets se suscribe con raffle.id resuelto, depende de [raffle?.id]', () => {
+test('IDENTIDAD 2: el refresco de totales usa raffle.id resuelto y depende de [raffle?.id]', () => {
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /const rid = raffle\?\.id;\s*\n\s*if \(!rid\) return;\s*\n\s*const channel = supabase/);
-  assert.match(src, /filter: `raffle_id=eq\.\$\{rid\}`/);
-  assert.match(src, /\.subscribe\(\);\s*\n\s*return \(\) => \{ try \{ supabase\.removeChannel\(channel\); \} catch \{\} \};\s*\n\s*\}, \[raffle\?\.id\]\);/);
+  assert.match(src, /const rid = raffle\?\.id;\s*\n\s*if \(!rid\) return;\s*\n\s*const refresh = async/);
+  assert.match(src, /fetch\(`\/api\/rifas\/\$\{rid\}\/tickets\?summary=1`\)/);
+  assert.match(src, /const timer = setInterval\(refresh, 20_000\);\s*\n\s*return \(\) => clearInterval\(timer\);\s*\n\s*\}, \[raffle\?\.id\]\);/);
 });
 
 test('IDENTIDAD 3: release-expired usa raffle.id resuelto, depende de [raffle?.id]', () => {
@@ -111,7 +112,7 @@ test('IDENTIDAD 3: release-expired usa raffle.id resuelto, depende de [raffle?.i
 
 test('IDENTIDAD 4: loadData resuelve por columna id-o-slug y dispara loadWinner con el UUID ya resuelto', () => {
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /if \(raffleData\?\.id\) \{\s*\n\s*await loadCounts\(raffleData\.id, raffleData\?\._legacy\);\s*\n\s*\/\/[^\n]*\n\s*loadWinner\(raffleData\.id\);/);
+  assert.match(src, /if \(raffleData\?\.id\) \{\s*\n\s*setOrganizer\(raffleData\.organizer \|\| null\);\s*\n\s*setCounts\(raffleData\.counts \|\| \{ total: 0, available: 0 \}\);\s*\n\s*\/\/[^\n]*\n\s*loadWinner\(raffleData\.id\);/);
 });
 
 test('IDENTIDAD 5: la consulta del ganador tras pago aprobado usa raffle?.id, no el slug de la URL', () => {

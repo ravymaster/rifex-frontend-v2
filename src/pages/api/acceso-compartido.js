@@ -1,15 +1,15 @@
 // src/pages/api/acceso-compartido.js
 // Botón "Continuar" de la puerta neutra (src/lib/raffleShareAccess.js).
 // Formulario HTML con POST, funciona sin JavaScript:
-//   - acepta solo rutas internas de Rifas como retorno (sin redirecciones
-//     externas); cualquier otra cosa → 400;
+//   - acepta solo el enlace neutral /c/<token> o rutas internas de Rifas
+//     como retorno (sin redirecciones externas); cualquier otra cosa → 400;
 //   - límite de intentos por IP;
 //   - emite la cookie firmada de esa Rifa y responde 303 al mismo enlace;
 //   - repetir el POST solo renueva la misma cookie: no escribe datos ni
 //     tiene otros efectos.
 // Nunca registra cookies, secretos ni identificadores.
 import { getRaffleExposureMode, getGateSecret, sendRaffleGone, applyGatedHeaders } from '@/lib/raffleExposure';
-import { parseShareReturnPath, findRaffleForShare, buildShareAccessCookie } from '@/lib/raffleShareAccess';
+import { parseShareReturnPath, findRaffleForReturnTarget, buildShareAccessCookie } from '@/lib/raffleShareAccess';
 import { checkRateLimit, resolveClientIp } from '@/lib/rateLimit';
 
 const RATE_LIMIT_MAX = 30;
@@ -48,7 +48,7 @@ export default async function handler(req, res) {
     return sendNeutral(res, 429, 'Demasiados intentos. Intenta nuevamente en unos minutos.');
   }
 
-  const raffle = await findRaffleForShare(target.identifier);
+  const raffle = await findRaffleForReturnTarget(target);
   if (!raffle) return res.redirect(303, '/404');
 
   res.setHeader('Set-Cookie', buildShareAccessCookie(getGateSecret(), raffle.id));

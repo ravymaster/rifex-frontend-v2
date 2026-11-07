@@ -321,7 +321,9 @@ test('SECURITY 42: ownership/IDOR del endpoint de checkout permanece igual (mism
 test('PERFORMANCE: la página pública ya no fetch-ea el arreglo completo de tickets (solo counts agregados)', () => {
   const src = publicPage();
   assert.doesNotMatch(src, /setTickets/);
-  assert.match(src, /count:\s*"exact",\s*head:\s*true/);
+  // Solo totales agregados, calculados en el servidor (count exact + head).
+  assert.match(src, /setCounts\(j\.counts\)/);
+  assert.match(fs.readFileSync(path.join(ROOT, 'src/lib/raffleTicketCounts.js'), 'utf8'), /count: 'exact', head: true/);
 });
 
 // ---------------------------------------------------------------------
