@@ -4,6 +4,31 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## SUPERFICIE PÚBLICA Y PREPARACIÓN PARA IA (2026-11) — DEV certificado, PROD pendiente
+
+**Alcance.** Lista cerrada de campos públicos para Eventos (incluidos los tipos de entrada), Inscripciones, Campañas y Medidor QR (`src/lib/publicInitiativeFields.js`), con segunda barrera de serialización. El dueño autenticado conserva la fila completa en sus lecturas. La tarjeta del organizador de Campañas ya no lleva identificadores internos ni enlace.
+
+**Exposición pública de Rifas.** Control del lado del servidor (`src/lib/raffleExposure.js`), **habilitado por defecto**. Deshabilitado, las rutas públicas de Rifas responden 410 con una página neutra, sin metadata ni redirecciones, y los perfiles dejan de listar rifas. La respuesta es la misma para todo visitante, sin detección de user-agent. La gestión del creador, los pagos, los webhooks, la conciliación y el sorteo interno no se ven afectados. En PROD sigue habilitado hasta una decisión explícita.
+
+**Commits.** DEV: `92d5fa7`, `79df7ed` y `c088b49`, vía PR #15 (merge `c3bb864`). Deploy Production de `rifex-frontend-main` en Ready.
+
+**Migración DEV.** `db/migrations/2026-11-06b_initiatives_public_column_grants.sql`, aplicada en DEV **después** del deploy del código. Reversión en `db/rollback/` y verificación en `db/checks/`.
+
+**Pruebas.** Suite completa: 1357 pass, 0 fail (`tests/publicSurfaceReadiness.test.mjs`, 18 tests). Build OK. Smoke DEV de los cuatro módulos (listado, detalle, slug, inexistente, vista móvil), permisos por rol y matriz de exposición de Rifas con cinco user-agents: respuesta idéntica en todos los casos.
+
+**Payment Engine y Mercado Pago:** sin cambios.
+
+**Checkpoint:** `docs/handover/CHECKPOINT_PREPARACION_IA_2026-11.md`.
+
+**Pendientes.**
+1. Promoción selectiva a PROD: primero el código y después los permisos.
+2. Decisión explícita para deshabilitar en PROD la exposición pública de Rifas.
+3. Preparación de contratos de solo lectura para Warp IA (adaptaciones de listados y lecturas).
+4. Revisión de función de creación de Rifas en DEV.
+5. Restaurar los enlaces de perfil con un slug o nombre de usuario público.
+
+---
+
 ## CAMPOS PÚBLICOS DE RIFAS (2026-11-06) — DEV y PROD, certificado
 
 **Alcance.** Las lecturas públicas de Rifas (listado, detalle, ficha, checkout y ganador) usan ahora una lista **explícita y cerrada** de campos públicos, tanto en el código como en los permisos de la base de datos. Un campo nuevo no es público hasta agregarlo a propósito en `src/lib/publicRaffleFields.js` y en la migración de permisos correspondiente.
