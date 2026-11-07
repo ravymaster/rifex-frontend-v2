@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { requireRaffleApiAccess } from '@/lib/raffleShareAccess';
+import { countRaffleTickets } from '@/lib/raffleTicketCounts';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -11,13 +12,21 @@ export default async function handler(req, res) {
   const { id } = req.query;
   // Exposición pública de Rifas (src/lib/raffleExposure.js) y puerta
   // neutra del modo `gated` (src/lib/raffleShareAccess.js).
-  if (!(await requireRaffleApiAccess(req, res, String(id || '')))) return;
+  const access = await requireRaffleApiAccess(req, res, String(id || ''));
+  if (!access) return;
+  const raffleId = access.raffle?.id || id;
 
   try {
+    // ?summary=1 → solo totales (refresco periódico de la ficha).
+    if (req.query.summary === '1') {
+      const counts = await countRaffleTickets(supabase, raffleId);
+      return res.status(200).json({ ok: true, counts });
+    }
+
     const { data, error } = await supabase
       .from('tickets')
       .select('number,status')
-      .eq('raffle_id', id)
+      .eq('raffle_id', raffleId)
       .order('number', { ascending: true });
 
     if (error) throw error;

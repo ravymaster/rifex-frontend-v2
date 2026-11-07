@@ -2,7 +2,6 @@
 import { useRouter } from "next/router";
 import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
-import { supabaseBrowser as supabase } from "../../lib/supabaseClient";
 import styles from "../../styles/rifaDetalle.module.css";
 import Layout from "../../components/Layout";
 import TrustBadge from "../../components/TrustBadge";
@@ -12,8 +11,7 @@ import { canonicalUrl, DEFAULT_OG_IMAGE } from "../../lib/publicMetadata";
 import PrizeGallery from "../../components/rifex/PrizeGallery";
 import { formatDrawAt, formatDateOnly } from "../../lib/raffleTime";
 import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
-import { idOrSlugColumn, isUuid } from "../../lib/idOrSlug";
-import { PUBLIC_RAFFLE_SELECT, LEGACY_RIFAS_SELECT } from "../../lib/publicRaffleFields";
+import { isUuid } from "../../lib/idOrSlug";
 import { resolveRafflePageAccess, shareAccessCookieHeader } from "../../lib/raffleShareAccess";
 import RaffleGonePage from "../../components/RaffleGonePage";
 import SharedAccessGate from "../../components/SharedAccessGate";
@@ -224,10 +222,14 @@ export async function getServerSideProps({ params, req, res, query, resolvedUrl 
         // existe, en vez de reflejar de vuelta lo que sea que trajo la URL
         // (UUID o slug). Rifas históricas sin slug siguen usando su UUID.
         metaSlug: raffle?.slug || null,
+        // Enlace compartible neutral (/c/<token>): canonical y og:url
+        // apuntan aquí para que compartir desde el navegador nunca entregue
+        // el slug ni el id interno.
+        metaSharePath: raffle?.share_path || null,
       },
     };
   } catch {
-    return { props: { metaTitle: null, metaTrustLevel: null, metaSlug: null } };
+    return { props: { metaTitle: null, metaTrustLevel: null, metaSlug: null, metaSharePath: null } };
   }
 }
 
@@ -237,7 +239,7 @@ export default function RifaPage(props) {
   return <Layout disableAutoMeta><RifaDetalle {...props} /></Layout>;
 }
 
-function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
+function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug, metaSharePath }) {
   const router = useRouter();
   const { id } = router.query;
 
@@ -248,6 +250,7 @@ function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
   // sin JS) y solo usa el `id` crudo de la URL si la rifa no tiene slug
   // (histórica, backfill nunca corrido, o falló el SSR fetch).
   const canonicalId = raffle?.slug || metaSlug || id || "";
+  const canonicalPath = raffle?.share_path || metaSharePath || `/rifas/${canonicalId}`;
   // RIFEX RAFFLE EXPERIENCE 2026 — ya no se carga el arreglo completo de
   // tickets al navegador (eso alimentaba la grilla pública, eliminada por
   // decisión de producto). Solo se necesitan totales agregados: el
@@ -294,18 +297,6 @@ function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
       if (j?.ok) setWinner(j.winner || null);
     } catch {}
   }
-  // RIFEX RAFFLE EXPERIENCE 2026 — perfil del organizador. Limitar campos
-  // públicos (2026-11-06): llega armado por GET /api/rifas/[id] (nombre,
-  // bio, avatar), sin que el navegador necesite el id interno del creador.
-  async function loadOrganizer(rid) {
-    if (!rid) return;
-    try {
-      const r = await fetch(`/api/rifas/${rid}`);
-      const j = await r.json().catch(() => null);
-      if (j?.ok) setOrganizer(j.data?.organizer || null);
-    } catch {}
-  }
-
   const scrollTop = () => { try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch {} };
 
   // Retorno de MP: confirmación + refrescos + (posible) sorteo
@@ -386,101 +377,39 @@ function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
     return () => clearInterval(timer);
   }, [raffle?.id]);
 
-  // Realtime en tickets — refresca solo los TOTALES agregados (nunca
-  // descarga el arreglo completo de tickets al navegador). Igual que
-  // arriba, siempre contra el UUID real, nunca el slug de la URL.
+  // Totales y ganador: refresco periódico por las APIs de Rifas (respetan
+  // la exposición pública y la puerta); el navegador no se suscribe a la
+  // base ni la consulta directamente. Siempre contra el UUID ya resuelto.
   useEffect(() => {
     const rid = raffle?.id;
     if (!rid) return;
-    const channel = supabase
-      .channel(`raffle-${rid}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tickets", filter: `raffle_id=eq.${rid}` },
-        async () => {
-          await loadData(rid);
-          await loadWinner(rid);
-        }
-      )
-      .subscribe();
-    return () => { try { supabase.removeChannel(channel); } catch {} };
+    const refresh = async () => {
+      try {
+        const r = await fetch(`/api/rifas/${rid}/tickets?summary=1`);
+        const j = await r.json().catch(() => null);
+        if (j?.ok && j.counts) setCounts(j.counts);
+      } catch {}
+      loadWinner(rid);
+    };
+    const timer = setInterval(refresh, 20_000);
+    return () => clearInterval(timer);
   }, [raffle?.id]);
 
-  // mapeos compat (rifas legacy — ninguna rifa creada por crear-rifa.jsx
-  // actual pasa por acá, pero rifas históricas siguen debiendo cargar)
-  function mapRaffleFromOld(r) {
-    if (!r) return null;
-    return {
-      id: r.id,
-      title: r.titulo ?? r.title ?? "Rifa",
-      description: r.descripcion ?? r.description ?? "",
-      price_cents: typeof r.precio_clp === "number" ? r.precio_clp * 100 : r.price_cents ?? 0,
-      prize_amount_cents: r.prize_amount_cents ?? 0,
-      prize_type: r.prize_type ?? (r.prize_amount_cents ? "money" : "physical"),
-      total_numbers: r.cupos ?? r.total_numbers ?? 100,
-      theme: Array.isArray(r.temas) && r.temas.length ? r.temas[0] : r.theme ?? "Mixto",
-      status: r.estado ?? r.status ?? "active",
-      end_date: r.termino ?? r.end_date ?? null,
-      start_date: r.inicio ?? r.start_date ?? null,
-      creator_trust_level: r.creator_trust_level ?? null,
-      created_at: r.created_at,
-      _legacy: true,
-    };
-  }
-
-  // RIFEX RAFFLE EXPERIENCE 2026 — solo counts agregados (count:'exact',
-  // head:true nunca descarga filas), nunca el arreglo completo de tickets.
-  async function loadCounts(rid, legacy) {
-    try {
-      if (!legacy) {
-        const [{ count: total }, { count: available }] = await Promise.all([
-          supabase.from("tickets").select("id", { count: "exact", head: true }).eq("raffle_id", rid),
-          supabase.from("tickets").select("id", { count: "exact", head: true }).eq("raffle_id", rid).in("status", ["available", "free"]),
-        ]);
-        if ((total || 0) > 0) {
-          setCounts({ total: total || 0, available: available || 0 });
-          return;
-        }
-      }
-      // Fallback legacy (rifas históricas vía tickets_compat) — camino
-      // muerto para rifas nuevas, preservado por compatibilidad.
-      const [{ count: totalC }, { count: availableC }] = await Promise.all([
-        supabase.from("tickets_compat").select("id", { count: "exact", head: true }).eq("raffle_id", rid),
-        supabase.from("tickets_compat").select("id", { count: "exact", head: true }).eq("raffle_id", rid).in("status", ["available", "free"]),
-      ]);
-      setCounts({ total: totalC || 0, available: availableC || 0 });
-    } catch (e) {
-      console.error("[rifa counts error]", e);
-    }
-  }
-
+  // Ficha, organizador y totales llegan juntos por GET /api/rifas/[id]
+  // (lista cerrada de campos públicos); `rid` puede ser el UUID o el slug.
   async function loadData(rid) {
     try {
       setLoading(true);
-
-      let raffleData = null;
-
-      // RAFFLE VISUAL POLISH (2026-09-07) — `rid` puede ser el UUID real o
-      // el slug amigable nuevo (/rifas/lambo): nunca se asume uno u otro.
-      const col = idOrSlugColumn(rid);
-
-      // Limitar campos públicos (2026-11-06): solo columnas públicas; el
-      // organizador llega por GET /api/rifas/[id] (loadOrganizer).
-      { const { data, error } = await supabase.from("raffles").select(PUBLIC_RAFFLE_SELECT).eq(col, rid).limit(1);
-        if (!error && Array.isArray(data) && data.length) raffleData = data[0]; }
-      // Rifas heredadas: se leen directo de `rifas` con columnas permitidas
-      // (la vista raffles_compat sale de la misma tabla y ya no se consulta).
-      if (!raffleData && col === "id") {
-        const { data, error } = await supabase.from("rifas").select(LEGACY_RIFAS_SELECT).eq("id", rid).limit(1);
-        if (!error && Array.isArray(data) && data.length) raffleData = mapRaffleFromOld(data[0]);
-      }
+      const r = await fetch(`/api/rifas/${encodeURIComponent(rid)}`);
+      const j = await r.json().catch(() => null);
+      const raffleData = r.ok && j?.ok ? j.data : null;
 
       setRaffle(raffleData);
       if (raffleData?.id) {
-        await loadCounts(raffleData.id, raffleData?._legacy);
+        setOrganizer(raffleData.organizer || null);
+        setCounts(raffleData.counts || { total: 0, available: 0 });
         // Siempre con el UUID real ya resuelto — nunca con el slug de la URL.
         loadWinner(raffleData.id);
-        if (!raffleData._legacy) loadOrganizer(raffleData.id);
       }
       setError(null);
     } catch (e) {
@@ -631,14 +560,14 @@ function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
           key="robots" pisa el <meta robots> que Layout agregaría solo si se le
           pasara noindex — acá se define directamente el valor exacto de V4. */}
       <meta key="robots" name="robots" content="noindex, follow, noarchive" />
-      <link key="canonical" rel="canonical" href={canonicalUrl(`/rifas/${canonicalId}`)} />
+      <link key="canonical" rel="canonical" href={canonicalUrl(canonicalPath)} />
       <meta key="og:title" property="og:title" content={`${effectiveTitle} — Información de la iniciativa`} />
       <meta
         key="og:description"
         property="og:description"
         content="Consulta organizador, finalidad, fecha, condiciones y estado de confianza en Rifex."
       />
-      <meta key="og:url" property="og:url" content={canonicalUrl(`/rifas/${canonicalId}`)} />
+      <meta key="og:url" property="og:url" content={canonicalUrl(canonicalPath)} />
       <meta key="og:type" property="og:type" content="website" />
       <meta key="og:image" property="og:image" content={DEFAULT_OG_IMAGE} />
       <meta key="twitter:card" name="twitter:card" content="summary_large_image" />

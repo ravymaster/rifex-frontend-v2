@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { idOrSlugColumn } from '@/lib/idOrSlug';
 import { PUBLIC_RAFFLE_SELECT, toPublicRaffle } from '@/lib/publicRaffleFields';
-import { requireRaffleApiAccess } from '@/lib/raffleShareAccess';
+import { requireRaffleApiAccess, shareLinkPath } from '@/lib/raffleShareAccess';
+import { countRaffleTickets } from '@/lib/raffleTicketCounts';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
       // organizador); la respuesta se arma con toPublicRaffle.
       const { data, error } = await supabase
         .from('raffles')
-        .select(`${PUBLIC_RAFFLE_SELECT},creator_id`)
+        .select(`${PUBLIC_RAFFLE_SELECT},creator_id,share_token`)
         .eq(idOrSlugColumn(id), id)
         .maybeSingle();
       if (error) throw error;
@@ -78,7 +79,14 @@ export default async function handler(req, res) {
         if (profile) organizer = { nombre: profile.nombre ?? null, bio: profile.bio ?? null, avatar_url: profile.avatar_url ?? null };
       }
 
-      return res.status(200).json({ ok: true, data: { ...toPublicRaffle(data), creator_trust_level: creatorTrustLevel, organizer } });
+      // Totales de números y enlace compartible neutral (/c/<token>): el
+      // navegador ya no lee las tablas de la base directamente.
+      const counts = await countRaffleTickets(supabase, data.id);
+
+      return res.status(200).json({
+        ok: true,
+        data: { ...toPublicRaffle(data), creator_trust_level: creatorTrustLevel, organizer, counts, share_path: shareLinkPath(data.share_token) },
+      });
     }
 
     if (req.method === 'PATCH') {

@@ -146,10 +146,11 @@ test('RIFAS 2: canonicalId prioriza raffle.slug, luego metaSlug, luego el id cru
   assert.match(src, /const canonicalId = raffle\?\.slug \|\| metaSlug \|\| id \|\| ""/);
 });
 
-test('RIFAS 3: canonical y og:url usan canonicalId, nunca el id crudo directamente', () => {
+test('RIFAS 3: canonical y og:url usan el enlace neutral (/c/<token>) y, sin él, canonicalId; nunca el id crudo directamente', () => {
   const src = read('src/pages/rifas/[id].jsx');
-  assert.match(src, /rel="canonical" href=\{canonicalUrl\(`\/rifas\/\$\{canonicalId\}`\)\}/);
-  assert.match(src, /property="og:url" content=\{canonicalUrl\(`\/rifas\/\$\{canonicalId\}`\)\}/);
+  assert.match(src, /const canonicalPath = raffle\?\.share_path \|\| metaSharePath \|\| `\/rifas\/\$\{canonicalId\}`;/);
+  assert.match(src, /rel="canonical" href=\{canonicalUrl\(canonicalPath\)\}/);
+  assert.match(src, /property="og:url" content=\{canonicalUrl\(canonicalPath\)\}/);
   assert.doesNotMatch(src, /canonicalUrl\(`\/rifas\/\$\{id \|\| ""\}`\)/);
 });
 
