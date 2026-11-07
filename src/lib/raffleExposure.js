@@ -1,8 +1,10 @@
 // src/lib/raffleExposure.js
 // Exposición pública de Rifas (2026-11). Control del servidor por
-// entorno:
-//   RIFEX_RAFFLES_PUBLIC=off  → exposición pública deshabilitada.
-//   cualquier otro valor o sin definir → habilitada (comportamiento actual).
+// entorno, apagado por defecto:
+//   RIFEX_RAFFLES_PUBLIC=on  → exposición pública habilitada.
+//   ausente, vacía, `off` o cualquier otro valor → deshabilitada.
+// Variable privada del servidor: sin prefijo NEXT_PUBLIC_, nunca llega al
+// bundle del navegador (solo se lee en getServerSideProps y en las APIs).
 //
 // La decisión NUNCA depende del visitante (user-agent, IP, cookies ni
 // encabezados): una persona anónima y un crawler reciben exactamente la
@@ -12,7 +14,7 @@
 // pagos, webhooks, conciliación y sorteo interno) no pasa por aquí.
 
 export function isRafflePublicExposureEnabled(env = process.env) {
-  return String(env.RIFEX_RAFFLES_PUBLIC ?? 'on').trim().toLowerCase() !== 'off';
+  return String(env.RIFEX_RAFFLES_PUBLIC ?? '').trim() === 'on';
 }
 
 export const RAFFLE_GONE_HEADERS = Object.freeze({
