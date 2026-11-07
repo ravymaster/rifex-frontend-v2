@@ -26,8 +26,9 @@ export default async function handler(req, res) {
       .eq('user_id', uid)
       .maybeSingle();
 
-    // Exposición pública de Rifas (src/lib/raffleExposure.js): si está
-    // deshabilitada, el perfil público no lista ni cuenta rifas.
+    // Exposición pública de Rifas (src/lib/raffleExposure.js): solo con
+    // acceso directo (`on`); en `gated` o deshabilitada, el perfil
+    // público no lista ni cuenta rifas.
     let raffles = [];
     if (isRafflePublicExposureEnabled()) {
       const { data, error: rErr } = await supabase

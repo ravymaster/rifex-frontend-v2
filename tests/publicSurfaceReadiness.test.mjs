@@ -145,6 +145,9 @@ test('EXPOSICIÓN 1b: variable privada del servidor, nunca NEXT_PUBLIC_', () => 
   assert.equal(all, '', 'ninguna variable pública del navegador controla Rifas');
 });
 
+// Control directo (on/off) o puerta neutra del modo `gated`.
+const CONTROL = /isRafflePublicExposureEnabled\(\)|requireRaffleApiAccess\(|resolveRafflePageAccess\(/;
+
 test('EXPOSICIÓN 1c: ninguna ruta pública de Rifas escapa al control', () => {
   const GATED = new Set([
     'src/pages/rifas.js', 'src/pages/rifas/[id].jsx', 'src/pages/rifas/[id]/checkout.jsx',
@@ -162,7 +165,7 @@ test('EXPOSICIÓN 1c: ninguna ruta pública de Rifas escapa al control', () => {
   const files = execFileSync('git', ['ls-files', 'src/pages/rifas.js', 'src/pages/rifas', 'src/pages/api/rifas'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
   for (const f of files) {
     if (GATED.has(f)) {
-      assert.match(code(f), /isRafflePublicExposureEnabled\(\)/, `${f} debe pasar por el control`);
+      assert.match(code(f), CONTROL, `${f} debe pasar por el control`);
     } else {
       assert.ok(f in PRIVATE_OR_GENERIC, `${f}: ruta de Rifas no clasificada`);
       if (f.startsWith('src/pages/api/')) assert.match(code(f), /missing_auth|getUser\(/, `${f} debe exigir autenticación`);
@@ -174,13 +177,17 @@ test('EXPOSICIÓN 1c: ninguna ruta pública de Rifas escapa al control', () => {
   }
   // Otras lecturas públicas que muestran rifas.
   for (const f of ['src/pages/api/raffles/winner.js', 'src/pages/api/chat/[raffleId].js', 'src/pages/api/perfil/[id].js']) {
-    assert.match(code(f), /isRafflePublicExposureEnabled\(\)/, f);
+    assert.match(code(f), CONTROL, f);
   }
 });
 
 test('EXPOSICIÓN 2 (sin cloaking): la decisión nunca depende del visitante', () => {
   const lib = code('src/lib/raffleExposure.js');
   assert.doesNotMatch(lib, /user-agent|userAgent|headers\[|req\.|cookie|\bip\b|\bbots?\b|isBot|crawler/i);
+  // La puerta solo lee su propia cookie y, para el QR del panel, el Bearer del dueño.
+  const gate = code('src/lib/raffleShareAccess.js');
+  assert.doesNotMatch(gate, /user-agent|userAgent|x-forwarded|x-real-ip|\bbots?\b|isBot|crawler|facebook|google/i);
+  assert.deepEqual([...gate.matchAll(/headers\?\.(\w+)/g)].map((m) => m[1]).sort(), ['authorization', 'cookie']);
   const gated = [
     'src/pages/rifas.js', 'src/pages/rifas/[id].jsx', 'src/pages/rifas/[id]/checkout.jsx',
     'src/pages/api/rifas/index.js', 'src/pages/api/rifas/[id]/index.js', 'src/pages/api/rifas/[id]/qr.png.js',
@@ -189,17 +196,20 @@ test('EXPOSICIÓN 2 (sin cloaking): la decisión nunca depende del visitante', (
   ];
   for (const p of gated) {
     const src = code(p);
-    assert.match(src, /isRafflePublicExposureEnabled\(\)/, p);
+    assert.match(src, CONTROL, p);
     assert.doesNotMatch(src, /user-agent|userAgent|facebookexternalhit|facebot|googlebot|isBot/i, p);
   }
 });
 
-test('EXPOSICIÓN 3: las páginas devuelven 410 antes de consultar la rifa o redirigir', () => {
+test('EXPOSICIÓN 3: las páginas devuelven 410 o la puerta antes de consultar la rifa o redirigir', () => {
   const ficha = code('src/pages/rifas/[id].jsx');
   const gssp = block(ficha, 'export async function getServerSideProps', 'export default function');
-  assert.ok(gssp.indexOf('raffleGoneProps(res)') < gssp.indexOf('fetch('), 'el 410 va antes de cualquier lectura');
-  assert.ok(gssp.indexOf('raffleGoneProps(res)') < gssp.indexOf('redirect'), 'sin redirección UUID→slug cuando está deshabilitada');
-  assert.match(code('src/pages/rifas/[id]/checkout.jsx'), /if \(!isRafflePublicExposureEnabled\(\)\) return raffleGoneProps\(res\);/);
+  const gate = 'if (access.response) return access.response;';
+  assert.ok(gssp.indexOf('resolveRafflePageAccess(') >= 0 && gssp.indexOf(gate) >= 0);
+  assert.ok(gssp.indexOf(gate) < gssp.indexOf('fetch('), 'el 410 y la puerta van antes de cualquier lectura');
+  assert.ok(gssp.indexOf(gate) < gssp.indexOf('redirect'), 'sin redirección UUID→slug sin acceso');
+  const checkout = block(code('src/pages/rifas/[id]/checkout.jsx'), 'export async function getServerSideProps', 'export default function');
+  assert.ok(checkout.indexOf('resolveRafflePageAccess(') >= 0 && checkout.indexOf(gate) >= 0, 'checkout con el mismo control');
   assert.match(code('src/pages/rifas.js'), /if \(!isRafflePublicExposureEnabled\(\)\) return raffleGoneProps\(res\);/);
 });
 

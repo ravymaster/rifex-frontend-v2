@@ -93,6 +93,40 @@ function LinkButtonGhost({ href, children }) {
   );
 }
 
+// Descarga del QR con la sesión del creador: funciona igual sea cual sea
+// la configuración de acceso público a las Rifas.
+function QrDownloadButton({ raffleId }) {
+  const [busy, setBusy] = useState(false);
+  async function onClick() {
+    setBusy(true);
+    try {
+      const { data: sres } = await supabase.auth.getSession();
+      const r = await fetch(`/api/rifas/${raffleId}/qr.png`, {
+        headers: { Authorization: `Bearer ${sres?.session?.access_token || ''}` },
+      });
+      if (!r.ok) throw new Error('qr_failed');
+      const disposition = r.headers.get('Content-Disposition') || '';
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = /filename="([^"]+)"/.exec(disposition)?.[1] || 'rifex-qr.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      alert('No se pudo descargar el QR. Intenta nuevamente.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button type="button" onClick={onClick} disabled={busy} style={{ background: '#fff', color: '#111827', border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 8, fontWeight: 600, display: 'inline-block', cursor: busy ? 'default' : 'pointer' }}>
+      {busy ? 'Descargando…' : 'Descargar QR'}
+    </button>
+  );
+}
+
 function Progress({ value, max = 100 }) {
   const pct = Math.max(0, Math.min(100, (Number(value) / Number(max)) * 100 || 0));
   return (
@@ -664,7 +698,7 @@ export default function Panel() {
               {/* ⬇️ Celda de acciones con data-cell="actions" */}
               <div data-cell="actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <LinkButtonGhost href={`/rifas/${row.id}`}>Ver</LinkButtonGhost>
-                <a href={`/api/rifas/${row.id}/qr.png`} download style={{ background: '#fff', color: '#111827', border: '1px solid #E5E7EB', padding: '8px 12px', borderRadius: 8, fontWeight: 600, display: 'inline-block', textDecoration: 'none' }}>Descargar QR</a>
+                <QrDownloadButton raffleId={row.id} />
                 <ActionButton tone="ghost" onClick={() => setEditRaffle(row)}>Editar</ActionButton>
                 {row.status !== 'closed' && (
                   <ActionButton tone="danger" onClick={() => setCloseRaffle(row)}>Cerrar ventas</ActionButton>
