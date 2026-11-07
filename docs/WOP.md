@@ -4,6 +4,36 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CAMPOS PÚBLICOS DE RIFAS (2026-11-06) — DEV y PROD, certificado
+
+**Alcance.** Las lecturas públicas de Rifas (listado, detalle, ficha, checkout y ganador) usan ahora una lista **explícita y cerrada** de campos públicos, tanto en el código como en los permisos de la base de datos. Un campo nuevo no es público hasta agregarlo a propósito en `src/lib/publicRaffleFields.js` y en la migración de permisos correspondiente.
+- El ganador se muestra con un nombre enmascarado (`src/lib/publicWinner.js`). La lectura pública del ganador es solo de consulta; el sorteo sigue a cargo de los procesos internos existentes del servidor.
+- La tarjeta del organizador se arma en el servidor con datos públicos de perfil.
+- **Decisión de producto:** el enlace "Ver perfil" sigue retirado de la ficha. Se restaurará con un slug o nombre de usuario público, nunca con un identificador interno.
+
+**Commits y despliegues certificados.**
+- DEV: `e2e488d` + `7cc499e`, integrados en `develop` vía PR #13 (merge `bd2d4ce`). Deploy Production de `rifex-frontend-main` en Ready.
+- PROD: `3252d45` + `1655697`, en una rama release creada desde `main`, con aplicación selectiva sin funciones exclusivas de DEV. `main` avanzó directo de `46c88ae` a `1655697`. Deploy de `rifex-frontend-v2` en Ready.
+- Migración `db/migrations/2026-11-06_raffles_public_column_grants.sql`: aplicada en DEV y en PROD, con reversión en `db/rollback/` y verificación de solo lectura en `db/checks/`.
+
+**Orden obligatorio.** Primero se despliega el código y después se aplican los permisos. Aplicar los permisos antes deja sin datos a páginas que todavía usen la versión anterior del código.
+
+**Pruebas.** Suite completa en `develop`: 1341 pass, 0 fail (`tests/publicRaffleFields.test.mjs`, 20 tests). Build 58/58. Smoke en DEV y PROD de listado, detalle, ficha con carga directa, checkout, rifa inexistente y ganador, más la verificación de permisos de solo lectura. Payment Engine, Mercado Pago, webhooks y comisión **sin cambios**.
+
+**Reversión.** Revertir `1655697` y `3252d45` en `main` y aplicar `db/rollback/2026-11-06_raffles_public_column_grants_rollback.sql`. Si se revierte el código, revertir primero los permisos.
+
+**Rifas fuera de la exposición pública.** Las Rifas deben mantenerse fuera de la exposición pública general en PROD. Los crawlers de redes sociales, como los de Meta, pueden volver a consultar enlaces históricos aunque ya no aparezcan en portada ni en el sitemap. Hay que revisar rutas antiguas, respuestas, redirecciones, metadata y registros. Cualquier solución debe responder igual a usuarios y crawlers, sin ocultamiento selectivo.
+
+**Pendientes.**
+1. Revisión de campos públicos en Eventos, Inscripciones, Campañas y Medidor QR.
+2. Revisión de función de creación de Rifas en DEV.
+3. Preparación de contratos de solo lectura para Warp IA.
+4. Auditoría de URLs históricas de Rifas que continúan siendo consultadas por crawlers de redes sociales, sin aplicar cloaking.
+
+Esta entrada se incorporará de forma selectiva al WOP de `main` en la próxima promoción autorizada a PROD.
+
+---
+
 ## RIFEX ADMIN ANALYTICS + PUERTA TEMPORAL DEV (2026-09-13) — DEV only, worktree aislado `admin_analytics` en rama `feat/admin-analytics-maintenance-2026-09-10` desde `origin/develop@a1cf7b0`, commit `5e6b1ca`, NO pushed (a la espera de que Rodrigo ejecute el push a `origin/develop`)
 
 Mandato original pedía dos cosas: (A) métricas de Eventos/Campañas/Inscripciones/Medidor QR + analítica propia de visitas en `/admin`, y (B) un "modo mantenimiento". Una corrección de alcance posterior canceló por completo la parte (B) — nunca se implementó bloqueo público alguno — y la reemplazó por una puerta temporal de acceso a `/admin` en DEV, ya que Supabase DEV tiene desactivados correo/Google/password para el dueño de Rifex.
