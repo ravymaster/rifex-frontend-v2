@@ -15,6 +15,8 @@ import { humanRaffleStatus, humanPrizeType } from "../../lib/raffleLabels";
 import { idOrSlugColumn, isUuid } from "../../lib/idOrSlug";
 import { PUBLIC_RAFFLE_SELECT, LEGACY_RIFAS_SELECT } from "../../lib/publicRaffleFields";
 import { trackEvent } from "../../lib/analyticsClient";
+import { isRafflePublicExposureEnabled, raffleGoneProps } from "../../lib/raffleExposure";
+import RaffleGonePage from "../../components/RaffleGonePage";
 
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
@@ -177,7 +179,11 @@ function BuyBox({
 // endpoint que ya usa el fetch client-side, sin duplicar su lógica) — el
 // resto de la página sigue funcionando exactamente igual que antes, con su
 // propio fetch client-side para la UI interactiva real.
-export async function getServerSideProps({ params, req, query }) {
+export async function getServerSideProps({ params, req, res, query }) {
+  // Exposición pública de Rifas (src/lib/raffleExposure.js): si está
+  // deshabilitada, 410 neutro para todos — sin consultar la rifa ni
+  // redirigir UUID→slug.
+  if (!isRafflePublicExposureEnabled()) return raffleGoneProps(res);
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const base = `${proto}://${req.headers.host}`;
   try {
@@ -221,7 +227,12 @@ export async function getServerSideProps({ params, req, query }) {
   }
 }
 
-export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
+export default function RifaPage(props) {
+  if (props.raffleGone) return <RaffleGonePage />;
+  return <Layout disableAutoMeta><RifaDetalle {...props} /></Layout>;
+}
+
+function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
   const router = useRouter();
   const { id } = router.query;
 
@@ -1051,5 +1062,3 @@ export default function RifaDetalle({ metaTitle, metaTrustLevel, metaSlug }) {
     </div>
   );
 }
-
-RifaDetalle.getLayout = (page) => <Layout disableAutoMeta>{page}</Layout>;
