@@ -11,9 +11,9 @@
 // un redirect real. Se convierte a getServerSideProps para que cualquier
 // cliente, con o sin JS, reciba el mismo 307 real — mismo destino, misma
 // lógica de sanitización de `next`, sin agregar ni quitar función.
-// Exposición pública de Rifas (2026-11, src/lib/raffleExposure.js): si
-// está deshabilitada, esta ruta histórica responde 410 neutro en vez de
-// redirigir.
+// Exposición pública de Rifas (2026-11, src/lib/raffleExposure.js): fuera
+// del acceso directo (`on`), esta ruta histórica responde 410 neutro en vez
+// de redirigir — en `gated` tampoco existe un listado que mostrar.
 import { isRafflePublicExposureEnabled, raffleGoneProps } from '@/lib/raffleExposure';
 import RaffleGonePage from '@/components/RaffleGonePage';
 

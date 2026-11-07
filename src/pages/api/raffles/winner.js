@@ -13,7 +13,7 @@
 import * as SB from "../../../lib/supabaseAdmin";
 import { isUuid } from "../../../lib/idOrSlug";
 import { PUBLIC_WINNER_SELECT, toPublicWinner } from "../../../lib/publicWinner";
-import { isRafflePublicExposureEnabled, sendRaffleGone } from "../../../lib/raffleExposure";
+import { requireRaffleApiAccess } from "../../../lib/raffleShareAccess";
 const supabaseAdmin = SB.default || SB.supabaseAdmin;
 
 export default async function handler(req, res) {
@@ -22,8 +22,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ ok: false, error: "method_not_allowed" });
   }
 
-  // Exposición pública de Rifas (src/lib/raffleExposure.js).
-  if (!isRafflePublicExposureEnabled()) return sendRaffleGone(res);
+  // Exposición pública de Rifas (src/lib/raffleExposure.js) y puerta
+  // neutra del modo `gated` (src/lib/raffleShareAccess.js).
+  if (!(await requireRaffleApiAccess(req, res, String((req.query || {}).rid || "").trim()))) return;
 
   try {
     if (!supabaseAdmin?.from) {
