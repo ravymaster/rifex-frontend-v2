@@ -4,6 +4,24 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## RIFAS COMPARTIBLES CON CONFIRMACIÓN (2026-11-07) — DEV certificado, PROD pendiente
+
+**Modos.** `RIFEX_RAFFLES_PUBLIC` (privada del servidor) acepta tres valores exactos: `on` (acceso directo, DEV), `gated` (confirmación previa, configuración prevista para PROD) y `off` (410). Ausente, vacía o con cualquier otro valor equivale a `off`. `gated` requiere además `RIFEX_RAFFLES_GATE_SECRET` (privada del servidor, al menos 32 bytes aleatorios); si falta o no es válida, el modo efectivo es `off`.
+
+**Confirmación humana.** En `gated`, un enlace compartido muestra primero una página neutra de Rifex con el nombre público del organizador y el botón **Continuar** (formulario HTML, sin depender de JavaScript). Al continuar, el navegador recibe una autorización temporal **por Rifa** y **por 30 días** (cookie firmada por el servidor, `HttpOnly`, `SameSite=Lax`, `Secure` en producción, sin datos personales ni identificadores). Rotar el secreto revoca todas las autorizaciones. La página neutra no incluye datos del contenido y usa `noindex, nofollow, noarchive`. La respuesta es la misma para personas y crawlers: no se inspecciona el user-agent. Es una confirmación de acceso, no autenticación de identidad.
+
+**Alcance.** Ficha y checkout; lecturas de detalle, números, ganador, QR y chat. El listado público no enumera Rifas en `gated`. El creador descarga el QR desde su panel con su sesión. Creación, panel, pagos, webhooks, conciliación, comisión, scheduler y sorteo interno no cambian.
+
+**Archivos.** `src/lib/raffleExposure.js`, `src/lib/raffleShareAccess.js`, `src/components/SharedAccessGate.jsx`, `src/pages/api/acceso-compartido.js`; pruebas en `tests/raffleShareGate.test.mjs` y `tests/publicSurfaceReadiness.test.mjs`.
+
+**Pruebas.** Matriz local de los tres modos (incluidos `gated` sin secreto, ausente e inválido), autorización por Rifa, alteración y vencimiento a los 30 días exactos, rotación del secreto, rutas de retorno externas rechazadas, identificadores manipulados, contenido inexistente, checkout, APIs sin autorización, límite de intentos, vista móvil y misma respuesta para siete user-agents. Suite completa y build OK; nada de esta configuración llega al bundle del navegador.
+
+**Configuración.** DEV: `RIFEX_RAFFLES_PUBLIC=on`. PROD (próxima promoción autorizada): `RIFEX_RAFFLES_PUBLIC=gated` y `RIFEX_RAFFLES_GATE_SECRET`, definidos por Rodrigo directamente en Vercel.
+
+**Warp IA.** Las Rifas quedan fuera de los contratos iniciales; la confirmación no forma parte de ninguna capacidad del Connector ni de Discovery.
+
+---
+
 ## SUPERFICIE PÚBLICA Y PREPARACIÓN PARA IA (2026-11) — DEV certificado, PROD pendiente
 
 **Alcance.** Lista cerrada de campos públicos para Eventos (incluidos los tipos de entrada), Inscripciones, Campañas y Medidor QR (`src/lib/publicInitiativeFields.js`), con segunda barrera de serialización. El dueño autenticado conserva la fila completa en sus lecturas. La tarjeta del organizador de Campañas ya no lleva identificadores internos ni enlace.
