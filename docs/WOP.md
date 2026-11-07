@@ -4,6 +4,24 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## SUPERFICIE PÚBLICA, RIFAS COMPARTIBLES Y ENLACE NEUTRAL (2026-11) — promoción PROD
+
+**Campos públicos.** Eventos (incluidos los tipos de entrada), Inscripciones, Campañas y Medidor QR responden con listas cerradas de campos (`src/lib/publicInitiativeFields.js`), en el código y en los permisos de la base (`db/migrations/2026-11-06b_initiatives_public_column_grants.sql`). El dueño autenticado conserva su acceso completo.
+
+**Exposición pública de Rifas.** Variable privada del servidor `RIFEX_RAFFLES_PUBLIC` con tres valores exactos: `on` (acceso directo), `gated` (confirmación previa) y `off` (410). Ausente, vacía o con otro valor equivale a `off`. `gated` requiere `RIFEX_RAFFLES_GATE_SECRET` (privada del servidor, al menos 32 bytes aleatorios); sin un valor válido el modo efectivo es `off`. Configuración de PROD: `gated`.
+
+**Confirmación.** En `gated`, cada enlace compartido muestra primero una página neutra de Rifex con el nombre público del organizador y el botón **Continuar** (formulario HTML). Continuar emite una autorización por Rifa durante 30 días (cookie firmada, `HttpOnly`, `SameSite=Lax`, `Secure`). Rotar el secreto revoca todas las autorizaciones. La página neutra no incluye datos del contenido y usa `noindex, nofollow, noarchive`. Personas y crawlers reciben la misma respuesta.
+
+**Enlace neutral.** Cada Rifa tiene un token público de compartición aleatorio de 128 bits, único e inmutable. El enlace para compartir es `/c/<token>`; lo usan el QR, el botón **Copiar enlace** del panel y el canonical/`og:url` de la ficha. Las rutas `/rifas/<slug>` y `/rifas/<uuid>` pasan por la misma confirmación.
+
+**Lecturas por API.** La ficha, el checkout y el chat leen exclusivamente por las APIs de Rifex; los roles de cliente no tienen privilegios directos sobre las tablas de Rifas. El chat responde con una lista cerrada de campos públicos, valida los mensajes y limita los intentos.
+
+**Orden de despliegue.** 1) `db/migrations/2026-11-08a_raffles_share_token.sql`; 2) variables de Vercel; 3) código; 4) `db/migrations/2026-11-06b_initiatives_public_column_grants.sql`; 5) `db/migrations/2026-11-08b_raffles_close_direct_access.sql`. Cada migración tiene reversión en `db/rollback/` y verificación de solo lectura en `db/checks/`.
+
+**Payment Engine, Mercado Pago, webhooks, conciliación, comisión, scheduler y sorteo:** sin cambios.
+
+---
+
 ## HOTFIX PROD — EVENTOS: PORTADA + CTA DE COMPRA (2026-09-14)
 
 `origin/main`/PROD avanza de `3a6517b` a `2e2f905` (tag `v3.4-rifex-prod-eventos-portada-cta`), vía worktree aislado `hotfix/eventos-portada-cta-2026-09-14` construido directo desde `origin/main` (sin tocar `develop`). Corrige dos fallas reportadas en `/crear-evento` y en la página pública de un evento.
