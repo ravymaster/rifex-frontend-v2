@@ -4,6 +4,22 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## ENLACE NEUTRAL Y LECTURAS POR API (2026-11-08) — DEV certificado, PROD pendiente
+
+**Enlace compartible.** Cada Rifa tiene un token público de compartición (`share_token`): 128 bits aleatorios, único, obligatorio e inmutable, sin relación con el título, el slug, el creador ni el id interno. El enlace para compartir es `/c/<token>`, sin `/rifas/`, título, slug ni UUID. Lo usan el QR, el botón **Copiar enlace** del panel y el canonical/`og:url` de la ficha. El token solo lleva a la confirmación; nunca reemplaza la autorización de acceso. Las rutas `/rifas/<slug>` y `/rifas/<uuid>` siguen pasando por la misma confirmación en `gated`.
+
+**Lecturas por API.** La ficha, el checkout y el chat leen exclusivamente por las APIs de Rifex (lista cerrada de campos, mismos modos `on` / `gated` / `off`). Los roles de cliente no tienen privilegios directos sobre las tablas de Rifas; los procesos del servidor no cambian.
+
+**Chat.** Respuesta pública con lista cerrada (`src/lib/publicChat.js`): id público derivado, texto, fecha, nombre o alias y marcas de invitado, organizador y propio. Validación de tipo, largo y caracteres, y límite de intentos. Leer y escribir exigen la misma autorización por Rifa.
+
+**Migraciones.** `db/migrations/2026-11-08a_raffles_share_token.sql` (aditiva; aplicar primero) y `db/migrations/2026-11-08b_raffles_close_direct_access.sql` (aplicar después del código), cada una con reversión en `db/rollback/` y verificación de solo lectura en `db/checks/`. Ambas aplicadas en DEV en ese orden.
+
+**Pruebas.** `tests/neutralShareLinks.test.mjs` y pruebas estructurales actualizadas. Matriz local de los modos con el enlace nuevo, mismas respuestas para ocho user-agents (incluidos navegadores internos de Facebook, Instagram y WhatsApp), autorización por Rifa, vencimiento, rotación del secreto, QR decodificado, chat, vista móvil y verificación de acceso directo antes y después de la migración B. Suite completa y build OK.
+
+**Payment Engine, Mercado Pago, webhooks, conciliación, comisión, scheduler y sorteo:** sin cambios.
+
+---
+
 ## RIFAS COMPARTIBLES CON CONFIRMACIÓN (2026-11-07) — DEV certificado, PROD pendiente
 
 **Modos.** `RIFEX_RAFFLES_PUBLIC` (privada del servidor) acepta tres valores exactos: `on` (acceso directo, DEV), `gated` (confirmación previa, configuración prevista para PROD) y `off` (410). Ausente, vacía o con cualquier otro valor equivale a `off`. `gated` requiere además `RIFEX_RAFFLES_GATE_SECRET` (privada del servidor, al menos 32 bytes aleatorios); si falta o no es válida, el modo efectivo es `off`.
