@@ -3,6 +3,7 @@
 // nunca expone campos sensibles (rut, email, datos de pago) — solo lo
 // que un visitante anónimo debería poder ver.
 import { createClient } from '@supabase/supabase-js';
+import { isRafflePublicExposureEnabled } from '@/lib/raffleExposure';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,15 +26,21 @@ export default async function handler(req, res) {
       .eq('user_id', uid)
       .maybeSingle();
 
-    const { data: raffles, error: rErr } = await supabase
-      .from('raffles')
-      .select('id, title, price_cents, total_numbers, prize_amount_cents, status, end_date, created_at')
-      .eq('creator_id', uid)
-      .neq('status', 'deleted')
-      .order('created_at', { ascending: false });
-    if (rErr) throw rErr;
+    // Exposición pública de Rifas (src/lib/raffleExposure.js): si está
+    // deshabilitada, el perfil público no lista ni cuenta rifas.
+    let raffles = [];
+    if (isRafflePublicExposureEnabled()) {
+      const { data, error: rErr } = await supabase
+        .from('raffles')
+        .select('id, title, price_cents, total_numbers, prize_amount_cents, status, end_date, created_at')
+        .eq('creator_id', uid)
+        .neq('status', 'deleted')
+        .order('created_at', { ascending: false });
+      if (rErr) throw rErr;
+      raffles = data || [];
+    }
 
-    const raffleList = raffles || [];
+    const raffleList = raffles;
     const raffleIds = raffleList.map((r) => r.id);
     const active = raffleList.filter((r) => r.status === 'active');
     const completed = raffleList.filter((r) => r.status === 'closed');

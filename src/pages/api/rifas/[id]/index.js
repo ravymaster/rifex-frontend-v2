@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { idOrSlugColumn } from '@/lib/idOrSlug';
 import { PUBLIC_RAFFLE_SELECT, toPublicRaffle } from '@/lib/publicRaffleFields';
+import { isRafflePublicExposureEnabled, sendRaffleGone } from '@/lib/raffleExposure';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -30,6 +31,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      // Exposición pública de Rifas (src/lib/raffleExposure.js).
+      if (!isRafflePublicExposureEnabled()) return sendRaffleGone(res);
       // RAFFLE VISUAL POLISH (2026-09-07): `id` puede ser el UUID real o
       // el slug amigable nuevo (/rifas/lambo) — nunca se asume uno u otro.
       // Columnas públicas + `creator_id`, este último solo para los

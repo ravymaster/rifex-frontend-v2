@@ -8,6 +8,7 @@ import { DECLARATION_TYPES } from '@/lib/legalDeclarations';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { slugify } from '@/lib/slugify';
 import { PUBLIC_RAFFLE_SELECT, toPublicRaffle } from '@/lib/publicRaffleFields';
+import { isRafflePublicExposureEnabled, sendRaffleGone } from '@/lib/raffleExposure';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -69,6 +70,8 @@ const MAX_TRANSFER_CONDITIONS_LENGTH = 500;
 export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
+      // Exposición pública de Rifas (src/lib/raffleExposure.js).
+      if (!isRafflePublicExposureEnabled()) return sendRaffleGone(res);
       // Listado público simple (útil para /rifas): solo columnas públicas
       // (src/lib/publicRaffleFields.js).
       const { status, q } = req.query || {};

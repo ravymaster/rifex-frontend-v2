@@ -15,6 +15,8 @@ import { PUBLIC_RAFFLE_SELECT } from "../../../lib/publicRaffleFields";
 import { humanPrizeType } from "../../../lib/raffleLabels";
 import { formatDrawAt } from "../../../lib/raffleTime";
 import styles from "../../../styles/checkoutV2.module.css";
+import { isRafflePublicExposureEnabled, raffleGoneProps } from "../../../lib/raffleExposure";
+import RaffleGonePage from "../../../components/RaffleGonePage";
 
 const TZ_LABELS = {
   "America/Santiago": "Hora de Chile",
@@ -24,7 +26,19 @@ const TZ_LABELS = {
 const TERMS_VERSION = "v1.0";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function RaffleCheckout() {
+// Exposición pública de Rifas (src/lib/raffleExposure.js): solo decide si
+// la página existe; con la exposición habilitada todo sigue igual que antes.
+export async function getServerSideProps({ res }) {
+  if (!isRafflePublicExposureEnabled()) return raffleGoneProps(res);
+  return { props: {} };
+}
+
+export default function RaffleCheckoutPage(props) {
+  if (props.raffleGone) return <RaffleGonePage />;
+  return <RaffleCheckout />;
+}
+
+function RaffleCheckout() {
   const router = useRouter();
   const { id, qty: qtyParam } = router.query;
 
