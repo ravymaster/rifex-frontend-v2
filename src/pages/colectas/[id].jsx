@@ -4,7 +4,6 @@
 // derecha (se apilan en mobile). Meta es opcional — sin ella se muestra
 // el recaudado sin barra de progreso, sigue siendo aporte libre.
 import Head from 'next/head';
-import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
@@ -205,14 +204,17 @@ export default function ColectaPublica() {
 
               <h1 className={styles.title}>{colecta.title}</h1>
 
-              <Link href={`/perfil/${colecta.creator.id}`} className={styles.creatorRow}>
+              {/* Campos públicos (2026-11): tarjeta del organizador sin
+                  enlace — el perfil público solo podrá enlazarse cuando
+                  exista un slug o nombre de usuario público. */}
+              <div className={styles.creatorRow}>
                 {colecta.creator.avatar_url ? (
                   <img className={styles.creatorAvatar} src={colecta.creator.avatar_url} alt="" />
                 ) : (
                   <div className={styles.creatorFallback}>{(colecta.creator.nombre || '?').charAt(0).toUpperCase()}</div>
                 )}
                 <span className={styles.creatorName}>Organiza <b>{colecta.creator.nombre}</b></span>
-              </Link>
+              </div>
 
               <p className={styles.description}>{colecta.description}</p>
 

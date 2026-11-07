@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
 import { parseCapacityInput } from '@/lib/eventCapacity';
 import { idOrSlugColumn } from '@/lib/idOrSlug';
+import { PUBLIC_EVENT_COLUMNS, toSelect, pickPublic } from '@/lib/publicInitiativeFields';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -46,26 +47,31 @@ export default async function handler(req, res) {
   if (!id) return res.status(400).json({ ok: false, error: 'missing_id' });
 
   try {
+    // Campos públicos (2026-11): en GET se piden solo las columnas
+    // públicas + organizer_id (este último solo para cálculos del
+    // servidor). El dueño autenticado recibe la fila completa, como antes.
     const { data: event, error: fetchErr } = await supabase
       .from('events')
-      .select('*')
+      .select(req.method === 'GET' ? `${toSelect(PUBLIC_EVENT_COLUMNS)},organizer_id` : '*')
       .eq(idOrSlugColumn(id), id)
       .maybeSingle();
     if (fetchErr) throw fetchErr;
     if (!event) return res.status(404).json({ ok: false, error: 'not_found' });
 
     if (req.method === 'GET') {
-      if (event.status === 'published') {
-        const mp_connected = await isOrganizerMpConnected(event.organizer_id);
-        return res.status(200).json({ ok: true, event: { ...event, mp_connected } });
+      const user = await getRequester(req);
+      const isOwner = !!user && user.id === event.organizer_id;
+      const mp_connected = await isOrganizerMpConnected(event.organizer_id);
+      if (isOwner) {
+        const { data: full, error: fullErr } = await supabase.from('events').select('*').eq('id', event.id).maybeSingle();
+        if (fullErr) throw fullErr;
+        return res.status(200).json({ ok: true, event: { ...full, mp_connected } });
       }
       // No publicado: solo el dueño puede verlo.
-      const user = await getRequester(req);
-      if (!user || user.id !== event.organizer_id) {
+      if (event.status !== 'published') {
         return res.status(404).json({ ok: false, error: 'not_found' });
       }
-      const mp_connected = await isOrganizerMpConnected(event.organizer_id);
-      return res.status(200).json({ ok: true, event: { ...event, mp_connected } });
+      return res.status(200).json({ ok: true, event: { ...pickPublic(event, PUBLIC_EVENT_COLUMNS), mp_connected } });
     }
 
     if (req.method === 'PATCH') {

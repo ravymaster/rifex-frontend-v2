@@ -6,6 +6,7 @@
 // deberá impedir tocar snapshots de tipos ya usados por una orden.
 import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
+import { PUBLIC_TICKET_TYPE_COLUMNS, toSelect, pickPublic } from '@/lib/publicInitiativeFields';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -43,16 +44,19 @@ export default async function handler(req, res) {
         return res.status(404).json({ ok: false, error: 'not_found' });
       }
 
+      // Campos públicos (2026-11): el dueño ve la fila completa; el resto,
+      // solo las columnas públicas de PUBLIC_TICKET_TYPE_COLUMNS.
       let query = supabase
         .from('event_ticket_types')
-        .select('*')
+        .select(isOwner ? '*' : toSelect(PUBLIC_TICKET_TYPE_COLUMNS))
         .eq('event_id', id)
         .order('sort_order', { ascending: true });
       if (!isOwner) query = query.eq('status', 'active');
 
       const { data, error } = await query;
       if (error) throw error;
-      return res.status(200).json({ ok: true, items: data || [] });
+      const items = isOwner ? (data || []) : (data || []).map((t) => pickPublic(t, PUBLIC_TICKET_TYPE_COLUMNS));
+      return res.status(200).json({ ok: true, items });
     }
 
     if (req.method === 'POST') {
