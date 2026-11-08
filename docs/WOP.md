@@ -4,6 +4,26 @@ WOP defines the working operating protocol for Rifex. Its purpose is to keep the
 
 ---
 
+## CONNECTOR WARP V1 — SOLO LECTURA (2026-11-08) — DEV, PROD sin cambios
+
+**Qué es.** Rifex declara capacidades de lectura para Warp AI mediante el SDK certificado `@warp-ai/connector` 0.4.0 (vendorizado en `vendor/warp-sdk-lite/`, con checksum), con el mismo patrón ya validado en Renacar. Discovery en `GET /api/v1/discovery` (contrato `warp.discovery_manifest.v1`), capacidades en `GET /api/warp/capabilities/:id` y estado en `GET /api/warp/health`.
+
+**Capacidades.** `rifex.services.list`, `rifex.events.list`, `rifex.event.read`, `rifex.campaigns.list`, `rifex.campaign.read`, `rifex.registrations.list` y `rifex.registration.read`. Todas de lectura (`operationType: read`, `sideEffects: false`), `authentication: public` y riesgo bajo. Identificador público: el slug.
+
+**Datos.** Solo iniciativas públicas y vigentes, con listas cerradas de campos (`src/lib/warp/publicCatalog.js`, sobre `src/lib/publicInitiativeFields.js`) y métricas agregadas. Nunca identificadores internos, correos, teléfonos, participantes, aportes individuales, órdenes, entradas emitidas, staff, check-in ni datos de pago. Warp nunca accede a la base. `rifex.services.list` es contenido curado y versionado (`src/lib/warp/rifexServices.js`).
+
+**Límites.** Solo `GET`; paginación de 5 por defecto y 20 como máximo; búsqueda de hasta 60 caracteres sin comodines; URL de hasta 2048 caracteres; 120 solicitudes por minuto por IP; respuesta en 10 segundos como máximo; errores tipados del SDK (`CAPABILITY_NOT_FOUND`, `INVALID_ARGUMENTS`, `HANDLER_FAILED`) sin mensajes internos; logs con identificador de solicitud y sin argumentos ni IP.
+
+**Fuera de alcance.** Rifas, Medidor QR (lectura), creación o edición, inscripciones, compras, checkout, pagos, panel, administración y cualquier mutación.
+
+**Autenticación servidor a servidor.** Mejora futura, a coordinar entre Warp AI Engine y el SDK/Connector. En V1 las capacidades son públicas, igual que en Renacar, y solo entregan información ya pública en el sitio.
+
+**Pruebas.** `tests/warpConnector.test.mjs` (contrato, esquemas cerrados, validación adversarial, capa de solo lectura, ausencia de Rifas, adaptador HTTP). Pruebas con datos de DEV: siete capacidades, paginación, búsquedas, inexistentes, solicitudes manipuladas, límite de intentos y ausencia de cambios en la base. Suite completa y build OK; nada del Connector llega al bundle del navegador.
+
+**Siguiente paso.** Registrar Rifex DEV como fuente en Warp AI Engine (local) y probar conversaciones.
+
+---
+
 ## ENLACE NEUTRAL Y LECTURAS POR API (2026-11-08) — DEV certificado, PROD pendiente
 
 **Enlace compartible.** Cada Rifa tiene un token público de compartición (`share_token`): 128 bits aleatorios, único, obligatorio e inmutable, sin relación con el título, el slug, el creador ni el id interno. El enlace para compartir es `/c/<token>`, sin `/rifas/`, título, slug ni UUID. Lo usan el QR, el botón **Copiar enlace** del panel y el canonical/`og:url` de la ficha. El token solo lleva a la confirmación; nunca reemplaza la autorización de acceso. Las rutas `/rifas/<slug>` y `/rifas/<uuid>` siguen pasando por la misma confirmación en `gated`.
