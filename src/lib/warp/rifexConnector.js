@@ -75,7 +75,11 @@ const readEnvelope = (key, schema) =>
 
 const organizerSchema = obj({ name: str({ title: 'Organizador' }) }, ['name']);
 const urlField = str({ title: 'Enlace', description: 'Página pública en Rifex.', 'x-presentation': 'detail' });
-const dateField = (title) => str({ title, description: 'Fecha y hora RFC 3339 con zona.' });
+// Fechas: `format: "date-time"` (RFC 3339 con zona, validado por el SDK). Sin
+// `x-timezone`: cada evento e inscripción declara su propia zona en el campo
+// `timezone` (hoy America/Santiago, pero las APIs aceptan otras), así que no
+// hay una zona única para todo el sitio.
+const dateField = (title) => str({ title, format: 'date-time', description: 'Fecha y hora RFC 3339 con zona.' });
 
 const eventCard = {
   slug: str({ 'x-presentation': 'hidden' }),

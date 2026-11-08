@@ -123,6 +123,31 @@ test('DISCOVERY 5: el SDK rechaza al registrar cualquier capacidad con forma de 
   }
 });
 
+test('DISCOVERY 6: las fechas declaran format date-time (RFC 3339) y ninguna x-timezone global', () => {
+  const DATE_FIELDS = new Set(['starts_at', 'ends_at', 'start_at', 'end_at', 'sales_start_at', 'sales_end_at']);
+  let dates = 0;
+  const visit = (schema) => {
+    if (schema?.type === 'object') {
+      for (const [k, child] of Object.entries(schema.properties || {})) {
+        if (DATE_FIELDS.has(k)) {
+          dates += 1;
+          assert.equal(child.format, 'date-time', k);
+          assert.equal(child['x-timezone'], undefined, k);
+        }
+        visit(child);
+      }
+    } else if (schema?.type === 'array') visit(schema.items);
+  };
+  for (const c of manifest.capabilities) visit(c.outputSchema);
+  assert.ok(dates >= 14, `campos de fecha declarados: ${dates}`);
+  assert.doesNotMatch(JSON.stringify(manifest), /x-timezone/);
+  // Los valores que entrega la base (con offset) cumplen RFC 3339; sin offset, no.
+  const schema = { type: 'object', properties: { d: { type: 'string', format: 'date-time' } }, required: ['d'], additionalProperties: false };
+  assert.equal(validateArguments({ d: '2026-12-21T02:00:00+00:00' }, schema).ok, true);
+  assert.equal(validateArguments({ d: '2026-12-21T02:00:00.123+00:00' }, schema).ok, true);
+  assert.equal(validateArguments({ d: '2026-12-21T02:00:00' }, schema).ok, false);
+});
+
 // ---------------------------------------------------------------------
 // Invocación y validación adversarial
 // ---------------------------------------------------------------------
