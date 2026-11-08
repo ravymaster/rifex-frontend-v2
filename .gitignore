@@ -20,6 +20,8 @@ docs/dotenv.example
 *.zip
 *.tar
 *.tgz
+# Paquetes vendorizados y verificados por checksum (SDK de Warp)
+!vendor/warp-sdk-lite/*.tgz
 db_cluster-*.backup.gz
 
 # SO / editor
