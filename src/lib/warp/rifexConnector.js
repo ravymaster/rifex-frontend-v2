@@ -79,6 +79,13 @@ const urlField = str({ title: 'Enlace', description: 'Página pública en Rifex.
 // `x-timezone`: cada evento e inscripción declara su propia zona en el campo
 // `timezone` (hoy America/Santiago, pero las APIs aceptan otras), así que no
 // hay una zona única para todo el sitio.
+// Montos: el importe numérico original (entero en CLP) se entrega sin cambios
+// pero oculto en las tarjetas; lo que se muestra es la etiqueta formateada que
+// declara Rifex (es-CL, CLP, sin decimales, p. ej. "$5.000"), con cero,
+// ausencia y rango distinguidos. Mismo mecanismo que `priceLabel` en Renacar.
+const clpAmount = (description) => int({ 'x-presentation': 'hidden', description: `${description} Entero en pesos chilenos (CLP), sin decimales.` });
+const clpLabel = (title, description) => str({ title, 'x-presentation': 'detail', description: `${description} Texto ya formateado en es-CL (CLP, sin decimales), p. ej. "$5.000".` });
+
 const dateField = (title) => str({ title, format: 'date-time', description: 'Fecha y hora RFC 3339 con zona.' });
 
 const eventCard = {
@@ -95,21 +102,23 @@ const eventCard = {
 const eventListItem = obj(
   {
     ...eventCard,
-    price_from_clp: int({ title: 'Desde (CLP)', description: 'Precio más bajo entre las entradas activas, en pesos chilenos.' }),
-    price_to_clp: int({ title: 'Hasta (CLP)', description: 'Precio más alto entre las entradas activas, en pesos chilenos.' }),
+    price_from_clp: clpAmount('Precio más bajo entre las entradas activas.'),
+    price_to_clp: clpAmount('Precio más alto entre las entradas activas.'),
+    price_label: clpLabel('Precio', 'Precio o rango de precios de las entradas activas ("Gratis ($0)" si es cero, "Precio no informado" si no hay).'),
   },
-  ['slug', 'title', 'starts_at', 'url']
+  ['slug', 'title', 'starts_at', 'price_label', 'url']
 );
 const ticketTypeSchema = obj(
   {
     name: str({ 'x-presentation': 'title' }),
-    price_clp: int({ title: 'Precio (CLP)' }),
+    price_clp: clpAmount('Precio de la entrada.'),
+    price_label: clpLabel('Precio', 'Precio de la entrada ("Gratis ($0)" si es cero, "Precio no informado" si no hay).'),
     available: int({ title: 'Disponibles', description: 'Entradas aún disponibles de este tipo (aproximado; nunca reserva).' }),
     max_per_order: int({ title: 'Máximo por compra' }),
     sales_start_at: dateField('Inicio de venta'),
     sales_end_at: dateField('Fin de venta'),
   },
-  ['name', 'available']
+  ['name', 'available', 'price_label']
 );
 const eventDetail = obj(
   {
@@ -121,9 +130,10 @@ const eventDetail = obj(
     gallery_urls: arr(str(), { 'x-presentation': 'hidden' }),
     sales_open: bool({ title: 'Venta abierta', description: 'Indica si hoy se pueden comprar entradas en Rifex. La compra siempre se hace en la página del evento.' }),
     ticket_types: arr(ticketTypeSchema, { title: 'Tipos de entrada' }),
+    price_label: clpLabel('Precio', 'Precio o rango de precios de las entradas activas ("Gratis ($0)" si es cero, "Precio no informado" si no hay).'),
     organizer: organizerSchema,
   },
-  ['slug', 'title', 'starts_at', 'sales_open', 'ticket_types', 'gallery_urls', 'url']
+  ['slug', 'title', 'starts_at', 'sales_open', 'ticket_types', 'price_label', 'gallery_urls', 'url']
 );
 
 const campaignCard = {
@@ -134,16 +144,18 @@ const campaignCard = {
   status: str({ enum: ['active', 'finished', 'closed'], title: 'Estado' }),
   start_at: dateField('Inicio'),
   end_at: dateField('Cierre'),
-  goal_clp: int({ title: 'Meta (CLP)' }),
-  raised_clp: int({ title: 'Recaudado (CLP)', description: 'Total agregado de aportes aprobados.' }),
+  goal_clp: clpAmount('Meta de recaudación (sin valor si la campaña no tiene meta).'),
+  goal_label: clpLabel('Meta', 'Meta de recaudación ("Sin meta (aportes libres)" si no tiene).'),
+  raised_clp: clpAmount('Total agregado de aportes aprobados.'),
+  raised_label: clpLabel('Recaudado', 'Total agregado de aportes aprobados.'),
   contributor_count: int({ title: 'Aportes', description: 'Cantidad agregada de aportes aprobados.' }),
   organizer: organizerSchema,
   url: urlField,
 };
-const campaignListItem = obj(campaignCard, ['slug', 'title', 'status', 'raised_clp', 'contributor_count', 'url']);
+const campaignListItem = obj(campaignCard, ['slug', 'title', 'status', 'raised_clp', 'raised_label', 'goal_label', 'contributor_count', 'url']);
 const campaignDetail = obj(
   { ...campaignCard, description: str({ title: 'Descripción' }), gallery_urls: arr(str(), { 'x-presentation': 'hidden' }) },
-  ['slug', 'title', 'status', 'raised_clp', 'contributor_count', 'gallery_urls', 'url']
+  ['slug', 'title', 'status', 'raised_clp', 'raised_label', 'goal_label', 'contributor_count', 'gallery_urls', 'url']
 );
 
 const registrationCard = {

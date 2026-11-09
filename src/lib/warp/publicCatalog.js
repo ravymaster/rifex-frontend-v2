@@ -99,6 +99,34 @@ export function toClp(cents) {
   return Number.isFinite(cents) ? Math.round(cents / 100) : null;
 }
 
+// Presentación monetaria de Chile, declarada por Rifex: CLP, es-CL, sin
+// decimales ($5.000). Solo visual: los importes numéricos se entregan sin
+// cambios en sus propios campos; aquí no se convierte moneda ni se recalcula.
+export const CLP_LOCALE = 'es-CL';
+export const PRICE_NOT_INFORMED = 'Precio no informado';
+const CLP_FORMAT = new Intl.NumberFormat(CLP_LOCALE, { style: 'currency', currency: 'CLP', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+export function formatClp(amount) {
+  return Number.isFinite(amount) ? CLP_FORMAT.format(amount) : null;
+}
+
+// Precio de una entrada: "$8.000"; cero se muestra como "Gratis ($0)";
+// sin valor, "Precio no informado".
+export function priceLabel(amount) {
+  if (!Number.isFinite(amount)) return PRICE_NOT_INFORMED;
+  return amount === 0 ? `Gratis (${formatClp(0)})` : formatClp(amount);
+}
+
+// Rango de precios: un solo valor si coinciden ("$5.000", "Gratis ($0)"),
+// "$5.000 – $20.000" si no; sin precios, "Precio no informado".
+export function priceRangeLabel(min, max) {
+  const hasMin = Number.isFinite(min);
+  const hasMax = Number.isFinite(max);
+  if (!hasMin && !hasMax) return PRICE_NOT_INFORMED;
+  if (!hasMin || !hasMax || min === max) return priceLabel(hasMin ? min : max);
+  return `${formatClp(Math.min(min, max))} – ${formatClp(Math.max(min, max))}`;
+}
+
 // Nombre público del organizador: solo el nombre del perfil público,
 // descartado si parece correo, RUT o teléfono (7 o más dígitos).
 export function toPublicOrganizerName(value) {
@@ -184,6 +212,7 @@ export async function listEvents(args = {}) {
     venue_name: r.venue_name || null,
     price_from_clp: prices[r.id]?.min ?? null,
     price_to_clp: prices[r.id]?.max ?? null,
+    price_label: priceRangeLabel(prices[r.id]?.min ?? null, prices[r.id]?.max ?? null),
     url: siteUrl(`/eventos/${r.slug}`),
   }));
   return pageResult(items, paging, count || 0);
@@ -220,12 +249,14 @@ export async function readEvent({ slug } = {}) {
   const ticketTypes = (types || []).map((t) => ({
     name: t.name,
     price_clp: toClp(t.price_cents),
+    price_label: priceLabel(toClp(t.price_cents)),
     available: ticketAvailable(t),
     max_per_order: t.max_per_order ?? null,
     sales_start_at: t.sales_start_at || null,
     sales_end_at: t.sales_end_at || null,
   }));
   const organizerName = names[ev.organizer_id] || null;
+  const ticketPrices = ticketTypes.map((t) => t.price_clp).filter(Number.isFinite);
 
   return {
     ok: true,
@@ -243,6 +274,7 @@ export async function readEvent({ slug } = {}) {
       cover_image_url: ev.cover_image_url || null,
       gallery_urls: Array.isArray(ev.gallery_urls) ? ev.gallery_urls : [],
       sales_open: mpConnected && !ended && (types || []).some((t) => ticketOnSale(t, nowMs)),
+      price_label: priceRangeLabel(ticketPrices.length ? Math.min(...ticketPrices) : null, ticketPrices.length ? Math.max(...ticketPrices) : null),
       ticket_types: ticketTypes,
       organizer: organizerName ? { name: organizerName } : null,
       url: siteUrl(`/eventos/${ev.slug}`),
@@ -278,7 +310,9 @@ function campaignCard(c, totals, names) {
     start_at: c.start_at || null,
     end_at: c.end_at || null,
     goal_clp: toClp(c.goal_cents),
+    goal_label: Number.isFinite(c.goal_cents) ? formatClp(toClp(c.goal_cents)) : 'Sin meta (aportes libres)',
     raised_clp: toClp(totals[c.id]?.raised ?? 0),
+    raised_label: formatClp(toClp(totals[c.id]?.raised ?? 0)),
     contributor_count: totals[c.id]?.count ?? 0,
     organizer: names[c.creator_id] ? { name: names[c.creator_id] } : null,
     url: siteUrl(`/colectas/${c.slug}`),
