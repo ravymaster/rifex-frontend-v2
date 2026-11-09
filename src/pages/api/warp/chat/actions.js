@@ -6,4 +6,4 @@ import { createPilotPostRoute } from '@/lib/warp/assistantPilot';
 
 export const config = { api: { bodyParser: false } };
 
-export default createPilotPostRoute(createWarpReadActionRouteHandler);
+export default createPilotPostRoute(createWarpReadActionRouteHandler, {}, { scope: 'actions' });

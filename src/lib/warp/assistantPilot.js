@@ -3,9 +3,13 @@
 //
 //   - Habilitado únicamente con la variable privada RIFEX_WARP_PILOT=on.
 //     Sin ella, la página piloto y sus rutas responden 404 (no existen).
-//   - La Site API Key de Warp se lee en el servidor desde el archivo indicado
-//     por WARP_AI_API_KEY_FILE (fuera del repositorio). Nunca va en
-//     NEXT_PUBLIC_*, nunca se registra en logs y nunca llega al navegador.
+//   - La Site API Key de Warp se lee solo en el servidor: desde el archivo
+//     indicado por WARP_AI_API_KEY_FILE (equipo local, fuera del repositorio)
+//     o, si no hay archivo, desde la variable privada WARP_AI_API_KEY (Vercel,
+//     marcada como Sensitive). Nunca va en NEXT_PUBLIC_*, nunca se registra en
+//     logs y nunca llega al navegador.
+//   - Límite de mensajes por IP en las rutas del chat (tabla compartida de
+//     Rifex), para acotar el uso del presupuesto de IA del piloto.
 //   - Los handlers de `@warp-ai/assistant` (createWarpChatRouteHandler /
 //     createWarpReadActionRouteHandler) se usan sin cambios; aquí solo se
 //     adaptan al Pages Router de Rifex (Request/Response web).
@@ -16,8 +20,11 @@
 //     resto del sitio no depende del piloto.
 import fs from 'fs';
 import os from 'os';
+import { checkRateLimit, resolveClientIp } from '../rateLimit.js';
 
 export const MAX_PILOT_BODY_BYTES = 16 * 1024;
+export const PILOT_RATE_LIMIT_MAX = 20;
+export const PILOT_RATE_LIMIT_WINDOW_SECONDS = 600;
 
 export const ASSISTANT_NOT_CONFIGURED = Object.freeze({
   code: 'ASSISTANT_NOT_CONFIGURED',
@@ -30,7 +37,7 @@ export function isWarpPilotEnabled(env = process.env) {
 
 function readSiteKey(env) {
   const file = String(env.WARP_AI_API_KEY_FILE || '').trim();
-  if (!file) return null;
+  if (!file) return String(env.WARP_AI_API_KEY || '').trim() || null;
   const resolved = file.startsWith('~/') ? `${os.homedir()}${file.slice(1)}` : file;
   try {
     const key = fs.readFileSync(resolved, 'utf8').trim();
@@ -71,13 +78,18 @@ function readRawBody(req, limit) {
 
 // Ruta POST del Pages Router sobre un handler web del Assistant.
 // `factory` es createWarpChatRouteHandler o createWarpReadActionRouteHandler.
-export function createPilotPostRoute(factory, options = {}, { readConfig = readPilotConfig, enabled = isWarpPilotEnabled } = {}) {
+export function createPilotPostRoute(factory, options = {}, { readConfig = readPilotConfig, enabled = isWarpPilotEnabled, rateLimit = checkRateLimit, scope = 'chat' } = {}) {
   let handler = null;
   return async function pilotRoute(req, res) {
     if (!enabled()) return res.status(404).end();
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST');
       return sendJson(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Only POST is supported.' } });
+    }
+    const rl = await rateLimit(`warp-pilot-${scope}:ip:${resolveClientIp(req)}`, PILOT_RATE_LIMIT_MAX, PILOT_RATE_LIMIT_WINDOW_SECONDS);
+    if (!rl.allowed) {
+      res.setHeader('Retry-After', String(rl.retryAfterSeconds));
+      return sendJson(res, 429, { error: { code: 'RATE_LIMITED', message: 'Demasiados mensajes. Intenta nuevamente en unos minutos.' } });
     }
     if (!handler) {
       const config = readConfig();

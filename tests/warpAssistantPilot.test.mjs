@@ -9,7 +9,11 @@ import path from 'path';
 import { Readable } from 'stream';
 import { fileURLToPath } from 'url';
 import { createWarpChatRouteHandler } from '@warp-ai/assistant';
-import { createPilotPostRoute, isWarpPilotEnabled, readPilotConfig, MAX_PILOT_BODY_BYTES } from '../src/lib/warp/assistantPilot.js';
+// El módulo carga el limitador de Rifex (crea su cliente al importarse): valores ficticios, sin red.
+process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'http://localhost.invalid';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= 'prueba';
+const { createPilotPostRoute, isWarpPilotEnabled, readPilotConfig, MAX_PILOT_BODY_BYTES, PILOT_RATE_LIMIT_MAX } = await import('../src/lib/warp/assistantPilot.js');
+const allow = async () => ({ allowed: true, retryAfterSeconds: 1 });
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -49,11 +53,15 @@ test('PILOTO 2: la key se lee del archivo en el servidor; sin archivo o URL no h
   assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test' }), null);
   assert.equal(readPilotConfig({ WARP_AI_API_KEY_FILE: keyFile }), null);
   assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: path.join(keyDir, 'no-existe') }), null);
+  // Vercel: sin archivo, la key sale de la variable privada del servidor.
+  assert.deepEqual(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: ` ${FAKE_KEY} ` }), { apiUrl: 'http://warp.test', apiKey: FAKE_KEY });
+  // Si hay archivo, manda el archivo.
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: keyFile, WARP_AI_API_KEY: 'otra' }).apiKey, FAKE_KEY);
 });
 
 test('PILOTO 3: piloto apagado → 404 sin leer configuración', async () => {
   let reads = 0;
-  const route = createPilotPostRoute(createWarpChatRouteHandler, {}, { enabled: () => false, readConfig: () => { reads += 1; return null; } });
+  const route = createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: () => false, readConfig: () => { reads += 1; return null; } });
   const res = fakeRes();
   await route(fakeReq('POST', '{"message":"hola"}'), res);
   assert.equal(res.statusCode, 404);
@@ -63,20 +71,21 @@ test('PILOTO 3: piloto apagado → 404 sin leer configuración', async () => {
 test('PILOTO 4: solo POST; sin configuración 503; cuerpo excesivo 413', async () => {
   const on = () => true;
   const r405 = fakeRes();
-  await createPilotPostRoute(createWarpChatRouteHandler, {}, { enabled: on, readConfig: () => null })(fakeReq('GET'), r405);
+  await createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: on, readConfig: () => null })(fakeReq('GET'), r405);
   assert.equal(r405.statusCode, 405);
   const r503 = fakeRes();
-  await createPilotPostRoute(createWarpChatRouteHandler, {}, { enabled: on, readConfig: () => null })(fakeReq('POST', '{}'), r503);
+  await createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: on, readConfig: () => null })(fakeReq('POST', '{}'), r503);
   assert.equal(r503.statusCode, 503);
   assert.match(r503.body, /ASSISTANT_NOT_CONFIGURED/);
   const r413 = fakeRes();
   const cfg = () => ({ apiUrl: 'http://127.0.0.1:9', apiKey: FAKE_KEY });
-  await createPilotPostRoute(createWarpChatRouteHandler, {}, { enabled: on, readConfig: cfg })(fakeReq('POST', 'x'.repeat(MAX_PILOT_BODY_BYTES + 10)), r413);
+  await createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: on, readConfig: cfg })(fakeReq('POST', 'x'.repeat(MAX_PILOT_BODY_BYTES + 10)), r413);
   assert.equal(r413.statusCode, 413);
 });
 
 test('PILOTO 5: con Warp apagado responde un error controlado, con cuerpo y sin la key', async () => {
   const route = createPilotPostRoute(createWarpChatRouteHandler, { timeoutMs: 2000 }, {
+    rateLimit: allow,
     enabled: () => true,
     readConfig: () => ({ apiUrl: 'http://127.0.0.1:9', apiKey: FAKE_KEY }),
   });
@@ -101,5 +110,22 @@ test('PILOTO 6: key solo en servidor; página y rutas aisladas del sitio', () =>
   assert.doesNotMatch(hits, /WarpAssistant|@warp-ai\/assistant/, 'el widget no está en el layout global');
   assert.match(read('src/pages/piloto-warp.js'), /if \(!isWarpPilotEnabled\(\)\) return \{ notFound: true \};/);
   assert.match(read('src/pages/api/warp/chat/index.js'), /createPilotPostRoute\(createWarpChatRouteHandler/);
-  assert.match(read('src/pages/api/warp/chat/actions.js'), /createPilotPostRoute\(createWarpReadActionRouteHandler\)/);
+  assert.match(read('src/pages/api/warp/chat/actions.js'), /createPilotPostRoute\(createWarpReadActionRouteHandler, \{\}, \{ scope: 'actions' \}\)/);
+});
+
+test('PILOTO 7: límite de mensajes por IP antes de leer la key o llamar a Warp', async () => {
+  assert.equal(PILOT_RATE_LIMIT_MAX, 20);
+  let configReads = 0;
+  const route = createPilotPostRoute(createWarpChatRouteHandler, {}, {
+    enabled: () => true,
+    rateLimit: async (key) => { assert.match(key, /^warp-pilot-chat:ip:/); return { allowed: false, retryAfterSeconds: 120 }; },
+    readConfig: () => { configReads += 1; return null; },
+  });
+  const res = fakeRes();
+  await route(Object.assign(fakeReq('POST', '{"message":"hola"}'), { socket: {} }), res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.headers['retry-after'], '120');
+  assert.equal(configReads, 0);
+  assert.match(read('src/pages/api/warp/chat/actions.js'), /scope: 'actions'/);
+  assert.doesNotMatch(read('src/lib/warp/assistantPilot.js'), /NEXT_PUBLIC_[A-Z_]*WARP/);
 });
