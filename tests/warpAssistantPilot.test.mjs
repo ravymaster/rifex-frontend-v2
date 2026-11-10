@@ -166,3 +166,16 @@ test('PILOTO 8: enlaces del asistente — solo el dominio exacto de Rifex DEV es
     assert.equal(splitTextWithLinks(text, policy).map((s) => s.value).join(''), text, `${text} queda como texto`);
   }
 });
+
+test('PILOTO 9: Contacto de DEV es enlace; el correo y otros dominios quedan como texto', async () => {
+  const { normalizeLinkPolicy, splitTextWithLinks } = await import('@warp-ai/assistant');
+  const { PILOT_LINK_POLICY } = await import('../src/lib/warp/pilotLinks.js');
+  const policy = normalizeLinkPolicy({ internalHosts: [...PILOT_LINK_POLICY.internalHosts], allowedHosts: [...PILOT_LINK_POLICY.allowedHosts] }, 'rifex-frontend-main.vercel.app');
+  const text = 'Escríbenos en https://rifex-frontend-main.vercel.app/contacto o a contacto@rifex.pro. En PROD: https://rifex.pro/contacto. mailto:contacto@rifex.pro';
+  const parts = splitTextWithLinks(text, policy);
+  const links = parts.filter((s) => s.type === 'link');
+  assert.equal(links.length, 1);
+  assert.equal(links[0].href, 'https://rifex-frontend-main.vercel.app/contacto');
+  assert.equal(links[0].internal, true);
+  assert.equal(parts.map((s) => s.value).join(''), text);
+});

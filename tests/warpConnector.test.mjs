@@ -11,6 +11,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRifexConnector, CAPABILITY_IDS, compact } from '../src/lib/warp/rifexConnector.js';
 import { listServices } from '../src/lib/warp/rifexServices.js';
+import { readSupport, SUPPORT_FIELDS } from '../src/lib/warp/rifexSupport.js';
+import { publicOrigin, CANONICAL_ORIGIN } from '../src/lib/warp/publicOrigin.js';
 import {
   normalizePaging,
   normalizeQuery,
@@ -36,6 +38,7 @@ const FORBIDDEN_FIELD_RE = /^(id|uuid|organizer_id|creator_id|user_id|email|.*_e
 // Fuente ficticia con la misma forma que la capa real (ya normalizada).
 const fake = {
   listServices,
+  readSupport,
   async listEvents({ page = 1, pageSize = 5 } = {}) {
     return {
       items: [{ slug: 'noche-de-jazz', title: 'Noche de Jazz', summary: 'Música en vivo.', cover_image_url: null, starts_at: '2026-12-12T21:00:00-03:00', ends_at: null, timezone: 'America/Santiago', venue_name: 'Sala Central', price_from_clp: 8000, price_to_clp: 12000, price_label: '$8.000 – $12.000', url: 'https://rifex.pro/eventos/noche-de-jazz' }],
@@ -82,12 +85,16 @@ function walkSchemaFields(schema, visit, pathName = '$') {
 // ---------------------------------------------------------------------
 // Contrato Discovery
 // ---------------------------------------------------------------------
-test('DISCOVERY 1: manifiesto warp.discovery_manifest.v1 con las 7 capacidades exactas', () => {
+test('DISCOVERY 1: manifiesto warp.discovery_manifest.v1 con las 8 capacidades exactas', () => {
   assert.equal(manifest.contract, 'warp.discovery_manifest.v1');
   assert.equal(manifest.protocolVersion, '1.0');
   assert.deepEqual(manifest.platform, { type: 'external', id: 'rifex', name: 'Rifex', version: '1.0', locale: 'es-CL' });
   assert.deepEqual(manifest.connector, { id: '@warp-ai/connector', version: '0.4.0' });
   assert.deepEqual(manifest.capabilities.map((c) => c.id), [...CAPABILITY_IDS]);
+  assert.deepEqual([...CAPABILITY_IDS], [
+    'rifex.services.list', 'rifex.events.list', 'rifex.event.read', 'rifex.campaigns.list',
+    'rifex.campaign.read', 'rifex.registrations.list', 'rifex.registration.read', 'rifex.support.read',
+  ]);
 });
 
 test('DISCOVERY 2: todas de lectura, sin efectos, públicas, riesgo bajo, GET', () => {
@@ -111,8 +118,13 @@ test('DISCOVERY 3: sin Rifas, rutas privadas, secretos ni ids en el manifiesto',
 });
 
 test('DISCOVERY 4: ningún campo de salida es identificador interno ni dato privado', () => {
+  // Única excepción: el correo público publicado en /contacto (rifex.support.read).
+  const ALLOWED = new Set(['rifex.support.read $.public_email']);
   for (const c of manifest.capabilities) {
-    walkSchemaFields(c.outputSchema, (name, p) => assert.doesNotMatch(name, FORBIDDEN_FIELD_RE, `${c.id} ${p}`));
+    walkSchemaFields(c.outputSchema, (name, p) => {
+      if (ALLOWED.has(`${c.id} ${p}`)) return;
+      assert.doesNotMatch(name, FORBIDDEN_FIELD_RE, `${c.id} ${p}`);
+    });
   }
   // El servicio se identifica con un valor fijo del enum, nunca con un id de la base.
   const svc = manifest.capabilities[0].outputSchema.properties.items.items.properties.service;
@@ -155,7 +167,7 @@ test('DISCOVERY 6: las fechas declaran format date-time (RFC 3339) y ninguna x-t
 // Invocación y validación adversarial
 // ---------------------------------------------------------------------
 test('INVOCACIÓN 1: capacidades válidas responden success con su contrato', async () => {
-  for (const [id, qs] of [['rifex.services.list', ''], ['rifex.events.list', '?page=1&pageSize=5'], ['rifex.event.read', '?slug=noche-de-jazz'], ['rifex.campaigns.list', ''], ['rifex.campaign.read', '?slug=techo-para-la-sede'], ['rifex.registrations.list', '?modality=presencial'], ['rifex.registration.read', '?slug=taller-de-ceramica']]) {
+  for (const [id, qs] of [['rifex.services.list', ''], ['rifex.events.list', '?page=1&pageSize=5'], ['rifex.event.read', '?slug=noche-de-jazz'], ['rifex.campaigns.list', ''], ['rifex.campaign.read', '?slug=techo-para-la-sede'], ['rifex.registrations.list', '?modality=presencial'], ['rifex.registration.read', '?slug=taller-de-ceramica'], ['rifex.support.read', '']]) {
     const r = await call(id, qs);
     assert.equal(r.status, 200, id);
     assert.equal(r.body.success, true, id);
@@ -191,6 +203,8 @@ test('INVOCACIÓN 4: parámetros extra, tipos incorrectos, enum y obligatorios �
     ['rifex.event.read', ''],
     ['rifex.event.read', '?slug='],
     ['rifex.services.list', '?fields=email'],
+    ['rifex.support.read', '?email=x'],
+    ['rifex.support.read', '?reason=pagos&include=phone'],
     ['rifex.campaign.read', '?slug=x&include=contributions'],
   ];
   for (const [id, qs] of cases) {
@@ -344,7 +358,7 @@ test('DATOS 3: solo iniciativas públicas por estado', () => {
 });
 
 test('DATOS 4: el Connector no toca Rifas, pagos ni otras rutas', () => {
-  for (const p of ['src/lib/warp/publicCatalog.js', 'src/lib/warp/rifexConnector.js', 'src/lib/warp/rifexServices.js', 'src/lib/warp/pagesRoute.js', 'src/pages/api/v1/discovery.js', 'src/pages/api/warp/capabilities/[capabilityId].js', 'src/pages/api/warp/health.js']) {
+  for (const p of ['src/lib/warp/publicCatalog.js', 'src/lib/warp/rifexConnector.js', 'src/lib/warp/rifexServices.js', 'src/lib/warp/rifexSupport.js', 'src/lib/warp/publicOrigin.js', 'src/lib/warp/pagesRoute.js', 'src/pages/api/v1/discovery.js', 'src/pages/api/warp/capabilities/[capabilityId].js', 'src/pages/api/warp/health.js']) {
     const src = code(p).replace(/Rifas no se ofrece mediante el asistente/g, '');
     assert.doesNotMatch(src, /raffle|rifas?\b|tickets'|raffleShareAccess|checkout|mercadopago|paymentReconcile|webhook/i, p);
     assert.doesNotMatch(src, /NEXT_PUBLIC_[A-Z_]*WARP|WARP_CONNECTOR_API_KEY/, p);
@@ -426,4 +440,123 @@ test('ADAPTADOR 3: tiempo máximo y logs sin argumentos ni IP', async () => {
   const entry = JSON.parse(logs[0]);
   assert.deepEqual(Object.keys(entry).sort(), ['capability', 'ms', 'requestId', 'scope', 'status']);
   assert.doesNotMatch(logs[0], /secreto-de-prueba|203\.0\.113\.9/);
+});
+
+// ---------------------------------------------------------------------
+// Contacto y soporte (rifex.support.read)
+// ---------------------------------------------------------------------
+const withBaseUrl = async (value, fn) => {
+  const prev = process.env.NEXT_PUBLIC_BASE_URL;
+  if (value === undefined) delete process.env.NEXT_PUBLIC_BASE_URL;
+  else process.env.NEXT_PUBLIC_BASE_URL = value;
+  try {
+    return await fn();
+  } finally {
+    if (prev === undefined) delete process.env.NEXT_PUBLIC_BASE_URL;
+    else process.env.NEXT_PUBLIC_BASE_URL = prev;
+  }
+};
+const realConnector = () => createRifexConnector();
+const callSupport = async (c, qs = '') => {
+  const h = c.createCapabilityRouteHandler();
+  const res = await h(new Request(`http://x/api/warp/capabilities/rifex.support.read${qs}`), { params: { capabilityId: 'rifex.support.read' } });
+  return { status: res.status, body: await res.json() };
+};
+
+test('SOPORTE 1: Discovery declara rifex.support.read de lectura, pública, riesgo bajo, GET, sin argumentos ni paginación', () => {
+  const cap = manifest.capabilities.find((c) => c.id === 'rifex.support.read');
+  assert.ok(cap);
+  assert.equal(manifest.capabilities.filter((c) => c.id === 'rifex.support.read').length, 1);
+  assert.equal(cap.operationType, 'read');
+  assert.equal(cap.sideEffects, false);
+  assert.equal(cap.authentication, 'public');
+  assert.equal(cap.risk, 'low');
+  assert.equal(cap.invocation.method, 'GET');
+  assert.deepEqual(cap.inputSchema, { type: 'object', properties: {}, required: [], additionalProperties: false });
+  assert.equal(cap.outputSchema.additionalProperties, false);
+  assert.deepEqual(Object.keys(cap.outputSchema.properties), [...SUPPORT_FIELDS]);
+  assert.deepEqual(cap.outputSchema.required, [...SUPPORT_FIELDS]);
+  assert.doesNotMatch(JSON.stringify(cap), /page|pageSize|total/);
+});
+
+test('SOPORTE 2: responde solo los campos autorizados, con contenido público de /contacto', async () => {
+  await withBaseUrl('https://rifex-frontend-main.vercel.app', async () => {
+    const r = await callSupport(realConnector());
+    assert.equal(r.status, 200);
+    assert.deepEqual(Object.keys(r.body.data), [...SUPPORT_FIELDS]);
+    const d = r.body.data;
+    assert.equal(d.public_email, 'contacto@rifex.pro');
+    // El correo y /contacto son los publicados en la página pública.
+    const page = read('src/pages/contacto.js');
+    assert.match(page, /contacto@rifex\.pro/);
+    assert.ok(d.supported_reasons.length > 0);
+    for (const reason of d.supported_reasons) assert.equal(typeof reason, 'string');
+    assert.match(d.supported_reasons.join(' '), /Soporte/);
+    assert.match(d.supported_reasons.join(' '), /Privacidad/);
+    assert.match(d.supported_reasons.join(' '), /Seguridad/);
+    assert.match(d.supported_reasons.join(' '), /[Rr]eportes/);
+    for (const w of [/contraseñas/, /códigos/, /claves/, /datos bancarios/, /credenciales de Mercado Pago/]) assert.match(d.safety_notice, w);
+  });
+});
+
+test('SOPORTE 3: la URL usa el origen configurado de cada ambiente (DEV y simulación PROD)', async () => {
+  await withBaseUrl('https://rifex-frontend-main.vercel.app', async () => {
+    assert.equal((await callSupport(realConnector())).body.data.contact_url, 'https://rifex-frontend-main.vercel.app/contacto');
+  });
+  await withBaseUrl('https://rifex.pro', async () => {
+    assert.equal((await callSupport(realConnector())).body.data.contact_url, 'https://rifex.pro/contacto');
+  });
+  await withBaseUrl('https://rifex-frontend-main.vercel.app/', async () => {
+    assert.equal(readSupport().contact_url, 'https://rifex-frontend-main.vercel.app/contacto');
+  });
+});
+
+test('SOPORTE 4: el origen sale solo de la configuración, nunca de cabeceras; valores inválidos → dominio canónico', async () => {
+  assert.equal(CANONICAL_ORIGIN, 'https://rifex.pro');
+  assert.equal(publicOrigin('https://rifex-frontend-main.vercel.app/x?y=1#z'), 'https://rifex-frontend-main.vercel.app');
+  assert.equal(publicOrigin('http://localhost:3000'), 'http://localhost:3000');
+  for (const bad of [undefined, '', 'rifex.pro', 'http://rifex.pro', 'javascript:alert(1)', 'https://u:p@evil.com', 'ftp://rifex.pro', 'http://evil.com']) {
+    assert.equal(publicOrigin(bad), CANONICAL_ORIGIN, String(bad));
+  }
+  for (const p of ['src/lib/warp/publicOrigin.js', 'src/lib/warp/rifexSupport.js']) {
+    assert.doesNotMatch(code(p), /headers|x-forwarded|req\.|request\./i, p);
+  }
+  // Una cabecera Host o X-Forwarded-Host manipulada no cambia la URL.
+  await withBaseUrl('https://rifex-frontend-main.vercel.app', async () => {
+    const route = createPagesRoute(() => realConnector().createCapabilityRouteHandler(), { scope: 't', rateLimit: allow });
+    const res = fakeRes();
+    await route({ method: 'GET', url: '/api/warp/capabilities/rifex.support.read', query: { capabilityId: 'rifex.support.read' }, headers: { host: 'evil.com', 'x-forwarded-host': 'evil.com' }, socket: {} }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(JSON.parse(res.body).data.contact_url, 'https://rifex-frontend-main.vercel.app/contacto');
+    assert.doesNotMatch(res.body, /evil/);
+  });
+});
+
+test('SOPORTE 5: solo GET (POST/PUT/PATCH/DELETE → 405) y parámetros extra → 400', async () => {
+  const route = createPagesRoute(() => realConnector().createCapabilityRouteHandler(), { scope: 't', rateLimit: allow });
+  for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
+    const res = fakeRes();
+    await route({ method, url: '/api/warp/capabilities/rifex.support.read', query: { capabilityId: 'rifex.support.read' }, headers: {}, socket: {} }, res);
+    assert.equal(res.statusCode, 405, method);
+  }
+  for (const qs of ['?x=1', '?page=1', '?send=true', '?email=a@b.c']) {
+    const res = fakeRes();
+    await route({ method: 'GET', url: `/api/warp/capabilities/rifex.support.read${qs}`, query: { capabilityId: 'rifex.support.read' }, headers: {}, socket: {} }, res);
+    assert.equal(res.statusCode, 400, qs);
+    assert.equal(JSON.parse(res.body).error.code, 'INVALID_ARGUMENTS', qs);
+  }
+});
+
+test('SOPORTE 6: sin correos privados, teléfonos, UUID, campos internos, configuración ni base', async () => {
+  const body = await withBaseUrl('https://rifex-frontend-main.vercel.app', async () => JSON.stringify((await callSupport(realConnector())).body));
+  const emails = body.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) || [];
+  assert.deepEqual([...new Set(emails)], ['contacto@rifex.pro']);
+  assert.doesNotMatch(body, /\+?\d[\d\s().-]{7,}\d/, 'sin teléfonos');
+  assert.doesNotMatch(body, UUID_RE);
+  assert.doesNotMatch(body, /\b(id|uuid|user_id|token|secret|supabase|service_role|NEXT_PUBLIC|process\.env|version)\b/i);
+  assert.doesNotMatch(body, /\d{1,2}:\d{2}/, 'sin horarios');
+  assert.doesNotMatch(body, /\brifas?\b|raffle|\/admin|checkout/i);
+  const src = code('src/lib/warp/rifexSupport.js');
+  assert.doesNotMatch(src, /supabase|from\(|\.rpc\(|insert|update|delete|upsert|fetch\(|sendMail|nodemailer|resend/i);
+  assert.doesNotMatch(src, /process\.env/, 'el origen se resuelve solo en publicOrigin.js');
 });

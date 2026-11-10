@@ -12,6 +12,8 @@
 //     base, nunca recibe secretos y nunca ve ids internos.
 //   - Esquemas cerrados (`additionalProperties: false`). Los campos sin valor
 //     se omiten de la respuesta (el SDK no admite tipos anulables).
+//   - `rifex.support.read` entrega solo datos fijos de /contacto (fuente
+//     estática rifexSupport.js), sin consultar la base.
 //   - Rifas, Medidor QR (lectura), pagos, checkout, panel y administración
 //     quedan fuera.
 //   - Autenticación servidor a servidor: mejora futura coordinada entre Warp
@@ -19,6 +21,7 @@
 import { createConnector } from '@warp-ai/connector';
 import * as catalog from './publicCatalog.js';
 import { listServices } from './rifexServices.js';
+import { readSupport } from './rifexSupport.js';
 
 export const RIFEX_PLATFORM = Object.freeze({ id: 'rifex', name: 'Rifex', version: '1.0', locale: 'es-CL' });
 export const CONNECTOR_INFO = Object.freeze({ id: '@warp-ai/connector', version: '0.4.0' });
@@ -30,6 +33,7 @@ export const CAPABILITY_IDS = Object.freeze([
   'rifex.campaign.read',
   'rifex.registrations.list',
   'rifex.registration.read',
+  'rifex.support.read',
 ]);
 
 // Quita claves nulas o indefinidas de los objetos (recursivo); los arreglos
@@ -203,7 +207,7 @@ const serviceItem = obj(
 
 // `source` permite inyectar una capa de datos de prueba en los tests; en
 // ejecución real siempre es la capa pública de Rifex.
-export function createRifexConnector(source = { ...catalog, listServices }) {
+export function createRifexConnector(source = { ...catalog, listServices, readSupport }) {
   const connector = createConnector({ platform: { ...RIFEX_PLATFORM }, connector: { ...CONNECTOR_INFO } });
   const common = { risk: 'low', authentication: 'public' };
 
@@ -289,6 +293,26 @@ export function createRifexConnector(source = { ...catalog, listServices }) {
     inputSchema: slugInput,
     outputSchema: readEnvelope('registration', registrationDetail),
     handler: async (args) => compact(await source.readRegistration(args)),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.support.read',
+    description:
+      'Entrega cómo contactar al equipo de Rifex para soporte, problemas con un módulo, privacidad, seguridad o reportes: la página de ' +
+      'Contacto (con su formulario), el correo público y una advertencia de seguridad que siempre debe repetirse al orientar. ' +
+      'Solo orienta: nunca envía formularios ni correos por la persona. Sin argumentos.',
+    inputSchema: obj({}),
+    outputSchema: obj(
+      {
+        contact_url: str({ title: 'Formulario de contacto', description: 'Página pública de Contacto de Rifex, con su formulario.', 'x-presentation': 'detail' }),
+        public_email: str({ title: 'Correo de contacto', description: 'Correo público publicado en la página de Contacto.', 'x-presentation': 'detail' }),
+        supported_reasons: arr(str(), { title: 'Motivos de contacto' }),
+        safety_notice: str({ title: 'Importante', description: 'Advertencia que debe acompañar toda orientación de contacto.' }),
+      },
+      ['contact_url', 'public_email', 'supported_reasons', 'safety_notice']
+    ),
+    handler: async () => compact(source.readSupport()),
   });
 
   return connector;
