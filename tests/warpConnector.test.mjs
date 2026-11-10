@@ -18,6 +18,9 @@ import {
   toPublicOrganizerName,
   toSummary,
   toClp,
+  formatClp,
+  priceLabel,
+  priceRangeLabel,
   MAX_PAGE_SIZE,
 } from '../src/lib/warp/publicCatalog.js';
 
@@ -35,20 +38,20 @@ const fake = {
   listServices,
   async listEvents({ page = 1, pageSize = 5 } = {}) {
     return {
-      items: [{ slug: 'noche-de-jazz', title: 'Noche de Jazz', summary: 'Música en vivo.', cover_image_url: null, starts_at: '2026-12-12T21:00:00-03:00', ends_at: null, timezone: 'America/Santiago', venue_name: 'Sala Central', price_from_clp: 8000, price_to_clp: 12000, url: 'https://rifex.pro/eventos/noche-de-jazz' }],
+      items: [{ slug: 'noche-de-jazz', title: 'Noche de Jazz', summary: 'Música en vivo.', cover_image_url: null, starts_at: '2026-12-12T21:00:00-03:00', ends_at: null, timezone: 'America/Santiago', venue_name: 'Sala Central', price_from_clp: 8000, price_to_clp: 12000, price_label: '$8.000 – $12.000', url: 'https://rifex.pro/eventos/noche-de-jazz' }],
       page, pageSize, total: 1, totalPages: 1,
     };
   },
   async readEvent({ slug }) {
     if (slug !== 'noche-de-jazz') return { ok: false, reason: 'not_found' };
-    return { ok: true, event: { slug, title: 'Noche de Jazz', description: 'Ñandú y acentos: canción.', starts_at: '2026-12-12T21:00:00-03:00', ends_at: null, timezone: 'America/Santiago', venue_name: 'Sala Central', address: null, capacity: 100, terms_text: null, cover_image_url: null, gallery_urls: [], sales_open: true, ticket_types: [{ name: 'General', price_clp: 8000, available: 42, max_per_order: 6, sales_start_at: null, sales_end_at: null }], organizer: { name: 'Club Norte' }, url: 'https://rifex.pro/eventos/noche-de-jazz' } };
+    return { ok: true, event: { slug, title: 'Noche de Jazz', description: 'Ñandú y acentos: canción.', starts_at: '2026-12-12T21:00:00-03:00', ends_at: null, timezone: 'America/Santiago', venue_name: 'Sala Central', address: null, capacity: 100, terms_text: null, cover_image_url: null, gallery_urls: [], sales_open: true, price_label: '$8.000', ticket_types: [{ name: 'General', price_clp: 8000, price_label: '$8.000', available: 42, max_per_order: 6, sales_start_at: null, sales_end_at: null }], organizer: { name: 'Club Norte' }, url: 'https://rifex.pro/eventos/noche-de-jazz' } };
   },
   async listCampaigns({ page = 1, pageSize = 5 } = {}) {
-    return { items: [{ slug: 'techo-para-la-sede', title: 'Techo para la sede', summary: null, cover_image_url: null, status: 'active', start_at: null, end_at: null, goal_clp: 500000, raised_clp: 120000, contributor_count: 18, organizer: null, url: 'https://rifex.pro/colectas/techo-para-la-sede' }], page, pageSize, total: 1, totalPages: 1 };
+    return { items: [{ slug: 'techo-para-la-sede', title: 'Techo para la sede', summary: null, cover_image_url: null, status: 'active', start_at: null, end_at: null, goal_clp: 500000, goal_label: '$500.000', raised_clp: 120000, raised_label: '$120.000', contributor_count: 18, organizer: null, url: 'https://rifex.pro/colectas/techo-para-la-sede' }], page, pageSize, total: 1, totalPages: 1 };
   },
   async readCampaign({ slug }) {
     if (slug !== 'techo-para-la-sede') return { ok: false, reason: 'not_found' };
-    return { ok: true, campaign: { slug, title: 'Techo para la sede', status: 'active', raised_clp: 120000, contributor_count: 18, goal_clp: 500000, gallery_urls: [], description: 'Ayúdanos.', url: 'https://rifex.pro/colectas/techo-para-la-sede' } };
+    return { ok: true, campaign: { slug, title: 'Techo para la sede', status: 'active', raised_clp: 120000, raised_label: '$120.000', goal_label: '$500.000', contributor_count: 18, goal_clp: 500000, gallery_urls: [], description: 'Ayúdanos.', url: 'https://rifex.pro/colectas/techo-para-la-sede' } };
   },
   async listRegistrations({ page = 1, pageSize = 5 } = {}) {
     return { items: [{ slug: 'taller-de-ceramica', title: 'Taller de cerámica', starts_at: '2026-12-01T10:00:00-03:00', modality: 'presencial', capacity: 20, available_slots: 7, status: 'active', organizer_name: 'Taller Arcilla', url: 'https://rifex.pro/inscripcion/taller-de-ceramica' }], page, pageSize, total: 1, totalPages: 1 };
@@ -121,6 +124,31 @@ test('DISCOVERY 5: el SDK rechaza al registrar cualquier capacidad con forma de 
   for (const extra of [{ operationType: 'write' }, { sideEffects: true }, { confirmationRequired: true }, { mutating: true }]) {
     assert.throws(() => c.capability({ id: 'rifex.event.create', description: 'Intento de escritura de prueba.', inputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }, outputSchema: { type: 'object', properties: {}, required: [], additionalProperties: false }, handler: async () => ({}), ...extra }), /read-only/);
   }
+});
+
+test('DISCOVERY 6: las fechas declaran format date-time (RFC 3339) y ninguna x-timezone global', () => {
+  const DATE_FIELDS = new Set(['starts_at', 'ends_at', 'start_at', 'end_at', 'sales_start_at', 'sales_end_at']);
+  let dates = 0;
+  const visit = (schema) => {
+    if (schema?.type === 'object') {
+      for (const [k, child] of Object.entries(schema.properties || {})) {
+        if (DATE_FIELDS.has(k)) {
+          dates += 1;
+          assert.equal(child.format, 'date-time', k);
+          assert.equal(child['x-timezone'], undefined, k);
+        }
+        visit(child);
+      }
+    } else if (schema?.type === 'array') visit(schema.items);
+  };
+  for (const c of manifest.capabilities) visit(c.outputSchema);
+  assert.ok(dates >= 14, `campos de fecha declarados: ${dates}`);
+  assert.doesNotMatch(JSON.stringify(manifest), /x-timezone/);
+  // Los valores que entrega la base (con offset) cumplen RFC 3339; sin offset, no.
+  const schema = { type: 'object', properties: { d: { type: 'string', format: 'date-time' } }, required: ['d'], additionalProperties: false };
+  assert.equal(validateArguments({ d: '2026-12-21T02:00:00+00:00' }, schema).ok, true);
+  assert.equal(validateArguments({ d: '2026-12-21T02:00:00.123+00:00' }, schema).ok, true);
+  assert.equal(validateArguments({ d: '2026-12-21T02:00:00' }, schema).ok, false);
 });
 
 // ---------------------------------------------------------------------
@@ -232,6 +260,60 @@ test('ENTRADAS 4: nombre del organizador, resumen y montos', () => {
   assert.equal(toSummary(null), null);
   assert.equal(toClp(799950), 7999.5 > 0 ? 8000 : 0);
   assert.equal(toClp(null), null);
+});
+
+test('MONEDA 1: presentación CLP es-CL sin decimales; cero, ausente y rango distinguidos', () => {
+  assert.equal(formatClp(5000), '$5.000');
+  assert.equal(formatClp(1234567), '$1.234.567');
+  assert.equal(formatClp(0), '$0');
+  assert.equal(formatClp(null), null);
+  assert.equal(priceLabel(8000), '$8.000');
+  assert.equal(priceLabel(0), 'Gratis ($0)');
+  assert.equal(priceLabel(null), 'Precio no informado');
+  assert.equal(priceRangeLabel(5000, 20000), '$5.000 – $20.000');
+  assert.equal(priceRangeLabel(0, 20000), '$0 – $20.000');
+  assert.equal(priceRangeLabel(5000, 5000), '$5.000');
+  assert.equal(priceRangeLabel(0, 0), 'Gratis ($0)');
+  assert.equal(priceRangeLabel(null, null), 'Precio no informado');
+  assert.equal(priceRangeLabel(7000, null), '$7.000');
+  assert.doesNotMatch(priceRangeLabel(5000, 20000), /,\d|\.\d{1,2}$|USD|CLP/, 'sin decimales ni código de moneda');
+});
+
+test('MONEDA 2: los importes numéricos se conservan y se ocultan en las tarjetas; se muestra la etiqueta', () => {
+  const props = (id, ...pathKeys) => {
+    let s = manifest.capabilities.find((c) => c.id === id).outputSchema;
+    for (const k of pathKeys) s = k === '[]' ? s.items : s.properties[k];
+    return s.properties;
+  };
+  const checks = [
+    [props('rifex.events.list', 'items', '[]'), ['price_from_clp', 'price_to_clp'], ['price_label']],
+    [props('rifex.event.read', 'event'), [], ['price_label']],
+    [props('rifex.event.read', 'event', 'ticket_types', '[]'), ['price_clp'], ['price_label']],
+    [props('rifex.campaigns.list', 'items', '[]'), ['goal_clp', 'raised_clp'], ['goal_label', 'raised_label']],
+    [props('rifex.campaign.read', 'campaign'), ['goal_clp', 'raised_clp'], ['goal_label', 'raised_label']],
+  ];
+  for (const [p, amounts, labels] of checks) {
+    for (const a of amounts) {
+      assert.equal(p[a].type, 'integer', a);
+      assert.equal(p[a]['x-presentation'], 'hidden', a);
+      assert.match(p[a].description, /CLP/, a);
+    }
+    for (const l of labels) {
+      assert.equal(p[l].type, 'string', l);
+      assert.equal(p[l]['x-presentation'], 'detail', l);
+      assert.ok(p[l].title, l);
+    }
+  }
+  // Nada en Warp: ningún metadato de moneda inventado en el contrato.
+  assert.doesNotMatch(JSON.stringify(manifest), /x-currency|x-locale/);
+});
+
+test('MONEDA 3: la capa de datos agrega etiquetas sin tocar los importes', () => {
+  const src = code('src/lib/warp/publicCatalog.js');
+  assert.match(src, /price_from_clp: prices\[r\.id\]\?\.min \?\? null,\s*\n\s*price_to_clp: prices\[r\.id\]\?\.max \?\? null,\s*\n\s*price_label: priceRangeLabel\(/);
+  assert.match(src, /price_clp: toClp\(t\.price_cents\),\s*\n\s*price_label: priceLabel\(toClp\(t\.price_cents\)\),/);
+  assert.match(src, /goal_clp: toClp\(c\.goal_cents\),/);
+  assert.match(src, /raised_clp: toClp\(totals\[c\.id\]\?\.raised \?\? 0\),/);
 });
 
 // ---------------------------------------------------------------------
