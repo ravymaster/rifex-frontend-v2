@@ -2,6 +2,7 @@
 // Widget flotante del asistente de Warp, solo para la página piloto local.
 // Habla únicamente con las rutas del propio sitio; nunca recibe la key.
 import { useEffect } from 'react';
+import { PILOT_LINK_POLICY } from '@/lib/warp/pilotLinks';
 
 export default function WarpAssistantPilot() {
   useEffect(() => {
@@ -14,6 +15,7 @@ export default function WarpAssistantPilot() {
         title: 'Asistente Rifex (piloto)',
         endpoint: '/api/warp/chat',
         actionsEndpoint: '/api/warp/chat/actions',
+        links: { internalHosts: [...PILOT_LINK_POLICY.internalHosts], allowedHosts: [...PILOT_LINK_POLICY.allowedHosts] },
       });
     });
     return () => {

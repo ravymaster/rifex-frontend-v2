@@ -129,3 +129,40 @@ test('PILOTO 7: límite de mensajes por IP antes de leer la key o llamar a Warp'
   assert.match(read('src/pages/api/warp/chat/actions.js'), /scope: 'actions'/);
   assert.doesNotMatch(read('src/lib/warp/assistantPilot.js'), /NEXT_PUBLIC_[A-Z_]*WARP/);
 });
+
+test('PILOTO 8: enlaces del asistente — solo el dominio exacto de Rifex DEV es clicable', async () => {
+  const { normalizeLinkPolicy, splitTextWithLinks } = await import('@warp-ai/assistant');
+  const { PILOT_LINK_HOSTS, PILOT_LINK_POLICY } = await import('../src/lib/warp/pilotLinks.js');
+  assert.deepEqual([...PILOT_LINK_HOSTS], ['rifex-frontend-main.vercel.app']);
+  assert.deepEqual(PILOT_LINK_POLICY.internalHosts, ['rifex-frontend-main.vercel.app']);
+  assert.deepEqual(PILOT_LINK_POLICY.allowedHosts, ['rifex-frontend-main.vercel.app']);
+  assert.doesNotMatch(JSON.stringify(PILOT_LINK_POLICY), /\*/, 'sin comodines');
+  const policy = normalizeLinkPolicy({ internalHosts: [...PILOT_LINK_POLICY.internalHosts], allowedHosts: [...PILOT_LINK_POLICY.allowedHosts] }, 'rifex-frontend-main.vercel.app');
+  const links = (text) => splitTextWithLinks(text, policy).filter((s) => s.type === 'link');
+
+  const ok = links('Mira https://rifex-frontend-main.vercel.app/eventos.');
+  assert.equal(ok.length, 1);
+  assert.equal(ok[0].href, 'https://rifex-frontend-main.vercel.app/eventos');
+  assert.equal(ok[0].internal, true);
+  assert.equal(ok[0].path, '/eventos');
+
+  for (const text of [
+    'https://example.com/eventos',
+    'https://rifex.pro/eventos',
+    'javascript:alert(1)',
+    'data:text/html,<b>x</b>',
+    'file:///etc/passwd',
+    'http://rifex-frontend-main.vercel.app/eventos',
+    'https://rifex-frontend-main.vercel.app.evil.com/eventos',
+    'https://rifex-frontend-maim.vercel.app/eventos',
+    'https://rifex-frontend-main-vercel.app/eventos',
+    'https://evil-rifex-frontend-main.vercel.app/eventos',
+    'https://rifex-frontend-main.vercel.app@evil.com/eventos',
+    'https://usuario:clave@rifex-frontend-main.vercel.app/eventos',
+    'https://rіfex-frontend-main.vercel.app/eventos',
+    'https://rifex-frontend-main.vercel.app:8443/eventos',
+  ]) {
+    assert.equal(links(text).length, 0, text);
+    assert.equal(splitTextWithLinks(text, policy).map((s) => s.value).join(''), text, `${text} queda como texto`);
+  }
+});
