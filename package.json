@@ -24,7 +24,7 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.2",
-    "@warp-ai/assistant": "file:vendor/warp-sdk-lite/warp-ai-assistant-0.7.3-fe48d13.tgz",
+    "@warp-ai/assistant": "file:vendor/warp-sdk-lite/warp-ai-assistant-0.7.4-430b5d8.tgz",
     "@warp-ai/connector": "file:vendor/warp-sdk-lite/warp-ai-connector-0.4.0.tgz",
     "cookie": "^1.0.2",
     "exceljs": "4.4.0",

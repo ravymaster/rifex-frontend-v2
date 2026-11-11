@@ -6,6 +6,7 @@
 // actualiza aquí y se sube SERVICES_VERSION.
 //
 // Rifas no se ofrece mediante el asistente y no forma parte de esta lista.
+import { publicOrigin } from './publicOrigin.js';
 
 export const SERVICES_VERSION = '2026-11-08';
 
@@ -66,7 +67,7 @@ const SERVICES = Object.freeze([
 ]);
 
 export function listServices() {
-  const base = String(process.env.NEXT_PUBLIC_BASE_URL || 'https://rifex.pro').replace(/\/+$/, '');
+  const base = publicOrigin();
   return {
     version: SERVICES_VERSION,
     commission_note: 'Rifex cobra una comisión única del 7% solo cuando existe una venta o aporte exitoso. Sin planes, mensualidad ni cobro por publicar.',
