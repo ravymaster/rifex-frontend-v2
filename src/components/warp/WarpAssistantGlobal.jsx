@@ -2,7 +2,7 @@
 // Botón flotante del asistente de Warp en todas las páginas visuales de
 // Rifex (montado una sola vez en _app.js; la conversación se mantiene al
 // navegar). Reglas de privacidad y visuales: src/lib/warp/assistantGlobal.js.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import {
   ASSISTANT_STYLE_OVERRIDES,
@@ -17,6 +17,7 @@ import {
   readAssistantStatus,
   shouldMountAssistant,
 } from '@/lib/warp/assistantGlobal';
+import { pageContextFor } from '@/lib/warp/pageContexts';
 
 const BOTTOM_BAR_SELECTOR = '[data-rifex-bottom-bar]';
 
@@ -132,6 +133,9 @@ export default function WarpAssistantGlobal() {
   }, []);
 
   const active = enabled && shouldMountAssistant(pathname);
+  const widgetRef = useRef(null);
+  const pathnameRef = useRef(pathname);
+  pathnameRef.current = pathname;
 
   useEffect(() => {
     if (!active) return undefined;
@@ -145,7 +149,9 @@ export default function WarpAssistantGlobal() {
       .then(({ createWarpWidgetGlobal }) => {
         if (cancelled) return;
         widget = createWarpWidgetGlobal();
-        widget.init(buildAssistantConfig(createAssistantFetch(window.fetch.bind(window))));
+        // Contexto inicial: la plantilla de la ruta actual (nunca la URL real).
+        widget.init(buildAssistantConfig(createAssistantFetch(window.fetch.bind(window)), pageContextFor(pathnameRef.current)));
+        widgetRef.current = widget;
         const hosts = document.querySelectorAll('warp-floating-widget');
         const host = hosts[hosts.length - 1];
         adoptOverrides(host);
@@ -163,9 +169,16 @@ export default function WarpAssistantGlobal() {
       if (stopWatching) stopWatching();
       if (stopHiding) stopHiding();
       if (stopFocus) stopFocus();
+      widgetRef.current = null;
       if (widget) widget.destroy();
     };
   }, [active]);
+
+  // Navegación interna: misma conversación, nuevo contexto (o ninguno si la
+  // ruta no está en la tabla).
+  useEffect(() => {
+    widgetRef.current?.setPageContext?.(pageContextFor(pathname));
+  }, [pathname]);
 
   return null;
 }

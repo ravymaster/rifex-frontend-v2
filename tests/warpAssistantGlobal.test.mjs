@@ -134,7 +134,8 @@ test('GLOBAL 5: si el estado falla, está apagado o responde algo raro, no se mo
 
 test('GLOBAL 6: sin contexto de página: no lee DOM, formularios, cookies, sesión, almacenamiento ni URL', () => {
   const cfg = buildAssistantConfig(() => {});
-  assert.deepEqual(Object.keys(cfg).sort(), ['actionsEndpoint', 'endpoint', 'fetchImpl', 'launcherLabel', 'links', 'subtitle', 'title']);
+  assert.deepEqual(Object.keys(cfg).sort(), ['actionsEndpoint', 'endpoint', 'fetchImpl', 'launcherLabel', 'links', 'pageContext', 'subtitle', 'title']);
+  assert.equal(cfg.pageContext, null, 'sin contexto si no se entrega uno de la tabla');
   assert.deepEqual(cfg.links, { internalHosts: ['rifex-frontend-main.vercel.app'], allowedHosts: ['rifex-frontend-main.vercel.app'] });
   for (const p of ['src/components/warp/WarpAssistantGlobal.jsx', 'src/lib/warp/assistantGlobal.js']) {
     // Única excepción: el campo de mensaje del propio widget (su shadow root), nunca de la página.
@@ -181,7 +182,7 @@ test('GLOBAL 7: el servidor reenvía a Warp solo mensaje y conversación, nunca 
 
 test('GLOBAL 8: ajustes visuales coherentes con el paquete instalado y con las capas de Rifex', () => {
   const pkg = read('node_modules/@warp-ai/assistant/src/floatingWidget.js');
-  assert.match(read('node_modules/@warp-ai/assistant/package.json'), /"version": "0\.7\.4"/);
+  assert.match(read('node_modules/@warp-ai/assistant/package.json'), /"version": "0\.7\.5"/);
   for (const sel of ['.warp-widget {', '.bottom-right {', '.panel {', '.expanded .panel {', '.launcher {', '.panel.open {', 'form.compose button {', 'header button {']) {
     assert.ok(pkg.includes(sel), `el paquete define ${sel}`);
   }
