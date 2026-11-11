@@ -1,14 +1,15 @@
 // src/lib/warp/rifexServices.js
 // Fuente curada y versionada de `rifex.services.list` (Connector de Warp).
 // Contenido estático alineado con las páginas públicas de cada módulo
-// (/eventos, /campanas, /inscripciones, /medidor-qr) y con /planes. No
+// (/eventos, /campanas, /inscripciones, /medidor-qr) y con /planes, más la
+// página donde la persona lo crea por su cuenta (requiere iniciar sesión). No
 // consulta la base. Al cambiar una regla comercial en esas páginas, se
 // actualiza aquí y se sube SERVICES_VERSION.
 //
 // Rifas no se ofrece mediante el asistente y no forma parte de esta lista.
 import { publicOrigin } from './publicOrigin.js';
 
-export const SERVICES_VERSION = '2026-11-08';
+export const SERVICES_VERSION = '2026-11-11';
 
 const SERVICES = Object.freeze([
   {
@@ -24,6 +25,7 @@ const SERVICES = Object.freeze([
     organizer_receives:
       'El dinero de cada venta en tu propia cuenta de Mercado Pago, entradas con QR para tus compradores, scanner de acceso, personal de acceso y reportes en Excel.',
     url_path: '/eventos',
+    create_path: '/crear-evento',
   },
   {
     service: 'campaigns',
@@ -37,6 +39,7 @@ const SERVICES = Object.freeze([
     uses_qr: true,
     organizer_receives: 'Los aportes en tu propia cuenta de Mercado Pago, un link público y un código QR descargable para difundir tu campaña.',
     url_path: '/campanas',
+    create_path: '/crear-colecta',
   },
   {
     service: 'registrations',
@@ -50,6 +53,7 @@ const SERVICES = Object.freeze([
     uses_qr: true,
     organizer_receives: 'Un QR de confirmación para cada inscrito, scanner de acceso y la lista de asistentes en Excel.',
     url_path: '/inscripciones',
+    create_path: '/crear-inscripcion',
   },
   {
     service: 'qr_meter',
@@ -63,6 +67,7 @@ const SERVICES = Object.freeze([
     uses_qr: true,
     organizer_receives: 'Un código QR listo para imprimir y métricas de escaneos y respuestas. Quien responde lo hace de forma anónima.',
     url_path: '/medidor-qr',
+    create_path: '/crear-medidor-qr',
   },
 ]);
 
@@ -71,6 +76,6 @@ export function listServices() {
   return {
     version: SERVICES_VERSION,
     commission_note: 'Rifex cobra una comisión única del 7% solo cuando existe una venta o aporte exitoso. Sin planes, mensualidad ni cobro por publicar.',
-    items: SERVICES.map(({ url_path, ...s }) => ({ ...s, url: `${base}${url_path}` })),
+    items: SERVICES.map(({ url_path, create_path, ...s }) => ({ ...s, url: `${base}${url_path}`, create_url: `${base}${create_path}` })),
   };
 }

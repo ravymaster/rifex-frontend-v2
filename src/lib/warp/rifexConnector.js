@@ -201,8 +201,13 @@ const serviceItem = obj(
     uses_qr: bool({ title: 'Usa QR' }),
     organizer_receives: str({ title: 'Qué recibe el organizador' }),
     url: urlField,
+    create_url: str({
+      title: 'Dónde crearlo',
+      description: 'Página pública donde la persona crea este servicio por su cuenta (requiere iniciar sesión). El asistente nunca crea nada.',
+      'x-presentation': 'detail',
+    }),
   },
-  ['service', 'name', 'summary', 'when_to_use', 'pricing', 'requires_mercado_pago', 'mercado_pago_note', 'uses_qr', 'organizer_receives', 'url']
+  ['service', 'name', 'summary', 'when_to_use', 'pricing', 'requires_mercado_pago', 'mercado_pago_note', 'uses_qr', 'organizer_receives', 'url', 'create_url']
 );
 
 // `source` permite inyectar una capa de datos de prueba en los tests; en
