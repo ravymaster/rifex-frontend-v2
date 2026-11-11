@@ -60,3 +60,11 @@ html, body {
 @media (prefers-reduced-motion: reduce){
   *{ transition:none !important; animation:none !important; }
 }
+
+/* Asistente de Warp (botón global, src/components/warp/WarpAssistantGlobal.jsx):
+   espacio extra al final de la página para que el botón flotante nunca tape
+   el último contenido (botones, enlaces del pie). En páginas con el pie del
+   Layout se agrega dentro del pie; en el resto, al final del body. */
+html.rifex-assistant-active { --rifex-assistant-reserve: calc(84px + var(--rifex-assistant-bottom, 0px)); }
+html.rifex-assistant-active .rf-foot { padding-bottom: var(--rifex-assistant-reserve); }
+html.rifex-assistant-active body:not(:has(.rf-foot)) { padding-bottom: var(--rifex-assistant-reserve); }

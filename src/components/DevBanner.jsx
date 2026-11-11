@@ -5,6 +5,7 @@
 export default function DevBanner() {
   return (
     <div
+      data-rifex-bottom-bar
       style={{
         position: "fixed",
         bottom: 0,

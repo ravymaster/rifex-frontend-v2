@@ -6,6 +6,7 @@ import { getStoredConsent, setStoredConsent } from '@/lib/consent';
 import { initMetaPixel, trackPageView } from '@/lib/metaPixel';
 import ConsentBanner from '@/components/ConsentBanner';
 import DevBanner from '@/components/DevBanner';
+import WarpAssistantGlobal from '@/components/warp/WarpAssistantGlobal';
 import { isDevStage } from '@/lib/environmentPolicy';
 
 export default function App({ Component, pageProps }) {
@@ -51,6 +52,7 @@ export default function App({ Component, pageProps }) {
       {getLayout(<Component {...pageProps} />)}
       {consent === null && <ConsentBanner onAccept={handleAccept} onReject={handleReject} />}
       {isDevStage() && <DevBanner />}
+      <WarpAssistantGlobal />
     </>
   );
 }
