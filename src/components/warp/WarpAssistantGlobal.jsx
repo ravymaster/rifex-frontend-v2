@@ -100,6 +100,23 @@ function hideWhileEditing(host) {
   };
 }
 
+// Al abrir el panel desde el botón (mouse o Enter), el paquete reconstruye su
+// HTML y el foco se pierde; se lleva al campo de mensaje del propio widget
+// para que el recorrido con teclado continúe ahí. Solo toca su shadow root.
+function focusComposerOnOpen(host) {
+  const root = host.shadowRoot;
+  if (!root) return () => {};
+  const onClick = (event) => {
+    const target = event.composedPath?.()[0] || event.target;
+    if (!target?.closest?.('.launcher')) return;
+    window.setTimeout(() => {
+      if (root.querySelector('.panel.open')) root.querySelector('form.compose textarea')?.focus();
+    }, 0);
+  };
+  root.addEventListener('click', onClick);
+  return () => root.removeEventListener('click', onClick);
+}
+
 export default function WarpAssistantGlobal() {
   const { pathname } = useRouter();
   const [enabled, setEnabled] = useState(false);
@@ -121,6 +138,7 @@ export default function WarpAssistantGlobal() {
     let widget = null;
     let stopWatching = null;
     let stopHiding = null;
+    let stopFocus = null;
     let cancelled = false;
     const html = document.documentElement;
     import('@warp-ai/assistant')
@@ -131,7 +149,10 @@ export default function WarpAssistantGlobal() {
         const hosts = document.querySelectorAll('warp-floating-widget');
         const host = hosts[hosts.length - 1];
         adoptOverrides(host);
-        if (host) stopHiding = hideWhileEditing(host);
+        if (host) {
+          stopHiding = hideWhileEditing(host);
+          stopFocus = focusComposerOnOpen(host);
+        }
         stopWatching = watchBottomBars();
         html.classList.add('rifex-assistant-active');
       })
@@ -141,6 +162,7 @@ export default function WarpAssistantGlobal() {
       html.classList.remove('rifex-assistant-active');
       if (stopWatching) stopWatching();
       if (stopHiding) stopHiding();
+      if (stopFocus) stopFocus();
       if (widget) widget.destroy();
     };
   }, [active]);

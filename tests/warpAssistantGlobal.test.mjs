@@ -137,7 +137,8 @@ test('GLOBAL 6: sin contexto de página: no lee DOM, formularios, cookies, sesi�
   assert.deepEqual(Object.keys(cfg).sort(), ['actionsEndpoint', 'endpoint', 'fetchImpl', 'launcherLabel', 'links', 'subtitle', 'title']);
   assert.deepEqual(cfg.links, { internalHosts: ['rifex-frontend-main.vercel.app'], allowedHosts: ['rifex-frontend-main.vercel.app'] });
   for (const p of ['src/components/warp/WarpAssistantGlobal.jsx', 'src/lib/warp/assistantGlobal.js']) {
-    const src = code(p);
+    // Única excepción: el campo de mensaje del propio widget (su shadow root), nunca de la página.
+    const src = code(p).replace("root.querySelector('form.compose textarea')", '');
     assert.doesNotMatch(src, /document\.cookie|localStorage|sessionStorage|indexedDB|supabase|getSession|getUser|\.auth\.|app_metadata/i, p);
     assert.doesNotMatch(src, /innerText|textContent|innerHTML|outerHTML|\.value\b|FormData|elements\[|<form|querySelector(All)?\([^)]*(input|textarea|select|form)|getElementsBy|\.forms\b/, p);
     assert.doesNotMatch(src, /location\.(href|search|hash)|document\.title|document\.referrer|navigator\./, p);
@@ -146,7 +147,8 @@ test('GLOBAL 6: sin contexto de página: no lee DOM, formularios, cookies, sesi�
   // Las únicas consultas al DOM: el propio widget y la geometría de las barras inferiores marcadas.
   const comp = code('src/components/warp/WarpAssistantGlobal.jsx');
   const selectors = [...comp.matchAll(/querySelector(?:All)?\(([^)]*)\)/g)].map((m) => m[1]);
-  assert.deepEqual(selectors, ['BOTTOM_BAR_SELECTOR', "'.panel.open'", "'warp-floating-widget'"]);
+  assert.deepEqual(selectors, ['BOTTOM_BAR_SELECTOR', "'.panel.open'", "'.panel.open'", "'form.compose textarea'", "'warp-floating-widget'"]);
+  assert.match(comp, /root\.querySelector\('form\.compose textarea'\)\?\.focus\(\)/, 'el foco va al campo del propio widget');
   assert.match(comp, /host\.shadowRoot\?\.querySelector\('\.panel\.open'\)/, 'solo su propio panel');
   assert.match(comp, /const BOTTOM_BAR_SELECTOR = '\[data-rifex-bottom-bar\]';/);
   assert.match(comp, /getBoundingClientRect\(\)/);
@@ -256,4 +258,14 @@ test('GLOBAL 11: solo en móvil se oculta al editar un campo de la página o con
   assert.match(comp, /pageFieldFocused: active !== host && isEditableField\(active\)/);
   assert.match(comp, /focusInAssistant: active === host/);
   assert.match(comp, /removeEventListener\('focusin', onFocusIn\)/);
+});
+
+test('GLOBAL 12: al abrir con el botón el foco pasa al campo de mensaje del widget', () => {
+  const pkg = read('node_modules/@warp-ai/assistant/src/floatingWidget.js');
+  assert.ok(pkg.includes('<form class="compose">') && pkg.includes('<textarea maxlength='), 'el paquete tiene form.compose textarea');
+  assert.ok(pkg.includes('<button class="launcher" type="button"'), 'botón .launcher');
+  const comp = code('src/components/warp/WarpAssistantGlobal.jsx');
+  assert.match(comp, /root\.addEventListener\('click', onClick\)/);
+  assert.match(comp, /root\.removeEventListener\('click', onClick\)/);
+  assert.match(comp, /target\?\.closest\?\.\('\.launcher'\)/);
 });
