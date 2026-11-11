@@ -3,9 +3,10 @@
 // _app.js). Lógica pura, sin React, para poder probarla.
 //
 // Privacidad (el asistente es solo una guía informativa pública):
-//   - El widget envía únicamente lo que la persona escribe y el id de su
-//     conversación. No recibe contexto de la página: no se leen el DOM,
-//     formularios, cookies, sesión, almacenamiento ni la URL actual.
+//   - El widget envía únicamente lo que la persona escribe, el id de su
+//     conversación y, desde 0.7.5, el pageContext fijo de la ruta (tabla
+//     cerrada de pageContexts.js por plantilla de ruta). No se leen el DOM,
+//     formularios, cookies, sesión, almacenamiento ni la URL real.
 //   - El navegador habla solo con las dos rutas del chat de Rifex, sin
 //     cookies (`credentials: "omit"`) ni referer; cualquier otra URL se
 //     rechaza. El servidor reenvía a Warp solo mensaje + conversationId.
@@ -65,7 +66,7 @@ export async function readAssistantStatus(baseFetch) {
   }
 }
 
-export function buildAssistantConfig(fetchImpl) {
+export function buildAssistantConfig(fetchImpl, pageContext = null) {
   return {
     title: 'Asistente Rifex',
     subtitle: 'Orientación con información pública',
@@ -74,6 +75,9 @@ export function buildAssistantConfig(fetchImpl) {
     actionsEndpoint: ASSISTANT_ENDPOINTS.actions,
     links: { internalHosts: [...PILOT_LINK_POLICY.internalHosts], allowedHosts: [...PILOT_LINK_POLICY.allowedHosts] },
     fetchImpl,
+    // 0.7.5: contexto de la página actual desde la tabla cerrada de Rifex
+    // (pageContexts.js); null si la ruta no está mapeada.
+    pageContext,
   };
 }
 
