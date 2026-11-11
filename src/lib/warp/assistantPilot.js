@@ -121,3 +121,22 @@ export function createPilotPostRoute(factory, options = {}, { readConfig = readP
     }
   };
 }
+
+// GET /api/warp/assistant — estado para el botón global del asistente
+// (src/components/warp/WarpAssistantGlobal.jsx). Solo { enabled: boolean }:
+// nunca la URL de Warp ni la key. Sin RIFEX_WARP_PILOT=on, el botón no
+// aparece en ninguna página.
+export function assistantStatus({ enabled = isWarpPilotEnabled, readConfig = readPilotConfig } = {}) {
+  return { enabled: Boolean(enabled() && readConfig()) };
+}
+
+export function createAssistantStatusRoute(options = {}) {
+  return function assistantStatusRoute(req, res) {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    if (req.method !== 'GET') {
+      res.setHeader('Allow', 'GET');
+      return sendJson(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Only GET is supported.' } });
+    }
+    return sendJson(res, 200, assistantStatus(options));
+  };
+}

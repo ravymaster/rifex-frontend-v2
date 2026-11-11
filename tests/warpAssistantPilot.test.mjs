@@ -96,7 +96,7 @@ test('PILOTO 5: con Warp apagado responde un error controlado, con cuerpo y sin 
   assert.ok(!String(res.body).includes(FAKE_KEY), 'la key nunca vuelve al navegador');
 });
 
-test('PILOTO 6: key solo en servidor; página y rutas aisladas del sitio', () => {
+test('PILOTO 6: key solo en servidor; página piloto y rutas aisladas del sitio', () => {
   const lib = read('src/lib/warp/assistantPilot.js');
   assert.doesNotMatch(lib, /console\./, 'sin logs');
   for (const p of ['src/components/warp/WarpAssistantPilot.jsx', 'src/pages/piloto-warp.js']) {
@@ -107,7 +107,9 @@ test('PILOTO 6: key solo en servidor; página y rutas aisladas del sitio', () =>
   try {
     hits = fs.readFileSync(path.join(ROOT, 'src/components/Layout.jsx'), 'utf8') + read('src/pages/_app.js');
   } catch {}
-  assert.doesNotMatch(hits, /WarpAssistant|@warp-ai\/assistant/, 'el widget no está en el layout global');
+  // El sitio monta solo el botón global (carga diferida, encendido desde el servidor);
+  // el widget del piloto y el paquete nunca se importan directamente en el layout.
+  assert.doesNotMatch(hits, /WarpAssistantPilot|@warp-ai\/assistant/, 'el piloto no está en el layout global');
   assert.match(read('src/pages/piloto-warp.js'), /if \(!isWarpPilotEnabled\(\)\) return \{ notFound: true \};/);
   assert.match(read('src/pages/api/warp/chat/index.js'), /createPilotPostRoute\(createWarpChatRouteHandler/);
   assert.match(read('src/pages/api/warp/chat/actions.js'), /createPilotPostRoute\(createWarpReadActionRouteHandler, \{\}, \{ scope: 'actions' \}\)/);

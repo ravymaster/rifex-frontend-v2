@@ -33,7 +33,7 @@ export default function TrustPopup({ trustLevel }) {
     : 'El organizador registró su identidad y conectó una cuenta receptora en Rifex. Los pagos se procesan mediante el proveedor conectado y las inconsistencias de titularidad quedan pendientes de revisión.';
 
   return (
-    <div className="rf-trustpopup" role="dialog" aria-live="polite">
+    <div className="rf-trustpopup" role="dialog" aria-live="polite" data-rifex-bottom-bar>
       <div className="rf-trustpopup__card">
         <strong className="rf-trustpopup__title">Antes de continuar</strong>
         <p className="rf-trustpopup__text">{text}</p>

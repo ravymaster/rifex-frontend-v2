@@ -378,6 +378,26 @@ test('DATOS 5: servicios curados sin Rifas, con reglas comerciales vigentes', ()
   for (const i of s.items) assert.equal(i.uses_qr, true, i.service);
 });
 
+test('DATOS 6: cada servicio entrega la página donde crearlo (existente, con login), desde el origen configurado', () => {
+  const prev = process.env.NEXT_PUBLIC_BASE_URL;
+  process.env.NEXT_PUBLIC_BASE_URL = 'https://rifex-frontend-main.vercel.app';
+  try {
+    const byId = Object.fromEntries(listServices().items.map((i) => [i.service, i]));
+    const expected = { events: '/crear-evento', campaigns: '/crear-colecta', registrations: '/crear-inscripcion', qr_meter: '/crear-medidor-qr' };
+    for (const [service, p] of Object.entries(expected)) {
+      assert.equal(byId[service].create_url, `https://rifex-frontend-main.vercel.app${p}`, service);
+      assert.ok(fs.existsSync(path.join(ROOT, `src/pages${p}.jsx`)), `existe ${p}`);
+    }
+    assert.doesNotMatch(JSON.stringify(byId), /crear-rifa|rifas/);
+  } finally {
+    if (prev === undefined) delete process.env.NEXT_PUBLIC_BASE_URL;
+    else process.env.NEXT_PUBLIC_BASE_URL = prev;
+  }
+  const cap = manifest.capabilities.find((c) => c.id === 'rifex.services.list');
+  assert.ok(cap.outputSchema.properties.items.items.required.includes('create_url'));
+  assert.match(cap.outputSchema.properties.items.items.properties.create_url.description, /nunca crea nada/);
+});
+
 // ---------------------------------------------------------------------
 // Adaptador HTTP
 // ---------------------------------------------------------------------
