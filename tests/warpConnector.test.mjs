@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import { createRifexConnector, CAPABILITY_IDS, compact } from '../src/lib/warp/rifexConnector.js';
 import { listServices } from '../src/lib/warp/rifexServices.js';
 import { readSupport, SUPPORT_FIELDS } from '../src/lib/warp/rifexSupport.js';
+import { readHelp } from '../src/lib/warp/rifexHelp.js';
 import { publicOrigin, CANONICAL_ORIGIN } from '../src/lib/warp/publicOrigin.js';
 import {
   normalizePaging,
@@ -39,6 +40,7 @@ const FORBIDDEN_FIELD_RE = /^(id|uuid|organizer_id|creator_id|user_id|email|.*_e
 const fake = {
   listServices,
   readSupport,
+  readHelp,
   async listEvents({ page = 1, pageSize = 5 } = {}) {
     return {
       items: [{ slug: 'noche-de-jazz', title: 'Noche de Jazz', summary: 'Música en vivo.', cover_image_url: null, starts_at: '2026-12-12T21:00:00-03:00', ends_at: null, timezone: 'America/Santiago', venue_name: 'Sala Central', price_from_clp: 8000, price_to_clp: 12000, price_label: '$8.000 – $12.000', url: 'https://rifex.pro/eventos/noche-de-jazz' }],
@@ -85,7 +87,7 @@ function walkSchemaFields(schema, visit, pathName = '$') {
 // ---------------------------------------------------------------------
 // Contrato Discovery
 // ---------------------------------------------------------------------
-test('DISCOVERY 1: manifiesto warp.discovery_manifest.v1 con las 8 capacidades exactas', () => {
+test('DISCOVERY 1: manifiesto warp.discovery_manifest.v1 con las 9 capacidades exactas', () => {
   assert.equal(manifest.contract, 'warp.discovery_manifest.v1');
   assert.equal(manifest.protocolVersion, '1.0');
   assert.deepEqual(manifest.platform, { type: 'external', id: 'rifex', name: 'Rifex', version: '1.0', locale: 'es-CL' });
@@ -94,6 +96,7 @@ test('DISCOVERY 1: manifiesto warp.discovery_manifest.v1 con las 8 capacidades e
   assert.deepEqual([...CAPABILITY_IDS], [
     'rifex.services.list', 'rifex.events.list', 'rifex.event.read', 'rifex.campaigns.list',
     'rifex.campaign.read', 'rifex.registrations.list', 'rifex.registration.read', 'rifex.support.read',
+    'rifex.help.read',
   ]);
 });
 
@@ -167,7 +170,7 @@ test('DISCOVERY 6: las fechas declaran format date-time (RFC 3339) y ninguna x-t
 // Invocación y validación adversarial
 // ---------------------------------------------------------------------
 test('INVOCACIÓN 1: capacidades válidas responden success con su contrato', async () => {
-  for (const [id, qs] of [['rifex.services.list', ''], ['rifex.events.list', '?page=1&pageSize=5'], ['rifex.event.read', '?slug=noche-de-jazz'], ['rifex.campaigns.list', ''], ['rifex.campaign.read', '?slug=techo-para-la-sede'], ['rifex.registrations.list', '?modality=presencial'], ['rifex.registration.read', '?slug=taller-de-ceramica'], ['rifex.support.read', '']]) {
+  for (const [id, qs] of [['rifex.services.list', ''], ['rifex.events.list', '?page=1&pageSize=5'], ['rifex.event.read', '?slug=noche-de-jazz'], ['rifex.campaigns.list', ''], ['rifex.campaign.read', '?slug=techo-para-la-sede'], ['rifex.registrations.list', '?modality=presencial'], ['rifex.registration.read', '?slug=taller-de-ceramica'], ['rifex.support.read', ''], ['rifex.help.read', '?topic=banks-payments']]) {
     const r = await call(id, qs);
     assert.equal(r.status, 200, id);
     assert.equal(r.body.success, true, id);
@@ -204,6 +207,10 @@ test('INVOCACIÓN 4: parámetros extra, tipos incorrectos, enum y obligatorios �
     ['rifex.event.read', '?slug='],
     ['rifex.services.list', '?fields=email'],
     ['rifex.support.read', '?email=x'],
+    ['rifex.help.read', ''],
+    ['rifex.help.read', '?topic=%2Fpanel%2Fbancos'],
+    ['rifex.help.read', '?topic=admin'],
+    ['rifex.help.read', '?topic=profile&user=1'],
     ['rifex.support.read', '?reason=pagos&include=phone'],
     ['rifex.campaign.read', '?slug=x&include=contributions'],
   ];
@@ -358,7 +365,7 @@ test('DATOS 3: solo iniciativas públicas por estado', () => {
 });
 
 test('DATOS 4: el Connector no toca Rifas, pagos ni otras rutas', () => {
-  for (const p of ['src/lib/warp/publicCatalog.js', 'src/lib/warp/rifexConnector.js', 'src/lib/warp/rifexServices.js', 'src/lib/warp/rifexSupport.js', 'src/lib/warp/publicOrigin.js', 'src/lib/warp/pagesRoute.js', 'src/pages/api/v1/discovery.js', 'src/pages/api/warp/capabilities/[capabilityId].js', 'src/pages/api/warp/health.js']) {
+  for (const p of ['src/lib/warp/publicCatalog.js', 'src/lib/warp/rifexConnector.js', 'src/lib/warp/rifexServices.js', 'src/lib/warp/rifexSupport.js', 'src/lib/warp/rifexHelp.js', 'src/lib/warp/publicOrigin.js', 'src/lib/warp/pagesRoute.js', 'src/pages/api/v1/discovery.js', 'src/pages/api/warp/capabilities/[capabilityId].js', 'src/pages/api/warp/health.js']) {
     const src = code(p).replace(/Rifas no se ofrece mediante el asistente/g, '');
     assert.doesNotMatch(src, /raffle|rifas?\b|tickets'|raffleShareAccess|checkout|mercadopago|paymentReconcile|webhook/i, p);
     assert.doesNotMatch(src, /NEXT_PUBLIC_[A-Z_]*WARP|WARP_CONNECTOR_API_KEY/, p);

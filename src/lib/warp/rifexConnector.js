@@ -14,6 +14,8 @@
 //     se omiten de la respuesta (el SDK no admite tipos anulables).
 //   - `rifex.support.read` entrega solo datos fijos de /contacto (fuente
 //     estática rifexSupport.js), sin consultar la base.
+//   - `rifex.help.read` guía el menú interno por tema cerrado (fuente
+//     estática rifexHelp.js): nunca lee la sesión ni datos de la persona.
 //   - Rifas, Medidor QR (lectura), pagos, checkout, panel y administración
 //     quedan fuera.
 //   - Autenticación servidor a servidor: mejora futura coordinada entre Warp
@@ -22,6 +24,7 @@ import { createConnector } from '@warp-ai/connector';
 import * as catalog from './publicCatalog.js';
 import { listServices } from './rifexServices.js';
 import { readSupport } from './rifexSupport.js';
+import { readHelp, HELP_TOPICS } from './rifexHelp.js';
 
 export const RIFEX_PLATFORM = Object.freeze({ id: 'rifex', name: 'Rifex', version: '1.0', locale: 'es-CL' });
 export const CONNECTOR_INFO = Object.freeze({ id: '@warp-ai/connector', version: '0.4.0' });
@@ -34,6 +37,7 @@ export const CAPABILITY_IDS = Object.freeze([
   'rifex.registrations.list',
   'rifex.registration.read',
   'rifex.support.read',
+  'rifex.help.read',
 ]);
 
 // Quita claves nulas o indefinidas de los objetos (recursivo); los arreglos
@@ -212,7 +216,7 @@ const serviceItem = obj(
 
 // `source` permite inyectar una capa de datos de prueba en los tests; en
 // ejecución real siempre es la capa pública de Rifex.
-export function createRifexConnector(source = { ...catalog, listServices, readSupport }) {
+export function createRifexConnector(source = { ...catalog, listServices, readSupport, readHelp }) {
   const connector = createConnector({ platform: { ...RIFEX_PLATFORM }, connector: { ...CONNECTOR_INFO } });
   const common = { risk: 'low', authentication: 'public' };
 
@@ -318,6 +322,37 @@ export function createRifexConnector(source = { ...catalog, listServices, readSu
       ['contact_url', 'public_email', 'supported_reasons', 'safety_notice']
     ),
     handler: async () => compact(source.readSupport()),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.help.read',
+    description:
+      'Guía de Rifex para orientar sobre el menú interno, la cuenta y los pagos: dónde está cada función, cómo llegar y el enlace. ' +
+      'Un tema por consulta, de una lista cerrada: account-panel (Mis iniciativas, inicio de la cuenta), profile (qué es el Perfil), ' +
+      'profile-edit (cómo editarlo), profile-fields (qué datos pide), banks-payments (para qué sirve Bancos & Pagos), mp-connect ' +
+      '(conectar Mercado Pago para recibir cobros), collect-vs-pay (cobrar con Rifex vs pagar una compra), payment-methods (medios ' +
+      'de pago; no hay conexión bancaria directa), payment-security (seguridad de pagos y credenciales), mp-required (por qué Eventos y ' +
+      'Campañas requieren Mercado Pago), mp-not-required (módulos sin Mercado Pago), events, campaigns, registrations, qr-meter ' +
+      '(paneles propios), promotion (Difusión), support (Contacto) y logout (dónde está Cerrar sesión). Solo orienta: no ve ni puede afirmar qué iniciativas, perfil, pagos o estado de Mercado Pago tiene la ' +
+      'persona, no actúa por ella, no cierra sesión y no muestra datos de otras cuentas. Ante una pregunta por un dato privado, indica ' +
+      'dónde revisarlo la propia persona y repite safety_notice cuando venga.',
+    inputSchema: obj(
+      { topic: str({ enum: [...HELP_TOPICS], description: 'Tema exacto del menú, de la lista cerrada.' }) },
+      ['topic']
+    ),
+    outputSchema: obj(
+      {
+        title: str({ 'x-presentation': 'title' }),
+        summary: str({ 'x-presentation': 'detail' }),
+        steps: arr(str(), { title: 'Cómo llegar' }),
+        url: str({ title: 'Enlace', description: 'Página de Rifex (requiere sesión salvo Contacto). Ausente si el tema no tiene página propia.', 'x-presentation': 'detail' }),
+        requires_session: bool({ title: 'Requiere iniciar sesión' }),
+        safety_notice: str({ title: 'Importante' }),
+      },
+      ['title', 'summary', 'steps', 'requires_session']
+    ),
+    handler: async ({ topic }) => compact(source.readHelp({ topic })),
   });
 
   return connector;

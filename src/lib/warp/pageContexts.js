@@ -17,9 +17,11 @@
 //   - /admin y /panel/admin/*: administración (el asistente público no
 //     entrega datos administrativos);
 //   - Rifas: excluidas del asistente;
-//   - subpáginas del panel con datos de una iniciativa, perfiles, enlaces con
-//     token y páginas de respuesta de Medidor QR: podrían sugerir datos
-//     privados o de terceros;
+//   - detalles de pago, callbacks y credenciales (Bancos & Pagos solo recibe
+//     un contexto genérico de sección);
+//   - detalles del panel con id de una iniciativa, perfiles de otras
+//     personas, enlaces con token y páginas de respuesta de Medidor QR:
+//     podrían sugerir datos privados o de terceros;
 //   - recuperación de contraseña y callbacks técnicos.
 
 const ctx = (pageId, module, area, guidance) => Object.freeze({ pageId, module, area, guidance });
@@ -40,7 +42,20 @@ export const PAGE_CONTEXTS = Object.freeze({
   '/contacto': ctx('support-contact', 'support', 'public', 'get-help'),
   '/login': ctx('account-login', 'account', 'public', 'sign-in'),
   '/register': ctx('account-register', 'account', 'public', 'sign-up'),
-  '/panel': ctx('account-panel', 'account', 'account', 'account-orientation'),
+  // Menú interno (secciones generales; nunca su contenido). La combinación
+  // `account-panel` corresponde a /mis-iniciativas, el inicio real de la cuenta
+  // (/panel es el panel de Rifas y queda fuera).
+  '/mis-iniciativas': ctx('account-panel', 'account', 'account', 'account-orientation'),
+  '/perfil': ctx('account-profile', 'account', 'account', 'account-orientation'),
+  '/panel/eventos': ctx('account-events', 'events', 'account', 'account-orientation'),
+  '/panel/inscripciones': ctx('account-registrations', 'registrations', 'account', 'account-orientation'),
+  '/panel/medidor-qr': ctx('account-qr-meter', 'qr-meter', 'account', 'account-orientation'),
+  '/difusion': ctx('account-promotion', 'promotion', 'account', 'account-orientation'),
+  // Bancos & Pagos: solo la sección. Nunca indica si Mercado Pago está
+  // conectado ni banco, correo, RUT, cuenta, saldo o estado.
+  '/panel/bancos': ctx('banks-payments', 'account', 'account', 'payments-settings'),
+  // «Mis campañas» no tiene página propia: vive al final de /crear-colecta
+  // (contexto campaign-create de arriba), a la que lleva «Ir a mis campañas».
 });
 
 // Rutas visuales evaluadas y dejadas sin contexto, con su motivo (documentación
@@ -58,6 +73,7 @@ export const EXCLUDED_PAGE_CONTEXT_ROUTES = Object.freeze({
   '/admin/cumplimiento/[id]': 'administration',
   '/panel/admin/trust': 'administration',
   '/panel/admin/trust/[userId]': 'administration',
+  '/panel': 'raffles',
   '/rifas': 'raffles',
   '/rifas/[id]': 'raffles',
   '/rifas/[id]/checkout': 'raffles',
@@ -67,17 +83,11 @@ export const EXCLUDED_PAGE_CONTEXT_ROUTES = Object.freeze({
   '/terminos-rifas': 'raffles',
   '/c/[token]': 'raffles',
   '/chat/[raffleId]': 'raffles',
-  '/panel/eventos': 'private-data',
   '/panel/eventos/[id]': 'private-data',
-  '/panel/inscripciones': 'private-data',
   '/panel/inscripciones/[id]': 'private-data',
-  '/panel/medidor-qr': 'private-data',
   '/panel/medidor-qr/[id]': 'private-data',
-  '/panel/bancos': 'private-data',
   '/panel/cumplimiento': 'private-data',
   '/panel/cumplimiento/[id]': 'private-data',
-  '/mis-iniciativas': 'private-data',
-  '/perfil': 'private-data',
   '/perfil/[id]': 'private-data',
   '/i/[token]': 'private-data',
   '/t/[token]': 'private-data',
