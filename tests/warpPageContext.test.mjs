@@ -51,7 +51,7 @@ test('CONTEXTO 1: cada contexto cumple el esquema cerrado del paquete y la tabla
   const ids = Object.values(PAGE_CONTEXTS).map((c) => c.pageId);
   assert.equal(new Set(ids).size, ids.length, 'pageId únicos');
   assert.deepEqual(PAGE_CONTEXT_ALLOWLIST, Object.values(PAGE_CONTEXTS).map((c) => ({ ...c })));
-  assert.equal(PAGE_CONTEXT_ALLOWLIST.length, 16);
+  assert.equal(PAGE_CONTEXT_ALLOWLIST.length, 21);
 });
 
 test('CONTEXTO 2: pagos, scanner, administración, Rifas y datos privados quedan sin contexto', () => {
@@ -59,9 +59,15 @@ test('CONTEXTO 2: pagos, scanner, administración, Rifas y datos privados quedan
   for (const [route, reason] of Object.entries(EXCLUDED_PAGE_CONTEXT_ROUTES)) {
     assert.ok(routes.has(route), `existe la página excluida ${route}`);
     assert.equal(pageContextFor(route), null, route);
-    assert.ok(['payments', 'operations', 'administration', 'raffles', 'private-data', 'third-party-respondent', 'account-recovery', 'technical'].includes(reason), route);
+    assert.ok(['payments', 'operations', 'administration', 'raffles', 'bank-data', 'private-data', 'third-party-respondent', 'account-recovery', 'technical'].includes(reason), route);
   }
   for (const route of Object.keys(PAGE_CONTEXTS)) assert.ok(!(route in EXCLUDED_PAGE_CONTEXT_ROUTES), route);
+  // /panel es el panel de Rifas: sin contexto. El inicio de la cuenta es /mis-iniciativas.
+  assert.equal(EXCLUDED_PAGE_CONTEXT_ROUTES['/panel'], 'raffles');
+  assert.equal(pageContextFor('/panel'), null);
+  assert.equal(pageContextFor('/mis-iniciativas').pageId, 'account-panel');
+  assert.match(read('src/pages/panel/index.js'), /Crear rifa/);
+  assert.equal(EXCLUDED_PAGE_CONTEXT_ROUTES['/panel/bancos'], 'bank-data');
   const mapped = JSON.stringify(PAGE_CONTEXTS);
   assert.doesNotMatch(mapped, /admin|administrative|checkout|payment|pago|scanner|raffle|rifa|token/i);
 });
