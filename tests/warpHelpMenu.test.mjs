@@ -58,7 +58,7 @@ test('AYUDA 1: el inventario coincide con el menú real de la cuenta, el móvil 
 });
 
 test('AYUDA 2: temas cerrados; sin administración, Rifas, tokens ni rutas privadas', () => {
-  assert.deepEqual([...HELP_TOPICS], ['account-panel', 'profile', 'banks-payments', 'events', 'campaigns', 'registrations', 'qr-meter', 'promotion', 'support', 'logout']);
+  assert.deepEqual([...HELP_TOPICS], ['account-panel', 'profile', 'profile-edit', 'profile-fields', 'banks-payments', 'mp-connect', 'collect-vs-pay', 'payment-methods', 'payment-security', 'mp-required', 'mp-not-required', 'events', 'campaigns', 'registrations', 'qr-meter', 'promotion', 'support', 'logout']);
   assert.deepEqual(cap.inputSchema, { type: 'object', properties: { topic: { type: 'string', enum: [...HELP_TOPICS], description: 'Tema exacto del menú, de la lista cerrada.' } }, required: ['topic'], additionalProperties: false });
   const all = JSON.stringify(HELP_TOPIC_PATHS) + JSON.stringify(HELP_TOPICS.map((t) => readHelp({ topic: t })));
   assert.doesNotMatch(all, /\badmin\b|\/admin|\/panel"|rifa|raffle|token|webhook|\[id\]|\/api\//i);
@@ -123,4 +123,77 @@ test('AYUDA 6: límites de Nivel 1: no ve datos, no actúa, protege credenciales
   const src = code('src/lib/warp/rifexHelp.js');
   assert.doesNotMatch(src, /supabase|getSession|getUser|fetch\(|from\(|\.rpc\(|insert|update\(|delete|cookie|localStorage|process\.env/i);
   assert.doesNotMatch(JSON.stringify(HELP_TOPICS.map((t) => readHelp({ topic: t }))), /\d{5,}|@[a-z]/i, 'sin números largos ni correos');
+});
+
+const getTopic = (topic) => withBaseUrl('https://rifex-frontend-main.vercel.app', () => readHelp({ topic }));
+const DEV = 'https://rifex-frontend-main.vercel.app';
+
+test('AYUDA 7: regresiones de preguntas (tema que corresponde y respuesta sin afirmar datos)', async () => {
+  const { pageContextFor } = await import('../src/lib/warp/pageContexts.js');
+  // «Ya estoy en Bancos y Pagos, ¿qué hago?»: contexto genérico + guía de la sección.
+  assert.deepEqual(pageContextFor('/panel/bancos'), { pageId: 'banks-payments', module: 'account', area: 'account', guidance: 'payments-settings' });
+  const bank = getTopic('banks-payments');
+  assert.match(bank.summary, /«Ganancias»/);
+  assert.match(bank.summary, /«Proveedores de pago»/);
+  assert.equal(bank.url, `${DEV}/panel/bancos`);
+  // «¿Dónde conecto Mercado Pago?»
+  const mp = getTopic('mp-connect');
+  assert.equal(mp.url, `${DEV}/panel/bancos`);
+  assert.ok(mp.steps.some((x) => /pulsa «Conectar»/.test(x)));
+  assert.ok(mp.steps.some((x) => /«Verificar cuenta»/.test(x)));
+  // «¿Puedo conectar directamente mi banco?»
+  assert.match(getTopic('payment-methods').summary, /no se conecta una cuenta bancaria directamente en Rifex/);
+  // «¿Qué tarjeta tengo guardada?»: nada afirma ver tarjetas; el pago ocurre en Mercado Pago.
+  const methods = getTopic('payment-methods');
+  assert.match(methods.summary, /en la página de Mercado Pago/);
+  assert.match(methods.safety_notice, /no puede ver/);
+  for (const t of HELP_TOPICS) assert.doesNotMatch(JSON.stringify(getTopic(t)), /tu tarjeta (es|termina)|tienes guardad|tu saldo es|tu cuenta bancaria es/i, t);
+  // «¿Dónde cambio mis datos?»
+  const edit = getTopic('profile-edit');
+  assert.equal(edit.url, `${DEV}/perfil`);
+  assert.ok(edit.steps.some((x) => /«Editar perfil»/.test(x) && /«Guardar»/.test(x)));
+  // «¿Mi Perfil está completo?»: no lo sabe; indica revisarlo.
+  const fields = getTopic('profile-fields');
+  assert.match(fields.safety_notice, /no puede ver tu perfil ni saber si está completo/);
+  assert.ok(fields.steps.some((x) => /revisa tú mismo/.test(x)));
+  // «¿Dónde veo mis campañas?»
+  const camp = getTopic('campaigns');
+  assert.equal(camp.url, `${DEV}/crear-colecta`);
+  assert.ok(camp.steps.some((x) => /«Ir a mis campañas»/.test(x)));
+  // «Cierra mi sesión»: no actúa y no entrega una ruta como si fuera un enlace.
+  const out = getTopic('logout');
+  assert.equal(out.url, null);
+  assert.match(out.summary, /no puede cerrar tu sesión/);
+  assert.doesNotMatch(JSON.stringify(out), /\/logout|\/signout|signOut|\/api\//i);
+  for (const t of HELP_TOPICS) assert.doesNotMatch(String(getTopic(t).url || ''), /logout|signout|\/api\/|callback|oauth|\?/i, t);
+});
+
+test('AYUDA 8: cada afirmación de pagos y perfil está respaldada por el código de Rifex', () => {
+  const bancos = read('src/pages/panel/bancos.js');
+  for (const x of ['Ganancias', 'Proveedores de pago', 'Conectar', 'Verificar cuenta', 'Desconectar', 'Crear cuenta en Mercado Pago', 'No disponible en tu país', 'Tu cuenta ya está lista para crear iniciativas.', 'Cuenta de Mercado Pago validada.', 'dinos en qué país operarás']) {
+    assert.ok(bancos.includes(x), `Bancos & Pagos dice «${x}»`);
+  }
+  // El pago se completa en Mercado Pago (preference + init_point), sin medios fijados por Rifex.
+  const mp = read('src/pages/api/checkout/mp.js');
+  assert.match(mp, /new Preference\(mpClient\)/);
+  assert.match(mp, /init_point/);
+  assert.doesNotMatch(mp, /payment_methods|excluded_payment_types/);
+  // Comisión 7% descontada por Mercado Pago (FAQ público) y acreditación al organizador (Seguridad).
+  assert.match(read('src/pages/preguntas-frecuentes.js'), /comisión única del 7%[\s\S]*descontada automáticamente por\s+Mercado Pago/);
+  assert.match(read('src/pages/seguridad.js'), /se acreditan en la cuenta del\s+organizador/);
+  // Perfil: nombre hasta 80, «Sobre mí» hasta 280 (servidor), ambos opcionales; foto PNG, JPG o WebP.
+  const upd = read('src/pages/api/profile/update.js');
+  assert.match(upd, /const MAX_BIO_LEN = 280;/);
+  assert.match(upd, /nombre\.trim\(\)\.slice\(0, 80\) \|\| null/);
+  assert.match(upd, /bio\.trim\(\)\.slice\(0, MAX_BIO_LEN\) \|\| null/);
+  assert.match(read('src/components/rifex/ProfileView.jsx'), /accept="image\/png,image\/jpeg,image\/webp"/);
+  assert.match(getTopic('profile-fields').summary, /hasta 80 caracteres[\s\S]*hasta 280 caracteres/);
+  // Módulos con y sin Mercado Pago (fuente de servicios).
+  const svc = read('src/lib/warp/rifexServices.js');
+  assert.match(svc, /service: 'events'[\s\S]*?requires_mercado_pago: true/);
+  assert.match(svc, /service: 'campaigns'[\s\S]*?requires_mercado_pago: true/);
+  assert.match(svc, /service: 'registrations'[\s\S]*?requires_mercado_pago: false/);
+  assert.match(svc, /service: 'qr_meter'[\s\S]*?requires_mercado_pago: false/);
+  assert.match(getTopic('mp-not-required').summary, /Inscripciones[\s\S]*Medidor QR/);
+  assert.doesNotMatch(getTopic('mp-not-required').summary + getTopic('mp-required').summary, /rifa/i);
 });

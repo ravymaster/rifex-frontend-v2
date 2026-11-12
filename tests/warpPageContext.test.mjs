@@ -51,7 +51,7 @@ test('CONTEXTO 1: cada contexto cumple el esquema cerrado del paquete y la tabla
   const ids = Object.values(PAGE_CONTEXTS).map((c) => c.pageId);
   assert.equal(new Set(ids).size, ids.length, 'pageId únicos');
   assert.deepEqual(PAGE_CONTEXT_ALLOWLIST, Object.values(PAGE_CONTEXTS).map((c) => ({ ...c })));
-  assert.equal(PAGE_CONTEXT_ALLOWLIST.length, 21);
+  assert.equal(PAGE_CONTEXT_ALLOWLIST.length, 22);
 });
 
 test('CONTEXTO 2: pagos, scanner, administración, Rifas y datos privados quedan sin contexto', () => {
@@ -67,9 +67,15 @@ test('CONTEXTO 2: pagos, scanner, administración, Rifas y datos privados quedan
   assert.equal(pageContextFor('/panel'), null);
   assert.equal(pageContextFor('/mis-iniciativas').pageId, 'account-panel');
   assert.match(read('src/pages/panel/index.js'), /Crear rifa/);
-  assert.equal(EXCLUDED_PAGE_CONTEXT_ROUTES['/panel/bancos'], 'bank-data');
+  // Bancos & Pagos: solo el contexto genérico de la sección.
+  assert.deepEqual(pageContextFor('/panel/bancos'), { pageId: 'banks-payments', module: 'account', area: 'account', guidance: 'payments-settings' });
+  // «Mis campañas» vive en /crear-colecta (sin página propia).
+  assert.equal(pageContextFor('/crear-colecta').pageId, 'campaign-create');
+  assert.match(read('src/pages/mis-iniciativas.jsx'), /key: 'campanas'[^}]*href: '\/crear-colecta'/);
   const mapped = JSON.stringify(PAGE_CONTEXTS);
-  assert.doesNotMatch(mapped, /admin|administrative|checkout|payment|pago|scanner|raffle|rifa|token/i);
+  assert.doesNotMatch(mapped, /admin|administrative|checkout|pago|scanner|raffle|rifa|token|order/i);
+  const withPayment = Object.values(PAGE_CONTEXTS).filter((c) => /payment/.test(JSON.stringify(c)));
+  assert.deepEqual(withPayment.map((c) => c.pageId), ['banks-payments'], 'solo la sección Bancos & Pagos');
 });
 
 test('CONTEXTO 3: solo plantillas exactas; la URL real, query, hash o slugs nunca producen contexto', () => {

@@ -17,7 +17,8 @@
 //   - /admin y /panel/admin/*: administración (el asistente público no
 //     entrega datos administrativos);
 //   - Rifas: excluidas del asistente;
-//   - Bancos & Pagos (datos bancarios y estado de Mercado Pago);
+//   - detalles de pago, callbacks y credenciales (Bancos & Pagos solo recibe
+//     un contexto genérico de sección);
 //   - detalles del panel con id de una iniciativa, perfiles de otras
 //     personas, enlaces con token y páginas de respuesta de Medidor QR:
 //     podrían sugerir datos privados o de terceros;
@@ -50,6 +51,11 @@ export const PAGE_CONTEXTS = Object.freeze({
   '/panel/inscripciones': ctx('account-registrations', 'registrations', 'account', 'account-orientation'),
   '/panel/medidor-qr': ctx('account-qr-meter', 'qr-meter', 'account', 'account-orientation'),
   '/difusion': ctx('account-promotion', 'promotion', 'account', 'account-orientation'),
+  // Bancos & Pagos: solo la sección. Nunca indica si Mercado Pago está
+  // conectado ni banco, correo, RUT, cuenta, saldo o estado.
+  '/panel/bancos': ctx('banks-payments', 'account', 'account', 'payments-settings'),
+  // «Mis campañas» no tiene página propia: vive al final de /crear-colecta
+  // (contexto campaign-create de arriba), a la que lleva «Ir a mis campañas».
 });
 
 // Rutas visuales evaluadas y dejadas sin contexto, con su motivo (documentación
@@ -80,7 +86,6 @@ export const EXCLUDED_PAGE_CONTEXT_ROUTES = Object.freeze({
   '/panel/eventos/[id]': 'private-data',
   '/panel/inscripciones/[id]': 'private-data',
   '/panel/medidor-qr/[id]': 'private-data',
-  '/panel/bancos': 'bank-data',
   '/panel/cumplimiento': 'private-data',
   '/panel/cumplimiento/[id]': 'private-data',
   '/perfil/[id]': 'private-data',

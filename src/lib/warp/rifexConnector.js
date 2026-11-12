@@ -328,10 +328,13 @@ export function createRifexConnector(source = { ...catalog, listServices, readSu
     ...common,
     id: 'rifex.help.read',
     description:
-      'Guía del menú interno de Rifex para personas con sesión: dónde está cada función, cómo llegar y el enlace. Un tema por consulta, ' +
-      'de una lista cerrada: account-panel (Mis iniciativas, inicio de la cuenta), profile (Perfil), banks-payments (Bancos & Pagos, ' +
-      'conectar Mercado Pago), events, campaigns, registrations, qr-meter (paneles propios), promotion (Difusión), support (Contacto) ' +
-      'y logout (Cerrar sesión). Solo orienta: no ve ni puede afirmar qué iniciativas, perfil, pagos o estado de Mercado Pago tiene la ' +
+      'Guía de Rifex para orientar sobre el menú interno, la cuenta y los pagos: dónde está cada función, cómo llegar y el enlace. ' +
+      'Un tema por consulta, de una lista cerrada: account-panel (Mis iniciativas, inicio de la cuenta), profile (qué es el Perfil), ' +
+      'profile-edit (cómo editarlo), profile-fields (qué datos pide), banks-payments (para qué sirve Bancos & Pagos), mp-connect ' +
+      '(conectar Mercado Pago para recibir cobros), collect-vs-pay (cobrar con Rifex vs pagar una compra), payment-methods (medios ' +
+      'de pago; no hay conexión bancaria directa), payment-security (seguridad de pagos y credenciales), mp-required (por qué Eventos y ' +
+      'Campañas requieren Mercado Pago), mp-not-required (módulos sin Mercado Pago), events, campaigns, registrations, qr-meter ' +
+      '(paneles propios), promotion (Difusión), support (Contacto) y logout (dónde está Cerrar sesión). Solo orienta: no ve ni puede afirmar qué iniciativas, perfil, pagos o estado de Mercado Pago tiene la ' +
       'persona, no actúa por ella, no cierra sesión y no muestra datos de otras cuentas. Ante una pregunta por un dato privado, indica ' +
       'dónde revisarlo la propia persona y repite safety_notice cuando venga.',
     inputSchema: obj(
