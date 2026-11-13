@@ -178,8 +178,12 @@ test('AYUDA 8: cada afirmación de pagos y perfil está respaldada por el códig
   assert.match(mp, /new Preference\(mpClient\)/);
   assert.match(mp, /init_point/);
   assert.doesNotMatch(mp, /payment_methods|excluded_payment_types/);
-  // Comisión 7% descontada por Mercado Pago (FAQ público) y acreditación al organizador (Seguridad).
-  assert.match(read('src/pages/preguntas-frecuentes.js'), /comisión única del 7%[\s\S]*descontada automáticamente por\s+Mercado Pago/);
+  // Comisión descontada por Mercado Pago (FAQ público, texto desde la fuente
+  // central en ambos modos) y acreditación al organizador (Seguridad).
+  assert.match(read('src/pages/preguntas-frecuentes.js'), /\{commission\.faqAnswer\}/);
+  const policy = read('src/lib/commissionPolicy.js');
+  assert.match(policy, /faqAnswer:\s+'Una comisión única del 7%[\s\S]*?descontada automáticamente por Mercado Pago/);
+  assert.match(policy, /faqAnswer:\s+'Comisión de lanzamiento: solo 1 %[\s\S]*?descontado automáticamente por Mercado Pago/);
   assert.match(read('src/pages/seguridad.js'), /se acreditan en la cuenta del\s+organizador/);
   // Perfil: nombre hasta 80, «Sobre mí» hasta 280 (servidor), ambos opcionales; foto PNG, JPG o WebP.
   const upd = read('src/pages/api/profile/update.js');

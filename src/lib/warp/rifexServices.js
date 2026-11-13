@@ -8,8 +8,9 @@
 //
 // Rifas no se ofrece mediante el asistente y no forma parte de esta lista.
 import { publicOrigin } from './publicOrigin.js';
+import { publicCommission } from '../commissionPolicy.js';
 
-export const SERVICES_VERSION = '2026-11-11';
+export const SERVICES_VERSION = '2026-11-13';
 
 const SERVICES = Object.freeze([
   {
@@ -18,7 +19,7 @@ const SERVICES = Object.freeze([
     summary:
       'Crea un evento, vende entradas con distintos precios y cupos, entrega un código QR por entrada y controla el ingreso escaneando con el celular.',
     when_to_use: 'Cualquier actividad que necesite vender entradas y controlar quién ingresa.',
-    pricing: 'Sin costo por publicar ni mensualidad. Comisión de Rifex del 7% solo sobre ventas efectivamente cobradas.',
+    pricing: '{{EVENTS_PRICING}}',
     requires_mercado_pago: true,
     mercado_pago_note: 'Necesitas conectar tu cuenta de Mercado Pago: los pagos de tus compradores se acreditan directamente en ella.',
     uses_qr: true,
@@ -33,7 +34,7 @@ const SERVICES = Object.freeze([
     summary:
       'Crea una campaña de recaudación, cuenta tu causa con fotos, compártela con un link o QR y recibe aportes libres o sugeridos.',
     when_to_use: 'Cualquier causa que necesite reunir aportes de forma simple y transparente.',
-    pricing: 'Sin costo por publicar ni mensualidad. Comisión de Rifex del 7% solo sobre aportes exitosos.',
+    pricing: '{{CAMPAIGNS_PRICING}}',
     requires_mercado_pago: true,
     mercado_pago_note: 'Necesitas conectar tu cuenta de Mercado Pago: los aportes se acreditan directamente en ella. Quien aporta no necesita cuenta en Rifex.',
     uses_qr: true,
@@ -73,9 +74,18 @@ const SERVICES = Object.freeze([
 
 export function listServices() {
   const base = publicOrigin();
+  // Comisión desde la fuente central (src/lib/commissionPolicy.js), según el
+  // ambiente del servidor.
+  const c = publicCommission();
+  const pricing = { '{{EVENTS_PRICING}}': c.eventsPricing, '{{CAMPAIGNS_PRICING}}': c.campaignsPricing };
   return {
     version: SERVICES_VERSION,
-    commission_note: 'Rifex cobra una comisión única del 7% solo cuando existe una venta o aporte exitoso. Sin planes, mensualidad ni cobro por publicar.',
-    items: SERVICES.map(({ url_path, create_path, ...s }) => ({ ...s, url: `${base}${url_path}`, create_url: `${base}${create_path}` })),
+    commission_note: c.assistantNote,
+    items: SERVICES.map(({ url_path, create_path, ...s }) => ({
+      ...s,
+      pricing: pricing[s.pricing] || s.pricing,
+      url: `${base}${url_path}`,
+      create_url: `${base}${create_path}`,
+    })),
   };
 }

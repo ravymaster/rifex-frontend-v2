@@ -15,8 +15,9 @@
 // fuera del asistente), herramientas internas, rutas con identificadores
 // privados o tokens, y opciones que un usuario normal no ve.
 import { publicOrigin } from './publicOrigin.js';
+import { publicCommission } from '../commissionPolicy.js';
 
-export const HELP_VERSION = '2026-11-12b';
+export const HELP_VERSION = '2026-11-13';
 export const HELP_FIELDS = Object.freeze(['title', 'summary', 'steps', 'url', 'requires_session', 'safety_notice']);
 
 const OPEN_ACCOUNT_MENU =
@@ -90,7 +91,7 @@ const TOPICS = Object.freeze({
     session: false,
     title: 'Cobrar con Rifex y pagar una compra',
     summary:
-      'Cobrar: como organizador, recibes en tu propia cuenta de Mercado Pago, conectada en Bancos & Pagos, lo que pagan por tus entradas y lo que aportan a tus campañas; Rifex descuenta una comisión del 7% al momento del pago. Pagar: quien compra una entrada o aporta paga en la página de Mercado Pago al momento de comprar o aportar, y no conecta nada en Bancos & Pagos.',
+      'Cobrar: como organizador, recibes en tu propia cuenta de Mercado Pago, conectada en Bancos & Pagos, lo que pagan por tus entradas y lo que aportan a tus campañas; {{COMMISSION_COLLECT}} Pagar: quien compra una entrada o aporta paga en la página de Mercado Pago al momento de comprar o aportar, y no conecta nada en Bancos & Pagos.',
     steps: ['Si vas a cobrar, conecta Mercado Pago en Bancos & Pagos con el botón «Conectar».', 'Si vas a pagar, sigue el botón de compra o aporte de la iniciativa: el pago se completa en Mercado Pago.'],
     path: '/preguntas-frecuentes',
     safety_notice: CREDENTIALS_NOTE,
@@ -193,7 +194,8 @@ export function readHelp({ topic } = {}) {
   if (!t) return null;
   return {
     title: t.title,
-    summary: t.summary,
+    // La comisión se toma de la fuente central (src/lib/commissionPolicy.js).
+    summary: t.summary.replace('{{COMMISSION_COLLECT}}', publicCommission().assistantCollect),
     steps: [...t.steps],
     url: t.path ? `${publicOrigin()}${t.path}` : null,
     requires_session: t.session !== false,
