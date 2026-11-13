@@ -8,14 +8,15 @@
 // certificado en el resto de las páginas públicas de Etapa 2.
 import Layout from '@/components/Layout';
 import styles from '@/styles/planes.module.css';
+import { commissionStaticProps } from '@/lib/commissionPolicy';
 
-export default function Planes() {
+export default function Planes({ commission }) {
   const incluido = [
     'Eventos y entradas digitales',
     'Campañas de recaudación',
     'Cobro mediante tu cuenta conectada con el proveedor de pagos',
     'Sin monto fijo ni mensualidad',
-    'La comisión solo se cobra cuando existe una venta o aporte exitoso',
+    commission.planFeature,
   ];
 
   return (
@@ -29,14 +30,10 @@ export default function Planes() {
 
           <div className={styles.grid}>
             <article className={`${styles.card} ${styles.cardHi}`} style={{ gridColumn: '1 / -1', maxWidth: 480, margin: '0 auto' }}>
-              <div className={styles.badge}>Único modelo</div>
-              <h2 className={styles.planName}>7% por venta o aporte exitoso</h2>
+              <div className={styles.badge}>{commission.planBadge}</div>
+              <h2 className={styles.planName}>{commission.planName}</h2>
               <div className={styles.price}>$0 por publicar · $0 mensualidad</div>
-              <p className={styles.desc}>
-                Rifex cobra 7% únicamente cuando consigues una venta o aporte exitoso.
-                No hay mensualidad, suscripción ni cobro por publicar — se descuenta
-                automáticamente por tu proveedor de pagos en cada operación aprobada.
-              </p>
+              <p className={styles.desc}>{commission.planDesc}</p>
               <ul className={styles.features}>
                 {incluido.map((f, i) => <li key={i}>✔ {f}</li>)}
               </ul>
@@ -75,9 +72,16 @@ export default function Planes() {
 Planes.getLayout = (page) => (
   <Layout
     title="Comisión — Rifex"
-    description="Rifex cobra una comisión única del 7% por venta o aporte exitoso. Sin planes, sin mensualidad, sin cobro por publicar."
+    description={page.props.commission.metaDescription}
     canonicalPath="/planes"
   >
     {page}
   </Layout>
 );
+
+
+// Comisión desde la fuente central (src/lib/commissionPolicy.js), leída en el
+// servidor al construir la página; el navegador solo recibe el texto.
+export function getStaticProps() {
+  return commissionStaticProps();
+}

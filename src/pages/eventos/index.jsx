@@ -6,7 +6,7 @@
 // ese archivo). PSCG: PUBLIC_INDEXABLE, sin cambio de categoría.
 // Contenido auditado contra el código real (crear-evento.jsx,
 // eventos/[id].jsx, panel/eventos/[id].jsx, panel/eventos/[id]/scanner.jsx,
-// eventStaffAuth.js, eventAnalyticsWorkbook.js, platformFee.js) — ninguna
+// eventStaffAuth.js, eventAnalyticsWorkbook.js, commissionPolicy.js) — ninguna
 // capacidad inventada.
 //
 // El catálogo real de eventos publicados (EVENT-1 Fase 11, GET
@@ -31,6 +31,7 @@ import {
 } from '@/components/product/ProductSections';
 import { buildServiceJsonLd, buildFaqJsonLd } from '@/lib/productJsonLd';
 import { canonicalUrl } from '@/lib/publicMetadata';
+import { commissionStaticProps } from '@/lib/commissionPolicy';
 
 const ACCENT = '#23B6C6'; // --turquesa
 
@@ -73,7 +74,6 @@ const SECURITY = [
   'Los pagos se procesan mediante tu propia cuenta de Mercado Pago conectada — Rifex nunca retiene tus fondos.',
   'El aforo se valida en el servidor: la suma de entradas de todos los tipos nunca puede superar el límite que definiste.',
   'Cada código QR corresponde a una sola entrada real — el sistema detecta e informa un segundo intento de uso.',
-  'La comisión de servicio de Rifex es del 7%, aplicada solo sobre ventas efectivamente cobradas.',
 ];
 
 const FAQ = [
@@ -84,14 +84,19 @@ const FAQ = [
   { q: '¿Puedo saber cuánta gente asistió realmente?', a: 'Sí, el panel del evento muestra en vivo cuántas entradas fueron ingresadas (check-in) frente al total vendido, y puedes descargarlo en Excel.' },
 ];
 
-export default function EventosPage() {
+export default function EventosPage({ commission }) {
+  // Comisión desde la fuente central (servidor, getStaticProps).
+  const security = [...SECURITY, commission.eventsSecurityLine];
+  const faq = commission.promotional
+    ? [...FAQ, { q: '¿Cuánto cobra Rifex por vender entradas?', a: commission.statement }]
+    : FAQ;
   const url = canonicalUrl('/eventos');
   const serviceJsonLd = buildServiceJsonLd({
     name: 'Rifex Eventos',
     description: 'Crea eventos, vende entradas digitales con QR y controla el acceso con scanner desde el celular.',
     url,
   });
-  const faqJsonLd = buildFaqJsonLd(FAQ);
+  const faqJsonLd = buildFaqJsonLd(faq);
 
   return (
     <Layout
@@ -111,7 +116,7 @@ export default function EventosPage() {
           primaryCta={{ label: 'Crear un evento', href: '/crear-evento' }}
           chips={[
             { value: '100%', label: 'Entradas con QR individual' },
-            { value: '7%', label: 'Comisión de servicio' },
+            commission.chip,
             { value: '+1', label: 'Personal de acceso adicional' },
           ]}
         />
@@ -130,8 +135,8 @@ export default function EventosPage() {
           title="Lo que hace especial el control de acceso de Rifex"
           items={OPERATIONAL}
         />
-        <ProductSecurity title="Confianza y control" items={SECURITY} />
-        <ProductFaq title="Preguntas frecuentes" items={FAQ} />
+        <ProductSecurity title="Confianza y control" items={security} />
+        <ProductFaq title="Preguntas frecuentes" items={faq} />
         <ProductFinalCta
           title="Tu próximo evento, listo para vender entradas"
           subtitle="Crea tu evento en minutos y empieza a vender entradas con QR."
@@ -140,4 +145,11 @@ export default function EventosPage() {
       </ProductPage>
     </Layout>
   );
+}
+
+
+// Comisión desde la fuente central (src/lib/commissionPolicy.js), leída en el
+// servidor al construir la página; el navegador solo recibe el texto.
+export function getStaticProps() {
+  return commissionStaticProps();
 }

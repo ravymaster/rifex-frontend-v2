@@ -9,8 +9,9 @@
 // y #cookies se conservan aquí sin cambios porque ConsentBanner.jsx y
 // registro/continuar.jsx dependen de esos anchors exactos.
 import Layout from "@/components/Layout";
+import { commissionStaticProps } from "@/lib/commissionPolicy";
 
-export default function Terminos() {
+export default function Terminos({ commission }) {
   return (
     <>
       <main style={{maxWidth:900, margin:"0 auto", padding:"24px 16px"}}>
@@ -74,7 +75,7 @@ export default function Terminos() {
           <h2>Pagos y comisión</h2>
           <ol>
             <li><strong>Procesamiento.</strong> Los pagos se procesan mediante el proveedor de pagos conectado por el organizador (Mercado Pago). Los fondos se acreditan directo en la cuenta del organizador, descontada la comisión de Rifex.</li>
-            <li><strong>Comisión.</strong> Rifex cobra una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por el proveedor de pagos al momento del pago. No hay planes, suscripciones ni cobro por publicar — ver <a href="/planes">Comisión</a>.</li>
+            <li><strong>Comisión.</strong> {commission.termsClause} — ver <a href="/planes">Comisión</a>.</li>
             <li><strong>Tarifas del proveedor.</strong> El proveedor de pagos puede aplicar sus propias tarifas de procesamiento o retiro, independientes de la comisión de Rifex.</li>
           </ol>
         </section>
@@ -149,3 +150,10 @@ Terminos.getLayout = (page) => (
     {page}
   </Layout>
 );
+
+
+// Comisión desde la fuente central (src/lib/commissionPolicy.js), leída en el
+// servidor al construir la página; el navegador solo recibe el texto.
+export function getStaticProps() {
+  return commissionStaticProps();
+}

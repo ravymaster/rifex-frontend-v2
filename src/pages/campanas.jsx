@@ -22,6 +22,7 @@ import {
 } from '@/components/product/ProductSections';
 import { buildServiceJsonLd, buildFaqJsonLd } from '@/lib/productJsonLd';
 import { canonicalUrl } from '@/lib/publicMetadata';
+import { commissionStaticProps } from '@/lib/commissionPolicy';
 
 const ACCENT = '#18A957'; // --trebol
 
@@ -74,14 +75,20 @@ const FAQ = [
   { q: '¿Cómo comparto mi campaña?', a: 'Desde tu panel puedes copiar el link público o descargar el código QR de tu campaña.' },
 ];
 
-export default function CampanasLanding() {
+export default function CampanasLanding({ commission }) {
+  // Comisión desde la fuente central (servidor, getStaticProps). En modo
+  // estándar la página queda igual que antes.
+  const security = commission.promotional ? [...SECURITY, commission.campaignsPricing] : SECURITY;
+  const faq = commission.promotional
+    ? [...FAQ, { q: '¿Cuánto cobra Rifex por los aportes?', a: commission.statement }]
+    : FAQ;
   const url = canonicalUrl('/campanas');
   const serviceJsonLd = buildServiceJsonLd({
     name: 'Rifex Campañas',
     description: 'Crea una campaña de recaudación, compártela con un link o QR y recibe aportes directamente en tu cuenta.',
     url,
   });
-  const faqJsonLd = buildFaqJsonLd(FAQ);
+  const faqJsonLd = buildFaqJsonLd(faq);
 
   return (
     <Layout
@@ -117,8 +124,8 @@ export default function CampanasLanding() {
           items={USE_CASES}
         />
         <ProductOperational title="Comparte tu campaña donde quieras" items={OPERATIONAL} />
-        <ProductSecurity title="Confianza y control" items={SECURITY} />
-        <ProductFaq title="Preguntas frecuentes" items={FAQ} />
+        <ProductSecurity title="Confianza y control" items={security} />
+        <ProductFaq title="Preguntas frecuentes" items={faq} />
         <ProductFinalCta
           title="Tu causa merece ser contada"
           subtitle="Crea tu campaña en minutos y empieza a compartirla hoy mismo."
@@ -127,4 +134,11 @@ export default function CampanasLanding() {
       </ProductPage>
     </Layout>
   );
+}
+
+
+// Comisión desde la fuente central (src/lib/commissionPolicy.js), leída en el
+// servidor al construir la página; el navegador solo recibe el texto.
+export function getStaticProps() {
+  return commissionStaticProps();
 }

@@ -5,8 +5,9 @@
 // área autenticada y en /reglas-iniciativas-premio (anexo específico).
 import Head from "next/head";
 import Layout from "@/components/Layout";
+import { commissionStaticProps } from "@/lib/commissionPolicy";
 
-export default function PreguntasFrecuentes() {
+export default function PreguntasFrecuentes({ commission }) {
   return (
     <>
       <Head><title>Preguntas frecuentes — Rifex</title></Head>
@@ -63,8 +64,7 @@ export default function PreguntasFrecuentes() {
         <section>
           <h2>¿Cuánto cobra Rifex?</h2>
           <p>
-            Una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por
-            Mercado Pago al momento del pago — no hay planes ni suscripciones. Más detalle en{" "}
+            {commission.faqAnswer} Más detalle en{" "}
             <a href="/planes">Comisión</a>.
           </p>
         </section>
@@ -104,3 +104,10 @@ PreguntasFrecuentes.getLayout = (page) => (
     {page}
   </Layout>
 );
+
+
+// Comisión desde la fuente central (src/lib/commissionPolicy.js), leída en el
+// servidor al construir la página; el navegador solo recibe el texto.
+export function getStaticProps() {
+  return commissionStaticProps();
+}
