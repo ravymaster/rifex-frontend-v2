@@ -1,6 +1,6 @@
 // src/pages/api/checkout/colecta.js
 // Hermano de checkout/mp.js — mismo patrón (token del vendedor, marketplace_fee
-// 7%, metadata inequívoca), archivo propio, sin tocar el original. No procesa
+// desde src/lib/commissionPolicy.js, metadata inequívoca), archivo propio, sin tocar el original. No procesa
 // el webhook (eso es C5) ni marca nada como aprobado — solo crea la intención
 // de aporte (pending) y la preference de MP.
 import { createClient } from "@supabase/supabase-js";
@@ -8,7 +8,7 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import { isAcceptingContributions } from "@/lib/colectaStatus";
 import { assertCountryGate } from "@/lib/countryGate";
 import { resolveAdapterForSeller } from "@/lib/paymentEngine/engine";
-import { computePlatformFeeMinor } from "@/lib/paymentEngine/feePolicy";
+import { commissionBpsFor, computeCommission } from "@/lib/commissionPolicy";
 import { createPaymentIntent } from "@/lib/paymentEngine/contracts";
 import { resolveFallbackDecision } from "@/lib/paymentEngine/fallbackPolicy";
 import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
@@ -21,7 +21,6 @@ const supabase = createClient(url, service || anon, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const RIFEX_FEE_RATE = 0.07;
 const MIN_AMOUNT_CLP = 500;
 const MAX_AMOUNT_CLP = 10_000_000;
 
@@ -180,10 +179,11 @@ export default async function handler(req, res) {
       console.warn("[checkout/colecta][payment-engine] fallback a legado CL:", routed.reason);
     }
 
-    const engineFee = computePlatformFeeMinor(amount, engineCountry || "CL", providerId);
-    const marketplaceFee = engineFee != null
-      ? engineFee
-      : Math.max(0, Math.min(Math.floor(amount * RIFEX_FEE_RATE), amount)); // fallback exacto, no debería ejecutarse hoy para CL
+    // Comisión desde la fuente central, decidida en el servidor (nunca del
+    // cliente). Se guarda en el aporte (marketplace_fee_cents) y el webhook y
+    // la conciliación reutilizan ese valor o el informado por Mercado Pago.
+    const feeBps = commissionBpsFor("campaigns");
+    const marketplaceFee = computeCommission(amount, feeBps);
 
     try {
       createPaymentIntent({
@@ -221,6 +221,7 @@ export default async function handler(req, res) {
         colecta_id: String(colecta.id),
         contribution_id: String(contribution.id),
         marketplace_fee: marketplaceFee,
+        platform_fee_bps: feeBps,
       },
     };
 
