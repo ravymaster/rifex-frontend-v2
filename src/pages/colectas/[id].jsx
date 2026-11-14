@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/colectaPublica.module.css';
 import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
+import { parseClpPesos } from '@/lib/clpAmount';
 
 const SUGGESTED_AMOUNTS = [1000, 2000, 5000, 10000, 50000, 100000];
 const isValidEmail = (s) => typeof s === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim());
@@ -35,6 +36,8 @@ export default function ColectaPublica() {
 
   const [selectedAmount, setSelectedAmount] = useState(null);
   const [customAmount, setCustomAmount] = useState('');
+  // Validación del monto libre mientras se escribe (pesos completos, $500 a $10.000.000).
+  const customCheck = customAmount.trim() ? parseClpPesos(customAmount.trim(), { min: 500, max: 10_000_000 }) : null;
   const [useCustom, setUseCustom] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -49,11 +52,18 @@ export default function ColectaPublica() {
 
   async function onContribute() {
     setHelpErr('');
-    const amount = useCustom ? Math.round(Number(customAmount)) : selectedAmount;
-    if (!amount || !Number.isFinite(amount) || amount < 500) {
-      setHelpErr('Elegí un monto válido (mínimo $500).');
+    // Pesos chilenos completos, mínimo $500: un decimal se rechaza, nunca se
+    // redondea. El servidor vuelve a validar (src/lib/clpAmount.js).
+    if (!useCustom && selectedAmount == null) {
+      setHelpErr('Elige un monto (mínimo $500).');
       return;
     }
+    const parsed = useCustom ? parseClpPesos(customAmount.trim(), { min: 500, max: 10_000_000 }) : parseClpPesos(selectedAmount, { min: 500, max: 10_000_000 });
+    if (!parsed.ok) {
+      setHelpErr(parsed.message);
+      return;
+    }
+    const amount = parsed.pesos;
     if (!name.trim()) { setHelpErr('Poné tu nombre.'); return; }
     if (!isValidEmail(email)) { setHelpErr('Ese email no parece válido.'); return; }
 
@@ -71,7 +81,7 @@ export default function ColectaPublica() {
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data?.ok) throw new Error(data?.error || 'No se pudo iniciar el aporte.');
+      if (!res.ok || !data?.ok) throw new Error(data?.message || data?.error || 'No se pudo iniciar el aporte.');
       window.location.href = data.url;
     } catch (e) {
       setHelpErr(e?.message || 'No se pudo iniciar el aporte.');
@@ -149,15 +159,27 @@ export default function ColectaPublica() {
 
       {useCustom && (
         <div className={styles.helpField}>
-          <label>Monto (CLP)</label>
+          <label htmlFor="custom-amount">Monto en pesos completos (CLP)</label>
           <input
+            id="custom-amount"
             className="input"
-            type="number"
-            min="500"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            autoComplete="off"
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
+            aria-invalid={customCheck ? !customCheck.ok : false}
+            aria-describedby="custom-amount-hint"
             placeholder="Ej: 15000"
           />
+          <span id="custom-amount-hint" role={customCheck && !customCheck.ok ? 'alert' : undefined} style={{ display: 'block', fontSize: 12.5, marginTop: 4, color: customCheck && !customCheck.ok ? '#b91c1c' : '#475569' }}>
+            {!customCheck
+              ? 'Mínimo $500, sin decimales.'
+              : customCheck.ok
+                ? customCheck.pesos.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 })
+                : customCheck.message}
+          </span>
         </div>
       )}
 
