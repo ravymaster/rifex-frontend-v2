@@ -8,6 +8,7 @@ import { useRouter } from 'next/router';
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import styles from '@/styles/crearColecta.module.css';
+import { parseClpPesos } from '@/lib/clpAmount';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { resolveCreationGate } from '@/lib/creationGate';
 import { STATUS_LABEL_ES } from '@/lib/colectaStatus';
@@ -214,9 +215,10 @@ export default function CrearColecta() {
     e.preventDefault();
     if (!title.trim()) { setErr('Ponele un título a tu campaña.'); return; }
     if (!description.trim()) { setErr('Contá de qué se trata.'); return; }
-    if (goalClp.trim() && (!Number.isFinite(Number(goalClp)) || Number(goalClp) <= 0)) {
-      setErr('La meta tiene que ser un monto válido.'); return;
-    }
+    // Meta en pesos chilenos completos: un decimal se rechaza, nunca se
+    // redondea. El servidor vuelve a validar (src/lib/clpAmount.js).
+    const goal = goalClp.trim() ? parseClpPesos(goalClp.trim(), { min: 1 }) : null;
+    if (goal && !goal.ok) { setErr(goal.message); return; }
     if (!token) return;
 
     setSaving(true);
@@ -240,7 +242,7 @@ export default function CrearColecta() {
           cover_image_url: coverUrl,
           gallery_urls: galleryUrls,
           duration_days: durationDays,
-          goal_cents: goalClp.trim() ? Math.round(Number(goalClp) * 100) : null,
+          goal_cents: goal ? goal.cents : null,
         }),
       });
       const data = await res.json();
@@ -278,16 +280,21 @@ export default function CrearColecta() {
               </div>
 
               <div className={styles.field}>
-                <label>Meta de recaudación (opcional)</label>
+                <label htmlFor="goal-clp">Meta de recaudación en pesos completos (opcional)</label>
                 <input
+                  id="goal-clp"
                   className="input"
-                  type="number"
-                  min="1"
-                  step="1"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="off"
                   value={goalClp}
                   onChange={(e) => setGoalClp(e.target.value)}
+                  aria-invalid={goalClp.trim() !== '' && !parseClpPesos(goalClp.trim(), { min: 1 }).ok}
+                  aria-describedby="goal-clp-hint"
                   placeholder="Ej: 1200000"
                 />
+                <ClpHint id="goal-clp-hint" value={goalClp} min={1} />
                 <p className={styles.hint}>Si la dejás vacía, la campaña queda como aporte libre: se muestra el recaudado pero sin barra de progreso.</p>
               </div>
 
@@ -416,5 +423,17 @@ function GalleryThumb({ file, onRemove }) {
       {url && <img src={url} alt="" />}
       <button type="button" className={styles.previewRemove} onClick={onRemove} aria-label="Quitar foto">✕</button>
     </div>
+  );
+}
+
+// Ayuda bajo el campo de meta: monto en formato CLP o aviso de pesos completos.
+function ClpHint({ id, value, min }) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return <span id={id} hidden />;
+  const p = parseClpPesos(raw, { min });
+  return (
+    <span id={id} role={p.ok ? undefined : 'alert'} style={{ display: 'block', fontSize: 12.5, marginTop: 4, color: p.ok ? '#475569' : '#b91c1c' }}>
+      {p.ok ? p.pesos.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }) : p.message}
+    </span>
   );
 }

@@ -10,6 +10,7 @@ import Layout from '@/components/Layout';
 import styles from '@/styles/crearEvento.module.css';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 import { resolveCreationGate } from '@/lib/creationGate';
+import { parseClpPesos, parseStrictPositiveInt } from '@/lib/clpAmount';
 
 // AUTH UX 2026 — auth boundary real, mismo patrón que crear-rifa.jsx y
 // crear-colecta.jsx: sin esto, el formulario completo se renderizaba en
@@ -244,10 +245,15 @@ export default function CrearEvento() {
     const t = ticketTypes.find((x) => x.key === key);
     if (!t || !event) return;
     if (!t.name.trim()) { updateTicketType(key, { error: 'El nombre es obligatorio.' }); return; }
-    const priceCents = Math.round(Number(t.price_cents) * 100);
-    if (!Number.isFinite(priceCents) || priceCents < 0) { updateTicketType(key, { error: 'Precio inválido.' }); return; }
-    const quantityTotal = Math.round(Number(t.quantity_total));
-    if (!Number.isInteger(quantityTotal) || quantityTotal <= 0) { updateTicketType(key, { error: 'Cupo inválido.' }); return; }
+    // Pesos chilenos completos: un decimal se rechaza con un mensaje claro,
+    // nunca se redondea. El servidor vuelve a validar (src/lib/clpAmount.js).
+    const price = parseClpPesos(String(t.price_cents ?? '').trim(), { min: 0 });
+    if (!price.ok) { updateTicketType(key, { error: price.message }); return; }
+    const priceCents = price.cents;
+    const quantityTotal = parseStrictPositiveInt(String(t.quantity_total ?? '').trim());
+    if (quantityTotal == null) { updateTicketType(key, { error: 'Cupo inválido: usa un número entero mayor que 0.' }); return; }
+    const maxPerOrder = String(t.max_per_order ?? '').trim() === '' ? 10 : parseStrictPositiveInt(String(t.max_per_order).trim());
+    if (maxPerOrder == null) { updateTicketType(key, { error: 'Máximo por compra inválido: usa un número entero mayor que 0.' }); return; }
 
     updateTicketType(key, { saving: true, error: null });
     try {
@@ -260,11 +266,11 @@ export default function CrearEvento() {
           name: t.name.trim(),
           price_cents: priceCents,
           quantity_total: quantityTotal,
-          max_per_order: Math.round(Number(t.max_per_order)) || 10,
+          max_per_order: maxPerOrder,
         }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(EVENT_ERROR_LABEL[data.error] || data.error || 'No se pudo guardar el tipo de entrada');
+      if (!res.ok || !data.ok) throw new Error(data.message || EVENT_ERROR_LABEL[data.error] || data.error || 'No se pudo guardar el tipo de entrada');
       updateTicketType(key, { id: data.ticket_type.id, saving: false });
     } catch (e) {
       updateTicketType(key, { saving: false, error: e.message || 'No se pudo guardar' });
@@ -404,8 +410,21 @@ export default function CrearEvento() {
                     <input className={styles.input} value={t.name} onChange={(e) => updateTicketType(t.key, { name: e.target.value })} placeholder="Ej: General" />
                   </div>
                   <div className={styles.field}>
-                    <label className={styles.label}>Precio (CLP)</label>
-                    <input className={styles.input} type="number" min="0" value={t.price_cents} onChange={(e) => updateTicketType(t.key, { price_cents: e.target.value })} placeholder="5000" />
+                    <label className={styles.label} htmlFor={`price-${t.key}`}>Precio (CLP, pesos completos)</label>
+                    <input
+                      id={`price-${t.key}`}
+                      className={styles.input}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="off"
+                      value={t.price_cents}
+                      onChange={(e) => updateTicketType(t.key, { price_cents: e.target.value, error: null })}
+                      aria-invalid={String(t.price_cents ?? '').trim() !== '' && !parseClpPesos(String(t.price_cents).trim(), { min: 0 }).ok}
+                      aria-describedby={`price-hint-${t.key}`}
+                      placeholder="5000"
+                    />
+                    <ClpHint id={`price-hint-${t.key}`} value={t.price_cents} min={0} />
                   </div>
                 </div>
                 <div className={styles.row}>
@@ -439,5 +458,18 @@ export default function CrearEvento() {
         )}
       </div>
     </Layout>
+  );
+}
+
+// Ayuda bajo el campo de precio: muestra el monto en formato CLP o el aviso
+// de pesos completos mientras se escribe (la validación real es del servidor).
+function ClpHint({ id, value, min }) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return <span id={id} hidden />;
+  const p = parseClpPesos(raw, { min });
+  return (
+    <span id={id} role={p.ok ? undefined : 'alert'} style={{ display: 'block', fontSize: 12.5, marginTop: 4, color: p.ok ? '#475569' : '#b91c1c' }}>
+      {p.ok ? p.pesos.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }) : p.message}
+    </span>
   );
 }
