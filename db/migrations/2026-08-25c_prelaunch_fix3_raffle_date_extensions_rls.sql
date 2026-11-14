@@ -1,0 +1,29 @@
+-- PRE-LAUNCH-FIX-3: cierra un hallazgo real del Security Advisor de
+-- Supabase (rls_disabled_in_public, nivel ERROR — "Table publicly
+-- accessible", alertado por correo el 2026-08-23, confirmado por
+-- auditoría el 2026-08-25 vía `supabase db advisors` tanto en rifex-dev
+-- como en PROD).
+--
+-- public.raffle_date_extensions quedó sin RLS habilitada desde su
+-- creación original en DRAW-1 (2026-08-19_draw1_temporal_lifecycle.sql).
+-- legal_declarations, creada en el MISMO archivo y con el mismo perfil de
+-- acceso (auditoría, solo-escritura vía RPC service-role), sí recibió
+-- este hardening en PRE-LAUNCH-FIX-1
+-- (2026-08-23_prelaunch_fix1_ticket_integrity.sql, "P1-2") — esta tabla
+-- quedó fuera de esa pasada por omisión, no por diseño.
+--
+-- Evidencia de que el perfil de acceso es idéntico al de
+-- legal_declarations: ningún archivo bajo src/ lee ni escribe
+-- raffle_date_extensions directamente (confirmado por grep exhaustivo).
+-- El único escritor real es la función extend_raffle_draw()
+-- (2026-08-20_draw1b_atomic_rpcs.sql / 2026-08-22_draw1c_extension_max_days.sql),
+-- invocada siempre con el cliente service-role, que bypassa RLS por
+-- diseño — habilitar RLS acá no rompe ningún flujo real, exactamente
+-- como ya se demostró con legal_declarations.
+--
+-- Mismo criterio exacto que P1-2: sin políticas permisivas. Al habilitar
+-- RLS sin ninguna política, cualquier acceso vía anon/authenticated
+-- (SELECT/INSERT/UPDATE/DELETE) queda denegado por default; el único
+-- camino de escritura/lectura real sigue funcionando porque corre bajo
+-- service_role.
+alter table public.raffle_date_extensions enable row level security;
