@@ -23,16 +23,19 @@ const read = (p) => readFileSync(p, 'utf8');
 const LAUNCH = { RIFEX_COMMISSION_MODE: 'launch' };
 const STANDARD = {};
 
-// Réplica exacta (aritmética entera) de create_event_order:
-// floor(subtotal_cents * p_platform_fee_rate) con tope en el subtotal.
-// Postgres recibe la tasa como numeric exacto ("0.01"), por eso se modela
-// con enteros y no con flotantes.
+// Réplica literal (aritmética entera) de create_event_order_v2 (2026-11-13b):
+// ((subtotal_cents * bps + 999999) / 1000000) * 100, con tope en el subtotal.
 function sqlEventFeeCents(subtotalCents, bps) {
-  const raw = Math.floor((subtotalCents * bps) / 10000);
+  const raw = Math.floor((subtotalCents * bps + 999999) / 1000000) * 100;
   return Math.max(0, Math.min(raw, subtotalCents));
 }
-// Lo que events/[id]/checkout.js envía a Mercado Pago como marketplace_fee.
-const eventFeeClpSentToMp = (platformFeeCents) => Math.round(Number(platformFeeCents) / 100);
+// Lo que events/[id]/checkout.js envía a Mercado Pago: la comisión guardada
+// dividida por 100, sin redondear (debe ser entera).
+const eventFeeClpSentToMp = (platformFeeCents) => {
+  const v = Number(platformFeeCents) / 100;
+  assert.ok(Number.isInteger(v), `comisión no entera: ${platformFeeCents}`);
+  return v;
+};
 
 function eventOrder(items, bps) {
   const subtotal = items.reduce((acc, { priceClp, qty }) => acc + priceClp * 100 * qty, 0);
@@ -111,25 +114,24 @@ test('COMISIÓN 5: Eventos — varias entradas y distintos tipos en una orden', 
 });
 
 test('COMISIÓN 6: redondeo en pesos chilenos e importes mínimos', () => {
-  // Campañas: redondeo hacia abajo al peso; nunca supera el 1 %.
+  // Regla única: ceil(bruto * bps / 10000), una sola vez, en pesos completos.
   assert.equal(computeCommission(500, 100), 5); // mínimo de aporte en checkout/colecta.js
-  assert.equal(computeCommission(599, 100), 5);
-  assert.equal(computeCommission(99, 100), 0);
+  assert.equal(computeCommission(599, 100), 6);
+  assert.equal(computeCommission(99, 100), 1);
+  assert.equal(computeCommission(1, 100), 1);
   assert.equal(computeCommission(0, 100), 0);
-  for (let a = 500; a <= 20000; a += 37) {
-    const f = computeCommission(a, 100);
-    assert.ok(Number.isInteger(f) && f >= 0 && f * 100 <= a, `a=${a}`);
+  // Eventos y Campañas producen exactamente lo mismo para todo bruto entero.
+  for (let a = 0; a <= 50000; a += 7) {
+    for (const bps of [100, 700]) {
+      const camp = computeCommission(a, bps);
+      const ev = eventFeeClpSentToMp(eventOrder([{ priceClp: a, qty: 1 }], bps).platform_fee_cents);
+      assert.equal(ev, camp, `a=${a} bps=${bps}`);
+      // Nunca más de un peso sobre el porcentaje exacto, y nunca menos.
+      assert.ok(camp * 10000 >= a * bps && (camp - 1) * 10000 < a * bps, `a=${a}`);
+    }
   }
-  // Eventos: la orden guarda la comisión al centavo y Mercado Pago recibe el
-  // peso redondeado (comportamiento previo, solo cambia la tasa). Con precios
-  // múltiplos de $100 la comisión es exacta.
-  for (const price of [100, 500, 1000, 2500, 3000, 9900, 15000]) {
-    const o = eventOrder([{ priceClp: price, qty: 1 }], 100);
-    assert.equal(o.platform_fee_cents % 100, 0);
-    assert.equal(eventFeeClpSentToMp(o.platform_fee_cents), price / 100);
-  }
-  // Entradas de $1 o menos de $50: comisión 0 al peso.
-  assert.equal(eventFeeClpSentToMp(eventOrder([{ priceClp: 1, qty: 1 }], 100).platform_fee_cents), 0);
+  // $1 al 1 %: $0,01 → $1 (redondeo al peso superior, tope en el bruto).
+  assert.equal(eventFeeClpSentToMp(eventOrder([{ priceClp: 1, qty: 1 }], 100).platform_fee_cents), 1);
   assert.throws(() => computeCommission(-1, 100));
   assert.throws(() => computeCommission(10.5, 100));
 });
@@ -149,7 +151,7 @@ test('COMISIÓN 7: el cliente nunca envía ni altera el porcentaje', () => {
   assert.match(events, /p_platform_fee_bps: snapshot\.bps,\n\s+p_commission_policy: snapshot\.policy,/);
   assert.doesNotMatch(events, /PLATFORM_FEE_RATE|0\.07|req\.body\.(fee|marketplace|platform|commission|rate)/);
   // Mercado Pago recibe la comisión de la orden guardada.
-  assert.match(events, /const feeCLP = Math\.round\(Number\(order\.platform_fee_cents\) \/ 100\);/);
+  assert.match(events, /const feeCLP = Number\(order\.platform_fee_cents\) \/ 100;\n\s+if \(!Number\.isInteger\(feeCLP\)\) \{/);
   assert.match(events, /marketplace_fee: feeCLP,/);
 });
 
@@ -299,7 +301,8 @@ test('COMISIÓN 14: textos — modo estándar conserva exactamente los textos vi
   assert.equal(c.eventsSecurityLine, 'La comisión de servicio de Rifex es del 7%, aplicada solo sobre ventas efectivamente cobradas.');
   assert.equal(c.eventsPricing, 'Sin costo por publicar ni mensualidad. Comisión de Rifex del 7% solo sobre ventas efectivamente cobradas.');
   assert.equal(c.campaignsPricing, 'Sin costo por publicar ni mensualidad. Comisión de Rifex del 7% solo sobre aportes exitosos.');
-  assert.equal(c.assistantNote, 'Rifex cobra una comisión única del 7% solo cuando existe una venta o aporte exitoso. Sin planes, mensualidad ni cobro por publicar.');
+  // Única adición en modo estándar: la frase de redondeo en textos de detalle.
+  assert.equal(c.assistantNote, 'Rifex cobra una comisión única del 7% solo cuando existe una venta o aporte exitoso. Sin planes, mensualidad ni cobro por publicar. La comisión se calcula sobre el monto bruto cobrado y, cuando el resultado contiene una fracción de peso, se redondea al peso superior.');
   assert.equal(c.metaDescription, 'Rifex cobra una comisión única del 7% por venta o aporte exitoso. Sin planes, sin mensualidad, sin cobro por publicar.');
   assert.doesNotMatch(JSON.stringify(c), /lanzamiento|1 %/);
   // /campanas solo agrega textos en modo lanzamiento.

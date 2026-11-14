@@ -34,6 +34,7 @@ export default function Planes({ commission }) {
               <h2 className={styles.planName}>{commission.planName}</h2>
               <div className={styles.price}>$0 por publicar · $0 mensualidad</div>
               <p className={styles.desc}>{commission.planDesc}</p>
+              <p className={styles.desc}>{commission.roundingNote}</p>
               <ul className={styles.features}>
                 {incluido.map((f, i) => <li key={i}>✔ {f}</li>)}
               </ul>

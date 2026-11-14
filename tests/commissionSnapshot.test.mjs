@@ -10,6 +10,7 @@ import {
   contributionCommission,
   isValidSnapshot,
   computeCommission,
+  computeCommissionCents,
 } from '../src/lib/commissionPolicy.js';
 import { computeEventAnalyticsSummary } from '../src/lib/eventAnalytics.js';
 import { buildEventAnalyticsWorkbook } from '../src/lib/eventAnalyticsWorkbook.js';
@@ -25,10 +26,15 @@ function createEventOrderV2(items, snapshot) {
   if (!Number.isInteger(snapshot.bps) || snapshot.bps < 0 || snapshot.bps > 10000) throw new Error('invalid_platform_fee_bps');
   if (!/^[a-z][a-z0-9_-]{0,31}$/.test(String(snapshot.policy ?? ''))) throw new Error('invalid_commission_policy');
   const subtotal = items.reduce((a, { priceClp, qty }) => a + priceClp * 100 * qty, 0);
-  const fee = Math.min(Math.floor((subtotal * snapshot.bps) / 10000), subtotal);
+  // Réplica literal de 2026-11-13b: pesos completos, redondeo hacia arriba.
+  const fee = Math.min(Math.floor((subtotal * snapshot.bps + 999999) / 1000000) * 100, subtotal);
   return { subtotal_cents: subtotal, total_cents: subtotal, platform_fee_cents: fee, platform_fee_bps: snapshot.bps, commission_policy: snapshot.policy };
 }
-const mpFeeFromOrder = (o) => Math.round(Number(o.platform_fee_cents) / 100);
+const mpFeeFromOrder = (o) => {
+  const v = Number(o.platform_fee_cents) / 100;
+  assert.ok(Number.isInteger(v), `comisión no entera: ${o.platform_fee_cents}`);
+  return v;
+};
 
 // Fila de aporte como la inserta checkout/colecta.js.
 function insertContribution(amountClp, env) {
@@ -114,25 +120,41 @@ test('SNAPSHOT 5: Eventos y Campañas — $3.000/$30.000/$300.000 → 100 bps, l
   }
 });
 
-test('SNAPSHOT 6: redondeo — $3.050 al 1 %, mínimos, varias entradas y tipos distintos', () => {
-  // Campañas: piso al peso → $30.
-  assert.equal(insertContribution(3050, LAUNCH).marketplace_fee_cents, 3000);
-  // Eventos: la orden guarda 3.050 centavos ($30,50) y Mercado Pago recibe
-  // $31 (redondeo existente del checkout, sin cambio en esta versión).
-  const o = createEventOrderV2([{ priceClp: 3050, qty: 1 }], { bps: 100, policy: 'launch' });
-  assert.equal(o.platform_fee_cents, 3050);
+test('SNAPSHOT 6: redondeo único hacia arriba — $3.050 → $31 (1 %) y $214 (7 %), en Eventos y Campañas', () => {
+  const L = { bps: 100, policy: 'launch' };
+  const STD = { bps: 700, policy: 'standard' };
+  // $3.050 al 1 %: $30,50 → $31 en ambos módulos, guardado y enviado igual.
+  const o = createEventOrderV2([{ priceClp: 3050, qty: 1 }], L);
+  assert.equal(o.platform_fee_cents, 3100);
   assert.equal(mpFeeFromOrder(o), 31);
-  // Mínimo de aporte ($500) → $5.
+  assert.equal(insertContribution(3050, LAUNCH).marketplace_fee_cents, 3100);
+  // $3.050 al 7 %: $213,50 → $214.
+  const o7 = createEventOrderV2([{ priceClp: 3050, qty: 1 }], STD);
+  assert.equal(mpFeeFromOrder(o7), 214);
+  assert.equal(insertContribution(3050, STANDARD).marketplace_fee_cents, 21400);
+  // Mínimo de aporte ($500) → $5 (1 %) y $35 (7 %).
   assert.equal(insertContribution(500, LAUNCH).marketplace_fee_cents, 500);
+  assert.equal(insertContribution(500, STANDARD).marketplace_fee_cents, 3500);
   // Varias entradas de distintos tipos: 2 × $3.000 + 1 × $24.000 = $30.000 → $300.
-  const multi = createEventOrderV2([{ priceClp: 3000, qty: 2 }, { priceClp: 24000, qty: 1 }], { bps: 100, policy: 'launch' });
+  const multi = createEventOrderV2([{ priceClp: 3000, qty: 2 }, { priceClp: 24000, qty: 1 }], L);
   assert.equal(mpFeeFromOrder(multi), 300);
   assert.equal(multi.platform_fee_bps, 100);
-  // Equivalencia con la fórmula original (floor(subtotal * tasa numérica)).
+  // Total primero, redondeo una sola vez: 3 × $1.050 = $3.150 → $31,50 → $32.
+  // Por entrada serían 3 × ceil($10,50) = $33: NO es la regla.
+  const same = createEventOrderV2([{ priceClp: 1050, qty: 3 }], L);
+  assert.equal(mpFeeFromOrder(same), 32);
+  assert.notEqual(mpFeeFromOrder(same), 3 * Math.ceil(1050 / 100));
+  // Tipos distintos: $1.050 + $2.050 = $3.100 → $31 (por entrada serían $11 + $21 = $32).
+  const mixed = createEventOrderV2([{ priceClp: 1050, qty: 1 }, { priceClp: 2050, qty: 1 }], L);
+  assert.equal(mpFeeFromOrder(mixed), 31);
+  // La réplica SQL y la función central coinciden en todo el rango.
   for (let cents = 0; cents <= 5_000_000; cents += 1_337) {
     for (const bps of [100, 700]) {
-      assert.equal(Math.floor((cents * bps) / 10000), Math.floor(cents * (bps / 10000) + 1e-9), `${cents}/${bps}`);
+      assert.equal(computeCommissionCents(cents, bps), Math.min(Math.floor((cents * bps + 999999) / 1000000) * 100, cents), `${cents}/${bps}`);
     }
+  }
+  for (let clp = 0; clp <= 50_000; clp += 13) {
+    for (const bps of [100, 700]) assert.equal(computeCommissionCents(clp * 100, bps), computeCommission(clp, bps) * 100);
   }
 });
 
@@ -183,7 +205,8 @@ test('SNAPSHOT 9: el navegador no puede enviar ni alterar la tasa (700, 0 o 1000
   assert.match(events, /p_platform_fee_bps: snapshot\.bps,\n\s+p_commission_policy: snapshot\.policy,/);
   assert.doesNotMatch(events, /"create_event_order",|p_platform_fee_rate/);
   // Mercado Pago recibe la comisión guardada en la orden.
-  assert.match(events, /const feeCLP = Math\.round\(Number\(order\.platform_fee_cents\) \/ 100\);/);
+  assert.match(events, /const feeCLP = Number\(order\.platform_fee_cents\) \/ 100;\n\s+if \(!Number\.isInteger\(feeCLP\)\) \{/);
+  assert.doesNotMatch(events, /Math\.round\(Number\(order\.platform_fee_cents\)/);
   assert.match(events, /platform_fee_bps: order\.platform_fee_bps,\n\s+commission_policy: order\.commission_policy,/);
   // Campañas: snapshot en el insert; reintento reutiliza; bruto desde la fila.
   assert.match(colecta, /commission = contributionCommission\(contribution, Math\.round\(contribution\.amount_cents \/ 100\)\);/);

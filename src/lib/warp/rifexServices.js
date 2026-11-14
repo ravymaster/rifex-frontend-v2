@@ -10,7 +10,7 @@
 import { publicOrigin } from './publicOrigin.js';
 import { publicCommission } from '../commissionPolicy.js';
 
-export const SERVICES_VERSION = '2026-11-13';
+export const SERVICES_VERSION = '2026-11-13b';
 
 const SERVICES = Object.freeze([
   {
