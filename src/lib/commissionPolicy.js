@@ -72,15 +72,33 @@ export function bpsToRate(bps) {
   return bps / BPS_DENOMINATOR;
 }
 
-// Comisión en la unidad entera recibida (pesos CLP en Campañas). Redondeo
-// hacia abajo y tope en el monto: la comisión nunca supera la tasa anunciada.
-export function computeCommission(amount, bps) {
+// REGLA ÚNICA DE COMISIÓN (Eventos y Campañas):
+//   comisión_clp = ceil(bruto_clp * bps / 10000)
+// Se calcula sobre el bruto TOTAL de la operación (nunca por entrada) y se
+// redondea UNA sola vez hacia arriba al peso completo. Aritmética entera:
+// ceil(a / b) = floor((a + b - 1) / b) con a, b >= 0. Tope en el bruto.
+// El resultado es exactamente lo que se guarda y lo que recibe Mercado Pago.
+export function computeCommission(grossClp, bps) {
   assertBps(bps);
-  if (!Number.isInteger(amount) || amount < 0) {
-    throw new Error('computeCommission: amount debe ser entero >= 0');
+  if (!Number.isInteger(grossClp) || grossClp < 0) {
+    throw new Error('computeCommission: grossClp debe ser entero >= 0');
   }
-  const raw = Math.floor((amount * bps) / BPS_DENOMINATOR);
-  return Math.max(0, Math.min(raw, amount));
+  const raw = Math.floor((grossClp * bps + (BPS_DENOMINATOR - 1)) / BPS_DENOMINATOR);
+  return Math.min(raw, grossClp);
+}
+
+// Misma regla para un bruto guardado en centavos (event_orders.subtotal_cents,
+// colecta_contributions.amount_cents): devuelve la comisión en centavos,
+// siempre un múltiplo exacto de 100 (pesos completos). Es la réplica exacta
+// de create_event_order_v2 (migración 2026-11-13b).
+export function computeCommissionCents(grossCents, bps) {
+  assertBps(bps);
+  if (!Number.isInteger(grossCents) || grossCents < 0) {
+    throw new Error('computeCommissionCents: grossCents debe ser entero >= 0');
+  }
+  const DEN = BPS_DENOMINATOR * 100;
+  const feeClp = Math.floor((grossCents * bps + (DEN - 1)) / DEN);
+  return Math.min(feeClp * 100, grossCents);
 }
 
 function assertBps(bps) {
@@ -95,6 +113,9 @@ export function formatPercent(bps, { spaced = false } = {}) {
   const s = Number.isInteger(n) ? String(n) : String(n).replace('.', ',');
   return spaced ? `${s} %` : `${s}%`;
 }
+
+export const ROUNDING_NOTE =
+  'La comisión se calcula sobre el monto bruto cobrado y, cuando el resultado contiene una fracción de peso, se redondea al peso superior.';
 
 const LAUNCH_STATEMENT =
   'Comisión de lanzamiento: solo 1 %. Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados. Mercado Pago puede aplicar sus propios costos.';
@@ -124,15 +145,16 @@ export function publicCommission(env = process.env) {
       planDesc:
         'Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados, descontado automáticamente por tu proveedor de pagos en cada operación aprobada. Mercado Pago puede aplicar sus propios costos. Es una tarifa promocional de lanzamiento.',
       planBadge: 'Promoción de lanzamiento',
+      roundingNote: ROUNDING_NOTE,
       planFeature: 'La comisión de lanzamiento del 1 % solo se cobra sobre ventas o aportes efectivamente cobrados',
       metaDescription:
         'Comisión de lanzamiento de Rifex: solo 1 % sobre ventas o aportes efectivamente cobrados. Publica sin costo y sin mensualidad. Mercado Pago puede aplicar sus propios costos.',
       faqAnswer:
-        'Comisión de lanzamiento: solo 1 %. Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados, descontado automáticamente por Mercado Pago al momento del pago. Mercado Pago puede aplicar sus propios costos. Es una tarifa promocional de lanzamiento.',
+        'Comisión de lanzamiento: solo 1 %. Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados, descontado automáticamente por Mercado Pago al momento del pago. Mercado Pago puede aplicar sus propios costos. Es una tarifa promocional de lanzamiento. ' + ROUNDING_NOTE,
       termsClause:
-        'Durante el período de lanzamiento, Rifex cobra una comisión promocional de solo 1 % sobre cada entrada vendida o aporte efectivamente cobrado, descontada automáticamente por el proveedor de pagos al momento del pago. Es una tarifa promocional y puede actualizarse con aviso razonable. No hay planes, suscripciones ni cobro por publicar',
+        'Durante el período de lanzamiento, Rifex cobra una comisión promocional de solo 1 % sobre cada entrada vendida o aporte efectivamente cobrado, descontada automáticamente por el proveedor de pagos al momento del pago. ' + ROUNDING_NOTE + ' Es una tarifa promocional y puede actualizarse con aviso razonable. No hay planes, suscripciones ni cobro por publicar',
       assistantNote:
-        'Comisión de lanzamiento: solo 1 %. Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados. Mercado Pago puede aplicar sus propios costos. Es una tarifa promocional de lanzamiento, no permanente.',
+        'Comisión de lanzamiento: solo 1 %. Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados. Mercado Pago puede aplicar sus propios costos. Es una tarifa promocional de lanzamiento, no permanente. ' + ROUNDING_NOTE,
       assistantCollect:
         'Rifex descuenta su comisión de lanzamiento de solo 1 % al momento del pago, solo sobre lo efectivamente cobrado; Mercado Pago puede aplicar sus propios costos.',
     };
@@ -152,15 +174,16 @@ export function publicCommission(env = process.env) {
     planDesc:
       'Rifex cobra 7% únicamente cuando consigues una venta o aporte exitoso. No hay mensualidad, suscripción ni cobro por publicar — se descuenta automáticamente por tu proveedor de pagos en cada operación aprobada.',
     planBadge: 'Único modelo',
+    roundingNote: ROUNDING_NOTE,
     planFeature: 'La comisión solo se cobra cuando existe una venta o aporte exitoso',
     metaDescription:
       'Rifex cobra una comisión única del 7% por venta o aporte exitoso. Sin planes, sin mensualidad, sin cobro por publicar.',
     faqAnswer:
-      'Una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por Mercado Pago al momento del pago — no hay planes ni suscripciones.',
+      'Una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por Mercado Pago al momento del pago — no hay planes ni suscripciones. ' + ROUNDING_NOTE,
     termsClause:
-      'Rifex cobra una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por el proveedor de pagos al momento del pago. No hay planes, suscripciones ni cobro por publicar',
+      'Rifex cobra una comisión única del 7% sobre cada entrada vendida o aporte exitoso, descontada automáticamente por el proveedor de pagos al momento del pago. ' + ROUNDING_NOTE + ' No hay planes, suscripciones ni cobro por publicar',
     assistantNote:
-      'Rifex cobra una comisión única del 7% solo cuando existe una venta o aporte exitoso. Sin planes, mensualidad ni cobro por publicar.',
+      'Rifex cobra una comisión única del 7% solo cuando existe una venta o aporte exitoso. Sin planes, mensualidad ni cobro por publicar. ' + ROUNDING_NOTE,
     assistantCollect: 'Rifex descuenta una comisión del 7% al momento del pago.',
   };
 }

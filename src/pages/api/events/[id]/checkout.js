@@ -132,7 +132,19 @@ export default async function handler(req, res) {
     const preference = new Preference(mpClient);
 
     const totalCLP = Math.round(Number(order.total_cents) / 100);
-    const feeCLP = Math.round(Number(order.platform_fee_cents) / 100);
+    // La comisión guardada ya está en pesos completos (regla única de
+    // commissionPolicy.js, aplicada en create_event_order_v2): se envía tal
+    // cual, sin volver a redondear. Si no fuera exacta, no se cobra.
+    const feeCLP = Number(order.platform_fee_cents) / 100;
+    if (!Number.isInteger(feeCLP)) {
+      console.error("[events/checkout] comisión guardada no entera en pesos", order.id);
+      try {
+        await supabase.rpc("expire_event_order", { p_order_id: order.id, p_force: true });
+      } catch (e2) {
+        console.error("[events/checkout] compensating expire_event_order failed", e2?.message || e2);
+      }
+      return res.status(500).json({ ok: false, error: "invalid_commission_snapshot" });
+    }
     const cleanTitle = `Entradas — ${String(event.title || "Evento").slice(0, 50)}`;
 
     const prefBody = {
