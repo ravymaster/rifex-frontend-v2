@@ -468,7 +468,10 @@ test("G. /reportar: el email es realmente opcional también en el backend", () =
 test("H. /planes: sin 'Rifas y campañas ilimitadas', conserva 7% / $0 por publicar / $0 mensualidad", () => {
   const src = read("src/pages/planes.js");
   assert.doesNotMatch(src, /Rifas y campañas ilimitadas/);
-  assert.match(src, /7% por venta o aporte exitoso/);
+  // El texto de la comisión viene de la fuente central; en modo estándar
+  // conserva exactamente «7% por venta o aporte exitoso».
+  assert.match(src, /\{commission\.planName\}/);
+  assert.match(read("src/lib/commissionPolicy.js"), /planName: '7% por venta o aporte exitoso'/);
   assert.match(src, /\$0 por publicar/);
   assert.match(src, /\$0 mensualidad/);
 });

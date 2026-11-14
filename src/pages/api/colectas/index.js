@@ -13,6 +13,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { assertCountryGate } from '@/lib/countryGate';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
+import { parseClpCents } from '@/lib/clpAmount';
 import { enforceRateLimit } from '@/lib/rateLimit';
 import { slugify } from '@/lib/slugify';
 
@@ -76,11 +77,11 @@ export default async function handler(req, res) {
   // sin barra de progreso). Si mandan una, tiene que ser un número > 0.
   let goalCents = null;
   if (req.body?.goal_cents != null && req.body.goal_cents !== '') {
-    const g = Number(req.body.goal_cents);
-    if (!Number.isFinite(g) || g <= 0 || !Number.isInteger(g)) {
-      return res.status(400).json({ ok: false, error: 'invalid_goal' });
-    }
-    goalCents = g;
+    // Meta en pesos chilenos completos (centavos múltiplo de 100); un
+    // decimal se rechaza, nunca se redondea (src/lib/clpAmount.js).
+    const goal = parseClpCents(req.body.goal_cents, { min: 1, error: 'invalid_goal' });
+    if (!goal.ok) return res.status(400).json({ ok: false, error: goal.error, message: goal.message });
+    goalCents = goal.cents;
   }
 
   if (!title || title.length > 140) {

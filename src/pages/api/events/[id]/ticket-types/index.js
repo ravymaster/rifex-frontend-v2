@@ -6,6 +6,7 @@
 // deberá impedir tocar snapshots de tipos ya usados por una orden.
 import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
+import { parseClpCents, parseStrictPositiveInt } from '@/lib/clpAmount';
 import { PUBLIC_TICKET_TYPE_COLUMNS, toSelect, pickPublic } from '@/lib/publicInitiativeFields';
 
 const supabase = createClient(
@@ -73,18 +74,19 @@ export default async function handler(req, res) {
       const name = String(body.name || '').trim();
       if (!name || name.length > 80) return res.status(400).json({ ok: false, error: 'invalid_name' });
 
-      const priceCents = Math.round(Number(body.price_cents));
-      if (!Number.isFinite(priceCents) || priceCents < 0) {
-        return res.status(400).json({ ok: false, error: 'invalid_price' });
-      }
+      // Precio en pesos chilenos completos (centavos múltiplo de 100); un
+      // decimal se rechaza, nunca se redondea (src/lib/clpAmount.js).
+      const price = parseClpCents(body.price_cents, { min: 0, error: 'invalid_price' });
+      if (!price.ok) return res.status(400).json({ ok: false, error: price.error, message: price.message });
+      const priceCents = price.cents;
 
-      const quantityTotal = Math.round(Number(body.quantity_total));
-      if (!Number.isInteger(quantityTotal) || quantityTotal <= 0) {
+      const quantityTotal = parseStrictPositiveInt(body.quantity_total);
+      if (quantityTotal == null) {
         return res.status(400).json({ ok: false, error: 'invalid_quantity_total' });
       }
 
-      const maxPerOrder = body.max_per_order != null ? Math.round(Number(body.max_per_order)) : 10;
-      if (!Number.isInteger(maxPerOrder) || maxPerOrder <= 0) {
+      const maxPerOrder = body.max_per_order != null ? parseStrictPositiveInt(body.max_per_order) : 10;
+      if (maxPerOrder == null) {
         return res.status(400).json({ ok: false, error: 'invalid_max_per_order' });
       }
 

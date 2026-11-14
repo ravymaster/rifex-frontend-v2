@@ -20,11 +20,31 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 
-function developBlob(p) {
+// Las protecciones de alcance de esta misión ("este archivo no se tocó")
+// se verifican contra la historia inmutable — los commits que
+// implementaron y promovieron la misión — y no contra ramas móviles.
+// Antes comparaban el archivo actual contra origin/develop: dejaban de
+// valer en cuanto otra misión legítima tocaba el archivo, y nunca podían
+// quedar verdes en main y develop a la vez (REALIGN 2026-10-06).
+const MISSION_COMMITS = [
+  '92ef4445b2cb7a5e3b7a73d06528efed47837843', // implementación en develop (DEV CERTIFIED)
+  'edcd576201bf5b52901a34c7fe09afd975cdc27f', // promoción a main/PROD (tag v3.3-rifex-prod-human-urls)
+];
+
+function blobAt(rev, p) {
   try {
-    return execSync(`git show origin/develop:${p}`, { cwd: ROOT, encoding: 'utf8' });
+    return execSync(`git show ${rev}:${p}`, { cwd: ROOT, encoding: 'utf8' });
   } catch {
     return null;
+  }
+}
+
+function assertUntouchedByMission(p, message) {
+  for (const commit of MISSION_COMMITS) {
+    const before = blobAt(`${commit}^`, p);
+    const after = blobAt(commit, p);
+    assert.ok(before, `no se pudo leer ${p} en ${commit.slice(0, 7)}^ (¿historia git incompleta?)`);
+    assert.equal(after, before, `${p} (${commit.slice(0, 7)}): ${message}`);
   }
 }
 
@@ -126,11 +146,18 @@ test('PAGE 4: inscripcion/[id].jsx registra con activity.id (resuelto), no con e
   assert.match(src, /fetch\(`\/api\/inscripciones\/\$\{activity\.id\}\/register`/);
 });
 
-test('PAGE 5: colectas/[id].jsx no requirió cambios — ya usaba colecta.id en checkout/publicUrl/qrUrl antes de esta misión', () => {
-  const current = read('src/pages/colectas/[id].jsx');
-  const before = developBlob('src/pages/colectas/[id].jsx');
-  assert.ok(before, 'no se pudo leer la versión previa de origin/develop');
-  assert.equal(current, before, 'colectas/[id].jsx debe permanecer byte-a-byte idéntico — protegido, no tocado esta misión');
+test('PAGE 5: colectas/[id].jsx no fue tocado por la misión y usa colecta.id (resuelto) en checkout/publicUrl/qrUrl', () => {
+  // Protección de alcance: igual que PROTEGIDO 1–4, contra la historia
+  // inmutable de la misión (92ef444 y edcd576), no contra una rama móvil.
+  assertUntouchedByMission('src/pages/colectas/[id].jsx', 'debe permanecer byte-a-byte idéntico — protegido, no tocado por la misión');
+  // Comprobación funcional del archivo actual: checkout, enlace público y QR
+  // usan el id resuelto de la campaña, nunca el id/slug crudo de la URL.
+  const src = read('src/pages/colectas/[id].jsx');
+  assert.match(src, /colecta_id: colecta\.id,/);
+  assert.match(src, /const publicUrl = `\$\{base\}\/colectas\/\$\{colecta\.id\}`;/);
+  assert.match(src, /const qrUrl = `\/api\/colectas\/\$\{colecta\.id\}\/qr\.png`;/);
+  // El id crudo solo se usa para resolver la campaña (GET /api/colectas/${id}).
+  assert.doesNotMatch(src, /colecta_id: id\b|\$\{base\}\/colectas\/\$\{id\}|\/api\/colectas\/\$\{id\}\/qr/);
 });
 
 // ---------------------------------------------------------------------
@@ -162,10 +189,7 @@ test('RIFAS 4: ningún otro archivo de Rifas fue tocado esta misión (creación/
     'src/lib/idOrSlug.js',
     'src/lib/slugify.js',
   ]) {
-    const current = read(p);
-    const before = developBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/develop`);
-    assert.equal(current, before, `${p} debe permanecer byte-a-byte idéntico`);
+    assertUntouchedByMission(p, 'debe permanecer byte-a-byte idéntico');
   }
 });
 
@@ -178,10 +202,7 @@ test('PROTEGIDO 1: Medidor QR permanece completamente intacto (baseline protegid
     'src/pages/api/medidor-qr/[id]/index.js',
     'src/pages/m/[slug].jsx',
   ]) {
-    const current = read(p);
-    const before = developBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/develop`);
-    assert.equal(current, before, `${p} debe permanecer byte-a-byte idéntico — Medidor QR es baseline protegido`);
+    assertUntouchedByMission(p, 'debe permanecer byte-a-byte idéntico — Medidor QR es baseline protegido');
   }
 });
 
@@ -193,19 +214,13 @@ test('PROTEGIDO 2: Payment Engine / checkout / webhook permanecen completamente 
     'src/pages/api/events/[id]/checkout.js',
     'src/pages/api/inscripciones/[id]/register.js',
   ]) {
-    const current = read(p);
-    const before = developBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/develop`);
-    assert.equal(current, before, `${p} debe permanecer byte-a-byte idéntico — fuera de alcance de esta misión`);
+    assertUntouchedByMission(p, 'debe permanecer byte-a-byte idéntico — fuera de alcance de esta misión');
   }
 });
 
 test('PROTEGIDO 3: los QR ya vivos que codifican UUID (Rifas/Colectas) siguen sin tocarse — decisión deliberada, no un olvido', () => {
   for (const p of ['src/pages/api/rifas/[id]/qr.png.js', 'src/pages/api/colectas/[id]/qr.png.js']) {
-    const current = read(p);
-    const before = developBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/develop`);
-    assert.equal(current, before);
+    assertUntouchedByMission(p, 'QR vivo con UUID — no debe tocarse');
   }
 });
 
@@ -214,10 +229,7 @@ test('PROTEGIDO 4: los QR de token opaco (tickets de Eventos, participantes de I
     'src/pages/api/events/tickets/[token]/qr.png.js',
     'src/pages/api/inscripciones/i/[token]/qr.png.js',
   ]) {
-    const current = read(p);
-    const before = developBlob(p);
-    assert.ok(before, `no se pudo leer ${p} de origin/develop`);
-    assert.equal(current, before);
+    assertUntouchedByMission(p, 'QR de token opaco — no debe tocarse');
   }
 });
 

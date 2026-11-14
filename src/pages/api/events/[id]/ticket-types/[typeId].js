@@ -9,6 +9,7 @@
 // bloqueado por el CHECK de la migración — se traduce a 409 legible.
 import { createClient } from '@supabase/supabase-js';
 import { assertCreatorEligible } from '@/lib/trustIdentityGate';
+import { parseClpCents, parseStrictPositiveInt } from '@/lib/clpAmount';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -83,20 +84,21 @@ export default async function handler(req, res) {
       patch.name = name;
     }
     if (body.price_cents !== undefined) {
-      const priceCents = Math.round(Number(body.price_cents));
-      if (!Number.isFinite(priceCents) || priceCents < 0) return res.status(400).json({ ok: false, error: 'invalid_price' });
-      patch.price_cents = priceCents;
+      // Pesos chilenos completos; un decimal se rechaza (src/lib/clpAmount.js).
+      const price = parseClpCents(body.price_cents, { min: 0, error: 'invalid_price' });
+      if (!price.ok) return res.status(400).json({ ok: false, error: price.error, message: price.message });
+      patch.price_cents = price.cents;
     }
     if (body.quantity_total !== undefined) {
-      const quantityTotal = Math.round(Number(body.quantity_total));
-      if (!Number.isInteger(quantityTotal) || quantityTotal <= 0) {
+      const quantityTotal = parseStrictPositiveInt(body.quantity_total);
+      if (quantityTotal == null) {
         return res.status(400).json({ ok: false, error: 'invalid_quantity_total' });
       }
       patch.quantity_total = quantityTotal;
     }
     if (body.max_per_order !== undefined) {
-      const maxPerOrder = Math.round(Number(body.max_per_order));
-      if (!Number.isInteger(maxPerOrder) || maxPerOrder <= 0) {
+      const maxPerOrder = parseStrictPositiveInt(body.max_per_order);
+      if (maxPerOrder == null) {
         return res.status(400).json({ ok: false, error: 'invalid_max_per_order' });
       }
       patch.max_per_order = maxPerOrder;

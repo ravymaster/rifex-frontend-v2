@@ -1,6 +1,6 @@
 // src/pages/api/checkout/colecta.js
 // Hermano de checkout/mp.js — mismo patrón (token del vendedor, marketplace_fee
-// 7%, metadata inequívoca), archivo propio, sin tocar el original. No procesa
+// desde src/lib/commissionPolicy.js, metadata inequívoca), archivo propio, sin tocar el original. No procesa
 // el webhook (eso es C5) ni marca nada como aprobado — solo crea la intención
 // de aporte (pending) y la preference de MP.
 import { createClient } from "@supabase/supabase-js";
@@ -8,7 +8,8 @@ import { MercadoPagoConfig, Preference } from "mercadopago";
 import { isAcceptingContributions } from "@/lib/colectaStatus";
 import { assertCountryGate } from "@/lib/countryGate";
 import { resolveAdapterForSeller } from "@/lib/paymentEngine/engine";
-import { computePlatformFeeMinor } from "@/lib/paymentEngine/feePolicy";
+import { contributionCommission } from "@/lib/commissionPolicy";
+import { parseClpPesos } from "@/lib/clpAmount";
 import { createPaymentIntent } from "@/lib/paymentEngine/contracts";
 import { resolveFallbackDecision } from "@/lib/paymentEngine/fallbackPolicy";
 import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
@@ -21,7 +22,6 @@ const supabase = createClient(url, service || anon, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const RIFEX_FEE_RATE = 0.07;
 const MIN_AMOUNT_CLP = 500;
 const MAX_AMOUNT_CLP = 10_000_000;
 
@@ -49,10 +49,14 @@ export default async function handler(req, res) {
     const { colecta_id, amount_clp, contributor_name, contributor_email, idempotency_key } = req.body || {};
     if (!colecta_id) return res.status(400).json({ ok: false, error: "missing_colecta_id" });
 
-    const amount = Math.round(Number(amount_clp));
-    if (!Number.isFinite(amount) || amount < MIN_AMOUNT_CLP || amount > MAX_AMOUNT_CLP) {
-      return res.status(400).json({ ok: false, error: "invalid_amount" });
+    // Pesos chilenos completos dentro del rango; un decimal se rechaza,
+    // nunca se redondea (src/lib/clpAmount.js). Se valida antes de cualquier
+    // lectura, escritura o llamada a Mercado Pago.
+    const parsedAmount = parseClpPesos(amount_clp, { min: MIN_AMOUNT_CLP, max: MAX_AMOUNT_CLP, error: "invalid_amount" });
+    if (!parsedAmount.ok) {
+      return res.status(400).json({ ok: false, error: parsedAmount.error, message: parsedAmount.message });
     }
+    const amount = parsedAmount.pesos;
 
     const name = String(contributor_name || "").trim().slice(0, 120);
     if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
@@ -122,6 +126,8 @@ export default async function handler(req, res) {
 
     // 5) Fila pending — el contribution_id que va a la metadata de MP es
     // este id real generado acá, nunca uno mandado por el cliente.
+    // Comisión decidida en el servidor (src/lib/commissionPolicy.js).
+    const newCommission = contributionCommission(null, amount);
     if (!contribution) {
       const { data: inserted, error: insErr } = await supabase
         .from("colecta_contributions")
@@ -132,6 +138,10 @@ export default async function handler(req, res) {
           contributor_name: name,
           status: "pending",
           idempotency_key: idemKey,
+          // Snapshot de comisión en la misma escritura que crea el aporte.
+          marketplace_fee_cents: newCommission.feeClp * 100,
+          platform_fee_bps: newCommission.bps,
+          commission_policy: newCommission.policy,
         })
         .select("*")
         .single();
@@ -180,10 +190,37 @@ export default async function handler(req, res) {
       console.warn("[checkout/colecta][payment-engine] fallback a legado CL:", routed.reason);
     }
 
-    const engineFee = computePlatformFeeMinor(amount, engineCountry || "CL", providerId);
-    const marketplaceFee = engineFee != null
-      ? engineFee
-      : Math.max(0, Math.min(Math.floor(amount * RIFEX_FEE_RATE), amount)); // fallback exacto, no debería ejecutarse hoy para CL
+    // Comisión desde el snapshot del aporte. Un aporte retomado conserva su
+    // snapshot; uno anterior a esta versión (sin snapshot) lo recibe ahora,
+    // solo si sigue sin snapshot. El webhook y la conciliación reutilizan el
+    // monto guardado o el informado por Mercado Pago.
+    let commission;
+    try {
+      commission = contributionCommission(contribution, Math.round(contribution.amount_cents / 100));
+    } catch (e) {
+      console.error("[checkout/colecta] snapshot de comisión inválido", contribution.id);
+      return res.status(500).json({ ok: false, error: "invalid_commission_snapshot" });
+    }
+    if (!commission.reused) {
+      const { data: snapped, error: snapErr } = await supabase
+        .from("colecta_contributions")
+        .update({ marketplace_fee_cents: commission.feeClp * 100, platform_fee_bps: commission.bps, commission_policy: commission.policy })
+        .eq("id", contribution.id)
+        .is("platform_fee_bps", null)
+        .select("*")
+        .maybeSingle();
+      if (snapErr) throw snapErr;
+      if (snapped) contribution = snapped;
+      else {
+        const { data: again } = await supabase.from("colecta_contributions").select("*").eq("id", contribution.id).single();
+        contribution = again;
+        commission = contributionCommission(contribution, Math.round(contribution.amount_cents / 100));
+      }
+    }
+    const marketplaceFee = commission.feeClp;
+    // Bruto del aporte guardado (en un reintento manda la fila, no el body).
+    const grossClp = Math.round(contribution.amount_cents / 100);
+    const feeBps = commission.bps;
 
     try {
       createPaymentIntent({
@@ -193,7 +230,7 @@ export default async function handler(req, res) {
         productType: "colecta_contribution",
         sellerId: colecta.creator_id,
         externalReference: String(contribution.id),
-        grossAmountMinor: amount,
+        grossAmountMinor: grossClp,
         platformFeeMinor: marketplaceFee,
       });
     } catch (e) {
@@ -203,7 +240,7 @@ export default async function handler(req, res) {
     const cleanTitle = `Aporte a "${String(colecta.title || "Colecta").slice(0, 50)}"`;
 
     const prefBody = {
-      items: [{ title: cleanTitle, quantity: 1, unit_price: amount, currency_id: currency }],
+      items: [{ title: cleanTitle, quantity: 1, unit_price: grossClp, currency_id: currency }],
       marketplace_fee: marketplaceFee,
       payer: { email, name },
       back_urls: {
@@ -221,6 +258,8 @@ export default async function handler(req, res) {
         colecta_id: String(colecta.id),
         contribution_id: String(contribution.id),
         marketplace_fee: marketplaceFee,
+        platform_fee_bps: feeBps,
+        commission_policy: commission.policy,
       },
     };
 
@@ -245,7 +284,7 @@ export default async function handler(req, res) {
 
     await supabase
       .from("colecta_contributions")
-      .update({ mp_preference_id: mpPreferenceId, mp_init_point: initPoint, marketplace_fee_cents: marketplaceFee * 100 })
+      .update({ mp_preference_id: mpPreferenceId, mp_init_point: initPoint })
       .eq("id", contribution.id);
 
     return res.status(200).json({
