@@ -9,6 +9,7 @@ import { isAcceptingContributions } from "@/lib/colectaStatus";
 import { assertCountryGate } from "@/lib/countryGate";
 import { resolveAdapterForSeller } from "@/lib/paymentEngine/engine";
 import { contributionCommission } from "@/lib/commissionPolicy";
+import { parseClpPesos } from "@/lib/clpAmount";
 import { createPaymentIntent } from "@/lib/paymentEngine/contracts";
 import { resolveFallbackDecision } from "@/lib/paymentEngine/fallbackPolicy";
 import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
@@ -48,10 +49,14 @@ export default async function handler(req, res) {
     const { colecta_id, amount_clp, contributor_name, contributor_email, idempotency_key } = req.body || {};
     if (!colecta_id) return res.status(400).json({ ok: false, error: "missing_colecta_id" });
 
-    const amount = Math.round(Number(amount_clp));
-    if (!Number.isFinite(amount) || amount < MIN_AMOUNT_CLP || amount > MAX_AMOUNT_CLP) {
-      return res.status(400).json({ ok: false, error: "invalid_amount" });
+    // Pesos chilenos completos dentro del rango; un decimal se rechaza,
+    // nunca se redondea (src/lib/clpAmount.js). Se valida antes de cualquier
+    // lectura, escritura o llamada a Mercado Pago.
+    const parsedAmount = parseClpPesos(amount_clp, { min: MIN_AMOUNT_CLP, max: MAX_AMOUNT_CLP, error: "invalid_amount" });
+    if (!parsedAmount.ok) {
+      return res.status(400).json({ ok: false, error: parsedAmount.error, message: parsedAmount.message });
     }
+    const amount = parsedAmount.pesos;
 
     const name = String(contributor_name || "").trim().slice(0, 120);
     if (!name) return res.status(400).json({ ok: false, error: "missing_name" });
