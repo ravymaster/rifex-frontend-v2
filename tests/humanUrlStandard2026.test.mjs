@@ -146,11 +146,18 @@ test('PAGE 4: inscripcion/[id].jsx registra con activity.id (resuelto), no con e
   assert.match(src, /fetch\(`\/api\/inscripciones\/\$\{activity\.id\}\/register`/);
 });
 
-test('PAGE 5: colectas/[id].jsx no requirió cambios — ya usaba colecta.id en checkout/publicUrl/qrUrl antes de esta misión', () => {
-  const current = read('src/pages/colectas/[id].jsx');
-  const before = developBlob('src/pages/colectas/[id].jsx');
-  assert.ok(before, 'no se pudo leer la versión previa de origin/develop');
-  assert.equal(current, before, 'colectas/[id].jsx debe permanecer byte-a-byte idéntico — protegido, no tocado esta misión');
+test('PAGE 5: colectas/[id].jsx no fue tocado por la misión y usa colecta.id (resuelto) en checkout/publicUrl/qrUrl', () => {
+  // Protección de alcance: igual que PROTEGIDO 1–4, contra la historia
+  // inmutable de la misión (92ef444 y edcd576), no contra una rama móvil.
+  assertUntouchedByMission('src/pages/colectas/[id].jsx', 'debe permanecer byte-a-byte idéntico — protegido, no tocado por la misión');
+  // Comprobación funcional del archivo actual: checkout, enlace público y QR
+  // usan el id resuelto de la campaña, nunca el id/slug crudo de la URL.
+  const src = read('src/pages/colectas/[id].jsx');
+  assert.match(src, /colecta_id: colecta\.id,/);
+  assert.match(src, /const publicUrl = `\$\{base\}\/colectas\/\$\{colecta\.id\}`;/);
+  assert.match(src, /const qrUrl = `\/api\/colectas\/\$\{colecta\.id\}\/qr\.png`;/);
+  // El id crudo solo se usa para resolver la campaña (GET /api/colectas/${id}).
+  assert.doesNotMatch(src, /colecta_id: id\b|\$\{base\}\/colectas\/\$\{id\}|\/api\/colectas\/\$\{id\}\/qr/);
 });
 
 // ---------------------------------------------------------------------
