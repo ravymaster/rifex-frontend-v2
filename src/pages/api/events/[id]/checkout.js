@@ -7,7 +7,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { MercadoPagoConfig, Preference } from "mercadopago";
 import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
-import { bpsToRate, commissionBpsFor } from "@/lib/commissionPolicy";
+import { commissionSnapshotFor } from "@/lib/commissionPolicy";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -102,15 +102,17 @@ export default async function handler(req, res) {
     }
 
     // 3) Reserva atómica todo-o-nada + snapshot de precios + comisión.
-    const feeBps = commissionBpsFor("events");
-    const { data: order, error: rpcErr } = await supabase.rpc("create_event_order", {
+    // Snapshot de comisión decidido en el servidor (nunca del cliente).
+    const snapshot = commissionSnapshotFor("events");
+    const { data: order, error: rpcErr } = await supabase.rpc("create_event_order_v2", {
       p_event_id: eventId,
       p_items: cleanItems,
       p_buyer_email: email,
       p_buyer_name: name,
-      // Tasa desde la fuente central, decidida en el servidor; la orden guarda
-      // el monto resultante (platform_fee_cents) y nunca se recalcula.
-      p_platform_fee_rate: bpsToRate(feeBps),
+      // La función guarda en la misma transacción bruto, comisión,
+      // platform_fee_bps y commission_policy; nada de eso se recalcula después.
+      p_platform_fee_bps: snapshot.bps,
+      p_commission_policy: snapshot.policy,
       p_reservation_minutes: RESERVATION_MINUTES,
     }).single();
 
@@ -151,7 +153,8 @@ export default async function handler(req, res) {
         product: "event_order",
         event_id: String(eventId),
         order_id: String(order.id),
-        platform_fee_bps: feeBps,
+        platform_fee_bps: order.platform_fee_bps,
+        commission_policy: order.commission_policy,
       },
     };
 

@@ -32,6 +32,40 @@ export function commissionBpsFor(module, env = process.env) {
   return commissionMode(env) === 'launch' ? LAUNCH_COMMISSION_BPS : STANDARD_COMMISSION_BPS;
 }
 
+// Snapshot que se guarda en cada operación nueva (platform_fee_bps +
+// commission_policy). El código de política es el modo vigente del servidor.
+export const COMMISSION_POLICIES = Object.freeze(['standard', 'launch']);
+
+export function commissionSnapshotFor(module, env = process.env) {
+  return { bps: commissionBpsFor(module, env), policy: commissionMode(env) };
+}
+
+// Valida un snapshot leído o por escribir: bps entero 0..10000 y política
+// conocida. Nunca convierte ni redondea (1.5, "100", -1 o 10001 se rechazan).
+export function isValidSnapshot(snapshot) {
+  return Boolean(
+    snapshot &&
+      Number.isInteger(snapshot.bps) &&
+      snapshot.bps >= 0 &&
+      snapshot.bps <= BPS_DENOMINATOR &&
+      COMMISSION_POLICIES.includes(snapshot.policy)
+  );
+}
+
+// Campañas: snapshot completo del aporte al crearlo (bruto, bps, comisión,
+// política). Si la fila ya tiene snapshot (reintento), se reutiliza tal cual.
+export function contributionCommission(row, amountClp, env = process.env) {
+  if (row && row.platform_fee_bps != null) {
+    const kept = { bps: row.platform_fee_bps, policy: row.commission_policy };
+    if (!isValidSnapshot(kept) || row.marketplace_fee_cents == null) {
+      throw new Error('contributionCommission: snapshot guardado inválido');
+    }
+    return { ...kept, feeClp: Math.round(row.marketplace_fee_cents / 100), reused: true };
+  }
+  const snap = commissionSnapshotFor('campaigns', env);
+  return { ...snap, feeClp: computeCommission(amountClp, snap.bps), reused: false };
+}
+
 // Tasa decimal exacta para la función SQL create_event_order (numeric).
 export function bpsToRate(bps) {
   assertBps(bps);
