@@ -141,7 +141,7 @@ test('REDONDEO textos: frase de redondeo en detalle, sin afirmar redondeo hacia 
   // La frase principal de lanzamiento no cambia.
   assert.equal(publicCommission(LAUNCH).statement, 'Comisión de lanzamiento: solo 1 %. Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados. Mercado Pago puede aplicar sus propios costos.');
   assert.match(read('src/pages/planes.js'), /\{commission\.roundingNote\}/);
-  for (const p of ['src/lib/commissionPolicy.js', 'src/lib/warp/rifexServices.js', 'src/lib/warp/rifexHelp.js']) {
+  for (const p of ['src/lib/commissionPolicy.js']) { // en main no existen las fuentes del asistente
     assert.doesNotMatch(read(p), /hacia abajo|nunca supera/i, p);
   }
 });

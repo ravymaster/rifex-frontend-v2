@@ -311,33 +311,5 @@ test('COMISIÓN 14: textos — modo estándar conserva exactamente los textos vi
 
 // ------------------------------------------------------------ asistente
 
-test('COMISIÓN 15: asistente — rifex.services.list y rifex.help.read publican la comisión del ambiente', async () => {
-  const { listServices } = await import('../src/lib/warp/rifexServices.js');
-  const { readHelp } = await import('../src/lib/warp/rifexHelp.js');
-  const prev = process.env.RIFEX_COMMISSION_MODE;
-  try {
-    process.env.RIFEX_COMMISSION_MODE = 'launch';
-    const s = listServices();
-    const text = JSON.stringify(s);
-    assert.doesNotMatch(text, /7 ?%/);
-    assert.match(s.commission_note, /Comisión de lanzamiento: solo 1 %/);
-    assert.match(s.commission_note, /Mercado Pago puede aplicar sus propios costos/);
-    const ev = s.items.find((i) => i.service === 'events');
-    const ca = s.items.find((i) => i.service === 'campaigns');
-    assert.match(ev.pricing, /1 % únicamente sobre ventas efectivamente cobradas/);
-    assert.match(ca.pricing, /1 % únicamente sobre aportes efectivamente cobrados/);
-    assert.match(s.items.find((i) => i.service === 'registrations').pricing, /Sin comisión/);
-    const h = readHelp({ topic: 'collect-vs-pay' });
-    assert.match(h.summary, /comisión de lanzamiento de solo 1 %/);
-    assert.doesNotMatch(h.summary, /7 ?%|\{\{/);
-
-    delete process.env.RIFEX_COMMISSION_MODE;
-    const std = listServices();
-    assert.match(std.commission_note, /7%/);
-    assert.match(std.items.find((i) => i.service === 'events').pricing, /7%/);
-    assert.match(readHelp({ topic: 'collect-vs-pay' }).summary, /Rifex descuenta una comisión del 7% al momento del pago\. Pagar:/);
-  } finally {
-    if (prev === undefined) delete process.env.RIFEX_COMMISSION_MODE;
-    else process.env.RIFEX_COMMISSION_MODE = prev;
-  }
-});
+// COMISIÓN 15 (fuentes del asistente) no aplica en main: Warp no forma
+// parte de esta rama.
