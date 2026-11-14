@@ -20,21 +20,18 @@
   border-color: rgba(24,169,87,.35);
   box-shadow:0 14px 34px rgba(24,169,87,.20);
 }
-/* Desktop: badge flotante en la esquina, como siempre. */
+/* La insignia va SIEMPRE en el flujo normal, en su propia fila sobre el
+   título, en todos los anchos: nunca puede superponerse al título, aunque
+   éste sea largo (p. ej. «Comisión de lanzamiento: solo 1 %») o haya zoom.
+   Sin position:absolute (ver tests/planesBadgeLayout.test.mjs). */
 .badge{
-  position:absolute; top:12px; right:12px;
+  display:inline-block;
+  margin:0 0 10px;
+  max-width:100%;
   font-size:12px; font-weight:800; padding:4px 8px; border-radius:999px;
   color:#0a7f4f; background:rgba(24,169,87,.12); border:1px solid rgba(24,169,87,.35);
-  display:inline-block;
-}
-/* Mobile: fila propia, en flujo normal — nunca puede superponerse al
-   título sin importar cuánto ocupe (mismo breakpoint que .grid). */
-@media (max-width:899px){
-  .badge{
-    position:static;
-    display:inline-block;
-    margin-bottom:10px;
-  }
+  line-height:1.3;
+  overflow-wrap:anywhere;
 }
 
 .planName{ margin:0 0 4px; font-weight:800; color:#0f172a; }
