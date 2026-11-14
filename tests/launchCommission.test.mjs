@@ -141,12 +141,12 @@ test('COMISIÓN 7: el cliente nunca envía ni altera el porcentaje', () => {
   const events = read('src/pages/api/events/[id]/checkout.js');
   // Campañas: el body se desestructura con campos cerrados, sin comisión.
   assert.match(colecta, /const \{ colecta_id, amount_clp, contributor_name, contributor_email, idempotency_key \} = req\.body \|\| \{\};/);
-  assert.match(colecta, /const feeBps = commissionBpsFor\("campaigns"\);/);
-  assert.match(colecta, /const marketplaceFee = computeCommission\(amount, feeBps\);/);
+  assert.match(colecta, /const newCommission = contributionCommission\(null, amount\);/);
+  assert.match(colecta, /const marketplaceFee = commission\.feeClp;/);
   assert.doesNotMatch(colecta, /RIFEX_FEE_RATE|0\.07|req\.body\.(fee|marketplace|platform|commission|rate)/);
   // Eventos: tasa desde la política, nunca desde el body.
-  assert.match(events, /const feeBps = commissionBpsFor\("events"\);/);
-  assert.match(events, /p_platform_fee_rate: bpsToRate\(feeBps\),/);
+  assert.match(events, /const snapshot = commissionSnapshotFor\("events"\);/);
+  assert.match(events, /p_platform_fee_bps: snapshot\.bps,\n\s+p_commission_policy: snapshot\.policy,/);
   assert.doesNotMatch(events, /PLATFORM_FEE_RATE|0\.07|req\.body\.(fee|marketplace|platform|commission|rate)/);
   // Mercado Pago recibe la comisión de la orden guardada.
   assert.match(events, /const feeCLP = Math\.round\(Number\(order\.platform_fee_cents\) \/ 100\);/);
@@ -219,8 +219,9 @@ test('COMISIÓN 10: Campañas — un aporte pendiente con comisión registrada l
   // Reintento con la misma idempotency_key y preferencia ya creada: devuelve
   // la comisión guardada, sin recalcular.
   assert.match(colecta, /if \(existing\.mp_init_point\) \{[\s\S]*?marketplace_fee: existing\.marketplace_fee_cents != null \? Math\.round\(existing\.marketplace_fee_cents \/ 100\) : undefined,/);
-  // La comisión se guarda junto con la preferencia, en la misma escritura.
-  assert.match(colecta, /\.update\(\{ mp_preference_id: mpPreferenceId, mp_init_point: initPoint, marketplace_fee_cents: marketplaceFee \* 100 \}\)/);
+  // La comisión se guarda al crear el aporte, con su tasa y política.
+  assert.match(colecta, /marketplace_fee_cents: newCommission\.feeClp \* 100,\n\s+platform_fee_bps: newCommission\.bps,\n\s+commission_policy: newCommission\.policy,/);
+  assert.match(colecta, /\.update\(\{ mp_preference_id: mpPreferenceId, mp_init_point: initPoint \}\)/);
 });
 
 test('COMISIÓN 11: Eventos — panel y Excel muestran la comisión guardada de cada orden (7% histórico y 1 % nuevo)', async () => {
