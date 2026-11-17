@@ -1,0 +1,786 @@
+{
+  "contract": "warp.site_map.v1",
+  "origin": "https://rifex-frontend-main.vercel.app",
+  "generatedAt": "2026-11-17T01:20:43.042Z",
+  "navigation": [
+    {
+      "kind": "navigation",
+      "id": "account-mis-iniciativas",
+      "label": "Mis iniciativas",
+      "href": "/mis-iniciativas",
+      "area": "account_navigation",
+      "access": "account",
+      "action": "browse",
+      "intents": [
+        "mis iniciativas",
+        "mis eventos y campañas",
+        "mi panel"
+      ],
+      "contentId": null,
+      "contentHash": "7c33eeb4533676815aa91b3df0fc9366caecf0ea7e8b7b50feecfaaef501cf65",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "auth-login",
+      "label": "Ingresar",
+      "href": "/login",
+      "area": "authentication",
+      "access": "public",
+      "action": "sign_in",
+      "intents": [
+        "ingresar",
+        "iniciar sesión",
+        "entrar a mi cuenta",
+        "acceder",
+        "login"
+      ],
+      "contentId": null,
+      "contentHash": "9bd6786a4495d99bc02431e386fa2edd66f8580109e5f79203967501000cfa2d",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "auth-register",
+      "label": "Conoce más productos de Rifex siendo parte de la comunidad",
+      "href": "/register",
+      "area": "authentication",
+      "access": "public",
+      "action": "register",
+      "intents": [
+        "conoce más productos de rifex siendo parte de la comunidad",
+        "registrarme",
+        "crear cuenta",
+        "registro",
+        "unirme",
+        "sign up"
+      ],
+      "contentId": null,
+      "contentHash": "f436aba77e328557913fd6b55bf7f3a99e713f313bbb47d183d84c45d9779c10",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-cookies",
+      "label": "Cookies",
+      "href": "/cookies",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "cookies"
+      ],
+      "contentId": "content-cookies",
+      "contentHash": "48b3dbc0d5255c8b8780a318671df87ed59175c5871220b061d65a8217c06591",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-cumplimiento",
+      "label": "Rifex Cumplimiento",
+      "href": "/cumplimiento",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "rifex cumplimiento"
+      ],
+      "contentId": "content-cumplimiento",
+      "contentHash": "cce7752ff5fbfa55963a63ca09560cb38541b76cf28f3b01b7a9e8fa0805d374",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-politica-campanas",
+      "label": "Política de Campañas",
+      "href": "/politica-campanas",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "política de campañas"
+      ],
+      "contentId": "content-politica-campanas",
+      "contentHash": "8f88cad78c27a05939abf405cc55997130eabc4794b266bb01e524bdac03fcf0",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-politica-eventos",
+      "label": "Política de Eventos",
+      "href": "/politica-eventos",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "política de eventos"
+      ],
+      "contentId": "content-politica-eventos",
+      "contentHash": "1aebbab04b8f63e608595d38aa345ecb12352d5c06dd43783d0a6bd3e9b6ff32",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-privacidad",
+      "label": "Privacidad",
+      "href": "/privacidad",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "privacidad"
+      ],
+      "contentId": "content-privacidad",
+      "contentHash": "566065333b9cc5c81ed7c208eb06b4b5a3ee0c4648461c083f4e4f3003ef4e0c",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-reembolsos",
+      "label": "Cancelaciones y devoluciones",
+      "href": "/reembolsos",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "reembolsos",
+        "devoluciones",
+        "cancelaciones"
+      ],
+      "contentId": "content-reembolsos",
+      "contentHash": "bf05d446ed3fb58f4daa9b95d16c08cb6a38867cf051a152991bd0676c02898e",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-terminos",
+      "label": "Términos",
+      "href": "/terminos",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "términos"
+      ],
+      "contentId": "content-terminos",
+      "contentHash": "b5de9ddfc32347fd736994dd8fdeb21593de026f8df27f9c6865c4612d79eb07",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "legal-uso-aceptable",
+      "label": "Uso aceptable",
+      "href": "/uso-aceptable",
+      "area": "legal",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "uso aceptable"
+      ],
+      "contentId": "content-uso-aceptable",
+      "contentHash": "6f3717d507b3ef9b17df6d3c96c684953df579d66bf8b563309222aa17c3ef65",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "page-planes",
+      "label": "Comisión",
+      "href": "/planes",
+      "area": "commercial",
+      "access": "public",
+      "action": "browse",
+      "intents": [
+        "comisión",
+        "planes",
+        "precios",
+        "cuánto cobra"
+      ],
+      "contentId": null,
+      "contentHash": "ad9333f026def0cc9cdaa614d31c697e2486ee36d9d41636f5b209b048f4d976",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "support-preguntas-frecuentes",
+      "label": "Preguntas frecuentes",
+      "href": "/preguntas-frecuentes",
+      "area": "support",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "preguntas frecuentes"
+      ],
+      "contentId": "content-preguntas-frecuentes",
+      "contentHash": "b0d6dd3430c2278e1b4522588033d6c02d4bed675cc81d66b3ffc0e9de3ab5eb",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "support-seguridad",
+      "label": "Seguridad",
+      "href": "/seguridad",
+      "area": "support",
+      "access": "public",
+      "action": "read",
+      "intents": [
+        "seguridad"
+      ],
+      "contentId": "content-seguridad",
+      "contentHash": "1fc9899750dc32c0b16c8ead2d6001d18b4542e196f6a215b7abbe7e217dd449",
+      "status": "published"
+    }
+  ],
+  "content": [
+    {
+      "kind": "public_content",
+      "id": "content-cookies",
+      "title": "Cookies",
+      "href": "/cookies",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "48b3dbc0d5255c8b8780a318671df87ed59175c5871220b061d65a8217c06591",
+      "effectiveDate": "2026-08-31",
+      "updatedAt": null,
+      "scannedAt": "2026-11-17",
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Cookies y tecnologías similares",
+          "text": "Versión 1.0 · Publicada 31/08/2026"
+        },
+        {
+          "id": "s2",
+          "heading": "Estrictamente necesarias",
+          "text": "Cookies/tokens de sesión de Supabase Auth, usados para mantener tu sesión iniciada y proteger el acceso a tu cuenta. No se pueden desactivar sin perder la capacidad de iniciar sesión."
+        },
+        {
+          "id": "s3",
+          "heading": "Preferencias",
+          "text": "Tu preferencia de medición y publicidad se guarda en el almacenamiento local de tu navegador (localStorage), no en una cookie de servidor."
+        },
+        {
+          "id": "s4",
+          "heading": "Medición y publicidad (Meta Pixel)",
+          "text": "Usamos Meta Pixel para entender cómo se usa Rifex. Nunca se inicializa hasta que aceptas el aviso de cookies — \"Rechazar\" es igual de accesible que \"Aceptar\" y tu elección se recuerda entre visitas. Ningún evento de Meta Pixel en Rifex envía tu email, nombre, teléfono, RUT ni datos de pago."
+        },
+        {
+          "id": "s5",
+          "heading": "Otros proveedores",
+          "text": "Algunos servicios utilizados por Rifex pueden emplear tecnologías propias necesarias para prestar sus funciones. Cuando corresponda, su funcionamiento también se encuentra sujeto a las políticas del proveedor respectivo."
+        },
+        {
+          "id": "s6",
+          "heading": "Cómo cambiar tu elección",
+          "text": "Puedes volver a esta página en cualquier momento desde el enlace \"Preferencias de cookies\" en el pie de cualquier página de Rifex, o desde la configuración de tu navegador."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-cumplimiento",
+      "title": "Rifex Cumplimiento",
+      "href": "/cumplimiento",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "cce7752ff5fbfa55963a63ca09560cb38541b76cf28f3b01b7a9e8fa0805d374",
+      "effectiveDate": null,
+      "updatedAt": "2026-09-01",
+      "scannedAt": "2026-11-17",
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Rifex Cumplimiento",
+          "text": "Rifex Cumplimiento incorpora controles de seguimiento, confirmación y revisión posterior para determinadas iniciativas realizadas en la plataforma."
+        },
+        {
+          "id": "s2",
+          "heading": "Qué busca Rifex Cumplimiento",
+          "text": "Rifex Cumplimiento busca ayudar a verificar que, tras finalizar una iniciativa con un compromiso de entrega, ese compromiso se cumpla bajo las condiciones que fueron informadas antes de participar.\nRifex Cumplimiento no reemplaza a los tribunales, no garantiza materialmente la entrega, y no realiza arbitraje legal. Busca registrar confirmaciones, hacer seguimiento de plazos, detectar discrepancias y aumentar la transparencia entre las partes involucradas."
+        },
+        {
+          "id": "s3",
+          "heading": "Cómo funciona, en términos generales",
+          "text": "Cuando corresponde, Rifex hace un seguimiento por plazos e invita a las partes involucradas a confirmar el estado del compromiso. El silencio nunca se interpreta como incumplimiento , y ninguna respuesta por sí sola genera una sanción automática — una discrepancia puede derivar en una revisión administrativa antes de cualquier decisión."
+        },
+        {
+          "id": "s4",
+          "heading": "Qué se registra",
+          "text": "Rifex mantiene un registro interno del seguimiento de cada caso. Nunca se publica información personal (PII) de las personas involucradas — ni en esta página, ni en ningún historial visible públicamente. El registro es interno y solo accesible para revisión administrativa."
+        },
+        {
+          "id": "s5",
+          "heading": "Rifex Cumplimiento no es lo mismo que Seguridad",
+          "text": "Seguridad (ver nuestra página de Seguridad ) reúne controles aplicables antes o durante determinadas operaciones. Rifex Cumplimiento incorpora seguimiento posterior cuando corresponde. Son dos capas distintas, con datos y lógica separados.\nÚltima actualización: 01/09/2026. Consulta también nuestros Términos y Condiciones y nuestra página de Seguridad ."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-politica-campanas",
+      "title": "Política de Campañas",
+      "href": "/politica-campanas",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "8f88cad78c27a05939abf405cc55997130eabc4794b266bb01e524bdac03fcf0",
+      "effectiveDate": "2026-09-01",
+      "updatedAt": null,
+      "scannedAt": "2026-11-17",
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Política de Campañas",
+          "text": "Versión 1.0 · Publicada 01/09/2026"
+        },
+        {
+          "id": "s2",
+          "heading": "Identificación del organizador",
+          "text": "Cada campaña muestra a su organizador registrado en Rifex."
+        },
+        {
+          "id": "s3",
+          "heading": "Finalidad y aportes",
+          "text": "El organizador declara la finalidad de la campaña. Los aportes son voluntarios y, salvo que se indique expresamente lo contrario en la campaña, no generan contraprestación."
+        },
+        {
+          "id": "s4",
+          "heading": "Pagos directos",
+          "text": "Los aportes se procesan mediante el proveedor de pagos conectado del organizador y se acreditan directo en su cuenta, descontada la comisión de Rifex. Rifex no custodia los aportes."
+        },
+        {
+          "id": "s5",
+          "heading": "Cambios, pausa y cierre",
+          "text": "El organizador puede pausar o cerrar su campaña. Un cambio material de su finalidad debe informarse a quienes ya aportaron."
+        },
+        {
+          "id": "s6",
+          "heading": "Uso de los aportes",
+          "text": "El uso de los aportes recibidos es responsabilidad del organizador. Rifex no fiscaliza materialmente el destino de cada aporte — puede revisar denuncias y aplicar medidas dentro de sus capacidades reales ante información engañosa comprobada."
+        },
+        {
+          "id": "s7",
+          "heading": "Reportes",
+          "text": "Cualquier persona puede reportar una campaña con información engañosa o incumplimiento."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-politica-eventos",
+      "title": "Política de Eventos",
+      "href": "/politica-eventos",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "1aebbab04b8f63e608595d38aa345ecb12352d5c06dd43783d0a6bd3e9b6ff32",
+      "effectiveDate": "2026-09-01",
+      "updatedAt": null,
+      "scannedAt": "2026-11-17",
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Política de Eventos",
+          "text": "Versión 1.0 · Publicada 01/09/2026"
+        },
+        {
+          "id": "s2",
+          "heading": "Responsabilidad del organizador",
+          "text": "El organizador define y responde por su evento: fecha, horario, ubicación o modalidad, condiciones, restricciones de edad y accesibilidad cuando corresponda."
+        },
+        {
+          "id": "s3",
+          "heading": "Entradas y precio",
+          "text": "Cada evento define sus propios tipos de entrada, precio total, cupo (aforo) y cargos. El total de cupos comprometidos entre todos los tipos de entrada nunca puede superar la capacidad del evento — Rifex lo valida automáticamente al crear y al editar cada tipo de entrada."
+        },
+        {
+          "id": "s4",
+          "heading": "Entrada digital (QR)",
+          "text": "Cada entrada se emite como un código QR único. Un QR admite un solo check-in válido: una vez validado en el ingreso, un segundo intento con el mismo QR es rechazado automáticamente. La duplicación, alteración o reventa no autorizada de una entrada está prohibida."
+        },
+        {
+          "id": "s5",
+          "heading": "Cambios, cancelación o reprogramación",
+          "text": "El organizador es responsable de comunicar cualquier cambio a los compradores. Ver Cancelaciones y devoluciones para el tratamiento de pagos ante estos casos."
+        },
+        {
+          "id": "s6",
+          "heading": "Rol de Rifex",
+          "text": "Rifex provee la infraestructura tecnológica para publicar el evento, vender entradas, emitir QR y validar el acceso. Rifex no organiza el evento ni es responsable de su ejecución — esa responsabilidad es del organizador."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-preguntas-frecuentes",
+      "title": "Preguntas frecuentes",
+      "href": "/preguntas-frecuentes",
+      "area": "support",
+      "access": "public",
+      "contentHash": "b0d6dd3430c2278e1b4522588033d6c02d4bed675cc81d66b3ffc0e9de3ab5eb",
+      "effectiveDate": null,
+      "updatedAt": null,
+      "scannedAt": "2026-11-17",
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Preguntas frecuentes",
+          "text": "Respuestas rápidas sobre cómo funciona Rifex. Para más detalle legal, revisa los Términos y Condiciones ."
+        },
+        {
+          "id": "s2",
+          "heading": "¿Qué es Rifex?",
+          "text": "Rifex es una plataforma para crear eventos con entradas digitales y campañas de recaudación en línea, cobrando pagos directo a la cuenta del organizador."
+        },
+        {
+          "id": "s3",
+          "heading": "¿Cómo creo un evento y vendo entradas?",
+          "text": "Desde Crear evento defines el evento, uno o más tipos de entrada y su cupo. Cada entrada vendida se emite como un código QR de un solo uso. Más detalle en la Política de Eventos ."
+        },
+        {
+          "id": "s4",
+          "heading": "¿Cómo funciona el control de acceso (QR / check-in)?",
+          "text": "El día del evento, el staff del organizador escanea el código QR de cada entrada desde el panel de Rifex. Cada QR es de un solo uso: si ya fue escaneado, un segundo intento se marca como inválido."
+        },
+        {
+          "id": "s5",
+          "heading": "¿Cómo creo una campaña de recaudación?",
+          "text": "Desde Crear campaña defines el objetivo y compartes tu enlace para recibir aportes. Más detalle en la Política de Campañas ."
+        },
+        {
+          "id": "s6",
+          "heading": "¿Cuánto cobra Rifex?",
+          "text": "Comisión de lanzamiento: solo 1 %. Publica sin costo y sin mensualidad. Rifex cobra el 1 % únicamente sobre ventas o aportes efectivamente cobrados, descontado automáticamente por Mercado Pago al momento del pago. Mercado Pago puede aplicar sus propios costos. Es una tarifa promocional de lanzamiento. La comisión se calcula sobre el monto bruto cobrado y, cuando el resultado contiene una fracción de peso, se redondea al peso superior. Más detalle en Comisión ."
+        },
+        {
+          "id": "s7",
+          "heading": "¿Cómo se procesan los pagos?",
+          "text": "Los pagos se procesan mediante Mercado Pago y los fondos se acreditan en la cuenta del organizador conectada al proveedor de pagos. Rifex aplica su comisión de servicio mediante la integración con el proveedor. Más detalle en Seguridad ."
+        },
+        {
+          "id": "s8",
+          "heading": "Tengo un problema con una iniciativa o un pago",
+          "text": "Puedes reportar una iniciativa o comportamiento sin necesidad de iniciar sesión, o escribirnos desde Contacto ."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-privacidad",
+      "title": "Política de Privacidad",
+      "href": "/privacidad",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "566065333b9cc5c81ed7c208eb06b4b5a3ee0c4648461c083f4e4f3003ef4e0c",
+      "effectiveDate": "2026-09-01",
+      "updatedAt": null,
+      "scannedAt": "2026-11-17",
+      "keyFacts": [
+        {
+          "id": "edad-minima-creador",
+          "label": "Menores de edad",
+          "sectionId": "s9",
+          "quote": "Rifex requiere que todo creador de una iniciativa declare ser mayor de 18 años"
+        }
+      ],
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Política de Privacidad",
+          "text": "Versión 1.0 · Publicada 01/09/2026"
+        },
+        {
+          "id": "s2",
+          "heading": "Responsable del tratamiento",
+          "text": "Rifex (rifex.pro). Puedes contactarnos en [dato omitido] ."
+        },
+        {
+          "id": "s3",
+          "heading": "Datos que recopilamos",
+          "text": "Datos de cuenta: nombre o razón social, correo, RUT, teléfono, IP y actividad técnica de la sesión.\nDatos de iniciativas: eventos y campañas creadas, entradas emitidas, aportes, compras y otras operaciones realizadas mediante la plataforma.\nDatos de verificación: información de identidad proporcionada por el usuario y resultados derivados de controles de identidad y titularidad (nunca el detalle bancario del proveedor de pagos)."
+        },
+        {
+          "id": "s4",
+          "heading": "Verificación y seguridad de la cuenta",
+          "text": "Rifex puede aplicar controles de identidad y titularidad para proteger las cuentas, reducir usos indebidos y determinar la habilitación de determinadas operaciones. Los resultados de estas verificaciones se utilizan para fines operativos y de seguridad y no se muestran públicamente."
+        },
+        {
+          "id": "s5",
+          "heading": "Finalidades",
+          "text": "Operar la plataforma: creación y administración de eventos, campañas e iniciativas.\nProcesar pagos a través de proveedores conectados.\nSeguridad, prevención de usos indebidos y controles de identidad y titularidad.\nSoporte, comunicaciones operativas y cumplimiento legal."
+        },
+        {
+          "id": "s6",
+          "heading": "Proveedores técnicos y de pagos",
+          "text": "Supabase (base de datos y autenticación), Mercado Pago (procesamiento de pagos en Chile), Vercel (hosting) y, cuando el usuario acepta el aviso de cookies, Meta Pixel (medición de marketing). Ver Cookies ."
+        },
+        {
+          "id": "s7",
+          "heading": "Conservación",
+          "text": "Los datos se conservan mientras exista la cuenta o la iniciativa asociada, y por los plazos adicionales que exijan obligaciones legales, de auditoría o de resolución de disputas."
+        },
+        {
+          "id": "s8",
+          "heading": "Tus derechos",
+          "text": "Puedes solicitar acceso, corrección o eliminación de tus datos personales, sujeto a las obligaciones legales y de auditoría que Rifex deba conservar. Escribe a [dato omitido] ."
+        },
+        {
+          "id": "s9",
+          "heading": "Menores de edad",
+          "text": "Rifex requiere que todo creador de una iniciativa declare ser mayor de 18 años. No está dirigido a la creación de cuentas por menores de edad."
+        },
+        {
+          "id": "s10",
+          "heading": "Cookies y analítica",
+          "text": "Ver la Política de Cookies para el detalle de qué tecnologías usamos y cómo controlarlas."
+        },
+        {
+          "id": "s11",
+          "heading": "Incidentes y contacto",
+          "text": "Ante un incidente de seguridad o una consulta de privacidad, escribe a [dato omitido] ."
+        },
+        {
+          "id": "s12",
+          "heading": "Actualizaciones de esta política",
+          "text": "Rifex puede actualizar esta política para reflejar cambios en la plataforma, sus proveedores y los requisitos aplicables en los países donde se encuentre disponible. La fecha de la versión vigente se indica al comienzo de esta página."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-reembolsos",
+      "title": "Cancelaciones y devoluciones",
+      "href": "/reembolsos",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "bf05d446ed3fb58f4daa9b95d16c08cb6a38867cf051a152991bd0676c02898e",
+      "effectiveDate": "2026-09-01",
+      "updatedAt": null,
+      "scannedAt": "2026-11-17",
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Cancelaciones y devoluciones",
+          "text": "Versión 1.0 · Publicada 01/09/2026\nRifex es una plataforma tecnológica que no custodia el dinero de las ventas ni de los aportes — los pagos se acreditan directo en la cuenta del proveedor conectada del organizador, descontada la comisión de Rifex. Rifex no puede iniciar por sí sola una devolución de un pago ya acreditado al organizador."
+        },
+        {
+          "id": "s2",
+          "heading": "Pago rechazado o pendiente",
+          "text": "Si tu pago fue rechazado o quedó pendiente, no se te cobra y no se emite ninguna entrada, ticket ni número. Consulta con el proveedor de pagos si el cargo aparece en tu estado de cuenta."
+        },
+        {
+          "id": "s3",
+          "heading": "Cobro duplicado o error de pago",
+          "text": "Repórtalo con evidencia (comprobante, fecha, monto) a través de Reportar o a [dato omitido] . Cada caso se revisa individualmente contra la evidencia del proveedor de pagos."
+        },
+        {
+          "id": "s4",
+          "heading": "Evento cancelado o reprogramado",
+          "text": "El organizador es responsable de comunicar y ejecutar cualquier cancelación o reprogramación de su evento. Rifex no dispone hoy de un flujo automatizado que cancele masivamente entradas y devuelva pagos — este es un mecanismo pendiente de diseño y confirmación de producto. Si un evento fue cancelado y el organizador no responde, usa Reportar ."
+        },
+        {
+          "id": "s5",
+          "heading": "Aportes a campañas",
+          "text": "Los aportes son pagos directos al organizador de la campaña. Rifex no gestiona su devolución."
+        },
+        {
+          "id": "s6",
+          "heading": "Iniciativas con premio",
+          "text": "Las iniciativas con premio tienen condiciones específicas adicionales, disponibles para el organizador dentro de su cuenta."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-seguridad",
+      "title": "Seguridad y verificación de organizadores",
+      "href": "/seguridad",
+      "area": "support",
+      "access": "public",
+      "contentHash": "1fc9899750dc32c0b16c8ead2d6001d18b4542e196f6a215b7abbe7e217dd449",
+      "effectiveDate": null,
+      "updatedAt": "2026-08-27",
+      "scannedAt": "2026-11-17",
+      "keyFacts": [
+        {
+          "id": "edad-minima-creador",
+          "label": "Declaración de mayoría de edad",
+          "sectionId": "s5",
+          "quote": "Todo creador debe declarar expresamente que es mayor de 18 años antes de poder operar en Rifex"
+        }
+      ],
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Seguridad y confianza en Rifex",
+          "text": "Estas son las medidas reales que usamos hoy para proteger a usuarios y organizadores. Las iremos actualizando a medida que sigamos mejorando la plataforma."
+        },
+        {
+          "id": "s2",
+          "heading": "Autenticación",
+          "text": "Para crear una cuenta puedes usar tu correo o tu cuenta de Google. Toda sesión queda protegida por la infraestructura de autenticación de Supabase, el mismo estándar que usan miles de aplicaciones."
+        },
+        {
+          "id": "s3",
+          "heading": "Registro obligatorio antes de crear iniciativas",
+          "text": "Antes de poder crear un evento, una campaña u otra iniciativa, todo creador debe completar un registro: nombre (de persona natural o de una empresa/organización), RUT válido, teléfono de contacto, declaración de ser mayor de 18 años, y la aceptación de nuestros Términos y Política de Privacidad."
+        },
+        {
+          "id": "s4",
+          "heading": "Validación formal del RUT",
+          "text": "El RUT que declara cada creador se valida server-side contra su dígito verificador real — nunca se acepta un RUT con formato incorrecto."
+        },
+        {
+          "id": "s5",
+          "heading": "Declaración de mayoría de edad",
+          "text": "Todo creador debe declarar expresamente que es mayor de 18 años antes de poder operar en Rifex."
+        },
+        {
+          "id": "s6",
+          "heading": "Verificación del organizador y la cuenta receptora",
+          "text": "Rifex aplica controles de registro, validación de identidad y titularidad de cuentas antes de habilitar determinadas operaciones. Algunas operaciones pueden requerir comprobaciones adicionales antes de quedar habilitadas.\nLos resultados de estas verificaciones son privados y no se muestran a otros usuarios."
+        },
+        {
+          "id": "s7",
+          "heading": "Pagos",
+          "text": "Los pagos se procesan mediante el proveedor de pagos conectado y se acreditan en la cuenta del organizador. Rifex aplica su comisión de servicio mediante la integración con el proveedor."
+        },
+        {
+          "id": "s8",
+          "heading": "Denuncias",
+          "text": "Cualquier persona puede reportar a Rifex una iniciativa o un creador que incumple lo anunciado. Cada denuncia se revisa contra la evidencia disponible antes de tomar una decisión."
+        },
+        {
+          "id": "s9",
+          "heading": "Evidencia posterior a la transacción",
+          "text": "Rifex mantiene determinados registros o evidencias asociados a operaciones cuando son necesarios para soporte, reportes o revisiones."
+        },
+        {
+          "id": "s10",
+          "heading": "Protección de datos",
+          "text": "Tus datos privados (RUT, teléfono, domicilio, documentos) nunca se muestran públicamente ni se entregan automáticamente a otros usuarios. Se usan únicamente para proteger la operación, reducir usos indebidos y cumplir las obligaciones aplicables. Más detalle en nuestra Política de Privacidad ."
+        },
+        {
+          "id": "s11",
+          "heading": "Medidas ante incumplimientos",
+          "text": "Un incumplimiento verificado puede derivar en suspensión de una cuenta y bloqueo para crear nuevas iniciativas. Rifex no determina por sí sola si un incumplimiento constituye un delito — eso corresponde exclusivamente a la autoridad competente, con la que Rifex coopera ante una solicitud válida.\nÚltima actualización: 27/08/2026. Consulta también nuestros Términos y Condiciones ."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-terminos",
+      "title": "Términos y Condiciones",
+      "href": "/terminos",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "b5de9ddfc32347fd736994dd8fdeb21593de026f8df27f9c6865c4612d79eb07",
+      "effectiveDate": null,
+      "updatedAt": "2026-09-01",
+      "scannedAt": "2026-11-17",
+      "keyFacts": [
+        {
+          "id": "edad-minima-creador",
+          "label": "Edad mínima para crear una iniciativa",
+          "sectionId": "s3",
+          "quote": "declaración de ser mayor de 18 años"
+        },
+        {
+          "id": "edad-minima-usuario",
+          "label": "Edad mínima del usuario, comprador o aportante",
+          "sectionId": "s6",
+          "quote": "Del usuario, comprador o aportante. Ser mayor de 18 años"
+        }
+      ],
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Términos y Condiciones",
+          "text": "Última actualización: 01/09/2026"
+        },
+        {
+          "id": "s2",
+          "heading": "Qué es Rifex",
+          "text": "Rifex (rifex.pro) es una plataforma tecnológica que permite a organizadores publicar eventos con entradas digitales y campañas de recaudación, y a usuarios comprar entradas o realizar aportes. Rifex no es organizador de los eventos ni beneficiario de las campañas — esa responsabilidad es de cada organizador."
+        },
+        {
+          "id": "s3",
+          "heading": "Cuentas y usuarios",
+          "text": "Registro. Para crear una iniciativa es necesario completar un registro: nombre (persona natural o empresa/organización), RUT válido, teléfono de contacto, declaración de ser mayor de 18 años, y la aceptación de estos Términos y de la Política de Privacidad.\nCuenta y acceso. Mantén tus credenciales seguras; Rifex puede suspender el acceso ante una violación de estas condiciones.\nVeracidad de los datos. Eres responsable de que los datos que declares sean veraces y estén actualizados."
+        },
+        {
+          "id": "s4",
+          "heading": "Eventos, entradas digitales y Campañas de recaudación",
+          "text": "Qué es un Evento en Rifex. Un organizador publica un evento con uno o más tipos de entrada digital, cada una con su propio cupo. Cada entrada se emite como un código QR de un solo uso para el control de acceso.\nQué es una Campaña en Rifex. Un organizador publica una campaña de recaudación y quienes aportan reciben confirmación de su aporte; el detalle operativo está en la Política de Campañas .\nMás detalle por producto. Política de Eventos y Política de Campañas ."
+        },
+        {
+          "id": "s5",
+          "heading": "Pagos y comisión",
+          "text": "Procesamiento. Los pagos se procesan mediante el proveedor de pagos conectado por el organizador (Mercado Pago). Los fondos se acreditan directo en la cuenta del organizador, descontada la comisión de Rifex.\nComisión. Durante el período de lanzamiento, Rifex cobra una comisión promocional de solo 1 % sobre cada entrada vendida o aporte efectivamente cobrado, descontada automáticamente por el proveedor de pagos al momento del pago. La comisión se calcula sobre el monto bruto cobrado y, cuando el resultado contiene una fracción de peso, se redondea al peso superior. Es una tarifa promocional y puede actualizarse con aviso razonable. No hay planes, suscripciones ni cobro por publicar — ver Comisión .\nTarifas del proveedor. El proveedor de pagos puede aplicar sus propias tarifas de procesamiento o retiro, independientes de la comisión de Rifex."
+        },
+        {
+          "id": "s6",
+          "heading": "Responsabilidades",
+          "text": "Del organizador. Describir con veracidad su evento o campaña, cumplir la normativa aplicable, y respetar las condiciones publicadas antes y después de recibir pagos.\nDel usuario, comprador o aportante. Ser mayor de 18 años, proporcionar datos veraces, y no usar medios de pago ajenos sin autorización.\nDe la plataforma. Rifex provee la infraestructura técnica; no es responsable por el contenido, la ejecución o el cumplimiento de cada evento o campaña individual más allá de los controles descritos en Seguridad y Cumplimiento . En la medida permitida por la normativa aplicable, Rifex no será responsable por daños indirectos o lucro cesante."
+        },
+        {
+          "id": "s7",
+          "heading": "Cancelaciones, reembolsos y disputas",
+          "text": "Ver la Política de Reembolsos para el detalle real de qué es posible hoy en la plataforma — Rifex no inventa mecanismos que el sistema no soporta. Ante un cargo duplicado o un error de cobro, contacta primero al proveedor de pagos y notifica a Rifex. Ante un incumplimiento de un organizador, puedes reportarlo ."
+        },
+        {
+          "id": "s8",
+          "heading": "Suspensión",
+          "text": "Un incumplimiento verificado de estos Términos, de la Política de Uso Aceptable o de la normativa aplicable puede derivar en la suspensión de una cuenta y el bloqueo para crear nuevas iniciativas, de forma proporcional a la gravedad. Rifex no determina por sí sola si un incumplimiento constituye un delito — eso corresponde exclusivamente a la autoridad competente."
+        },
+        {
+          "id": "s9",
+          "heading": "Contacto",
+          "text": "[dato omitido] — también puedes escribirnos desde Contacto ."
+        },
+        {
+          "id": "s10",
+          "heading": "Modificaciones de las condiciones",
+          "text": "Rifex puede actualizar estos Términos para reflejar cambios en la plataforma, sus proveedores y los requisitos aplicables en los países donde se encuentre disponible. La fecha de la versión vigente se indica al comienzo de esta página."
+        }
+      ],
+      "status": "published"
+    },
+    {
+      "kind": "public_content",
+      "id": "content-uso-aceptable",
+      "title": "Uso Aceptable",
+      "href": "/uso-aceptable",
+      "area": "legal",
+      "access": "public",
+      "contentHash": "6f3717d507b3ef9b17df6d3c96c684953df579d66bf8b563309222aa17c3ef65",
+      "effectiveDate": "2026-08-31",
+      "updatedAt": null,
+      "scannedAt": "2026-11-17",
+      "sections": [
+        {
+          "id": "s1",
+          "heading": "Uso Aceptable",
+          "text": "Versión 1.0 · Publicada 31/08/2026"
+        },
+        {
+          "id": "s2",
+          "heading": "Prohibido en Rifex",
+          "text": "Fraude, suplantación de identidad e información falsa.\nIniciativas, bienes, servicios o contenidos falsos, engañosos o no autorizados.\nBienes o servicios ilegales o restringidos.\nUso de fondos de origen ilícito o lavado de activos.\nVulneración de propiedad intelectual de terceros.\nContenido de odio, violencia, explotación o abuso.\nSpam, etiquetado masivo y automatización no autorizada.\nManipulación de resultados o evidencias de una iniciativa.\nUso de cuentas múltiples para evadir suspensiones.\nUso de datos de compradores o aportantes fuera de la finalidad informada.\nCambio material de las condiciones de una iniciativa después de recibir pagos."
+        },
+        {
+          "id": "s3",
+          "heading": "Consecuencias",
+          "text": "Dentro de las capacidades reales de Rifex como plataforma tecnológica, un incumplimiento verificado puede derivar en:\nRevisión de la cuenta y la iniciativa.\nDespublicación de la iniciativa.\nSuspensión de la cuenta y bloqueo de nuevas iniciativas.\nComunicación al proveedor de pagos o a la autoridad competente cuando corresponda.\nRifex no custodia los fondos de las ventas ni de los aportes — no puede retener dinero que nunca recibe. El proveedor de pagos conectado procesa cargos, contracargos y disputas según sus propias políticas.\nRifex actualiza periódicamente sus políticas para reflejar mejoras en la plataforma y los requisitos aplicables en los países donde opera."
+        }
+      ],
+      "status": "published"
+    }
+  ],
+  "mapHash": "4f035774ff2187e8ee5c245ef26577538961a8c5fff58746643f0443c6c6925e"
+}
