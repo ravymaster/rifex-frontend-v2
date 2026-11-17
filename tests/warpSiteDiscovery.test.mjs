@@ -26,12 +26,12 @@ const call = async (id, qs = '', headers = {}) => {
 const nav = (qs) => call('site.navigation.list', qs);
 const doc = (qs) => call('site.content.read', qs);
 
-test('SITE 0: mapa aprobado sin editar (huella de la entrega), 14 de navegación y 10 documentos', () => {
+test('SITE 0: mapa aprobado v2 sin editar (huella de la entrega), 15 de navegación y 10 documentos', () => {
   const sha = createHash('sha256').update(readFileSync(MAP_PATH)).digest('hex');
-  assert.equal(sha, '5cbbe900e84ec12d9fd9f73aca534ba9bd05fb22e27fd70464a7f7f5c9cd9397');
-  assert.equal(siteMap.mapHash, '4f035774ff2187e8ee5c245ef26577538961a8c5fff58746643f0443c6c6925e');
+  assert.equal(sha, '3b9715638795d6c4ea69f4d22d1a917591fd5fb6a5bd8c2b65552df0f69ae75c');
+  assert.equal(siteMap.mapHash, '644a21a92bf7bd70bf07d594e6a166e24ac7f84d8273e39a5a1d881e09348227');
   assert.equal(siteMap.origin, ORIGIN);
-  assert.equal(siteMap.navigation.length, 14);
+  assert.equal(siteMap.navigation.length, 15);
   assert.equal(siteMap.content.length, 10);
   assert.ok([...siteMap.navigation, ...siteMap.content].every((e) => e.status === 'published'));
   // El mapa vive fuera de public/ y el origen es fijo.
@@ -112,6 +112,9 @@ test('SITE 7 (recuperación): no hay ruta aprobada en el mapa → items vacío y
   assert.deepEqual(r.items, []);
   assert.ok(typeof r.note === 'string' && r.note.length > 0);
   assert.ok(!siteMap.navigation.some((e) => e.href === '/reset-password'));
+  // Pendiente: no se publica en el mapa v2 ni aparece en ninguna respuesta.
+  assert.doesNotMatch(JSON.stringify(siteMap), /reset-password/);
+  assert.doesNotMatch(JSON.stringify((await nav('')).body), /reset-password/);
 });
 
 test('SITE 8 (Mis iniciativas): ruta correcta, requiere sesión y aviso; nunca responde a sign_in', async () => {
@@ -143,10 +146,23 @@ test('SITE 10 (duplicado): /soluciones/eventos no aparece en el mapa ni en ningu
   for (const c of siteMap.content) assert.doesNotMatch(JSON.stringify((await doc(`?id=${c.id}`)).body), /soluciones\/eventos/);
 });
 
-test('SITE 11 (/eventos): hoy no está en el mapa aprobado (pendiente de un mapa nuevo del Notebook); nunca aparece duplicado', async () => {
+test('SITE 11 (/eventos): destino preferido, una sola vez, navegación principal pública de browse y sin contenido duplicado', async () => {
   const hrefs = siteMap.navigation.map((e) => e.href);
-  assert.equal(hrefs.filter((h) => h === '/eventos').length, 0);
+  assert.equal(hrefs.filter((h) => h === '/eventos').length, 1);
   assert.equal(new Set(hrefs).size, hrefs.length);
+  assert.ok(!siteMap.content.some((c) => c.href === '/eventos'));
+  const e = siteMap.navigation.find((x) => x.href === '/eventos');
+  assert.deepEqual([e.id, e.area, e.access, e.action, e.contentId], ['nav-eventos', 'primary_navigation', 'public', 'browse', null]);
+  // Sin argumentos: 15 ítems, /eventos una vez, sin /soluciones/eventos ni /reset-password.
+  const all = (await nav('')).body.data.items;
+  assert.equal(all.length, 15);
+  assert.equal(all.filter((i) => i.url === `${ORIGIN}/eventos`).length, 1);
+  assert.ok(!all.some((i) => /\/soluciones\/eventos|\/reset-password/.test(i.url)));
+  // browse: /eventos una sola vez, primero (destino preferido) y sin sesión.
+  const browse = (await nav('?action=browse')).body.data.items;
+  assert.equal(browse.filter((i) => i.url === `${ORIGIN}/eventos`).length, 1);
+  assert.deepEqual(browse[0], { id: 'nav-eventos', label: 'Eventos', url: `${ORIGIN}/eventos`, area: 'primary_navigation', action: 'browse', requires_session: false });
+  assert.ok(!browse.some((i) => /soluciones/.test(i.url)));
 });
 
 test('SITE 12 (Reembolsos): solo lectura e informativo; no existe acción de devolución', async () => {

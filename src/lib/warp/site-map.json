@@ -1,7 +1,7 @@
 {
   "contract": "warp.site_map.v1",
   "origin": "https://rifex-frontend-main.vercel.app",
-  "generatedAt": "2026-11-17T01:20:43.042Z",
+  "generatedAt": "2026-11-17T22:26:32.530Z",
   "navigation": [
     {
       "kind": "navigation",
@@ -179,6 +179,21 @@
       ],
       "contentId": "content-uso-aceptable",
       "contentHash": "6f3717d507b3ef9b17df6d3c96c684953df579d66bf8b563309222aa17c3ef65",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "nav-eventos",
+      "label": "Eventos",
+      "href": "/eventos",
+      "area": "primary_navigation",
+      "access": "public",
+      "action": "browse",
+      "intents": [
+        "eventos"
+      ],
+      "contentId": null,
+      "contentHash": "7d44251849df8b0f137ceb0033ecf7891c6e9a52eb2c0b6679215612435c08b1",
       "status": "published"
     },
     {
@@ -782,5 +797,5 @@
       "status": "published"
     }
   ],
-  "mapHash": "4f035774ff2187e8ee5c245ef26577538961a8c5fff58746643f0443c6c6925e"
+  "mapHash": "644a21a92bf7bd70bf07d594e6a166e24ac7f84d8273e39a5a1d881e09348227"
 }
