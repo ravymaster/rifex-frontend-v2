@@ -87,12 +87,14 @@ function walkSchemaFields(schema, visit, pathName = '$') {
 // ---------------------------------------------------------------------
 // Contrato Discovery
 // ---------------------------------------------------------------------
-test('DISCOVERY 1: manifiesto warp.discovery_manifest.v1 con las 9 capacidades exactas', () => {
+test('DISCOVERY 1: manifiesto warp.discovery_manifest.v1 con las 9 capacidades de Rifex y las 2 de Warp Discovery, exactas', () => {
   assert.equal(manifest.contract, 'warp.discovery_manifest.v1');
   assert.equal(manifest.protocolVersion, '1.0');
   assert.deepEqual(manifest.platform, { type: 'external', id: 'rifex', name: 'Rifex', version: '1.0', locale: 'es-CL' });
   assert.deepEqual(manifest.connector, { id: '@warp-ai/connector', version: '0.4.0' });
-  assert.deepEqual(manifest.capabilities.map((c) => c.id), [...CAPABILITY_IDS]);
+  // 9 de Rifex (sin cambios) + 2 genéricas de Warp Discovery, en ese orden.
+  assert.deepEqual(manifest.capabilities.map((c) => c.id), [...CAPABILITY_IDS, 'site.navigation.list', 'site.content.read']);
+  assert.equal(manifest.capabilities.length, 11);
   assert.deepEqual([...CAPABILITY_IDS], [
     'rifex.services.list', 'rifex.events.list', 'rifex.event.read', 'rifex.campaigns.list',
     'rifex.campaign.read', 'rifex.registrations.list', 'rifex.registration.read', 'rifex.support.read',
@@ -122,7 +124,11 @@ test('DISCOVERY 3: sin Rifas, rutas privadas, secretos ni ids en el manifiesto',
 
 test('DISCOVERY 4: ningún campo de salida es identificador interno ni dato privado', () => {
   // Única excepción: el correo público publicado en /contacto (rifex.support.read).
-  const ALLOWED = new Set(['rifex.support.read $.public_email']);
+  // y el id público del mapa aprobado de Warp Discovery (p. ej. «auth-login»),
+  // que pertenece a una lista cerrada y nunca es un identificador de la base.
+  const ALLOWED = new Set(['rifex.support.read $.public_email', 'site.navigation.list $.items[].id']);
+  const nav = manifest.capabilities.find((c) => c.id === 'site.navigation.list');
+  for (const id of nav.inputSchema.properties.id.enum) assert.match(id, /^(account|auth|legal|page|support|nav)-[a-z0-9-]+$/, id);
   for (const c of manifest.capabilities) {
     walkSchemaFields(c.outputSchema, (name, p) => {
       if (ALLOWED.has(`${c.id} ${p}`)) return;
