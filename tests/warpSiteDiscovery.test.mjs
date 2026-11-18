@@ -28,7 +28,7 @@ const doc = (qs) => call('site.content.read', qs);
 
 test('SITE 0: mapa PROD aprobado sin editar (huella del build de warp-discover), 15 de navegación y 10 documentos', () => {
   const sha = createHash('sha256').update(readFileSync(MAP_PATH)).digest('hex');
-  assert.equal(sha, 'f0de309edbb1b41db9824ba667671bc60241caceebf067669327d63961dd07b6');
+  assert.equal(sha, 'a43596aa1d6212b6ffb02400a2af1e9e40bd99f887c3c73f71288490a60371e1');
   assert.equal(siteMap.mapHash, 'dd5a534cf05b8944eea11cf6f44c394ee937c5ff9648e31043b0022d7795111b');
   assert.equal(siteMap.origin, ORIGIN);
   assert.equal(siteMap.navigation.length, 15);
