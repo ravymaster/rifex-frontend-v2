@@ -25,6 +25,12 @@ import * as catalog from './publicCatalog.js';
 import { listServices } from './rifexServices.js';
 import { readSupport } from './rifexSupport.js';
 import { readHelp, HELP_TOPICS } from './rifexHelp.js';
+// Warp Discovery (solo `serve`: sin crawler ni red). El mapa aprobado vive
+// fuera de public/ y se genera con warp-discover y la aprobación humana (no se
+// edita a mano: la validación al arrancar rechaza cualquier entrada no
+// publicada, administrativa o con citas alteradas).
+import { registerSiteDiscoveryCapabilities, SITE_CAPABILITY_IDS } from '@warp-ai/discovery/serve';
+import approvedSiteMap from './site-map.json' with { type: 'json' };
 
 export const RIFEX_PLATFORM = Object.freeze({ id: 'rifex', name: 'Rifex', version: '1.0', locale: 'es-CL' });
 export const CONNECTOR_INFO = Object.freeze({ id: '@warp-ai/connector', version: '0.4.0' });
@@ -42,6 +48,12 @@ export const CAPABILITY_IDS = Object.freeze([
 
 // Quita claves nulas o indefinidas de los objetos (recursivo); los arreglos
 // conservan sus elementos.
+// Capacidades genéricas de Warp Discovery, registradas después de las 9 de
+// Rifex sin modificarlas. Origen fijo del mapa (PROD), nunca el Host de la
+// petición.
+export const SITE_DISCOVERY_IDS = Object.freeze([SITE_CAPABILITY_IDS.NAVIGATION, SITE_CAPABILITY_IDS.CONTENT]);
+export const SITE_MAP_ORIGIN = 'https://rifex.pro';
+
 export function compact(value) {
   if (Array.isArray(value)) return value.map(compact);
   if (value && typeof value === 'object') {
@@ -216,7 +228,7 @@ const serviceItem = obj(
 
 // `source` permite inyectar una capa de datos de prueba en los tests; en
 // ejecución real siempre es la capa pública de Rifex.
-export function createRifexConnector(source = { ...catalog, listServices, readSupport, readHelp }) {
+export function createRifexConnector(source = { ...catalog, listServices, readSupport, readHelp }, siteMap = approvedSiteMap) {
   const connector = createConnector({ platform: { ...RIFEX_PLATFORM }, connector: { ...CONNECTOR_INFO } });
   const common = { risk: 'low', authentication: 'public' };
 
@@ -354,6 +366,10 @@ export function createRifexConnector(source = { ...catalog, listServices, readSu
     ),
     handler: async ({ topic }) => compact(source.readHelp({ topic })),
   });
+
+  // Nivel 1, públicas, de lectura, riesgo bajo y sin confirmación (las
+  // define el paquete). Si el mapa no es válido, lanza y no registra nada.
+  registerSiteDiscoveryCapabilities(connector, { siteMap, origin: SITE_MAP_ORIGIN });
 
   return connector;
 }
