@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import { getStoredConsent, setStoredConsent } from '@/lib/consent';
 import { initMetaPixel, trackPageView } from '@/lib/metaPixel';
 import ConsentBanner from '@/components/ConsentBanner';
+import WarpAssistantGlobal from '@/components/warp/WarpAssistantGlobal';
 
 export default function App({ Component, pageProps }) {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function App({ Component, pageProps }) {
     <>
       {getLayout(<Component {...pageProps} />)}
       {consent === null && <ConsentBanner onAccept={handleAccept} onReject={handleReject} />}
+      <WarpAssistantGlobal />
     </>
   );
 }

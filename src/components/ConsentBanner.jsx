@@ -6,6 +6,7 @@ export default function ConsentBanner({ onAccept, onReject }) {
   return (
     <div
       role="dialog"
+      data-rifex-bottom-bar
       aria-live="polite"
       style={{
         position: "fixed",
