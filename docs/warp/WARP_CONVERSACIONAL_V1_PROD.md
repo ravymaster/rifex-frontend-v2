@@ -7,7 +7,14 @@ Rama `prod/warp-conversational-v1`, creada desde `main` (`a776593`). Solo local;
   - `@warp-ai/assistant` 0.7.5;
   - `@warp-ai/connector` 0.4.0;
   - `@warp-ai/discovery` 0.1.0.
-- **Connector** con las 9 capacidades `rifex.*`, todas de lectura pública, y los 22 contextos de página. Es idéntico a lo certificado en `develop` (`eebf189`).
+- **Connector** con 11 capacidades, todas de lectura pública, y los 22 contextos de página:
+  - las 9 `rifex.*`, idénticas a lo certificado en `develop` (`eebf189`);
+  - `site.navigation.list` y `site.content.read` (Warp Discovery), con el mapa de PROD.
+- **Mapa de PROD** en `src/lib/warp/site-map.json`, fuera de `public/`:
+  - 15 páginas de navegación y 10 documentos, con origen fijo `https://rifex.pro`;
+  - generado con `warp-discover` desde el escaneo público de rifex.pro, con aprobación humana y sin edición manual;
+  - mismas entradas que el mapa aprobado en `develop`; solo cambian el origen y la fecha de escaneo;
+  - `/eventos` aparece una vez; `/soluciones/eventos` (duplicado) y `/reset-password` quedan fuera.
 - **Rutas de servidor:**
   - `/api/v1/discovery`;
   - `/api/warp/capabilities/[capabilityId]`;
@@ -21,7 +28,7 @@ Rama `prod/warp-conversational-v1`, creada desde `main` (`a776593`). Solo local;
 - La página `/piloto-warp`, el banner de DEV ni otros trabajos de `develop`, como analytics o la puerta de admin de DEV.
 - Cambios en autenticación, pagos, comisión, RLS, base de datos ni Mercado Pago.
 - Capacidades que modifiquen datos.
-- **Pendiente:** `site.navigation.list` y `site.content.read`. Se agregan con el mapa de PROD aprobado por una persona.
+- **Pendiente:** `@warp-ai/assistant` 0.7.6 (identidad seudónima diaria). Se integra cuando esté certificado en DEV.
 
 ## Variables de PROD (solo por nombre)
 
