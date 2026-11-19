@@ -163,26 +163,29 @@ test('GLOBAL 7: el servidor reenvía a Warp solo mensaje y conversación, nunca 
   const route = createPilotPostRoute(
     (cfg) => createWarpChatRouteHandler({ ...cfg, fetchImpl: async (url, init) => { outbound = { url, init }; return Response.json({ conversationId: 'c1', message: 'ok' }); } }),
     {},
-    { rateLimit: allow, enabled: () => true, readConfig: () => ({ apiUrl: 'https://warp.example', apiKey: fake }) },
+    { rateLimit: allow, enabled: () => true, readConfig: () => ({ apiUrl: 'https://warp.example', apiKey: fake, usageIdentity: { secret: 's'.repeat(64), trustedProxy: 'vercel', required: true } }) },
   );
   const req = Readable.from([Buffer.from(JSON.stringify({ message: 'hola', conversationId: 'c1', page: '/checkout', email: 'a@b.cl' }))]);
   req.method = 'POST';
-  req.headers = { 'content-type': 'application/json', cookie: 'sb-access-token=secreto; mp=1', authorization: 'Bearer usuario', referer: 'https://rifex/checkout', 'x-forwarded-for': '203.0.113.9' };
+  req.headers = { 'content-type': 'application/json', cookie: 'sb-access-token=secreto; mp=1', authorization: 'Bearer usuario', referer: 'https://rifex/checkout', 'x-forwarded-for': '203.0.113.9', 'x-real-ip': '198.51.100.7', 'user-agent': 'NavegadorPrueba/1.0', 'x-warp-client-ref': 'elegida-por-el-navegador-000000000' };
   const res = { headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, status(s) { this.statusCode = s; return this; }, send(b) { this.body = b; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
   await route(req, res);
   assert.equal(res.statusCode, 200);
   assert.equal(outbound.url, 'https://warp.example/api/v1/chat');
-  assert.deepEqual(Object.keys(outbound.init.headers).sort(), ['authorization', 'content-type']);
+  // 0.7.6: además de la key, solo la referencia seudónima calculada en el servidor.
+  assert.deepEqual(Object.keys(outbound.init.headers).sort(), ['authorization', 'content-type', 'x-warp-client-ref']);
   assert.equal(outbound.init.headers.authorization, `Bearer ${fake}`);
+  assert.match(outbound.init.headers['x-warp-client-ref'], /^[A-Za-z0-9_-]{32}$/);
+  assert.notEqual(outbound.init.headers['x-warp-client-ref'], 'elegida-por-el-navegador-000000000');
   assert.deepEqual(JSON.parse(outbound.init.body), { message: 'hola', conversationId: 'c1' });
-  assert.doesNotMatch(JSON.stringify(outbound), /secreto|usuario|203\.0\.113\.9|checkout|a@b\.cl/);
+  assert.doesNotMatch(JSON.stringify(outbound), /secreto|usuario|203\.0\.113\.9|198\.51\.100\.7|NavegadorPrueba|checkout|a@b\.cl|sssssssss/);
   assert.ok(!String(res.body).includes(fake));
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
 test('GLOBAL 8: ajustes visuales coherentes con el paquete instalado y con las capas de Rifex', () => {
   const pkg = read('node_modules/@warp-ai/assistant/src/floatingWidget.js');
-  assert.match(read('node_modules/@warp-ai/assistant/package.json'), /"version": "0\.7\.5"/);
+  assert.match(read('node_modules/@warp-ai/assistant/package.json'), /"version": "0\.7\.6"/);
   for (const sel of ['.warp-widget {', '.bottom-right {', '.panel {', '.expanded .panel {', '.launcher {', '.panel.open {', 'form.compose button {', 'header button {']) {
     assert.ok(pkg.includes(sel), `el paquete define ${sel}`);
   }
