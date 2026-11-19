@@ -12,6 +12,7 @@ import { createWarpChatRouteHandler } from '@warp-ai/assistant';
 // El módulo carga el limitador de Rifex (crea su cliente al importarse): valores ficticios, sin red.
 process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'http://localhost.invalid';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= 'prueba';
+process.env.RIFEX_RATE_LIMIT_KEY_SECRET ||= 'secreto-de-prueba-del-limitador-'.padEnd(64, 'x');
 const { createPilotPostRoute, isWarpPilotEnabled, readPilotConfig, MAX_PILOT_BODY_BYTES, PILOT_RATE_LIMIT_MAX } = await import('../src/lib/warp/assistantPilot.js');
 const allow = async () => ({ allowed: true, retryAfterSeconds: 1 });
 
@@ -28,7 +29,8 @@ fs.writeFileSync(keyFile, `${FAKE_KEY}\n`, { mode: 0o600 });
 function fakeReq(method, body = '', headers = {}) {
   const req = Readable.from(body ? [Buffer.from(body)] : []);
   req.method = method;
-  req.headers = { 'content-type': 'application/json', ...headers };
+  // Vercel escribe x-real-ip; las pruebas simulan esa IP (documentación, RFC 5737).
+  req.headers = { 'content-type': 'application/json', 'x-real-ip': '192.0.2.10', ...headers };
   return req;
 }
 function fakeRes() {
@@ -48,15 +50,21 @@ test('PILOTO 1: solo existe con RIFEX_WARP_PILOT=on exacto', () => {
   assert.equal(isWarpPilotEnabled({ RIFEX_WARP_PILOT: 'on' }), true);
 });
 
-test('PILOTO 2: la key se lee del archivo en el servidor; sin archivo o URL no hay configuración', () => {
-  assert.deepEqual(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: keyFile }), { apiUrl: 'http://warp.test', apiKey: FAKE_KEY });
-  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test' }), null);
-  assert.equal(readPilotConfig({ WARP_AI_API_KEY_FILE: keyFile }), null);
-  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: path.join(keyDir, 'no-existe') }), null);
+test('PILOTO 2: la key se lee del archivo en el servidor; sin archivo, URL o secreto de identidad no hay configuración', () => {
+  const SECRET = 'a'.repeat(64);
+  const identity = { secret: SECRET, trustedProxy: 'vercel', required: true };
+  assert.deepEqual(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: keyFile, WARP_USAGE_IDENTITY_SECRET: SECRET }), { apiUrl: 'http://warp.test', apiKey: FAKE_KEY, usageIdentity: identity });
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_USAGE_IDENTITY_SECRET: SECRET }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_KEY_FILE: keyFile, WARP_USAGE_IDENTITY_SECRET: SECRET }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: path.join(keyDir, 'no-existe'), WARP_USAGE_IDENTITY_SECRET: SECRET }), null);
   // Vercel: sin archivo, la key sale de la variable privada del servidor.
-  assert.deepEqual(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: ` ${FAKE_KEY} ` }), { apiUrl: 'http://warp.test', apiKey: FAKE_KEY });
+  assert.deepEqual(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: ` ${FAKE_KEY} `, WARP_USAGE_IDENTITY_SECRET: SECRET }), { apiUrl: 'http://warp.test', apiKey: FAKE_KEY, usageIdentity: identity });
   // Si hay archivo, manda el archivo.
-  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: keyFile, WARP_AI_API_KEY: 'otra' }).apiKey, FAKE_KEY);
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: keyFile, WARP_AI_API_KEY: 'otra', WARP_USAGE_IDENTITY_SECRET: SECRET }).apiKey, FAKE_KEY);
+  // 0.7.6: sin secreto o con menos de 32 caracteres, no hay configuración.
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: FAKE_KEY }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: FAKE_KEY, WARP_USAGE_IDENTITY_SECRET: 'b'.repeat(31) }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: FAKE_KEY, WARP_USAGE_IDENTITY_SECRET: '   ' }), null);
 });
 
 test('PILOTO 3: piloto apagado → 404 sin leer configuración', async () => {
@@ -114,21 +122,24 @@ test('PILOTO 6: key solo en servidor; página piloto y rutas aisladas del sitio'
   assert.match(read('src/pages/api/warp/chat/actions.js'), /createPilotPostRoute\(createWarpReadActionRouteHandler, \{\}, \{ scope: 'actions' \}\)/);
 });
 
-test('PILOTO 7: límite de mensajes por IP antes de leer la key o llamar a Warp', async () => {
+test('PILOTO 7: límite de mensajes con clave HMAC, antes de llamar a Warp', async () => {
   assert.equal(PILOT_RATE_LIMIT_MAX, 20);
-  let configReads = 0;
-  const route = createPilotPostRoute(createWarpChatRouteHandler, {}, {
+  let warpCalls = 0;
+  const keys = [];
+  const route = createPilotPostRoute(() => async () => { warpCalls += 1; return new Response('{}'); }, {}, {
     enabled: () => true,
-    rateLimit: async (key) => { assert.match(key, /^warp-pilot-chat:ip:/); return { allowed: false, retryAfterSeconds: 120 }; },
-    readConfig: () => { configReads += 1; return null; },
+    rateLimit: async (key) => { keys.push(key); return { allowed: false, retryAfterSeconds: 120 }; },
+    readConfig: () => ({ apiUrl: 'http://127.0.0.1:9', apiKey: FAKE_KEY }),
   });
   const res = fakeRes();
-  await route(Object.assign(fakeReq('POST', '{"message":"hola"}'), { socket: {} }), res);
+  await route(fakeReq('POST', '{"message":"hola"}'), res);
   assert.equal(res.statusCode, 429);
   assert.equal(res.headers['retry-after'], '120');
-  assert.equal(configReads, 0);
+  assert.equal(warpCalls, 0);
+  assert.equal(keys.length, 1);
+  assert.match(keys[0], /^warp-pilot-chat:h:[0-9a-f]{32}$/);
   assert.match(read('src/pages/api/warp/chat/actions.js'), /scope: 'actions'/);
-  assert.doesNotMatch(read('src/lib/warp/assistantPilot.js'), /NEXT_PUBLIC_[A-Z_]*WARP/);
+  assert.doesNotMatch(read('src/lib/warp/assistantPilot.js'), /NEXT_PUBLIC_[A-Z_]*WARP|NEXT_PUBLIC_[A-Z_]*RATE_LIMIT/);
 });
 
 test('PILOTO 8: enlaces del asistente — solo el dominio exacto de Rifex PROD es clicable (DEV queda como texto)', async () => {

@@ -53,9 +53,47 @@ test('PROD 3: sin página piloto ni banner de DEV; el botón global se monta una
 
 test('PROD 4: apagado por defecto — sin RIFEX_WARP_PILOT=on y configuración de servidor, el botón no aparece', async () => {
   const { assistantStatus } = await import('../src/lib/warp/assistantPilot.js');
-  assert.deepEqual(assistantStatus({ enabled: () => false, readConfig: () => ({ apiUrl: 'x', apiKey: 'y' }) }), { enabled: false });
-  assert.deepEqual(assistantStatus({ enabled: () => true, readConfig: () => null }), { enabled: false });
-  assert.deepEqual(assistantStatus({ enabled: () => true, readConfig: () => ({ apiUrl: 'x', apiKey: 'y' }) }), { enabled: true });
+  const rl = () => 'r'.repeat(64);
+  assert.deepEqual(assistantStatus({ enabled: () => false, readConfig: () => ({ apiUrl: 'x', apiKey: 'y' }), readRateLimitSecret: rl }), { enabled: false });
+  assert.deepEqual(assistantStatus({ enabled: () => true, readConfig: () => null, readRateLimitSecret: rl }), { enabled: false });
+  assert.deepEqual(assistantStatus({ enabled: () => true, readConfig: () => ({ apiUrl: 'x', apiKey: 'y' }), readRateLimitSecret: () => null }), { enabled: false });
+  assert.deepEqual(assistantStatus({ enabled: () => true, readConfig: () => ({ apiUrl: 'x', apiKey: 'y' }), readRateLimitSecret: rl }), { enabled: true });
+});
+
+test('PROD 4b: variables de PROD — sin activación 404; sin cualquiera de los dos secretos, botón oculto y 503 sin guardar nada', async () => {
+  const { assistantStatus, createPilotPostRoute, readPilotConfig, readRateLimitKeySecret, isWarpPilotEnabled } = await import('../src/lib/warp/assistantPilot.js');
+  // Valores ficticios, solo de prueba.
+  const full = {
+    RIFEX_WARP_PILOT: 'on', WARP_AI_API_URL: 'https://warp.invalid', WARP_AI_API_KEY: 'clave-ficticia',
+    WARP_USAGE_IDENTITY_SECRET: 'i'.repeat(64), RIFEX_RATE_LIMIT_KEY_SECRET: 'h'.repeat(64),
+  };
+  const status = (env) => assistantStatus({ enabled: () => isWarpPilotEnabled(env), readConfig: () => readPilotConfig(env), readRateLimitSecret: () => readRateLimitKeySecret(env) });
+  assert.deepEqual(status(full), { enabled: true });
+  const cases = {
+    'sin RIFEX_WARP_PILOT': { RIFEX_WARP_PILOT: undefined },
+    'sin WARP_AI_API_URL': { WARP_AI_API_URL: undefined },
+    'sin WARP_AI_API_KEY': { WARP_AI_API_KEY: undefined },
+    'sin WARP_USAGE_IDENTITY_SECRET': { WARP_USAGE_IDENTITY_SECRET: undefined },
+    'sin RIFEX_RATE_LIMIT_KEY_SECRET': { RIFEX_RATE_LIMIT_KEY_SECRET: undefined },
+    'secretos iguales': { RIFEX_RATE_LIMIT_KEY_SECRET: 'i'.repeat(64) },
+    'secreto de identidad corto': { WARP_USAGE_IDENTITY_SECRET: 'i'.repeat(31) },
+    'secreto del limitador corto': { RIFEX_RATE_LIMIT_KEY_SECRET: 'h'.repeat(31) },
+  };
+  for (const [name, patch] of Object.entries(cases)) {
+    const env = { ...full, ...patch };
+    assert.deepEqual(status(env), { enabled: false }, name);
+    let saved = 0;
+    let created = 0;
+    const route = createPilotPostRoute(() => { created += 1; return async () => {}; }, {}, {
+      enabled: () => isWarpPilotEnabled(env), readConfig: () => readPilotConfig(env), readRateLimitSecret: () => readRateLimitKeySecret(env),
+      rateLimit: async () => { saved += 1; return { allowed: true }; },
+    });
+    const res = { code: 0, setHeader() {}, status(c) { this.code = c; return this; }, json() { return this; }, end() { return this; } };
+    await route({ method: 'POST', headers: { 'x-real-ip': '203.0.113.7', 'content-type': 'application/json' } }, res);
+    assert.equal(res.code, name === 'sin RIFEX_WARP_PILOT' ? 404 : 503, name);
+    assert.equal(saved, 0, `${name}: nada guardado en el limitador`);
+    assert.equal(created, 0, `${name}: no se crea el handler de Warp`);
+  }
 });
 
 test('PROD 5: solo enlaces a https://rifex.pro; DEV queda como texto', async () => {

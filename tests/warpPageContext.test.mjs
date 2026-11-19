@@ -15,6 +15,7 @@ import { buildAssistantConfig } from '../src/lib/warp/assistantGlobal.js';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'http://localhost.invalid';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= 'prueba';
+process.env.RIFEX_RATE_LIMIT_KEY_SECRET ||= 'secreto-de-prueba-del-limitador-'.padEnd(64, 'x');
 const { createPilotPostRoute } = await import('../src/lib/warp/assistantPilot.js');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -112,14 +113,14 @@ function makeRoute() {
   const route = createPilotPostRoute(
     (cfg) => createWarpChatRouteHandler({ ...cfg, fetchImpl: async (url, init) => { calls.push({ url, init }); return Response.json({ conversationId: 'c1', message: 'ok' }); } }),
     {},
-    { rateLimit: allow, enabled: () => true, readConfig: () => ({ apiUrl: 'https://warp.example', apiKey: fake }) },
+    { rateLimit: allow, enabled: () => true, readConfig: () => ({ apiUrl: 'https://warp.example', apiKey: fake, usageIdentity: { secret: 'k'.repeat(64), trustedProxy: 'vercel', required: true } }) },
   );
   return { route, calls, fake };
 }
 async function post(route, body) {
   const req = Readable.from([Buffer.from(JSON.stringify(body))]);
   req.method = 'POST';
-  req.headers = { 'content-type': 'application/json', cookie: 'sb-access-token=secreto' };
+  req.headers = { 'content-type': 'application/json', cookie: 'sb-access-token=secreto', 'x-real-ip': '192.0.2.20' };
   const res = { headers: {}, setHeader(k, v) { this.headers[k.toLowerCase()] = v; }, status(s) { this.statusCode = s; return this; }, send(b) { this.body = b; return this; }, json(b) { this.body = JSON.stringify(b); return this; } };
   await route(req, res);
   return res;
@@ -131,8 +132,8 @@ test('CONTEXTO 5: la ruta de Rifex reenvía a Warp solo un contexto válido, jun
   assert.equal(res.statusCode, 200);
   assert.equal(calls.length, 1);
   assert.deepEqual(JSON.parse(calls[0].init.body), { message: 'Ya estoy aquí, ¿qué hago?', conversationId: 'c1', pageContext: { pageId: 'qr-meter-home', module: 'qr-meter', area: 'public', guidance: 'create-or-learn' } });
-  assert.deepEqual(Object.keys(calls[0].init.headers).sort(), ['authorization', 'content-type']);
-  assert.doesNotMatch(JSON.stringify(calls[0]), /secreto/);
+  assert.deepEqual(Object.keys(calls[0].init.headers).sort(), ['authorization', 'content-type', 'x-warp-client-ref']);
+  assert.doesNotMatch(JSON.stringify(calls[0]), /secreto|192\.0\.2\.20/);
   assert.ok(!String(res.body).includes(fake));
   const noCtx = await post(route, { message: 'hola' });
   assert.equal(noCtx.statusCode, 200);
@@ -164,13 +165,16 @@ test('CONTEXTO 6: contextos mal formados → 400 sin llamar a Warp', async () =>
   assert.equal(calls.length, 0, 'nunca llama a Warp con un contexto inválido');
 });
 
-test('CONTEXTO 7: Assistant 0.7.5 instalado desde el tgz verificado; 0.7.4 retirado', () => {
+test('CONTEXTO 7: Assistant 0.7.6 instalado desde el tgz verificado; 0.7.5 conservado para rollback; 0.7.4 retirado', () => {
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(pkg.dependencies['@warp-ai/assistant'], 'file:vendor/warp-sdk-lite/warp-ai-assistant-0.7.5-80db790.tgz');
+  assert.equal(pkg.dependencies['@warp-ai/assistant'], 'file:vendor/warp-sdk-lite/warp-ai-assistant-0.7.6-1d80866.tgz');
   const lock = JSON.parse(read('package-lock.json'));
-  assert.equal(lock.packages['node_modules/@warp-ai/assistant'].version, '0.7.5');
-  assert.equal(JSON.parse(read('node_modules/@warp-ai/assistant/package.json')).version, '0.7.5');
-  const tgz = fs.readFileSync(path.join(ROOT, 'vendor/warp-sdk-lite/warp-ai-assistant-0.7.5-80db790.tgz'));
-  assert.equal(crypto.createHash('sha256').update(tgz).digest('hex'), 'e742afd79a1ee55e91b9b19173208dfd8c238eb51eaa86072cec9a00be62e692');
+  assert.equal(lock.packages['node_modules/@warp-ai/assistant'].version, '0.7.6');
+  assert.equal(lock.packages['node_modules/@warp-ai/assistant'].integrity, 'sha512-HXXVMjYHqINAbiBtobtnSeGOA37HSo6Nf/RtGAp3RPFgSUjS7mSm+hdPRRW5PkaRZVXxwwVTm7CKh/SJ/uptGQ==');
+  assert.equal(JSON.parse(read('node_modules/@warp-ai/assistant/package.json')).version, '0.7.6');
+  const tgz = fs.readFileSync(path.join(ROOT, 'vendor/warp-sdk-lite/warp-ai-assistant-0.7.6-1d80866.tgz'));
+  assert.equal(crypto.createHash('sha256').update(tgz).digest('hex'), '69ee9113df4de829adf420022fe81e132c7b34a3d83d99c03ff2536cf083fd9f');
+  const prev = fs.readFileSync(path.join(ROOT, 'vendor/warp-sdk-lite/warp-ai-assistant-0.7.5-80db790.tgz'));
+  assert.equal(crypto.createHash('sha256').update(prev).digest('hex'), 'e742afd79a1ee55e91b9b19173208dfd8c238eb51eaa86072cec9a00be62e692');
   assert.ok(!fs.existsSync(path.join(ROOT, 'vendor/warp-sdk-lite/warp-ai-assistant-0.7.4-430b5d8.tgz')));
 });
