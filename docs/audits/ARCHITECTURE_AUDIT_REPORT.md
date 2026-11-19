@@ -123,7 +123,7 @@ Payment architecture is WEAK. Checkout, confirm, webhook and reconciliation dupl
 | Resend | `src/lib/mailer.js` plus direct email endpoint | Duplicate authority and PII risk |
 | Supabase | Browser/server/admin/inline clients | Service-role sprawl |
 | hCaptcha | Dedicated verification route | UNVERIFIED |
-| Replicate | Scripts/tooling dependency | Runtime role UNVERIFIED |
+| Replicate | Retirado el 2026-11-19 (solo se usaba en scripts locales; sin uso en ejecución) | Ninguno |
 
 ## Frontend
 
