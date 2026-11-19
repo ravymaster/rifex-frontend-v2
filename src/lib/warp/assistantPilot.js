@@ -18,6 +18,14 @@
 //   - Si falta la configuración responde 503 ASSISTANT_NOT_CONFIGURED; si Warp
 //     no responde, el handler del paquete devuelve su error controlado. El
 //     resto del sitio no depende del piloto.
+//   - Identidad seudónima de uso (Assistant 0.7.6, `usageIdentity`): el
+//     servidor calcula una referencia opaca diaria a partir de la IP que
+//     escribe Vercel (`x-real-ip`) y del secreto privado
+//     WARP_USAGE_IDENTITY_SECRET, y Warp la usa para el límite por persona.
+//     Es una identidad de red, no de una persona: quienes comparten IP pública
+//     comparten el límite. Sin secreto válido o sin IP confiable no se llama
+//     a Warp (503). Nunca se reenvían IP, cookies, sesión, User-Agent, correo
+//     ni ids; solo `x-real-ip` llega al handler interno del paquete.
 import fs from 'fs';
 import os from 'os';
 import { checkRateLimit, resolveClientIp } from '../rateLimit.js';
@@ -25,6 +33,12 @@ import { checkRateLimit, resolveClientIp } from '../rateLimit.js';
 export const MAX_PILOT_BODY_BYTES = 16 * 1024;
 export const PILOT_RATE_LIMIT_MAX = 20;
 export const PILOT_RATE_LIMIT_WINDOW_SECONDS = 600;
+
+export const USAGE_IDENTITY_MIN_SECRET = 32;
+export const USAGE_IDENTITY_TRUSTED_PROXY = 'vercel';
+export const TRUSTED_IP_HEADER = 'x-real-ip';
+// Mismo formato que acepta el paquete (usageIdentity.js): IPv4 o IPv6.
+const TRUSTED_IP_PATTERN = /^(?:[0-9]{1,3}(?:\.[0-9]{1,3}){3}|[0-9a-fA-F:]{2,39})$/;
 
 export const ASSISTANT_NOT_CONFIGURED = Object.freeze({
   code: 'ASSISTANT_NOT_CONFIGURED',
@@ -47,10 +61,23 @@ function readSiteKey(env) {
   }
 }
 
+// Único lugar que lee WARP_USAGE_IDENTITY_SECRET. Sin URL, sin clave o sin un
+// secreto de al menos 32 caracteres devuelve null: botón oculto y rutas del
+// chat con 503. Nunca se usa el asistente sin identidad.
 export function readPilotConfig(env = process.env) {
   const apiUrl = String(env.WARP_AI_API_URL || '').trim();
   const apiKey = readSiteKey(env);
-  return apiUrl && apiKey ? { apiUrl, apiKey } : null;
+  const secret = String(env.WARP_USAGE_IDENTITY_SECRET || '').trim();
+  if (!apiUrl || !apiKey || secret.length < USAGE_IDENTITY_MIN_SECRET) return null;
+  return { apiUrl, apiKey, usageIdentity: { secret, trustedProxy: USAGE_IDENTITY_TRUSTED_PROXY, required: true } };
+}
+
+// IP que escribe la plataforma (Vercel sobrescribe `x-real-ip`), o null si
+// falta o no tiene formato de IP. Nunca se usa x-forwarded-for.
+export function trustedClientIp(req) {
+  const raw = req?.headers?.[TRUSTED_IP_HEADER];
+  const ip = String(Array.isArray(raw) ? raw[0] : raw || '').split(',')[0].trim();
+  return TRUSTED_IP_PATTERN.test(ip) ? ip : null;
 }
 
 function sendJson(res, status, body) {
@@ -94,8 +121,15 @@ export function createPilotPostRoute(factory, options = {}, { readConfig = readP
     if (!handler) {
       const config = readConfig();
       if (!config) return sendJson(res, 503, { error: ASSISTANT_NOT_CONFIGURED });
-      handler = factory({ ...config, ...options });
+      try {
+        handler = factory({ ...config, ...options });
+      } catch {
+        return sendJson(res, 503, { error: ASSISTANT_NOT_CONFIGURED });
+      }
     }
+    // Sin IP confiable no hay identidad: no se llama a Warp.
+    const ip = trustedClientIp(req);
+    if (!ip) return sendJson(res, 503, { error: ASSISTANT_NOT_CONFIGURED });
 
     let body;
     try {
@@ -106,9 +140,12 @@ export function createPilotPostRoute(factory, options = {}, { readConfig = readP
     }
 
     try {
+      // Solo content-type y x-real-ip: ningún otro encabezado del navegador
+      // (cookies, User-Agent, x-forwarded-for, x-warp-client-ref) llega al
+      // handler del paquete.
       const request = new Request('http://rifex.internal/api/warp/chat', {
         method: 'POST',
-        headers: { 'content-type': String(req.headers['content-type'] || 'application/json') },
+        headers: { 'content-type': String(req.headers['content-type'] || 'application/json'), [TRUSTED_IP_HEADER]: ip },
         body,
       });
       const response = await handler(request);
