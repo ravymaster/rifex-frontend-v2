@@ -79,7 +79,6 @@ Previous HEAD citations in this document and in `docs/WOP.md` (`b46ef9d`, then `
 - Mercado Pago SDK and REST calls
 - Resend
 - hCaptcha
-- Replicate dependency present
 - CSS Modules / local styles
 
 ## Main Structure
@@ -143,7 +142,6 @@ DEV_TEST_EMAIL_TOKEN
 CREATOR_FALLBACK_EMAIL
 HCAPTCHA_SECRET
 ADMIN_API_TOKEN
-REPLICATE_API_TOKEN
 EMAIL_DEDUP_WINDOW_MIN
 RIFEX_FEE_PCT
 MP_FEE_FALLBACK_PCT

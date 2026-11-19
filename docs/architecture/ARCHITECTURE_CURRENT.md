@@ -26,7 +26,6 @@ This document records observed architecture only. Architecture Audit is closed a
 | Payments | Mercado Pago SDK/REST | CONFIRMED |
 | Email | Resend | CONFIRMED |
 | Captcha | hCaptcha | CONFIRMED |
-| Image/AI dependency | `replicate` package | CONFIRMED dependency, role UNVERIFIED |
 
 ## Main Dependencies
 
