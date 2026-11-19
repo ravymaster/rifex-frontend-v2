@@ -32,14 +32,26 @@
 - Hacia Warp no viajan la IP, el correo, las cookies, la sesión, el User-Agent ni ids reales. El cuerpo solo lleva `message`, `conversationId` y `pageContext`.
 - El adaptador no tiene logs.
 - La referencia no vuelve al navegador.
-- **Comportamiento previo, sin cambios:** el límite propio de Rifex (`warp-pilot-chat:ip:*` y `warp-pilot-actions:ip:*`, 20 por 10 minutos) sigue usando la IP como clave en su tabla de límites.
+- El límite propio de Rifex (20 por 10 minutos por scope) ya no guarda la IP: ver la sección siguiente.
+
+## Límite propio de Rifex: clave HMAC
+- **Antes:** `warp-pilot-<scope>:ip:<IP>` en `rate_limit_hits` (IP en claro).
+- **Ahora:** `warp-pilot-<scope>:h:<32 hex>`, con `scope` = `chat` o `actions`.
+  - Referencia: primeros 32 caracteres hex de `HMAC-SHA256(RIFEX_RATE_LIMIT_KEY_SECRET, "rifex-rl:v1|<día UTC>|warp-pilot|<ip confiable>")`.
+  - Se calcula solo en el servidor, con la misma IP confiable de Vercel (`x-real-ip`, validada) que usa la identidad de Warp.
+  - Cambia cada día UTC y con cada secreto; nunca contiene la IP y nunca coincide con la referencia que recibe Warp (otro secreto, otro formato).
+  - Chat y acciones mantienen cupos separados en Rifex con la misma referencia; en Warp siguen compartiendo un solo límite.
+- **Orden de la ruta:** secreto del limitador → configuración de Warp → IP confiable → limitador → Warp. Sin secreto válido o sin IP no se guarda nada y la respuesta es 503.
+- **Borde del día UTC:** la clave cambia a las 00:00 UTC; quien escriba justo en ese momento puede usar un cupo extra de 10 minutos, igual que el borde de ventana fija que ya existía.
+- **Registros antiguos:** las claves `warp-pilot-%:ip:%` que ya existían y las filas vencidas se borran con `db/pending/2026-11-19a_rate_limit_retention_purge.sql`, preparada y **sin ejecutar** hasta un GO explícito.
 
 ## Fallar cerrado
 | Situación | Resultado |
 |---|---|
 | Falta `WARP_USAGE_IDENTITY_SECRET` o tiene menos de 32 caracteres | Botón oculto (`{ enabled: false }`); chat y acciones → 503 `ASSISTANT_NOT_CONFIGURED` |
 | El paquete rechaza la configuración al crear el handler | 503, nunca 500 |
-| Falta `x-real-ip` o no tiene formato de IP | 503, sin llamar a Warp |
+| Falta `RIFEX_RATE_LIMIT_KEY_SECRET`, tiene menos de 32 caracteres o es igual al secreto de identidad | Botón oculto; chat y acciones → 503, sin escribir en el limitador |
+| Falta `x-real-ip` o no tiene formato de IP | 503, sin escribir en el limitador ni llamar a Warp |
 
 En local (`next dev`) no hay `x-real-ip`, así que el chat responde 503. Es esperado: nunca se usa el asistente sin identidad.
 
@@ -47,6 +59,7 @@ En local (`next dev`) no hay `x-real-ip`, así que el chat responde 503. Es espe
 | Variable | Dónde |
 |---|---|
 | `WARP_USAGE_IDENTITY_SECRET` | Nueva. Solo en el proyecto Vercel de Rifex DEV (`rifex-frontend-main`), entorno Production, Sensitive. Secreto propio, de 64 caracteres hexadecimales |
+| `RIFEX_RATE_LIMIT_KEY_SECRET` | Nueva. Solo en el proyecto Vercel de Rifex DEV (`rifex-frontend-main`), entorno Production, Sensitive. Secreto propio, de 64 caracteres hexadecimales, distinto de `WARP_USAGE_IDENTITY_SECRET` (si son iguales, el asistente queda apagado) |
 | `RIFEX_WARP_PILOT`, `WARP_AI_API_URL`, `WARP_AI_API_KEY` | Existentes, sin cambios |
 
 - No reutilizar el secreto de Warp, de OpenAI ni de PROD.
@@ -63,4 +76,5 @@ En local (`next dev`) no hay `x-real-ip`, así que el chat responde 503. Es espe
 2. **Despliegue:** Instant Rollback de `rifex-frontend-main` al despliegue anterior, con 0.7.5.
 3. **Código:** `git revert -m 1 <merge>` en una rama nueva y PR a `develop`. Vuelve `package.json` a 0.7.5, cuyo tgz sigue en `vendor/`.
 4. **Variable:** `WARP_USAGE_IDENTITY_SECRET` puede quedarse; 0.7.5 no la lee.
-5. **Warp:** no se toca, ni su volumen ni `/data`.
+5. **Clave HMAC del limitador:** `git revert -m 1 <merge>` de ese cambio vuelve a `:ip:` (no recomendado: vuelve a guardar IP). Quitar `RIFEX_RATE_LIMIT_KEY_SECRET` sin revertir el código apaga el asistente (503), sin afectar el resto del sitio.
+6. **Warp:** no se toca, ni su volumen ni `/data`.
