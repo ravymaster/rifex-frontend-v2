@@ -23,7 +23,7 @@
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.57.2",
-    "@warp-ai/assistant": "file:vendor/warp-sdk-lite/warp-ai-assistant-0.7.5-80db790.tgz",
+    "@warp-ai/assistant": "file:vendor/warp-sdk-lite/warp-ai-assistant-0.7.6-1d80866.tgz",
     "@warp-ai/connector": "file:vendor/warp-sdk-lite/warp-ai-connector-0.4.0.tgz",
     "@warp-ai/discovery": "file:vendor/warp-discovery/warp-ai-discovery-0.1.0-381205a.tgz",
     "cookie": "^1.0.2",
