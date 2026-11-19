@@ -15,6 +15,7 @@ import { buildAssistantConfig } from '../src/lib/warp/assistantGlobal.js';
 
 process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'http://localhost.invalid';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= 'prueba';
+process.env.RIFEX_RATE_LIMIT_KEY_SECRET ||= 'secreto-de-prueba-del-limitador-'.padEnd(64, 'x');
 const { createPilotPostRoute } = await import('../src/lib/warp/assistantPilot.js');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
