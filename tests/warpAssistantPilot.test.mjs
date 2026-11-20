@@ -1,0 +1,193 @@
+// tests/warpAssistantPilot.test.mjs
+// Piloto local del asistente de Warp: habilitación por variable privada,
+// key solo en el servidor, adaptador de Pages Router y errores controlados.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { Readable } from 'stream';
+import { fileURLToPath } from 'url';
+import { createWarpChatRouteHandler } from '@warp-ai/assistant';
+// El módulo carga el limitador de Rifex (crea su cliente al importarse): valores ficticios, sin red.
+process.env.NEXT_PUBLIC_SUPABASE_URL ||= 'http://localhost.invalid';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||= 'prueba';
+process.env.RIFEX_RATE_LIMIT_KEY_SECRET ||= 'secreto-de-prueba-del-limitador-'.padEnd(64, 'x');
+const { createPilotPostRoute, isWarpPilotEnabled, readPilotConfig, MAX_PILOT_BODY_BYTES, PILOT_RATE_LIMIT_MAX } = await import('../src/lib/warp/assistantPilot.js');
+const allow = async () => ({ allowed: true, retryAfterSeconds: 1 });
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, '..');
+const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+
+// Key ficticia de prueba en un archivo temporal (nunca la real).
+const FAKE_KEY = `prueba-${Math.random().toString(36).slice(2)}-clave`;
+const keyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rifex-pilot-'));
+const keyFile = path.join(keyDir, 'site-key.txt');
+fs.writeFileSync(keyFile, `${FAKE_KEY}\n`, { mode: 0o600 });
+
+function fakeReq(method, body = '', headers = {}) {
+  const req = Readable.from(body ? [Buffer.from(body)] : []);
+  req.method = method;
+  // Vercel escribe x-real-ip; las pruebas simulan esa IP (documentación, RFC 5737).
+  req.headers = { 'content-type': 'application/json', 'x-real-ip': '192.0.2.10', ...headers };
+  return req;
+}
+function fakeRes() {
+  const r = { statusCode: 200, headers: {}, body: undefined, ended: false };
+  r.setHeader = (k, v) => { r.headers[k.toLowerCase()] = v; };
+  r.status = (s) => { r.statusCode = s; return r; };
+  r.json = (b) => { r.body = JSON.stringify(b); return r; };
+  r.send = (b) => { r.body = b; return r; };
+  r.end = () => { r.ended = true; return r; };
+  return r;
+}
+
+test('PILOTO 1: solo existe con RIFEX_WARP_PILOT=on exacto', () => {
+  assert.equal(isWarpPilotEnabled({}), false);
+  assert.equal(isWarpPilotEnabled({ RIFEX_WARP_PILOT: 'ON' }), false);
+  assert.equal(isWarpPilotEnabled({ RIFEX_WARP_PILOT: 'true' }), false);
+  assert.equal(isWarpPilotEnabled({ RIFEX_WARP_PILOT: 'on' }), true);
+});
+
+test('PILOTO 2: la key se lee del archivo en el servidor; sin archivo, URL o secreto de identidad no hay configuración', () => {
+  const SECRET = 'a'.repeat(64);
+  const identity = { secret: SECRET, trustedProxy: 'vercel', required: true };
+  assert.deepEqual(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: keyFile, WARP_USAGE_IDENTITY_SECRET: SECRET }), { apiUrl: 'http://warp.test', apiKey: FAKE_KEY, usageIdentity: identity });
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_USAGE_IDENTITY_SECRET: SECRET }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_KEY_FILE: keyFile, WARP_USAGE_IDENTITY_SECRET: SECRET }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: path.join(keyDir, 'no-existe'), WARP_USAGE_IDENTITY_SECRET: SECRET }), null);
+  // Vercel: sin archivo, la key sale de la variable privada del servidor.
+  assert.deepEqual(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: ` ${FAKE_KEY} `, WARP_USAGE_IDENTITY_SECRET: SECRET }), { apiUrl: 'http://warp.test', apiKey: FAKE_KEY, usageIdentity: identity });
+  // Si hay archivo, manda el archivo.
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY_FILE: keyFile, WARP_AI_API_KEY: 'otra', WARP_USAGE_IDENTITY_SECRET: SECRET }).apiKey, FAKE_KEY);
+  // 0.7.6: sin secreto o con menos de 32 caracteres, no hay configuración.
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: FAKE_KEY }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: FAKE_KEY, WARP_USAGE_IDENTITY_SECRET: 'b'.repeat(31) }), null);
+  assert.equal(readPilotConfig({ WARP_AI_API_URL: 'http://warp.test', WARP_AI_API_KEY: FAKE_KEY, WARP_USAGE_IDENTITY_SECRET: '   ' }), null);
+});
+
+test('PILOTO 3: piloto apagado → 404 sin leer configuración', async () => {
+  let reads = 0;
+  const route = createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: () => false, readConfig: () => { reads += 1; return null; } });
+  const res = fakeRes();
+  await route(fakeReq('POST', '{"message":"hola"}'), res);
+  assert.equal(res.statusCode, 404);
+  assert.equal(reads, 0);
+});
+
+test('PILOTO 4: solo POST; sin configuración 503; cuerpo excesivo 413', async () => {
+  const on = () => true;
+  const r405 = fakeRes();
+  await createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: on, readConfig: () => null })(fakeReq('GET'), r405);
+  assert.equal(r405.statusCode, 405);
+  const r503 = fakeRes();
+  await createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: on, readConfig: () => null })(fakeReq('POST', '{}'), r503);
+  assert.equal(r503.statusCode, 503);
+  assert.match(r503.body, /ASSISTANT_NOT_CONFIGURED/);
+  const r413 = fakeRes();
+  const cfg = () => ({ apiUrl: 'http://127.0.0.1:9', apiKey: FAKE_KEY });
+  await createPilotPostRoute(createWarpChatRouteHandler, {}, { rateLimit: allow, enabled: on, readConfig: cfg })(fakeReq('POST', 'x'.repeat(MAX_PILOT_BODY_BYTES + 10)), r413);
+  assert.equal(r413.statusCode, 413);
+});
+
+test('PILOTO 5: con Warp apagado responde un error controlado, con cuerpo y sin la key', async () => {
+  const route = createPilotPostRoute(createWarpChatRouteHandler, { timeoutMs: 2000 }, {
+    rateLimit: allow,
+    enabled: () => true,
+    readConfig: () => ({ apiUrl: 'http://127.0.0.1:9', apiKey: FAKE_KEY }),
+  });
+  const res = fakeRes();
+  await route(fakeReq('POST', JSON.stringify({ message: '¿Qué servicios ofrece Rifex?' })), res);
+  assert.ok(res.statusCode >= 400 && res.statusCode < 600, String(res.statusCode));
+  assert.ok(res.body && JSON.parse(res.body).error, 'error con cuerpo JSON');
+  assert.ok(!String(res.body).includes(FAKE_KEY), 'la key nunca vuelve al navegador');
+});
+
+test('PILOTO 6: key solo en servidor; página piloto y rutas aisladas del sitio', () => {
+  const lib = read('src/lib/warp/assistantPilot.js');
+  assert.doesNotMatch(lib, /console\./, 'sin logs');
+  // PROD: la página piloto de comparación (solo DEV) no se incluye.
+  for (const p of ['src/components/warp/WarpAssistantPilot.jsx', 'src/pages/piloto-warp.js']) {
+    assert.equal(fs.existsSync(path.join(ROOT, p)), false, `${p} no existe en PROD`);
+  }
+  let hits = '';
+  try {
+    hits = fs.readFileSync(path.join(ROOT, 'src/components/Layout.jsx'), 'utf8') + read('src/pages/_app.js');
+  } catch {}
+  // El sitio monta solo el botón global (carga diferida, encendido desde el servidor);
+  // el widget del piloto y el paquete nunca se importan directamente en el layout.
+  assert.doesNotMatch(hits, /WarpAssistantPilot|@warp-ai\/assistant/, 'el piloto no está en el layout global');
+  assert.match(read('src/pages/api/warp/chat/index.js'), /createPilotPostRoute\(createWarpChatRouteHandler/);
+  assert.match(read('src/pages/api/warp/chat/actions.js'), /createPilotPostRoute\(createWarpReadActionRouteHandler, \{\}, \{ scope: 'actions' \}\)/);
+});
+
+test('PILOTO 7: límite de mensajes con clave HMAC, antes de llamar a Warp', async () => {
+  assert.equal(PILOT_RATE_LIMIT_MAX, 20);
+  let warpCalls = 0;
+  const keys = [];
+  const route = createPilotPostRoute(() => async () => { warpCalls += 1; return new Response('{}'); }, {}, {
+    enabled: () => true,
+    rateLimit: async (key) => { keys.push(key); return { allowed: false, retryAfterSeconds: 120 }; },
+    readConfig: () => ({ apiUrl: 'http://127.0.0.1:9', apiKey: FAKE_KEY }),
+  });
+  const res = fakeRes();
+  await route(fakeReq('POST', '{"message":"hola"}'), res);
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.headers['retry-after'], '120');
+  assert.equal(warpCalls, 0);
+  assert.equal(keys.length, 1);
+  assert.match(keys[0], /^warp-pilot-chat:h:[0-9a-f]{32}$/);
+  assert.match(read('src/pages/api/warp/chat/actions.js'), /scope: 'actions'/);
+  assert.doesNotMatch(read('src/lib/warp/assistantPilot.js'), /NEXT_PUBLIC_[A-Z_]*WARP|NEXT_PUBLIC_[A-Z_]*RATE_LIMIT/);
+});
+
+test('PILOTO 8: enlaces del asistente — solo el dominio exacto de Rifex PROD es clicable (DEV queda como texto)', async () => {
+  const { normalizeLinkPolicy, splitTextWithLinks } = await import('@warp-ai/assistant');
+  const { PILOT_LINK_HOSTS, PILOT_LINK_POLICY } = await import('../src/lib/warp/pilotLinks.js');
+  assert.deepEqual([...PILOT_LINK_HOSTS], ['rifex.pro']);
+  assert.deepEqual(PILOT_LINK_POLICY.internalHosts, ['rifex.pro']);
+  assert.deepEqual(PILOT_LINK_POLICY.allowedHosts, ['rifex.pro']);
+  assert.doesNotMatch(JSON.stringify(PILOT_LINK_POLICY), /\*/, 'sin comodines');
+  const policy = normalizeLinkPolicy({ internalHosts: [...PILOT_LINK_POLICY.internalHosts], allowedHosts: [...PILOT_LINK_POLICY.allowedHosts] }, 'rifex.pro');
+  const links = (text) => splitTextWithLinks(text, policy).filter((s) => s.type === 'link');
+
+  const ok = links('Mira https://rifex.pro/eventos.');
+  assert.equal(ok.length, 1);
+  assert.equal(ok[0].href, 'https://rifex.pro/eventos');
+  assert.equal(ok[0].internal, true);
+  assert.equal(ok[0].path, '/eventos');
+
+  for (const text of [
+    'https://example.com/eventos',
+    'https://rifex-frontend-main.vercel.app/eventos',
+    'javascript:alert(1)',
+    'data:text/html,<b>x</b>',
+    'file:///etc/passwd',
+    'http://rifex.pro/eventos',
+    'https://rifex.pro.evil.com/eventos',
+    'https://rifex-frontend-maim.vercel.app/eventos',
+    'https://rifex-frontend-main-vercel.app/eventos',
+    'https://evil-rifex.pro/eventos',
+    'https://rifex.pro@evil.com/eventos',
+    'https://usuario:clave@rifex.pro/eventos',
+    'https://rіfex-frontend-main.vercel.app/eventos',
+    'https://rifex.pro:8443/eventos',
+  ]) {
+    assert.equal(links(text).length, 0, text);
+    assert.equal(splitTextWithLinks(text, policy).map((s) => s.value).join(''), text, `${text} queda como texto`);
+  }
+});
+
+test('PILOTO 9: Contacto de PROD es enlace; el correo y otros dominios quedan como texto', async () => {
+  const { normalizeLinkPolicy, splitTextWithLinks } = await import('@warp-ai/assistant');
+  const { PILOT_LINK_POLICY } = await import('../src/lib/warp/pilotLinks.js');
+  const policy = normalizeLinkPolicy({ internalHosts: [...PILOT_LINK_POLICY.internalHosts], allowedHosts: [...PILOT_LINK_POLICY.allowedHosts] }, 'rifex.pro');
+  const text = 'Escríbenos en https://rifex.pro/contacto o a contacto@rifex.pro. En DEV: https://rifex-frontend-main.vercel.app/contacto. mailto:contacto@rifex.pro';
+  const parts = splitTextWithLinks(text, policy);
+  const links = parts.filter((s) => s.type === 'link');
+  assert.equal(links.length, 1);
+  assert.equal(links[0].href, 'https://rifex.pro/contacto');
+  assert.equal(links[0].internal, true);
+  assert.equal(parts.map((s) => s.value).join(''), text);
+});

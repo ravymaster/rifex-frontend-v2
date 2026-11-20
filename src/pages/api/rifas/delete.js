@@ -13,8 +13,39 @@ export default async function handler(req, res) {
   }
 
   try {
+    // PRE-LAUNCH-FIX-1 (P0-1): este endpoint no exigía ninguna
+    // autenticación ni ownership — cualquiera, sin sesión, podía borrar
+    // (soft o hard, según `force`) CUALQUIER rifa solo conociendo su
+    // UUID. La identidad se deriva SIEMPRE de auth.getUser(token) contra
+    // el service role, igual que el resto de endpoints owner-only del
+    // proyecto (extend.js, draw.js, PATCH [id].js) — nunca de un
+    // creator_id/user_id que mandara el cliente.
+    const authz = req.headers.authorization || '';
+    const token = authz.startsWith('Bearer ') ? authz.slice(7) : null;
+    if (!token) return res.status(401).json({ ok: false, error: 'missing_auth' });
+
+    const { data: ures, error: uerr } = await supabase.auth.getUser(token);
+    if (uerr || !ures?.user) return res.status(401).json({ ok: false, error: 'invalid_auth' });
+    const uid = ures.user.id;
+    const email = (ures.user.email || '').toLowerCase();
+
     const { id, force } = req.body || {};
     if (!id) return res.status(400).json({ ok: false, error: 'missing_id' });
+
+    const { data: raffle, error: rErr } = await supabase
+      .from('raffles')
+      .select('id,creator_id,creator_email')
+      .eq('id', id)
+      .maybeSingle();
+    if (rErr) throw rErr;
+    if (!raffle) return res.status(404).json({ ok: false, error: 'not_found' });
+
+    // Mismo criterio de ownership que draw.js/extend.js: creator_id O
+    // creator_email (rifas antiguas sin creator_id poblado siguen
+    // protegidas). `force:true` NUNCA sustituye esta verificación — solo
+    // decide hard vs soft delete una vez que el ownership ya se confirmó.
+    const isOwner = raffle.creator_id === uid || (raffle.creator_email || '').toLowerCase() === email;
+    if (!isOwner) return res.status(403).json({ ok: false, error: 'not_your_raffle' });
 
     // ¿Tiene ventas?
     let sold = 0;

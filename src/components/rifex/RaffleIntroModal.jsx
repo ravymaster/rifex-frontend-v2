@@ -1,5 +1,6 @@
 // src/components/rifex/RaffleIntroModal.jsx
 import React from "react";
+import { formatDateOnly } from "@/lib/raffleTime";
 
 export default function RaffleIntroModal({ open, onClose, raffle }) {
   if (!open || !raffle) return null;
@@ -51,7 +52,7 @@ export default function RaffleIntroModal({ open, onClose, raffle }) {
           <div>
             <div style={{ fontSize:12, color:"#64748b" }}>Termina</div>
             <div style={{ fontSize:16, fontWeight:700 }}>
-              {raffle.end_date ? new Date(raffle.end_date).toLocaleDateString("es-CL") : "—"}
+              {raffle.end_date ? (formatDateOnly(raffle.end_date) ?? "—") : "—"}
             </div>
           </div>
           <div>

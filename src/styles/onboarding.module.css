@@ -1,0 +1,143 @@
+.page{
+  min-height: calc(100vh - 64px);
+  display:flex; align-items:center; justify-content:center;
+  padding:20px 14px;
+  background: var(--fondo);
+}
+
+.shell{
+  width:100%; max-width:640px;
+  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
+  border-radius: 22px;
+  padding: 12px;
+  box-shadow: 0 16px 36px rgba(0,0,0,.10);
+}
+
+.inner{
+  background:#fff; color:var(--oscuro);
+  border-radius: 16px; border: 1px solid rgba(255,255,255,0.20);
+  padding: 24px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.06);
+}
+
+.title{
+  margin:0 0 4px; font-weight: 800; color: var(--ultramar);
+  letter-spacing: -0.2px; font-size: 22px; line-height: 1.20;
+}
+.sub{ margin:0 0 18px; color: var(--gris); }
+
+.grid{
+  display:grid; gap:10px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 480px){
+  .grid{ grid-template-columns: 1fr 1fr; }
+}
+
+.option{
+  display:flex; align-items:center; gap:10px;
+  border: 1.5px solid var(--borde);
+  border-radius: 12px;
+  padding: 14px;
+  background:#fff;
+  cursor: pointer;
+  font-weight: 700;
+  text-align:left;
+}
+.option:hover{ border-color: var(--ultramar); }
+.optionFlag{ font-size: 22px; }
+.optionLabel{ flex:1; }
+
+.optionDisabled{
+  composes: option;
+  cursor: not-allowed;
+  opacity: 0.55;
+  background: #f8fafc;
+}
+.optionDisabled:hover{ border-color: var(--borde); }
+
+.badge{
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--gris);
+  background: #f1f5f9;
+  border-radius: 999px;
+  padding: 3px 8px;
+}
+
+.err{ color:#b91c1c; margin-top:14px; }
+
+.actions{
+  margin-top: 18px;
+  display:flex; justify-content:flex-end;
+}
+.actions :global(.btn){
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 900;
+  font-size: 15px;
+}
+.btnPrimary{
+  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
+  color:#fff; border:none;
+  box-shadow: 0 10px 20px rgba(24,169,87,.22);
+}
+.btnPrimary:disabled{ opacity:.6; cursor:default; }
+
+.progress{
+  display:flex; gap:6px; margin-bottom:18px;
+}
+.progressStep{
+  flex:1; height:5px; border-radius:999px; background:#e5e7eb;
+}
+.progressStepDone{
+  composes: progressStep;
+  background: linear-gradient(135deg, var(--ultramar) 0%, var(--trebol) 100%);
+}
+
+.field{ margin-bottom:16px; }
+.label{
+  display:block; font-weight:700; font-size:13.5px; color:var(--oscuro);
+  margin-bottom:6px;
+}
+.input{
+  width:100%; padding:12px 14px; border-radius:12px;
+  border:1.5px solid var(--borde); font-size:15px; color:var(--oscuro);
+  background:#fff;
+}
+.input:focus{ outline:none; border-color:var(--ultramar); }
+.inputError{ composes: input; border-color:#b91c1c; }
+.fieldHelp{ margin:6px 0 0; font-size:12.5px; color:var(--gris); }
+.fieldError{ margin:6px 0 0; font-size:12.5px; color:#b91c1c; }
+
+.checkboxRow{
+  display:flex; align-items:flex-start; gap:10px; margin-bottom:14px;
+}
+.checkboxRow input{ margin-top:3px; }
+.checkboxLabel{ font-size:13.5px; color:var(--oscuro); line-height:1.4; }
+.checkboxLabel a{ color:var(--ultramar); font-weight:700; text-decoration:underline; }
+
+.notice{
+  background:#f1f5f9; color:var(--gris); border-radius:12px;
+  padding:12px 14px; font-size:12.5px; line-height:1.5; margin-top:18px;
+}
+
+/* TRUST-3A — verificación de identidad */
+.statusBadge{
+  display:inline-block; padding:4px 10px; border-radius:999px;
+  font-size:12px; font-weight:800; margin-bottom:14px;
+}
+.statusBadgePending{ composes: statusBadge; background:#fef3c7; color:#92400e; }
+.statusBadgeReview{ composes: statusBadge; background:#dbeafe; color:#1e40af; }
+.statusBadgeGood{ composes: statusBadge; background:#dcfce7; color:#166534; }
+.statusBadgeBad{ composes: statusBadge; background:#fee2e2; color:#991b1b; }
+
+.docGrid{ display:grid; gap:14px; grid-template-columns:1fr; margin:16px 0; }
+@media (min-width:480px){ .docGrid{ grid-template-columns:1fr 1fr; } }
+.docSlot{
+  border:1.5px dashed var(--borde); border-radius:12px; padding:14px;
+  text-align:center; background:#fafafa;
+}
+.docSlotFilled{ composes: docSlot; border-style:solid; border-color:var(--trebol); background:#fff; }
+.docPreview{ max-width:100%; max-height:140px; border-radius:8px; margin-bottom:8px; }
+.docLabel{ font-weight:700; font-size:13px; margin-bottom:8px; display:block; }
