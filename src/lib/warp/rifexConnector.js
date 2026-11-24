@@ -209,6 +209,7 @@ const serviceItem = obj(
   {
     service: str({ enum: ['events', 'campaigns', 'registrations', 'qr_meter', 'warp_conversational'], 'x-presentation': 'hidden' }),
     name: str({ 'x-presentation': 'title' }),
+    aliases: arr(str(), { title: 'También conocido como' }),
     summary: str({ 'x-presentation': 'detail' }),
     when_to_use: str({ title: 'Cuándo usarlo' }),
     pricing: str({ title: 'Costo' }),
@@ -219,7 +220,7 @@ const serviceItem = obj(
     url: urlField,
     create_url: str({
       title: 'Dónde crearlo o solicitarlo',
-      description: 'Página pública donde la persona crea este servicio por su cuenta, o solicita el piloto en el caso de Warp Conversacional (requiere iniciar sesión para enviar). El asistente nunca crea ni envía nada.',
+      description: 'Página pública donde la persona crea este servicio por su cuenta, o solicita el piloto en el caso del Asistente de IA (requiere iniciar sesión para enviar). El asistente nunca crea ni envía nada.',
       'x-presentation': 'detail',
     }),
   },
@@ -236,9 +237,9 @@ export function createRifexConnector(source = { ...catalog, listServices, readSu
     ...common,
     id: 'rifex.services.list',
     description:
-      'Lista los servicios que Rifex ofrece mediante el asistente (Eventos, Campañas, Inscripciones, Medidor QR y Warp Conversacional): ' +
+      'Lista los servicios que Rifex ofrece mediante el asistente (Eventos, Campañas, Inscripciones, Medidor QR y Asistente de IA, también llamado Warp Conversacional): ' +
       'para qué sirve cada uno, su costo, si requiere Mercado Pago, si usa QR y qué recibe el organizador. Rifas no se ofrece mediante el asistente. ' +
-      'Warp Conversacional es un piloto asistido: responde solo con lo que dice este resultado (precio, condiciones, compatibilidad y límites), ' +
+      'El Asistente de IA es un piloto asistido: responde solo con lo que dice este resultado (precio, condiciones, compatibilidad y límites), ' +
       'sin inventar descuentos, prueba gratuita, plazos, instalación automática ni compatibilidad garantizada, y para solicitarlo entrega create_url ' +
       '(la persona envía el formulario con su cuenta; el asistente nunca lo envía ni crea solicitudes).',
     inputSchema: obj({}),
@@ -349,7 +350,7 @@ export function createRifexConnector(source = { ...catalog, listServices, readSu
       '(conectar Mercado Pago para recibir cobros), collect-vs-pay (cobrar con Rifex vs pagar una compra), payment-methods (medios ' +
       'de pago; no hay conexión bancaria directa), payment-security (seguridad de pagos y credenciales), mp-required (por qué Eventos y ' +
       'Campañas requieren Mercado Pago), mp-not-required (módulos sin Mercado Pago), events, campaigns, registrations, qr-meter ' +
-      '(paneles propios), warp-requests (Mis solicitudes de Warp: estado de las solicitudes de piloto), promotion (Difusión), support (Contacto) y logout (dónde está Cerrar sesión). Solo orienta: no ve ni puede afirmar qué iniciativas, perfil, pagos o estado de Mercado Pago tiene la ' +
+      '(paneles propios), warp-requests (Mis solicitudes del Asistente de IA: estado de las solicitudes de piloto), promotion (Difusión), support (Contacto) y logout (dónde está Cerrar sesión). Solo orienta: no ve ni puede afirmar qué iniciativas, perfil, pagos o estado de Mercado Pago tiene la ' +
       'persona, no actúa por ella, no cierra sesión y no muestra datos de otras cuentas. Ante una pregunta por un dato privado, indica ' +
       'dónde revisarlo la propia persona y repite safety_notice cuando venga.',
     inputSchema: obj(

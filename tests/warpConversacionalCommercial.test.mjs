@@ -100,7 +100,7 @@ test('SEO 1: title, description, canonical, Open Graph vía Layout, JSON-LD Serv
 // ---------------- Demostración ----------------
 
 test('DEMO 1: las preguntas sugeridas son exactamente las cinco pedidas', () => {
-  assert.deepEqual([...prefill.SUGGESTED_QUESTIONS], ['¿Qué es Rifex?', '¿Qué servicios ofrece Rifex?', '¿Cómo puedo crear un evento?', '¿Dónde están los términos?', '¿Cómo puedo contratar Warp Conversacional?']);
+  assert.deepEqual([...prefill.SUGGESTED_QUESTIONS], ['¿Qué es Rifex?', '¿Qué servicios ofrece Rifex?', '¿Cómo puedo crear un evento?', '¿Dónde están los términos?', '¿Cómo contrato el Asistente de IA para mi sitio?']);
 });
 
 test('DEMO 2: pulsar abre el asistente y deja la pregunta escrita, SIN enviarla', () => {

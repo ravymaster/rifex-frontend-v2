@@ -11,7 +11,7 @@
 import { publicOrigin } from './publicOrigin.js';
 import { publicCommission } from '../commissionPolicy.js';
 
-export const SERVICES_VERSION = '2026-11-24';
+export const SERVICES_VERSION = '2026-11-24b';
 
 const SERVICES = Object.freeze([
   {
@@ -75,7 +75,8 @@ const SERVICES = Object.freeze([
   // Piloto asistido: el asistente explica y enlaza; nunca envía la solicitud.
   {
     service: 'warp_conversational',
-    name: 'Warp Conversacional',
+    name: 'Asistente de IA',
+    aliases: ['Warp Conversacional'],
     summary:
       'Asistente de inteligencia artificial para sitios web que responde solo con la información autorizada del negocio, orienta a los visitantes hacia páginas, productos o servicios del sitio y mantiene controlados el consumo y los costos. Se ofrece como piloto asistido y comienza en modo de solo lectura: informa, orienta y deriva; no compra, no reserva ni modifica datos sin una integración adicional acordada.',
     when_to_use:

@@ -1,7 +1,10 @@
 // tests/asistenteIaNombrePublico.test.mjs
 // Nombre público «Asistente de IA» en la interfaz de Rifex DEV. El catálogo
-// que consume el chat y el mapa Discovery quedan EXACTAMENTE como en la
-// versión que Notebook diagnostica (develop a526678). Sin red ni modelo.
+// que consume el chat, la ayuda, el conector, la pregunta sugerida y el mapa
+// Discovery quedan fijos en la versión entregada a Notebook (GO catálogo y
+// Discovery «Asistente de IA», 2026-11-24, mapa aprobado por una persona).
+// Cambiarlos exige un GO nuevo y volver a fijar
+// tests/fixtures/asistente-ia-referencia.json. Sin red ni modelo.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -33,7 +36,7 @@ test('NOMBRE 1: menú, pie, tarjeta, encabezado y panel usan «Asistente de IA»
   assert.match(read('src/pages/mis-iniciativas.jsx'), /href: '\/panel\/warp', cta: 'Mis solicitudes del Asistente de IA'/);
 });
 
-test('REFERENCIA 1: catálogo del chat, ayuda, conector, preguntas sugeridas y mapa sin cambios', () => {
+test('REFERENCIA 1: catálogo del chat, ayuda, conector, preguntas sugeridas y mapa fijos en la versión entregada a Notebook', () => {
   const expected = {
     'src/lib/warp/rifexServices.js': 'RIFEX_SERVICES',
     'src/lib/warp/rifexHelp.js': 'RIFEX_HELP',
