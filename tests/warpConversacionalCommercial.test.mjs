@@ -58,7 +58,7 @@ function fakeRes() {
 test('MÓDULO 1: la tarjeta Warp Conversacional está en el catálogo con nombre, descripción, estado, categoría, CTA y ruta', () => {
   const home = read('src/pages/index.js');
   for (const s of [
-    "key: 'warp-conversacional'", "title: 'Warp Conversacional'",
+    "key: 'warp-conversacional'", "title: 'Asistente de IA'",
     "text: 'Asistente de inteligencia artificial para sitios web que conoce la información autorizada del negocio, orienta visitantes y mantiene controlados el consumo y los costos.'",
     "detail: 'Piloto asistido'", "category: 'Inteligencia artificial para negocios'", "cta: 'Ver demostración'", "href: '/warp-conversacional'",
   ]) assert.ok(home.includes(s), s);
@@ -69,7 +69,7 @@ test('MÓDULO 1: la tarjeta Warp Conversacional está en el catálogo con nombre
 
 test('PÁGINA 1: secciones obligatorias, hero exacto, precios y aviso de precio de lanzamiento', async () => {
   const page = read('src/pages/warp-conversacional.jsx');
-  assert.ok(page.includes('title="Convierte tu sitio web en un asistente que realmente conoce tu negocio."'));
+  assert.ok(page.includes('title="Asistente de IA para tu sitio web"'));
   for (const s of ['id="demostracion"', 'id="plan-piloto"', 'id="solicitar"', 'title="Funciones"', 'title="Cómo funciona"', 'title="Seguridad y control"', 'title="Compatibilidad"', 'title="Límites del piloto"', 'title="Preguntas frecuentes"', '<WarpPilotRequestForm />']) {
     assert.ok(page.includes(s), s);
   }
@@ -364,7 +364,7 @@ test('ADMIN 4: páginas y rutas admin protegidas por el mismo sistema de roles; 
 test('CUENTA 1: Mis solicitudes de Warp con SSR, solo propias y acceso a soporte; nunca notas internas', () => {
   const page = read('src/pages/panel/warp.jsx');
   assert.match(page, /destination: '\/login\?next=\/panel\/warp'/);
-  assert.match(page, /Mis solicitudes de Warp/);
+  assert.match(page, /Mis solicitudes del Asistente de IA/);
   assert.match(page, /href="\/contacto"/);
   for (const s of ['r.domain', 'r.company', 'fmtDate(r.createdAt)', 'r.statusLabel', 'r.nextStep', 'r.shortId']) assert.ok(page.includes(s), s);
   assert.doesNotMatch(page, /internal_notes|internalNotes/);

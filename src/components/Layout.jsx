@@ -121,7 +121,7 @@ export default function Layout({
     { label: 'Medidor QR',     href: '/medidor-qr' },
     // WARP CONVERSACIONAL (Sprint 2): módulo público, mismo patrón que los
     // demás (landing propia PUBLIC_INDEXABLE).
-    { label: 'Warp Conversacional', href: '/warp-conversacional' },
+    { label: 'Asistente de IA', href: '/warp-conversacional' },
   ];
 
   // EVENT-1 (Fase 12): "Panel" pasa a ser "Mis iniciativas" — el
@@ -369,7 +369,7 @@ export default function Layout({
               <Link href="/campanas">Cómo funcionan las Campañas</Link>
               <Link href="/inscripciones">Cómo funcionan las Inscripciones</Link>
               <Link href="/medidor-qr">Cómo funciona Medidor QR</Link>
-              <Link href="/warp-conversacional">Cómo funciona Warp Conversacional</Link>
+              <Link href="/warp-conversacional">Cómo funciona el Asistente de IA</Link>
               {user && <Link href="/soluciones/rifas">Cómo funcionan las Rifas</Link>}
               <Link href="/planes">Comisión</Link>
               <Link href="/register" className="rf-foot__community">Conoce más productos de Rifex siendo parte de la comunidad</Link>

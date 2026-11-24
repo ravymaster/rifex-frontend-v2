@@ -12,12 +12,12 @@ const home = fs.readFileSync('src/pages/index.js', 'utf8');
 test('NAV 1: menú superior público incluye Warp Conversacional después de Medidor QR', () => {
   const block = layout.match(/const navItems = \[[\s\S]*?\];/)[0];
   const labels = [...block.matchAll(/label: '([^']+)'/g)].map((m) => m[1]);
-  assert.deepEqual(labels, ['Eventos', 'Campañas', 'Inscripciones', 'Medidor QR', 'Warp Conversacional']);
-  assert.match(block, /\{ label: 'Warp Conversacional', href: '\/warp-conversacional' \}/);
+  assert.deepEqual(labels, ['Eventos', 'Campañas', 'Inscripciones', 'Medidor QR', 'Asistente de IA']);
+  assert.match(block, /\{ label: 'Asistente de IA', href: '\/warp-conversacional' \}/);
 });
 
 test('NAV 2: pie «Soluciones» enlaza a Warp Conversacional sin requerir sesión', () => {
-  assert.match(layout, /<Link href="\/medidor-qr">Cómo funciona Medidor QR<\/Link>\n\s*<Link href="\/warp-conversacional">Cómo funciona Warp Conversacional<\/Link>/);
+  assert.match(layout, /<Link href="\/medidor-qr">Cómo funciona Medidor QR<\/Link>\n\s*<Link href="\/warp-conversacional">Cómo funciona el Asistente de IA<\/Link>/);
   assert.doesNotMatch(layout, /\{user && <Link href="\/warp-conversacional"/);
 });
 

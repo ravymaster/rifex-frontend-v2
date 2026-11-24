@@ -169,7 +169,7 @@ export const WARP_PILOT_ERROR_MESSAGE = Object.freeze({
   compatibility_required: 'Debes aceptar la revisión de compatibilidad.',
   secret_detected: 'No incluyas contraseñas, claves ni tokens en el formulario. Nunca te los pediremos por aquí.',
   missing_auth: 'Inicia sesión en Rifex para enviar la solicitud.',
-  duplicate_active_request: 'Ya tienes una solicitud activa para ese dominio. Puedes revisarla en «Mis solicitudes de Warp».',
+  duplicate_active_request: 'Ya tienes una solicitud activa para ese dominio. Puedes revisarla en «Mis solicitudes del Asistente de IA».',
   rate_limited: 'Enviaste varias solicitudes seguidas. Espera un momento e inténtalo de nuevo.',
   server_error: 'No pudimos guardar la solicitud. Inténtalo nuevamente en unos minutos.',
 });

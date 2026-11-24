@@ -1,5 +1,5 @@
 // src/pages/panel/warp.jsx
-// WARP CONVERSACIONAL — "Mis solicitudes de Warp". PSCG:
+// WARP CONVERSACIONAL — "Mis solicitudes del Asistente de IA" (nombre público). PSCG:
 // PRIVATE_AUTHENTICATED (ssr_redirect; cubierto por 'Disallow: /panel').
 // Lee solo las solicitudes propias vía /api/warp-conversacional/solicitudes
 // (RLS con el JWT del usuario). Nunca muestra notas internas.
@@ -65,12 +65,12 @@ export default function MisSolicitudesWarp() {
   }, []);
 
   return (
-    <Layout title="Mis solicitudes de Warp — Rifex" description="Estado de tus solicitudes de piloto de Warp Conversacional." noindex>
+    <Layout title="Mis solicitudes del Asistente de IA — Rifex" description="Estado de tus solicitudes de piloto del Asistente de IA." noindex>
       <div className={styles.accountWrap}>
         <Link href="/mis-iniciativas" style={{ fontSize: 13, color: '#6B7280' }}>← Mis iniciativas</Link>
-        <h1 className={styles.accountTitle}>Mis solicitudes de Warp</h1>
+        <h1 className={styles.accountTitle}>Mis solicitudes del Asistente de IA</h1>
         <p className={styles.accountSub}>
-          Aquí ves el estado de tus solicitudes de piloto de Warp Conversacional. ¿Necesitas ayuda? <Link href="/contacto">Escríbenos a soporte</Link>.
+          Aquí ves el estado de tus solicitudes de piloto del Asistente de IA. ¿Necesitas ayuda? <Link href="/contacto">Escríbenos a soporte</Link>.
         </p>
 
         {state.status === 'loading' && <p className={styles.requestMeta} role="status">Cargando tus solicitudes…</p>}
