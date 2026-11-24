@@ -137,7 +137,7 @@ test('DISCOVERY 4: ningún campo de salida es identificador interno ni dato priv
   }
   // El servicio se identifica con un valor fijo del enum, nunca con un id de la base.
   const svc = manifest.capabilities[0].outputSchema.properties.items.items.properties.service;
-  assert.deepEqual(svc.enum, ['events', 'campaigns', 'registrations', 'qr_meter']);
+  assert.deepEqual(svc.enum, ['events', 'campaigns', 'registrations', 'qr_meter', 'warp_conversational']);
 });
 
 test('DISCOVERY 5: el SDK rechaza al registrar cualquier capacidad con forma de escritura', () => {
@@ -380,15 +380,16 @@ test('DATOS 4: el Connector no toca Rifas, pagos ni otras rutas', () => {
 
 test('DATOS 5: servicios curados sin Rifas, con reglas comerciales vigentes', () => {
   const s = listServices();
-  assert.deepEqual(s.items.map((i) => i.service), ['events', 'campaigns', 'registrations', 'qr_meter']);
+  assert.deepEqual(s.items.map((i) => i.service), ['events', 'campaigns', 'registrations', 'qr_meter', 'warp_conversational']);
   assert.doesNotMatch(JSON.stringify(s), /\brifas?\b|raffle/i);
   const byId = Object.fromEntries(s.items.map((i) => [i.service, i]));
   assert.equal(byId.events.requires_mercado_pago, true);
   assert.equal(byId.campaigns.requires_mercado_pago, true);
   assert.equal(byId.registrations.requires_mercado_pago, false);
   assert.equal(byId.qr_meter.requires_mercado_pago, false);
+  assert.equal(byId.warp_conversational.requires_mercado_pago, false);
   assert.match(s.commission_note, /7%/);
-  for (const i of s.items) assert.equal(i.uses_qr, true, i.service);
+  for (const i of s.items) assert.equal(i.uses_qr, i.service !== 'warp_conversational', i.service);
 });
 
 test('DATOS 6: cada servicio entrega la página donde crearlo (existente, con login), desde el origen configurado', () => {
@@ -401,6 +402,10 @@ test('DATOS 6: cada servicio entrega la página donde crearlo (existente, con lo
       assert.equal(byId[service].create_url, `https://rifex-frontend-main.vercel.app${p}`, service);
       assert.ok(fs.existsSync(path.join(ROOT, `src/pages${p}.jsx`)), `existe ${p}`);
     }
+    // Warp Conversacional: se solicita (no se crea) en el formulario público de su landing.
+    assert.equal(byId.warp_conversational.url, 'https://rifex-frontend-main.vercel.app/warp-conversacional');
+    assert.equal(byId.warp_conversational.create_url, 'https://rifex-frontend-main.vercel.app/warp-conversacional#solicitar');
+    assert.ok(fs.existsSync(path.join(ROOT, 'src/pages/warp-conversacional.jsx')));
     assert.doesNotMatch(JSON.stringify(byId), /crear-rifa|rifas/);
   } finally {
     if (prev === undefined) delete process.env.NEXT_PUBLIC_BASE_URL;
@@ -408,7 +413,7 @@ test('DATOS 6: cada servicio entrega la página donde crearlo (existente, con lo
   }
   const cap = manifest.capabilities.find((c) => c.id === 'rifex.services.list');
   assert.ok(cap.outputSchema.properties.items.items.required.includes('create_url'));
-  assert.match(cap.outputSchema.properties.items.items.properties.create_url.description, /nunca crea nada/);
+  assert.match(cap.outputSchema.properties.items.items.properties.create_url.description, /nunca crea ni envía nada/);
 });
 
 // ---------------------------------------------------------------------
