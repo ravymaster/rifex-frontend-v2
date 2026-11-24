@@ -177,9 +177,9 @@ export default function WarpConversacionalLanding() {
       </Head>
       <ProductPage accent={ACCENT}>
         <ProductHero
-          eyebrow="RIFEX · WARP CONVERSACIONAL · PILOTO ASISTIDO"
-          title="Convierte tu sitio web en un asistente que realmente conoce tu negocio."
-          subtitle="Warp Conversacional es un asistente de inteligencia artificial para sitios web que conoce la información autorizada de tu negocio, orienta a tus visitantes y mantiene controlados el consumo y los costos."
+          eyebrow="RIFEX · ASISTENTE DE IA · PILOTO ASISTIDO"
+          title="Asistente de IA para tu sitio web"
+          subtitle="Convierte tu sitio web en un asistente que realmente conoce tu negocio: responde con la información autorizada, orienta a tus visitantes y mantiene controlados el consumo y los costos."
           primaryCta={{ label: 'Ver demostración', href: '#demostracion' }}
           secondaryCta={{ label: 'Solicitar piloto', href: '#solicitar' }}
           chips={[

@@ -154,7 +154,7 @@ export default function WarpPilotRequestForm() {
         </dl>
         <p className={styles.formNote}>{result.nextStep}</p>
         <p className={styles.formNote}>Te enviamos una confirmación al correo de contacto. Todavía no existe ningún cobro ni activación.</p>
-        <Link href="/panel/warp" className={styles.btnInline}>Ver mis solicitudes de Warp</Link>
+        <Link href="/panel/warp" className={styles.btnInline}>Ver mis solicitudes del Asistente de IA</Link>
       </div>
     );
   }

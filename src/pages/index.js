@@ -204,7 +204,7 @@ const CAPABILITIES = [
     key: 'warp-conversacional',
     icon: <ChatSparkIcon />,
     category: 'Inteligencia artificial para negocios',
-    title: 'Warp Conversacional',
+    title: 'Asistente de IA',
     text: 'Asistente de inteligencia artificial para sitios web que conoce la información autorizada del negocio, orienta visitantes y mantiene controlados el consumo y los costos.',
     detail: 'Piloto asistido',
     cta: 'Ver demostración',
