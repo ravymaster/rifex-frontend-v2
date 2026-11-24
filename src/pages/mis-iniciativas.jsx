@@ -35,6 +35,7 @@ const INITIATIVES = [
   { key: 'eventos', title: 'Eventos', description: 'Crea eventos, configura entradas y publícalas.', href: '/panel/eventos', cta: 'Ir a mis eventos' },
   { key: 'inscripciones', title: 'Inscripciones', description: 'Recibe inscripciones gratis, controla el acceso con QR y descarga tu lista de asistentes.', href: '/panel/inscripciones', cta: 'Ir a mis inscripciones' },
   { key: 'medidor-qr', title: 'Medidor QR', description: 'Crea una pregunta, genera tu QR gratis y mide el interés real de tu público.', href: '/panel/medidor-qr', cta: 'Ir a mis Medidores QR' },
+  { key: 'warp', title: 'Warp Conversacional', description: 'Revisa el estado de tus solicitudes de piloto del asistente de IA para tu sitio.', href: '/panel/warp', cta: 'Mis solicitudes de Warp' },
 ];
 
 export default function MisIniciativas() {
