@@ -32,7 +32,7 @@ import styles from '@/styles/warpConversacional.module.css';
 
 const ACCENT = '#4f8ef7';
 
-export const PAGE_TITLE = 'Warp Conversacional — asistente de IA para tu sitio web | Rifex';
+export const PAGE_TITLE = 'Asistente de IA para tu sitio web | Rifex';
 export const PAGE_DESCRIPTION = 'Asistente de inteligencia artificial para sitios web que conoce la información autorizada de tu negocio, orienta a tus visitantes y mantiene controlados el consumo y los costos. Piloto asistido.';
 
 export const WHAT_IT_DOES = [
@@ -97,7 +97,7 @@ export const LIMITS = [
 ];
 
 export const FAQ = [
-  { q: '¿Qué es Warp Conversacional?', a: 'Es un asistente de inteligencia artificial para sitios web que responde con la información autorizada de tu negocio y orienta a tus visitantes, con consumo y costos controlados.' },
+  { q: '¿Qué es el Asistente de IA?', a: 'Es un asistente de inteligencia artificial para sitios web que responde con la información autorizada de tu negocio y orienta a tus visitantes, con consumo y costos controlados.' },
   { q: '¿El asistente de Rifex es una demostración real?', a: 'Sí. El asistente que ves en Rifex funciona con Warp. Puedes probarlo con las preguntas sugeridas de esta página.' },
   { q: '¿Cuánto cuesta el piloto?', a: 'Instalación de $79.990 CLP y mensualidad de $29.990 CLP. Es un precio de lanzamiento sujeto a revisión de compatibilidad.' },
   { q: '¿Me cobran al enviar la solicitud?', a: 'No. Enviar la solicitud no genera cobros ni activa nada. Primero revisamos la compatibilidad de tu sitio y te enviamos la propuesta.' },
@@ -166,7 +166,7 @@ function PilotPlanSection() {
 
 export default function WarpConversacionalLanding() {
   const url = canonicalUrl('/warp-conversacional');
-  const serviceJsonLd = buildServiceJsonLd({ name: 'Warp Conversacional', description: PAGE_DESCRIPTION, url });
+  const serviceJsonLd = buildServiceJsonLd({ name: 'Asistente de IA para tu sitio web', description: PAGE_DESCRIPTION, url });
   const faqJsonLd = buildFaqJsonLd(FAQ);
 
   return (
