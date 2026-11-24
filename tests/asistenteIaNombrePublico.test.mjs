@@ -22,6 +22,10 @@ test('NOMBRE 1: menú, pie, tarjeta, encabezado y panel usan «Asistente de IA»
   const landing = read('src/pages/warp-conversacional.jsx');
   assert.ok(landing.includes('title="Asistente de IA para tu sitio web"'));
   assert.ok(landing.includes('eyebrow="RIFEX · ASISTENTE DE IA · PILOTO ASISTIDO"'));
+  assert.ok(landing.includes("export const PAGE_TITLE = 'Asistente de IA para tu sitio web | Rifex';"));
+  assert.ok(landing.includes("{ q: '¿Qué es el Asistente de IA?', a:"));
+  assert.ok(landing.includes("buildServiceJsonLd({ name: 'Asistente de IA para tu sitio web',"));
+  assert.ok(landing.includes('funciona con Warp'), 'referencia secundaria a la tecnología');
   assert.ok(landing.includes("installation: '$79.990 CLP'") && landing.includes("monthly: '$29.990 CLP'"));
   const panel = read('src/pages/panel/warp.jsx');
   assert.match(panel, /<h1 className=\{styles\.accountTitle\}>Mis solicitudes del Asistente de IA<\/h1>/);

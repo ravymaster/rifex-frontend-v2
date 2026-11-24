@@ -88,7 +88,7 @@ test('PÁGINA 2: no expone arquitectura sensible, umbrales, URL de Warp, claves 
 test('SEO 1: title, description, canonical, Open Graph vía Layout, JSON-LD Service+FAQPage y sitemap', () => {
   const page = read('src/pages/warp-conversacional.jsx');
   assert.match(page, /<Layout title=\{PAGE_TITLE\} description=\{PAGE_DESCRIPTION\} canonicalPath="\/warp-conversacional">/);
-  assert.match(page, /buildServiceJsonLd\(\{ name: 'Warp Conversacional'/);
+  assert.match(page, /buildServiceJsonLd\(\{ name: 'Asistente de IA para tu sitio web'/);
   assert.match(page, /buildFaqJsonLd\(FAQ\)/);
   assert.match(read('src/components/Layout.jsx'), /og:title/);
   assert.match(read('public/sitemap.xml'), /<loc>https:\/\/rifex\.pro\/warp-conversacional<\/loc>/);
