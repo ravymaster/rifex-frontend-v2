@@ -13,7 +13,7 @@ export const SUGGESTED_QUESTIONS = Object.freeze([
   '¿Qué servicios ofrece Rifex?',
   '¿Cómo puedo crear un evento?',
   '¿Dónde están los términos?',
-  '¿Cómo puedo contratar Warp Conversacional?',
+  '¿Cómo contrato el Asistente de IA para mi sitio?',
 ]);
 
 export function isAllowedPrefill(text) {

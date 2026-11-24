@@ -26,10 +26,10 @@ const call = async (id, qs = '', headers = {}) => {
 const nav = (qs) => call('site.navigation.list', qs);
 const doc = (qs) => call('site.content.read', qs);
 
-test('SITE 0: mapa aprobado v3 sin editar (huella de la entrega), 17 de navegación y 10 documentos', () => {
+test('SITE 0: mapa aprobado v4 (Asistente de IA) sin editar (huella de la entrega), 17 de navegación y 10 documentos', () => {
   const sha = createHash('sha256').update(readFileSync(MAP_PATH)).digest('hex');
-  assert.equal(sha, 'a11a70efeb000d16bbff14a942b69da03e549d5d26ce9ec2ff6fe58ff1c2bcce');
-  assert.equal(siteMap.mapHash, '527c6026254b98ac9f09fd523bd7420d6dbd0dc5264cbb846047f6a91986d4fd');
+  assert.equal(sha, '4b0226c81d8eb4c9b9abcdc94e3c5562c663d35be1a4515a2342bf33a7ae3668');
+  assert.equal(siteMap.mapHash, '35f02fbdfbce119b1e1de9a9313d87f52a125f13262165a6f7801054d17b6edc');
   assert.equal(siteMap.origin, ORIGIN);
   // v3 (Sprint 2 Warp comercial): + /warp-conversacional (pública) y /panel/warp (cuenta).
   assert.equal(siteMap.navigation.length, 17);

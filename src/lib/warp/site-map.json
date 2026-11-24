@@ -1,7 +1,7 @@
 {
   "contract": "warp.site_map.v1",
   "origin": "https://rifex-frontend-main.vercel.app",
-  "generatedAt": "2026-11-24T18:42:36.956Z",
+  "generatedAt": "2026-11-24T23:26:07.071Z",
   "navigation": [
     {
       "kind": "navigation",
@@ -23,18 +23,20 @@
     {
       "kind": "navigation",
       "id": "account-panel-warp",
-      "label": "Mis solicitudes de Warp",
+      "label": "Mis solicitudes del Asistente de IA",
       "href": "/panel/warp",
       "area": "account_navigation",
       "access": "account",
       "action": "browse",
       "intents": [
+        "mis solicitudes del asistente de ia",
+        "estado de mi solicitud del asistente de ia",
         "mis solicitudes de warp",
         "estado de mi solicitud de warp",
         "seguimiento del piloto de warp"
       ],
       "contentId": null,
-      "contentHash": "18b3d77e25c66b42e7b1917f4534f83926ac5dfbd2bc53e942f8956d4e222792",
+      "contentHash": "66eee0b97c7edc605be4221e9593401a030af2dc7e622f589cb86422f636ee61",
       "status": "published"
     },
     {
@@ -234,21 +236,24 @@
     {
       "kind": "navigation",
       "id": "page-warp-conversacional",
-      "label": "Warp Conversacional",
+      "label": "Asistente de IA",
       "href": "/warp-conversacional",
       "area": "commercial",
       "access": "public",
       "action": "browse",
       "intents": [
-        "warp conversacional",
+        "asistente de ia",
+        "asistente de ia para mi sitio web",
+        "contratar el asistente de ia",
         "asistente de inteligencia artificial para mi sitio",
         "asistente ia para sitio web",
         "chatbot para mi web",
+        "warp conversacional",
         "solicitar piloto de warp",
         "precio de warp"
       ],
       "contentId": null,
-      "contentHash": "5805de15e3a5c170bf6d11b1bb9f3d56d4a33feb0163486f4fdbe58007b8eee5",
+      "contentHash": "6e406c302b438adf5c8b0018fa5a842a6700bd93a8797ea7bebce10a1895358a",
       "status": "published"
     },
     {
@@ -834,5 +839,5 @@
       "status": "published"
     }
   ],
-  "mapHash": "527c6026254b98ac9f09fd523bd7420d6dbd0dc5264cbb846047f6a91986d4fd"
+  "mapHash": "35f02fbdfbce119b1e1de9a9313d87f52a125f13262165a6f7801054d17b6edc"
 }
