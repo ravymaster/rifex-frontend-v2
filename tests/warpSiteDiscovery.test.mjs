@@ -26,12 +26,13 @@ const call = async (id, qs = '', headers = {}) => {
 const nav = (qs) => call('site.navigation.list', qs);
 const doc = (qs) => call('site.content.read', qs);
 
-test('SITE 0: mapa aprobado v2 sin editar (huella de la entrega), 15 de navegación y 10 documentos', () => {
+test('SITE 0: mapa aprobado v3 sin editar (huella de la entrega), 17 de navegación y 10 documentos', () => {
   const sha = createHash('sha256').update(readFileSync(MAP_PATH)).digest('hex');
-  assert.equal(sha, '3b9715638795d6c4ea69f4d22d1a917591fd5fb6a5bd8c2b65552df0f69ae75c');
-  assert.equal(siteMap.mapHash, '644a21a92bf7bd70bf07d594e6a166e24ac7f84d8273e39a5a1d881e09348227');
+  assert.equal(sha, 'a11a70efeb000d16bbff14a942b69da03e549d5d26ce9ec2ff6fe58ff1c2bcce');
+  assert.equal(siteMap.mapHash, '527c6026254b98ac9f09fd523bd7420d6dbd0dc5264cbb846047f6a91986d4fd');
   assert.equal(siteMap.origin, ORIGIN);
-  assert.equal(siteMap.navigation.length, 15);
+  // v3 (Sprint 2 Warp comercial): + /warp-conversacional (pública) y /panel/warp (cuenta).
+  assert.equal(siteMap.navigation.length, 17);
   assert.equal(siteMap.content.length, 10);
   assert.ok([...siteMap.navigation, ...siteMap.content].every((e) => e.status === 'published'));
   // El mapa vive fuera de public/ y el origen es fijo.
@@ -153,9 +154,9 @@ test('SITE 11 (/eventos): destino preferido, una sola vez, navegación principal
   assert.ok(!siteMap.content.some((c) => c.href === '/eventos'));
   const e = siteMap.navigation.find((x) => x.href === '/eventos');
   assert.deepEqual([e.id, e.area, e.access, e.action, e.contentId], ['nav-eventos', 'primary_navigation', 'public', 'browse', null]);
-  // Sin argumentos: 15 ítems, /eventos una vez, sin /soluciones/eventos ni /reset-password.
+  // Sin argumentos: 17 ítems, /eventos una vez, sin /soluciones/eventos ni /reset-password.
   const all = (await nav('')).body.data.items;
-  assert.equal(all.length, 15);
+  assert.equal(all.length, 17);
   assert.equal(all.filter((i) => i.url === `${ORIGIN}/eventos`).length, 1);
   assert.ok(!all.some((i) => /\/soluciones\/eventos|\/reset-password/.test(i.url)));
   // browse: /eventos una sola vez, primero (destino preferido) y sin sesión.
@@ -203,7 +204,7 @@ test('SITE 13 (URL arbitraria): site.content.read rechaza URLs, ids desconocidos
 });
 
 test('SITE 14: ninguna ruta del mapa ni de las respuestas expone admin, Rifas, pagos privados, órdenes, callbacks, tokens o datos personales', async () => {
-  const FORBIDDEN = /\/admin|\/panel(?!\/bancos)|\/rifas?\b|\/checkout|\/auth\/callback|\/api\/|token|\/orders?\b|\/pago|@[a-z0-9-]+\.[a-z]{2,}/i;
+  const FORBIDDEN = /\/admin|\/panel(?!\/bancos|\/warp)|\/rifas?\b|\/checkout|\/auth\/callback|\/api\/|token|\/orders?\b|\/pago|@[a-z0-9-]+\.[a-z]{2,}/i;
   for (const e of [...siteMap.navigation, ...siteMap.content]) assert.doesNotMatch(e.href, FORBIDDEN, e.href);
   assert.ok(siteMap.navigation.every((e) => e.access !== 'administrative' && e.area !== 'administrative'));
   const body = JSON.stringify((await nav('')).body);
@@ -212,7 +213,8 @@ test('SITE 14: ninguna ruta del mapa ni de las respuestas expone admin, Rifas, p
     assert.doesNotMatch(u, FORBIDDEN, u);
   }
   // Solo la cuenta propia requiere sesión; ninguna ruta concede permisos.
-  assert.deepEqual(siteMap.navigation.filter((e) => e.access !== 'public').map((e) => e.href), ['/mis-iniciativas']);
+  // v3: Mis solicitudes de Warp también es de cuenta (solo el enlace, sin contenido privado).
+  assert.deepEqual(siteMap.navigation.filter((e) => e.access !== 'public').map((e) => e.href), ['/mis-iniciativas', '/panel/warp']);
 });
 
 test('SITE 15: el origen de los enlaces es fijo, nunca el Host de la petición', async () => {

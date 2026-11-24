@@ -1,7 +1,7 @@
 {
   "contract": "warp.site_map.v1",
   "origin": "https://rifex-frontend-main.vercel.app",
-  "generatedAt": "2026-11-17T22:26:32.530Z",
+  "generatedAt": "2026-11-24T18:42:36.956Z",
   "navigation": [
     {
       "kind": "navigation",
@@ -18,6 +18,23 @@
       ],
       "contentId": null,
       "contentHash": "7c33eeb4533676815aa91b3df0fc9366caecf0ea7e8b7b50feecfaaef501cf65",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
+      "id": "account-panel-warp",
+      "label": "Mis solicitudes de Warp",
+      "href": "/panel/warp",
+      "area": "account_navigation",
+      "access": "account",
+      "action": "browse",
+      "intents": [
+        "mis solicitudes de warp",
+        "estado de mi solicitud de warp",
+        "seguimiento del piloto de warp"
+      ],
+      "contentId": null,
+      "contentHash": "18b3d77e25c66b42e7b1917f4534f83926ac5dfbd2bc53e942f8956d4e222792",
       "status": "published"
     },
     {
@@ -216,6 +233,26 @@
     },
     {
       "kind": "navigation",
+      "id": "page-warp-conversacional",
+      "label": "Warp Conversacional",
+      "href": "/warp-conversacional",
+      "area": "commercial",
+      "access": "public",
+      "action": "browse",
+      "intents": [
+        "warp conversacional",
+        "asistente de inteligencia artificial para mi sitio",
+        "asistente ia para sitio web",
+        "chatbot para mi web",
+        "solicitar piloto de warp",
+        "precio de warp"
+      ],
+      "contentId": null,
+      "contentHash": "5805de15e3a5c170bf6d11b1bb9f3d56d4a33feb0163486f4fdbe58007b8eee5",
+      "status": "published"
+    },
+    {
+      "kind": "navigation",
       "id": "support-preguntas-frecuentes",
       "label": "Preguntas frecuentes",
       "href": "/preguntas-frecuentes",
@@ -256,7 +293,7 @@
       "contentHash": "48b3dbc0d5255c8b8780a318671df87ed59175c5871220b061d65a8217c06591",
       "effectiveDate": "2026-08-31",
       "updatedAt": null,
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "sections": [
         {
           "id": "s1",
@@ -301,7 +338,7 @@
       "contentHash": "cce7752ff5fbfa55963a63ca09560cb38541b76cf28f3b01b7a9e8fa0805d374",
       "effectiveDate": null,
       "updatedAt": "2026-09-01",
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "sections": [
         {
           "id": "s1",
@@ -341,7 +378,7 @@
       "contentHash": "8f88cad78c27a05939abf405cc55997130eabc4794b266bb01e524bdac03fcf0",
       "effectiveDate": "2026-09-01",
       "updatedAt": null,
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "sections": [
         {
           "id": "s1",
@@ -391,7 +428,7 @@
       "contentHash": "1aebbab04b8f63e608595d38aa345ecb12352d5c06dd43783d0a6bd3e9b6ff32",
       "effectiveDate": "2026-09-01",
       "updatedAt": null,
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "sections": [
         {
           "id": "s1",
@@ -436,7 +473,7 @@
       "contentHash": "b0d6dd3430c2278e1b4522588033d6c02d4bed675cc81d66b3ffc0e9de3ab5eb",
       "effectiveDate": null,
       "updatedAt": null,
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "sections": [
         {
           "id": "s1",
@@ -491,7 +528,7 @@
       "contentHash": "566065333b9cc5c81ed7c208eb06b4b5a3ee0c4648461c083f4e4f3003ef4e0c",
       "effectiveDate": "2026-09-01",
       "updatedAt": null,
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "keyFacts": [
         {
           "id": "edad-minima-creador",
@@ -574,7 +611,7 @@
       "contentHash": "bf05d446ed3fb58f4daa9b95d16c08cb6a38867cf051a152991bd0676c02898e",
       "effectiveDate": "2026-09-01",
       "updatedAt": null,
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "sections": [
         {
           "id": "s1",
@@ -619,7 +656,7 @@
       "contentHash": "1fc9899750dc32c0b16c8ead2d6001d18b4542e196f6a215b7abbe7e217dd449",
       "effectiveDate": null,
       "updatedAt": "2026-08-27",
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "keyFacts": [
         {
           "id": "edad-minima-creador",
@@ -697,7 +734,7 @@
       "contentHash": "b5de9ddfc32347fd736994dd8fdeb21593de026f8df27f9c6865c4612d79eb07",
       "effectiveDate": null,
       "updatedAt": "2026-09-01",
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "keyFacts": [
         {
           "id": "edad-minima-creador",
@@ -776,7 +813,7 @@
       "contentHash": "6f3717d507b3ef9b17df6d3c96c684953df579d66bf8b563309222aa17c3ef65",
       "effectiveDate": "2026-08-31",
       "updatedAt": null,
-      "scannedAt": "2026-11-17",
+      "scannedAt": "2026-11-24",
       "sections": [
         {
           "id": "s1",
@@ -797,5 +834,5 @@
       "status": "published"
     }
   ],
-  "mapHash": "644a21a92bf7bd70bf07d594e6a166e24ac7f84d8273e39a5a1d881e09348227"
+  "mapHash": "527c6026254b98ac9f09fd523bd7420d6dbd0dc5264cbb846047f6a91986d4fd"
 }
