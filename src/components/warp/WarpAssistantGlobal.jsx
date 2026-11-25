@@ -18,6 +18,7 @@ import {
   shouldMountAssistant,
 } from '@/lib/warp/assistantGlobal';
 import { pageContextFor } from '@/lib/warp/pageContexts';
+import { listenForPrefill } from '@/lib/warp/assistantPrefill';
 
 const BOTTOM_BAR_SELECTOR = '[data-rifex-bottom-bar]';
 
@@ -111,11 +112,17 @@ function focusComposerOnOpen(host) {
     const target = event.composedPath?.()[0] || event.target;
     if (!target?.closest?.('.launcher')) return;
     window.setTimeout(() => {
-      if (root.querySelector('.panel.open')) root.querySelector('form.compose textarea')?.focus();
+      if (root.querySelector('.panel.open')) focusComposer(host);
     }, 0);
   };
   root.addEventListener('click', onClick);
   return () => root.removeEventListener('click', onClick);
+}
+
+// Lleva el foco al campo de mensaje del propio widget (su shadow root).
+function focusComposer(host) {
+  const root = host?.shadowRoot;
+  if (root) root.querySelector('form.compose textarea')?.focus();
 }
 
 export default function WarpAssistantGlobal() {
@@ -143,14 +150,19 @@ export default function WarpAssistantGlobal() {
     let stopWatching = null;
     let stopHiding = null;
     let stopFocus = null;
+    let stopPrefill = null;
     let cancelled = false;
     const html = document.documentElement;
     import('@warp-ai/assistant')
-      .then(({ createWarpWidgetGlobal }) => {
+      .then(({ createWarpWidgetGlobal, createWarpChatClient }) => {
         if (cancelled) return;
         widget = createWarpWidgetGlobal();
         // Contexto inicial: la plantilla de la ruta actual (nunca la URL real).
-        widget.init(buildAssistantConfig(createAssistantFetch(window.fetch.bind(window)), pageContextFor(pathnameRef.current)));
+        const config = buildAssistantConfig(createAssistantFetch(window.fetch.bind(window)), pageContextFor(pathnameRef.current));
+        // Mismo cliente que crearía el paquete; se conserva para poder dejar
+        // escrita una pregunta sugerida (nunca se envía sola).
+        const client = createWarpChatClient({ endpoint: config.endpoint, actionsEndpoint: config.actionsEndpoint, fetchImpl: config.fetchImpl, pageContext: config.pageContext });
+        widget.init({ ...config, client });
         widgetRef.current = widget;
         const hosts = document.querySelectorAll('warp-floating-widget');
         const host = hosts[hosts.length - 1];
@@ -159,6 +171,11 @@ export default function WarpAssistantGlobal() {
           stopHiding = hideWhileEditing(host);
           stopFocus = focusComposerOnOpen(host);
         }
+        stopPrefill = listenForPrefill(window, {
+          client,
+          widget,
+          focus: () => window.setTimeout(() => focusComposer(host), 0),
+        });
         stopWatching = watchBottomBars();
         html.classList.add('rifex-assistant-active');
       })
@@ -169,6 +186,7 @@ export default function WarpAssistantGlobal() {
       if (stopWatching) stopWatching();
       if (stopHiding) stopHiding();
       if (stopFocus) stopFocus();
+      if (stopPrefill) stopPrefill();
       widgetRef.current = null;
       if (widget) widget.destroy();
     };

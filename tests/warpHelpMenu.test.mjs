@@ -58,7 +58,7 @@ test('AYUDA 1: el inventario coincide con el menú real de la cuenta, el móvil 
 });
 
 test('AYUDA 2: temas cerrados; sin administración, Rifas, tokens ni rutas privadas', () => {
-  assert.deepEqual([...HELP_TOPICS], ['account-panel', 'profile', 'profile-edit', 'profile-fields', 'banks-payments', 'mp-connect', 'collect-vs-pay', 'payment-methods', 'payment-security', 'mp-required', 'mp-not-required', 'events', 'campaigns', 'registrations', 'qr-meter', 'promotion', 'support', 'logout']);
+  assert.deepEqual([...HELP_TOPICS], ['account-panel', 'profile', 'profile-edit', 'profile-fields', 'banks-payments', 'mp-connect', 'collect-vs-pay', 'payment-methods', 'payment-security', 'mp-required', 'mp-not-required', 'events', 'campaigns', 'registrations', 'qr-meter', 'warp-requests', 'promotion', 'support', 'logout']);
   assert.deepEqual(cap.inputSchema, { type: 'object', properties: { topic: { type: 'string', enum: [...HELP_TOPICS], description: 'Tema exacto del menú, de la lista cerrada.' } }, required: ['topic'], additionalProperties: false });
   const all = JSON.stringify(HELP_TOPIC_PATHS) + JSON.stringify(HELP_TOPICS.map((t) => readHelp({ topic: t })));
   assert.doesNotMatch(all, /\badmin\b|\/admin|\/panel"|rifa|raffle|token|webhook|\[id\]|\/api\//i);

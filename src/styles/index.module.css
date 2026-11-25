@@ -275,6 +275,22 @@
   color: var(--accent);
 }
 
+/* WARP CONVERSACIONAL — campos opcionales de la card (categoría y CTA). */
+.capCategory {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+.capCta {
+  margin-top: 10px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #fff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .capCard { transition: none; }
   .capCard:hover { transform: none; }

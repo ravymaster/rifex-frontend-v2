@@ -94,7 +94,12 @@ test('CONTEXTO 3: solo plantillas exactas; la URL real, query, hash o slugs nunc
 test('CONTEXTO 4: el montaje global usa la plantilla de ruta, nunca la URL, el DOM ni la sesión', () => {
   const comp = code('src/components/warp/WarpAssistantGlobal.jsx');
   assert.match(comp, /const \{ pathname \} = useRouter\(\);/);
-  assert.match(comp, /widget\.init\(buildAssistantConfig\(createAssistantFetch\(window\.fetch\.bind\(window\)\), pageContextFor\(pathnameRef\.current\)\)\);/);
+  // Sprint 1 comercial: la configuración se construye igual (plantilla de ruta)
+  // y se entrega junto al cliente de chat del paquete, creado con esos mismos
+  // valores y nada más (para dejar escrita una pregunta sugerida, nunca enviarla).
+  assert.match(comp, /const config = buildAssistantConfig\(createAssistantFetch\(window\.fetch\.bind\(window\)\), pageContextFor\(pathnameRef\.current\)\);/);
+  assert.match(comp, /const client = createWarpChatClient\(\{ endpoint: config\.endpoint, actionsEndpoint: config\.actionsEndpoint, fetchImpl: config\.fetchImpl, pageContext: config\.pageContext \}\);/);
+  assert.match(comp, /widget\.init\(\{ \.\.\.config, client \}\);/);
   assert.match(comp, /widgetRef\.current\?\.setPageContext\?\.\(pageContextFor\(pathname\)\);/);
   assert.match(comp, /\}, \[pathname\]\);/);
   for (const p of ['src/components/warp/WarpAssistantGlobal.jsx', 'src/lib/warp/pageContexts.js', 'src/lib/warp/assistantGlobal.js']) {

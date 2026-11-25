@@ -400,6 +400,16 @@ export default function AdminHome() {
               </section>
             )}
 
+            {/* ---- Warp Conversacional (Sprint 1): solo enlace, sin datos ---- */}
+            <section style={section}>
+              <div style={{ ...sectionTitle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Solicitudes Warp</span>
+                <Link href="/admin/warp" style={{ fontSize: 13, fontWeight: 700 }}>
+                  Ver solicitudes →
+                </Link>
+              </div>
+            </section>
+
             {/* ---- Salud / alertas ---- */}
             <section style={section}>
               <div style={sectionTitle}>Salud / alertas</div>
