@@ -17,7 +17,7 @@
 import { publicOrigin } from './publicOrigin.js';
 import { publicCommission } from '../commissionPolicy.js';
 
-export const HELP_VERSION = '2026-11-13';
+export const HELP_VERSION = '2026-11-24b';
 export const HELP_FIELDS = Object.freeze(['title', 'summary', 'steps', 'url', 'requires_session', 'safety_notice']);
 
 const OPEN_ACCOUNT_MENU =
@@ -159,6 +159,15 @@ const TOPICS = Object.freeze({
     steps: [OPEN_ACCOUNT_MENU, 'Elige «Mis iniciativas».', 'Toca «Ir a mis Medidores QR».'],
     path: '/panel/medidor-qr',
     safety_notice: PRIVATE_DATA_NOTE,
+  },
+  'warp-requests': {
+    title: 'Mis solicitudes del Asistente de IA',
+    summary:
+      'Muestra el estado de tus solicitudes de piloto del Asistente de IA (Warp Conversacional), con su identificador y el siguiente paso. Para solicitar un piloto nuevo usa el formulario de la página del Asistente de IA.',
+    steps: [OPEN_ACCOUNT_MENU, 'Elige «Mis iniciativas».', 'Toca «Mis solicitudes del Asistente de IA».'],
+    path: '/panel/warp',
+    safety_notice:
+      'El asistente no puede ver tus solicitudes ni crearlas, cambiarlas o cancelarlas: revísalas tú mismo en esa página. Nunca envíes contraseñas ni claves de tu sitio por el formulario ni por chat.',
   },
   promotion: {
     title: 'Difusión',

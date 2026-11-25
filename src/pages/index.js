@@ -106,6 +106,14 @@ function BarsIcon() {
     </svg>
   );
 }
+function ChatSparkIcon() {
+  return (
+    <svg {...ICON_PROPS} aria-hidden="true">
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4h0A1.5 1.5 0 0 1 4 14.5v-9Z" />
+      <path d="M12 6.8l.9 2 2 .9-2 .9-.9 2-.9-2-2-.9 2-.9.9-2Z" />
+    </svg>
+  );
+}
 function QrIcon() {
   return (
     <svg {...ICON_PROPS} aria-hidden="true">
@@ -188,6 +196,22 @@ const CAPABILITIES = [
     accent: '#18A957',
     accentSoft: 'rgba(24, 169, 87, 0.16)',
     accentBorder: 'rgba(24, 169, 87, 0.4)',
+  },
+  // WARP CONVERSACIONAL (Sprint 1) — módulo comercial en piloto asistido.
+  // Misma card del catálogo; `category` y `cta` son opcionales y solo los
+  // usa esta card.
+  {
+    key: 'warp-conversacional',
+    icon: <ChatSparkIcon />,
+    category: 'Inteligencia artificial para negocios',
+    title: 'Asistente de IA',
+    text: 'Asistente de inteligencia artificial para sitios web que conoce la información autorizada del negocio, orienta visitantes y mantiene controlados el consumo y los costos.',
+    detail: 'Piloto asistido',
+    cta: 'Ver demostración',
+    href: '/warp-conversacional',
+    accent: '#4f8ef7',
+    accentSoft: 'rgba(79, 142, 247, 0.16)',
+    accentBorder: 'rgba(79, 142, 247, 0.4)',
   },
 ];
 
@@ -283,9 +307,11 @@ export default function Home() {
               return (
                 <CardTag key={c.key} {...cardProps}>
                   <div className={styles.capIconBox}>{c.icon}</div>
+                  {c.category && <span className={styles.capCategory}>{c.category}</span>}
                   <h3 className={styles.capTitle}>{c.title}</h3>
                   <p className={styles.capText}>{c.text}</p>
                   {c.detail && <span className={styles.capDetail}>{c.detail}</span>}
+                  {c.cta && <span className={styles.capCta}>{c.cta} <span aria-hidden="true">→</span></span>}
                 </CardTag>
               );
             })}

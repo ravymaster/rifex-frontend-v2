@@ -1,8 +1,9 @@
 // src/lib/warp/rifexServices.js
 // Fuente curada y versionada de `rifex.services.list` (Connector de Warp).
 // Contenido estático alineado con las páginas públicas de cada módulo
-// (/eventos, /campanas, /inscripciones, /medidor-qr) y con /planes, más la
-// página donde la persona lo crea por su cuenta (requiere iniciar sesión). No
+// (/eventos, /campanas, /inscripciones, /medidor-qr, /warp-conversacional) y
+// con /planes, más la página donde la persona lo crea o lo solicita por su
+// cuenta (requiere iniciar sesión). No
 // consulta la base. Al cambiar una regla comercial en esas páginas, se
 // actualiza aquí y se sube SERVICES_VERSION.
 //
@@ -10,7 +11,7 @@
 import { publicOrigin } from './publicOrigin.js';
 import { publicCommission } from '../commissionPolicy.js';
 
-export const SERVICES_VERSION = '2026-11-13b';
+export const SERVICES_VERSION = '2026-11-24b';
 
 const SERVICES = Object.freeze([
   {
@@ -69,6 +70,26 @@ const SERVICES = Object.freeze([
     organizer_receives: 'Un código QR listo para imprimir y métricas de escaneos y respuestas. Quien responde lo hace de forma anónima.',
     url_path: '/medidor-qr',
     create_path: '/crear-medidor-qr',
+  },
+  // WARP CONVERSACIONAL (Sprint 2): mismo texto que /warp-conversacional.
+  // Piloto asistido: el asistente explica y enlaza; nunca envía la solicitud.
+  {
+    service: 'warp_conversational',
+    name: 'Asistente de IA',
+    aliases: ['Warp Conversacional'],
+    summary:
+      'Asistente de inteligencia artificial para sitios web que responde solo con la información autorizada del negocio, orienta a los visitantes hacia páginas, productos o servicios del sitio y mantiene controlados el consumo y los costos. Se ofrece como piloto asistido y comienza en modo de solo lectura: informa, orienta y deriva; no compra, no reserva ni modifica datos sin una integración adicional acordada.',
+    when_to_use:
+      'Negocios que quieren un asistente en su propio sitio web. Compatible con Next.js/React, con WordPress mediante instalación asistida y con PHP o sitios tradicionales; las plataformas personalizadas se evalúan caso a caso. Cada sitio pasa por una revisión de compatibilidad antes de cualquier cobro, y la activación queda sujeta a la verificación del dominio.',
+    pricing:
+      'Piloto: instalación $79.990 CLP y mensualidad $29.990 CLP. Precio de lanzamiento sujeto a revisión de compatibilidad. Sin permanencia durante el piloto. El consumo tiene un presupuesto limitado y el exceso se bloquea salvo que lo autorices. Enviar la solicitud no genera cobros.',
+    requires_mercado_pago: false,
+    mercado_pago_note: 'No necesitas Mercado Pago para solicitar el piloto. Enviar la solicitud no genera cobros ni activa nada.',
+    uses_qr: false,
+    organizer_receives:
+      'Instalación asistida en tu sitio, ajustes iniciales de la información autorizada, presupuesto de consumo limitado, pruebas antes de abrirlo al público y monitoreo. Proceso: revisamos tu sitio, definimos la información autorizada, instalamos, probamos y activamos y monitoreamos. Para solicitarlo necesitas una cuenta de Rifex.',
+    url_path: '/warp-conversacional',
+    create_path: '/warp-conversacional#solicitar',
   },
 ]);
 
