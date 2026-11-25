@@ -245,6 +245,18 @@
   border-color: rgba(255, 255, 255, 0.2);
   box-shadow: 0 22px 46px rgba(11, 19, 48, 0.24);
 }
+/* Card con enlace: foco visible por teclado con el accent de la card. */
+.capCard:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+/* Card informativa (sin enlace): sin señales de clic. */
+.capCardStatic { cursor: default; }
+.capCardStatic:hover {
+  transform: none;
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 18px 40px rgba(11, 19, 48, 0.16);
+}
 
 .capIconBox {
   width: 48px;
