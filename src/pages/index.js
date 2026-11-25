@@ -132,6 +132,7 @@ const CAPABILITIES = [
     title: 'Entradas digitales',
     text: 'Vende entradas y genera códigos QR.',
     detail: 'Venta + QR',
+    href: '/eventos',
     accent: '#23B6C6',
     accentSoft: 'rgba(35, 182, 198, 0.16)',
     accentBorder: 'rgba(35, 182, 198, 0.4)',
@@ -142,6 +143,9 @@ const CAPABILITIES = [
     title: 'Control de acceso',
     text: 'Valida entradas desde el celular.',
     detail: 'Validación móvil',
+    // La landing pública /eventos explica el control de acceso (hero
+    // «…controla el acceso a tu evento», scanner y personal de acceso).
+    href: '/eventos',
     accent: '#7c6fe8',
     accentSoft: 'rgba(124, 111, 232, 0.16)',
     accentBorder: 'rgba(124, 111, 232, 0.4)',
@@ -152,6 +156,7 @@ const CAPABILITIES = [
     title: 'Campañas de recaudación',
     text: 'Recibe aportes mediante tu proveedor conectado.',
     detail: 'Aportes',
+    href: '/campanas',
     accent: '#18A957',
     accentSoft: 'rgba(24, 169, 87, 0.16)',
     accentBorder: 'rgba(24, 169, 87, 0.4)',
@@ -162,14 +167,16 @@ const CAPABILITIES = [
     title: 'Reportes',
     text: 'Consulta ventas, entradas y actividad de tus iniciativas.',
     detail: 'Actividad',
+    // Sin página pública que explique los reportes: card informativa (sin
+    // href, sin hover ni cursor de enlace).
     accent: '#4f8ef7',
     accentSoft: 'rgba(79, 142, 247, 0.16)',
     accentBorder: 'rgba(79, 142, 247, 0.4)',
   },
   // RIFEX FINAL PUBLIC SURFACE CLOSURE (2026-09-05) — Inscripciones
-  // todavía no figuraba en Home con peso propio. Único card de esta
-  // grilla con `href` (las otras son informativas, sin link) — lleva a
-  // la landing real /inscripciones (Product Landings V1).
+  // todavía no figuraba en Home con peso propio. Lleva a la landing real
+  // /inscripciones (Product Landings V1). Toda card con `href` es un
+  // enlace real completo (next/link); sin `href` queda informativa.
   {
     key: 'inscripciones',
     icon: <ClipboardCheckIcon />,
@@ -303,7 +310,7 @@ export default function Home() {
               const CardTag = c.href ? Link : 'div';
               const cardProps = c.href
                 ? { href: c.href, className: styles.capCard, style: { '--accent': c.accent, '--accentSoft': c.accentSoft, '--accentBorder': c.accentBorder } }
-                : { className: styles.capCard, style: { '--accent': c.accent, '--accentSoft': c.accentSoft, '--accentBorder': c.accentBorder } };
+                : { className: `${styles.capCard} ${styles.capCardStatic}`, style: { '--accent': c.accent, '--accentSoft': c.accentSoft, '--accentBorder': c.accentBorder } };
               return (
                 <CardTag key={c.key} {...cardProps}>
                   <div className={styles.capIconBox}>{c.icon}</div>
