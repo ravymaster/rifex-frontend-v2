@@ -1,4 +1,26 @@
 // src/pages/api/dev/test-email.js
+// PRE-LAUNCH-FIX-1 (P1-1): dos fallas independientes cerradas acá.
+//
+// 1) Fail-closed en PROD: antes, este endpoint no distinguía DEV de PROD
+//    — si algún día se promueve a main (o si alguien lo llama contra
+//    rifex.pro tal como está en este repo hoy), quedaba tan expuesto como
+//    en DEV. Ahora exige isDevStage() (src/lib/environmentPolicy.js, la
+//    misma fuente de verdad ya usada para el resto de relajaciones
+//    exclusivas de DEV) — en cualquier ambiente que no sea explícitamente
+//    'development', el endpoint responde 403 sin ejecutar nada.
+//
+// 2) Bypass de comparación: la versión anterior hacía
+//    `(process.env.DEV_TEST_EMAIL_TOKEN || "") !== String(token)`. Con la
+//    env var ausente (como estaba, confirmado, tanto en DEV como en
+//    PROD), el lado izquierdo era `""`. Un atacante que mandara
+//    `?token=` (vacío) junto con el header `x-test-token` también vacío
+//    lograba `token === ""`, y `"" !== ""` es `false` — bypass
+//    confirmado empíricamente. Ahora la comparación exige explícitamente
+//    tres condiciones: el secreto está configurado (no vacío), el caller
+//    mandó un token (no vacío), y coinciden — nunca se compara contra un
+//    string vacío en ningún lado.
+import { isDevStage } from "@/lib/environmentPolicy";
+import { enforceRateLimit, resolveClientIp } from "@/lib/rateLimit";
 import {
   sendEmail,
   sendBuyerApprovedEmail,
@@ -6,8 +28,17 @@ import {
 } from "../../../lib/mailer";
 
 export default async function handler(req, res) {
-  const token = req.query.token || req.headers["x-test-token"];
-  if ((process.env.DEV_TEST_EMAIL_TOKEN || "") !== String(token)) {
+  if (!isDevStage()) {
+    return res.status(403).json({ ok: false, error: "dev_only_endpoint" });
+  }
+
+  const ip = resolveClientIp(req);
+  if (await enforceRateLimit(req, res, { key: `dev-test-email:${ip}`, maxHits: 10, windowSeconds: 60 })) return;
+
+  const secret = process.env.DEV_TEST_EMAIL_TOKEN || "";
+  const token = String(req.query.token || req.headers["x-test-token"] || "");
+  const authorized = secret.length > 0 && token.length > 0 && token === secret;
+  if (!authorized) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
 

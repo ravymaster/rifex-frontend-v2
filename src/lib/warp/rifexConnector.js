@@ -1,0 +1,385 @@
+// src/lib/warp/rifexConnector.js
+// Connector de Warp AI para Rifex (V1, solo lectura), sobre el SDK
+// certificado `@warp-ai/connector` 0.4.0 — el mismo patrón ya validado en
+// Renacar: Discovery en GET /api/v1/discovery y cada capacidad en
+// GET /api/warp/capabilities/:id, con argumentos en la query string.
+//
+//   - Todas las capacidades son de lectura, `authentication: "public"` y
+//     `risk: "low"`; el SDK rechaza al registrar cualquier definición con
+//     forma de escritura.
+//   - Los handlers solo llaman a la capa de lectura pública de Rifex
+//     (src/lib/warp/publicCatalog.js y rifexServices.js): Warp nunca toca la
+//     base, nunca recibe secretos y nunca ve ids internos.
+//   - Esquemas cerrados (`additionalProperties: false`). Los campos sin valor
+//     se omiten de la respuesta (el SDK no admite tipos anulables).
+//   - `rifex.support.read` entrega solo datos fijos de /contacto (fuente
+//     estática rifexSupport.js), sin consultar la base.
+//   - `rifex.help.read` guía el menú interno por tema cerrado (fuente
+//     estática rifexHelp.js): nunca lee la sesión ni datos de la persona.
+//   - Rifas, Medidor QR (lectura), pagos, checkout, panel y administración
+//     quedan fuera.
+//   - Autenticación servidor a servidor: mejora futura coordinada entre Warp
+//     AI Engine y el SDK; en V1 las capacidades son públicas, como Renacar.
+import { createConnector } from '@warp-ai/connector';
+import * as catalog from './publicCatalog.js';
+import { listServices } from './rifexServices.js';
+import { readSupport } from './rifexSupport.js';
+import { readHelp, HELP_TOPICS } from './rifexHelp.js';
+// Warp Discovery (solo `serve`: sin crawler ni red). El mapa aprobado vive
+// fuera de public/ y se genera con warp-discover y la aprobación humana (no se
+// edita a mano: la validación al arrancar rechaza cualquier entrada no
+// publicada, administrativa o con citas alteradas).
+import { registerSiteDiscoveryCapabilities, SITE_CAPABILITY_IDS } from '@warp-ai/discovery/serve';
+import approvedSiteMap from './site-map.json' with { type: 'json' };
+
+export const RIFEX_PLATFORM = Object.freeze({ id: 'rifex', name: 'Rifex', version: '1.0', locale: 'es-CL' });
+export const CONNECTOR_INFO = Object.freeze({ id: '@warp-ai/connector', version: '0.4.0' });
+export const CAPABILITY_IDS = Object.freeze([
+  'rifex.services.list',
+  'rifex.events.list',
+  'rifex.event.read',
+  'rifex.campaigns.list',
+  'rifex.campaign.read',
+  'rifex.registrations.list',
+  'rifex.registration.read',
+  'rifex.support.read',
+  'rifex.help.read',
+]);
+
+// Quita claves nulas o indefinidas de los objetos (recursivo); los arreglos
+// conservan sus elementos.
+// Capacidades genéricas de Warp Discovery, registradas después de las 9 de
+// Rifex sin modificarlas. Origen fijo del mapa (PROD), nunca el Host de la
+// petición.
+export const SITE_DISCOVERY_IDS = Object.freeze([SITE_CAPABILITY_IDS.NAVIGATION, SITE_CAPABILITY_IDS.CONTENT]);
+export const SITE_MAP_ORIGIN = 'https://rifex.pro';
+
+export function compact(value) {
+  if (Array.isArray(value)) return value.map(compact);
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (v === null || v === undefined) continue;
+      out[k] = compact(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+const str = (extra = {}) => ({ type: 'string', ...extra });
+const int = (extra = {}) => ({ type: 'integer', ...extra });
+const bool = (extra = {}) => ({ type: 'boolean', ...extra });
+const obj = (properties, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
+const arr = (items, extra = {}) => ({ type: 'array', items, ...extra });
+
+const pagingInput = {
+  page: int({ description: 'Página a mostrar, desde 1. Valores fuera de rango se ajustan a 1.' }),
+  pageSize: int({ description: 'Resultados por página: 5 por defecto, máximo 20 (un valor mayor se ajusta a 20).' }),
+};
+const queryInput = str({ description: 'Búsqueda opcional por título (texto libre, hasta 60 caracteres; se ignoran símbolos especiales).' });
+const slugInput = obj({ slug: str({ description: 'Slug público tal como aparece en el listado (letras minúsculas, números y guiones).' }) }, ['slug']);
+const pageEnvelope = (itemSchema) =>
+  obj(
+    {
+      items: arr(itemSchema),
+      page: int(),
+      pageSize: int(),
+      total: int({ description: 'Cantidad total de resultados públicos que coinciden con la búsqueda.' }),
+      totalPages: int(),
+    },
+    ['items', 'page', 'pageSize', 'total', 'totalPages']
+  );
+const readEnvelope = (key, schema) =>
+  obj({ ok: bool(), [key]: schema, reason: str({ enum: ['not_found'], 'x-presentation': 'hidden' }) }, ['ok']);
+
+const organizerSchema = obj({ name: str({ title: 'Organizador' }) }, ['name']);
+const urlField = str({ title: 'Enlace', description: 'Página pública en Rifex.', 'x-presentation': 'detail' });
+// Fechas: `format: "date-time"` (RFC 3339 con zona, validado por el SDK). Sin
+// `x-timezone`: cada evento e inscripción declara su propia zona en el campo
+// `timezone` (hoy America/Santiago, pero las APIs aceptan otras), así que no
+// hay una zona única para todo el sitio.
+// Montos: el importe numérico original (entero en CLP) se entrega sin cambios
+// pero oculto en las tarjetas; lo que se muestra es la etiqueta formateada que
+// declara Rifex (es-CL, CLP, sin decimales, p. ej. "$5.000"), con cero,
+// ausencia y rango distinguidos. Mismo mecanismo que `priceLabel` en Renacar.
+const clpAmount = (description) => int({ 'x-presentation': 'hidden', description: `${description} Entero en pesos chilenos (CLP), sin decimales.` });
+const clpLabel = (title, description) => str({ title, 'x-presentation': 'detail', description: `${description} Texto ya formateado en es-CL (CLP, sin decimales), p. ej. "$5.000".` });
+
+const dateField = (title) => str({ title, format: 'date-time', description: 'Fecha y hora RFC 3339 con zona.' });
+
+const eventCard = {
+  slug: str({ 'x-presentation': 'hidden' }),
+  title: str({ 'x-presentation': 'title' }),
+  summary: str({ 'x-presentation': 'detail' }),
+  cover_image_url: str({ 'x-presentation': 'hidden' }),
+  starts_at: dateField('Inicio'),
+  ends_at: dateField('Término'),
+  timezone: str({ 'x-presentation': 'hidden' }),
+  venue_name: str({ title: 'Lugar', 'x-presentation': 'detail' }),
+  url: urlField,
+};
+const eventListItem = obj(
+  {
+    ...eventCard,
+    price_from_clp: clpAmount('Precio más bajo entre las entradas activas.'),
+    price_to_clp: clpAmount('Precio más alto entre las entradas activas.'),
+    price_label: clpLabel('Precio', 'Precio o rango de precios de las entradas activas ("Gratis ($0)" si es cero, "Precio no informado" si no hay).'),
+  },
+  ['slug', 'title', 'starts_at', 'price_label', 'url']
+);
+const ticketTypeSchema = obj(
+  {
+    name: str({ 'x-presentation': 'title' }),
+    price_clp: clpAmount('Precio de la entrada.'),
+    price_label: clpLabel('Precio', 'Precio de la entrada ("Gratis ($0)" si es cero, "Precio no informado" si no hay).'),
+    available: int({ title: 'Disponibles', description: 'Entradas aún disponibles de este tipo (aproximado; nunca reserva).' }),
+    max_per_order: int({ title: 'Máximo por compra' }),
+    sales_start_at: dateField('Inicio de venta'),
+    sales_end_at: dateField('Fin de venta'),
+  },
+  ['name', 'available', 'price_label']
+);
+const eventDetail = obj(
+  {
+    ...eventCard,
+    description: str({ title: 'Descripción' }),
+    address: str({ title: 'Dirección', 'x-presentation': 'detail' }),
+    capacity: int({ title: 'Aforo total' }),
+    terms_text: str({ title: 'Condiciones' }),
+    gallery_urls: arr(str(), { 'x-presentation': 'hidden' }),
+    sales_open: bool({ title: 'Venta abierta', description: 'Indica si hoy se pueden comprar entradas en Rifex. La compra siempre se hace en la página del evento.' }),
+    ticket_types: arr(ticketTypeSchema, { title: 'Tipos de entrada' }),
+    price_label: clpLabel('Precio', 'Precio o rango de precios de las entradas activas ("Gratis ($0)" si es cero, "Precio no informado" si no hay).'),
+    organizer: organizerSchema,
+  },
+  ['slug', 'title', 'starts_at', 'sales_open', 'ticket_types', 'price_label', 'gallery_urls', 'url']
+);
+
+const campaignCard = {
+  slug: str({ 'x-presentation': 'hidden' }),
+  title: str({ 'x-presentation': 'title' }),
+  summary: str({ 'x-presentation': 'detail' }),
+  cover_image_url: str({ 'x-presentation': 'hidden' }),
+  status: str({ enum: ['active', 'finished', 'closed'], title: 'Estado' }),
+  start_at: dateField('Inicio'),
+  end_at: dateField('Cierre'),
+  goal_clp: clpAmount('Meta de recaudación (sin valor si la campaña no tiene meta).'),
+  goal_label: clpLabel('Meta', 'Meta de recaudación ("Sin meta (aportes libres)" si no tiene).'),
+  raised_clp: clpAmount('Total agregado de aportes aprobados.'),
+  raised_label: clpLabel('Recaudado', 'Total agregado de aportes aprobados.'),
+  contributor_count: int({ title: 'Aportes', description: 'Cantidad agregada de aportes aprobados.' }),
+  organizer: organizerSchema,
+  url: urlField,
+};
+const campaignListItem = obj(campaignCard, ['slug', 'title', 'status', 'raised_clp', 'raised_label', 'goal_label', 'contributor_count', 'url']);
+const campaignDetail = obj(
+  { ...campaignCard, description: str({ title: 'Descripción' }), gallery_urls: arr(str(), { 'x-presentation': 'hidden' }) },
+  ['slug', 'title', 'status', 'raised_clp', 'raised_label', 'goal_label', 'contributor_count', 'gallery_urls', 'url']
+);
+
+const registrationCard = {
+  slug: str({ 'x-presentation': 'hidden' }),
+  title: str({ 'x-presentation': 'title' }),
+  summary: str({ 'x-presentation': 'detail' }),
+  cover_image_url: str({ 'x-presentation': 'hidden' }),
+  starts_at: dateField('Inicio'),
+  ends_at: dateField('Término'),
+  timezone: str({ 'x-presentation': 'hidden' }),
+  modality: str({ enum: [...catalog.REGISTRATION_MODALITIES], title: 'Modalidad' }),
+  venue_name: str({ title: 'Lugar', 'x-presentation': 'detail' }),
+  capacity: int({ title: 'Cupos totales' }),
+  available_slots: int({ title: 'Cupos disponibles' }),
+  status: str({ enum: ['active'], 'x-presentation': 'hidden' }),
+  organizer_name: str({ title: 'Organizador' }),
+  url: urlField,
+};
+const registrationListItem = obj(registrationCard, ['slug', 'title', 'starts_at', 'status', 'url']);
+const registrationDetail = obj(
+  {
+    ...registrationCard,
+    description: str({ title: 'Descripción' }),
+    address: str({ title: 'Dirección', 'x-presentation': 'detail' }),
+    instructions: str({ title: 'Indicaciones' }),
+  },
+  ['slug', 'title', 'starts_at', 'status', 'url']
+);
+
+const serviceItem = obj(
+  {
+    service: str({ enum: ['events', 'campaigns', 'registrations', 'qr_meter', 'warp_conversational'], 'x-presentation': 'hidden' }),
+    name: str({ 'x-presentation': 'title' }),
+    aliases: arr(str(), { title: 'También conocido como' }),
+    summary: str({ 'x-presentation': 'detail' }),
+    when_to_use: str({ title: 'Cuándo usarlo' }),
+    pricing: str({ title: 'Costo' }),
+    requires_mercado_pago: bool({ title: 'Requiere Mercado Pago' }),
+    mercado_pago_note: str({ title: 'Mercado Pago' }),
+    uses_qr: bool({ title: 'Usa QR' }),
+    organizer_receives: str({ title: 'Qué recibe el organizador' }),
+    url: urlField,
+    create_url: str({
+      title: 'Dónde crearlo o solicitarlo',
+      description: 'Página pública donde la persona crea este servicio por su cuenta, o solicita el piloto en el caso del Asistente de IA (requiere iniciar sesión para enviar). El asistente nunca crea ni envía nada.',
+      'x-presentation': 'detail',
+    }),
+  },
+  ['service', 'name', 'summary', 'when_to_use', 'pricing', 'requires_mercado_pago', 'mercado_pago_note', 'uses_qr', 'organizer_receives', 'url', 'create_url']
+);
+
+// `source` permite inyectar una capa de datos de prueba en los tests; en
+// ejecución real siempre es la capa pública de Rifex.
+export function createRifexConnector(source = { ...catalog, listServices, readSupport, readHelp }, siteMap = approvedSiteMap) {
+  const connector = createConnector({ platform: { ...RIFEX_PLATFORM }, connector: { ...CONNECTOR_INFO } });
+  const common = { risk: 'low', authentication: 'public' };
+
+  connector.capability({
+    ...common,
+    id: 'rifex.services.list',
+    description:
+      'Lista los servicios que Rifex ofrece mediante el asistente (Eventos, Campañas, Inscripciones, Medidor QR y Asistente de IA, también llamado Warp Conversacional): ' +
+      'para qué sirve cada uno, su costo, si requiere Mercado Pago, si usa QR y qué recibe el organizador. Rifas no se ofrece mediante el asistente. ' +
+      'El Asistente de IA es un piloto asistido: responde solo con lo que dice este resultado (precio, condiciones, compatibilidad y límites), ' +
+      'sin inventar descuentos, prueba gratuita, plazos, instalación automática ni compatibilidad garantizada, y para solicitarlo entrega create_url ' +
+      '(la persona envía el formulario con su cuenta; el asistente nunca lo envía ni crea solicitudes).',
+    inputSchema: obj({}),
+    outputSchema: obj(
+      { version: str({ 'x-presentation': 'hidden' }), commission_note: str({ title: 'Comisión' }), items: arr(serviceItem) },
+      ['version', 'commission_note', 'items']
+    ),
+    handler: async () => compact(source.listServices()),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.events.list',
+    description:
+      'Lista eventos públicos vigentes (publicados y no terminados), del más próximo al más lejano, con paginación. ' +
+      'Incluye rango de precios de las entradas activas. Nunca reserva ni inicia compras.',
+    inputSchema: obj({ query: queryInput, ...pagingInput }),
+    outputSchema: pageEnvelope(eventListItem),
+    handler: async (args) => compact(await source.listEvents(args)),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.event.read',
+    description:
+      'Entrega el detalle público de un evento a partir de su slug: fechas, lugar, condiciones, tipos de entrada con precio y disponibilidad ' +
+      'aproximada, y si la venta está abierta. Si no existe o no es público responde ok=false con reason=not_found.',
+    inputSchema: slugInput,
+    outputSchema: readEnvelope('event', eventDetail),
+    handler: async (args) => compact(await source.readEvent(args)),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.campaigns.list',
+    description:
+      'Lista campañas de recaudación activas, de la más reciente a la más antigua, con paginación. Incluye meta y recaudación agregada; ' +
+      'nunca aportes individuales ni datos de quienes aportan.',
+    inputSchema: obj({ query: queryInput, ...pagingInput }),
+    outputSchema: pageEnvelope(campaignListItem),
+    handler: async (args) => compact(await source.listCampaigns(args)),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.campaign.read',
+    description:
+      'Entrega el detalle público de una campaña a partir de su slug, con meta, recaudación y cantidad de aportes agregadas. ' +
+      'Si no existe o no es pública responde ok=false con reason=not_found.',
+    inputSchema: slugInput,
+    outputSchema: readEnvelope('campaign', campaignDetail),
+    handler: async (args) => compact(await source.readCampaign(args)),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.registrations.list',
+    description:
+      'Lista actividades con inscripción abierta y vigentes, de la más próxima a la más lejana, con paginación y filtro opcional de modalidad. ' +
+      'Incluye cupos disponibles; nunca datos de inscritos.',
+    inputSchema: obj({
+      query: queryInput,
+      modality: str({ enum: [...catalog.REGISTRATION_MODALITIES], description: 'Modalidad exacta del enum.' }),
+      ...pagingInput,
+    }),
+    outputSchema: pageEnvelope(registrationListItem),
+    handler: async (args) => compact(await source.listRegistrations(args)),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.registration.read',
+    description:
+      'Entrega el detalle público de una actividad con inscripción a partir de su slug: fechas, modalidad, lugar, indicaciones y cupos. ' +
+      'Si no existe o no está abierta responde ok=false con reason=not_found. Nunca inscribe a nadie.',
+    inputSchema: slugInput,
+    outputSchema: readEnvelope('registration', registrationDetail),
+    handler: async (args) => compact(await source.readRegistration(args)),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.support.read',
+    description:
+      'Entrega cómo contactar al equipo de Rifex para soporte, problemas con un módulo, privacidad, seguridad o reportes: la página de ' +
+      'Contacto (con su formulario), el correo público y una advertencia de seguridad que siempre debe repetirse al orientar. ' +
+      'Solo orienta: nunca envía formularios ni correos por la persona. Sin argumentos.',
+    inputSchema: obj({}),
+    outputSchema: obj(
+      {
+        contact_url: str({ title: 'Formulario de contacto', description: 'Página pública de Contacto de Rifex, con su formulario.', 'x-presentation': 'detail' }),
+        public_email: str({ title: 'Correo de contacto', description: 'Correo público publicado en la página de Contacto.', 'x-presentation': 'detail' }),
+        supported_reasons: arr(str(), { title: 'Motivos de contacto' }),
+        safety_notice: str({ title: 'Importante', description: 'Advertencia que debe acompañar toda orientación de contacto.' }),
+      },
+      ['contact_url', 'public_email', 'supported_reasons', 'safety_notice']
+    ),
+    handler: async () => compact(source.readSupport()),
+  });
+
+  connector.capability({
+    ...common,
+    id: 'rifex.help.read',
+    description:
+      'Guía de Rifex para orientar sobre el menú interno, la cuenta y los pagos: dónde está cada función, cómo llegar y el enlace. ' +
+      'Un tema por consulta, de una lista cerrada: account-panel (Mis iniciativas, inicio de la cuenta), profile (qué es el Perfil), ' +
+      'profile-edit (cómo editarlo), profile-fields (qué datos pide), banks-payments (para qué sirve Bancos & Pagos), mp-connect ' +
+      '(conectar Mercado Pago para recibir cobros), collect-vs-pay (cobrar con Rifex vs pagar una compra), payment-methods (medios ' +
+      'de pago; no hay conexión bancaria directa), payment-security (seguridad de pagos y credenciales), mp-required (por qué Eventos y ' +
+      'Campañas requieren Mercado Pago), mp-not-required (módulos sin Mercado Pago), events, campaigns, registrations, qr-meter ' +
+      '(paneles propios), warp-requests (Mis solicitudes del Asistente de IA: estado de las solicitudes de piloto), promotion (Difusión), support (Contacto) y logout (dónde está Cerrar sesión). Solo orienta: no ve ni puede afirmar qué iniciativas, perfil, pagos o estado de Mercado Pago tiene la ' +
+      'persona, no actúa por ella, no cierra sesión y no muestra datos de otras cuentas. Ante una pregunta por un dato privado, indica ' +
+      'dónde revisarlo la propia persona y repite safety_notice cuando venga.',
+    inputSchema: obj(
+      { topic: str({ enum: [...HELP_TOPICS], description: 'Tema exacto del menú, de la lista cerrada.' }) },
+      ['topic']
+    ),
+    outputSchema: obj(
+      {
+        title: str({ 'x-presentation': 'title' }),
+        summary: str({ 'x-presentation': 'detail' }),
+        steps: arr(str(), { title: 'Cómo llegar' }),
+        url: str({ title: 'Enlace', description: 'Página de Rifex (requiere sesión salvo Contacto). Ausente si el tema no tiene página propia.', 'x-presentation': 'detail' }),
+        requires_session: bool({ title: 'Requiere iniciar sesión' }),
+        safety_notice: str({ title: 'Importante' }),
+      },
+      ['title', 'summary', 'steps', 'requires_session']
+    ),
+    handler: async ({ topic }) => compact(source.readHelp({ topic })),
+  });
+
+  // Nivel 1, públicas, de lectura, riesgo bajo y sin confirmación (las
+  // define el paquete). Si el mapa no es válido, lanza y no registra nada.
+  registerSiteDiscoveryCapabilities(connector, { siteMap, origin: SITE_MAP_ORIGIN });
+
+  return connector;
+}
+
+let instance = null;
+export function getRifexConnector() {
+  if (!instance) instance = createRifexConnector();
+  return instance;
+}

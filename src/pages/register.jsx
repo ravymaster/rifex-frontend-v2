@@ -1,6 +1,7 @@
 import Head from 'next/head';
 import styles from '@/styles/register.module.css';
 import Layout from '@/components/Layout';
+import AuthShell from '@/components/auth/AuthShell';
 import { useEffect, useRef, useState } from 'react';
 import { supabaseBrowser as supabase } from '@/lib/supabaseClient';
 
@@ -50,7 +51,7 @@ function GoogleButton({ label = "Continuar con Google", className = "" }) {
     await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${origin}/panel`,
+        redirectTo: `${origin}/auth/callback?next=${encodeURIComponent("/panel")}`,
         queryParams: { prompt: "select_account" }
       },
     });
@@ -138,91 +139,71 @@ export default function Register(){
   return (
     <>
       <Head><title>Crear cuenta — Rifex</title></Head>
-      <main className={styles.page}>
-        <section className={styles.shell}>
-          <div className={styles.inner}>
-            {/* Panel marca */}
-            <aside className={styles.brandPanel}>
-              <div className={styles.brandBox}>
-                <img src="/rifex-logo.png" alt="Rifex" className={styles.logo} />
-                <h2 className={styles.brandTitle}>Rifex</h2>
-                <p className={styles.brandText}>Crea rifas en minutos, comparte el enlace y cobra online. Simple, rápido y seguro.</p>
-                <div className={styles.dots}>
-                  <span className={styles.dot} data-variant="blue" />
-                  <span className={styles.dot} data-variant="teal" />
-                  <span className={styles.dot} data-variant="green" />
-                </div>
-              </div>
-            </aside>
+      <AuthShell brandText="Crea eventos y campañas desde una sola plataforma. Simple, rápido y seguro.">
+        <h1 className={styles.formTitle}>Crear cuenta</h1>
+        <p className={styles.formSub}>Regístrate para comenzar a gestionar tus iniciativas.</p>
 
-            {/* Formulario */}
-            <section className={styles.formPanel}>
-              <h1 className={styles.formTitle}>Crear cuenta</h1>
-              <p className={styles.formSub}>Regístrate para crear y administrar tus rifas.</p>
+        <form className={styles.form} onSubmit={onSubmit}>
+          <label className="label" htmlFor="name">Nombre</label>
+          <input id="name" className="input" placeholder="Tu nombre" value={name} onChange={(e)=>setName(e.target.value)} required />
 
-              <form onSubmit={onSubmit}>
-                <label className="label" htmlFor="name">Nombre</label>
-                <input id="name" className="input" placeholder="Tu nombre" value={name} onChange={(e)=>setName(e.target.value)} required />
+          <label className="label" htmlFor="email" style={{ marginTop:10 }}>Email</label>
+          <input id="email" className="input" type="email" placeholder="tucorreo@dominio.com" value={email} onChange={(e)=>setEmail(e.target.value)} required />
 
-                <label className="label" htmlFor="email" style={{ marginTop:10 }}>Email</label>
-                <input id="email" className="input" type="email" placeholder="tucorreo@dominio.com" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+          <label className="label" htmlFor="rut" style={{ marginTop:10 }}>RUT beneficiario</label>
+          <input id="rut" className="input" placeholder="14.182.309-4" value={formatRut(rut)} onChange={(e)=>setRut(e.target.value)} required />
+          <p className={styles.hint}>Validaremos tu cuenta con este RUT.</p>
 
-                <label className="label" htmlFor="rut" style={{ marginTop:10 }}>RUT beneficiario</label>
-                <input id="rut" className="input" placeholder="14.182.309-4" value={formatRut(rut)} onChange={(e)=>setRut(e.target.value)} required />
-                <p className={styles.hint}>Validaremos tu cuenta con este RUT.</p>
+          <label className="label" htmlFor="pass" style={{ marginTop:10 }}>Contraseña</label>
+          <input
+            id="pass" className="input" type="password"
+            placeholder="Mínimo 8, con mayúscula, número y símbolo"
+            value={pass}
+            onChange={(e)=>{ const v=e.target.value; setPass(v); setPwIssues(passwordIssues(v,email,name)); }}
+            required
+          />
+          <p className={styles.hint}>Mínimo 8 caracteres, incluye <b>una mayúscula</b>, <b>un número</b> y <b>un símbolo</b>.</p>
 
-                <label className="label" htmlFor="pass" style={{ marginTop:10 }}>Contraseña</label>
-                <input
-                  id="pass" className="input" type="password"
-                  placeholder="Mínimo 8, con mayúscula, número y símbolo"
-                  value={pass}
-                  onChange={(e)=>{ const v=e.target.value; setPass(v); setPwIssues(passwordIssues(v,email,name)); }}
-                  required
-                />
-                <p className={styles.hint}>Mínimo 8 caracteres, incluye <b>una mayúscula</b>, <b>un número</b> y <b>un símbolo</b>.</p>
+          <label className="label" htmlFor="confirm" style={{ marginTop:10 }}>Repetir contraseña</label>
+          <input id="confirm" className="input" type="password" placeholder="Repite tu contraseña" value={confirm} onChange={(e)=>setConfirm(e.target.value)} required />
 
-                <label className="label" htmlFor="confirm" style={{ marginTop:10 }}>Repetir contraseña</label>
-                <input id="confirm" className="input" type="password" placeholder="Repite tu contraseña" value={confirm} onChange={(e)=>setConfirm(e.target.value)} required />
-
-                {/* hCaptcha */}
-                <div className={styles.captchaWrap}>
-                  <div className="h-captcha" data-sitekey={sitekey} ref={captchaRef} />
-                </div>
-
-                {pwIssues.length > 0 && (
-                  <ul className={styles.pwChecklist}>
-                    <li className={/Mínimo/.test(pwIssues.join(" "))?styles.bad:styles.ok}>Mínimo 8 caracteres</li>
-                    <li className={/mayúscula/.test(pwIssues.join(" "))?styles.bad:styles.ok}>1 mayúscula</li>
-                    <li className={/número/.test(pwIssues.join(" "))?styles.bad:styles.ok}>1 número</li>
-                    <li className={/símbolo/.test(pwIssues.join(" "))?styles.bad:styles.ok}>1 símbolo</li>
-                    <li className={/secuencias|repeticiones/.test(pwIssues.join(" "))?styles.bad:styles.ok}>Sin secuencias</li>
-                  </ul>
-                )}
-
-                {err && <p className={styles.err}>{err}</p>}
-                {msg && <p className={styles.msg}>{msg}</p>}
-
-                <div className={styles.actions}>
-                  <button className={`btn ${styles.btnPrimary}`} type="submit" disabled={loading}>
-                    {loading ? 'Creando…' : 'Crear cuenta'}
-                  </button>
-                  <a className={`btn ${styles.btnSecondary}`} href="/login">Iniciar sesión</a>
-                </div>
-              </form>
-
-              <div className={styles.oauthArea}>
-                <div className={styles.hr}><span>o</span></div>
-                <GoogleButton label="Continuar con Google" className={styles.oauthBtn} />
-              </div>
-            </section>
+          {/* hCaptcha */}
+          <div className={styles.captchaWrap}>
+            <div className="h-captcha" data-sitekey={sitekey} ref={captchaRef} />
           </div>
-        </section>
-      </main>
+
+          {pwIssues.length > 0 && (
+            <ul className={styles.pwChecklist}>
+              <li className={/Mínimo/.test(pwIssues.join(" "))?styles.bad:styles.ok}>Mínimo 8 caracteres</li>
+              <li className={/mayúscula/.test(pwIssues.join(" "))?styles.bad:styles.ok}>1 mayúscula</li>
+              <li className={/número/.test(pwIssues.join(" "))?styles.bad:styles.ok}>1 número</li>
+              <li className={/símbolo/.test(pwIssues.join(" "))?styles.bad:styles.ok}>1 símbolo</li>
+              <li className={/secuencias|repeticiones/.test(pwIssues.join(" "))?styles.bad:styles.ok}>Sin secuencias</li>
+            </ul>
+          )}
+
+          {err && <p className={styles.err}>{err}</p>}
+          {msg && <p className={styles.msg}>{msg}</p>}
+
+          <div className={styles.actions}>
+            <button className={`btn ${styles.btnPrimary}`} type="submit" disabled={loading}>
+              {loading ? 'Creando…' : 'Crear cuenta'}
+            </button>
+          </div>
+        </form>
+
+        <div className={styles.oauthArea}>
+          <div className={styles.hr}><span>o</span></div>
+          <GoogleButton label="Continuar con Google" className={styles.oauthBtn} />
+        </div>
+
+        <p className={styles.footerLink}>¿Ya tienes cuenta? <a href="/login">Ingresar</a></p>
+      </AuthShell>
     </>
   );
 }
 
-Register.getLayout = (page) => <Layout>{page}</Layout>;
+Register.getLayout = (page) => <Layout noindex>{page}</Layout>;
 
 
 
