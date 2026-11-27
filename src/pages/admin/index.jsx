@@ -571,6 +571,16 @@ export default function AdminHome() {
               </div>
             </section>
 
+            {/* ---- Warp IA: solo enlace al panel privado /ia (independiente) ---- */}
+            <section style={section}>
+              <div style={{ ...sectionTitle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Warp IA</span>
+                <Link href="/ia" style={{ fontSize: 13, fontWeight: 700 }}>
+                  Warp IA →
+                </Link>
+              </div>
+            </section>
+
             {/* ---- Salud / alertas ---- */}
             <section style={section}>
               <div style={sectionTitle}>Salud / alertas</div>

@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 Disallow: /panel
 Disallow: /admin
+Disallow: /ia
 Disallow: /login
 Disallow: /register
 Disallow: /reset-password
