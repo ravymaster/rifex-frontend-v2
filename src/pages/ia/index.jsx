@@ -41,24 +41,28 @@ const VIEWS = [
     key: 'clientes',
     label: 'Clientes y sitios',
     columns: [
-      ['client_name', 'Cliente'], ['domain', 'Sitio'], ['site_status', 'Estado del sitio'], ['plan', 'Plan'],
-      ['balance', 'Saldo en Warp', 'money'], ['updated_at', 'Actualizado', 'date'],
+      ['site_name', 'Sitio'], ['site_id', 'Id del sitio'], ['estado', 'Estado', 'estado'], ['billing_enabled', 'Facturación activa', 'bool'],
+      ['balance_clp', 'Saldo', 'clp'], ['reserved_clp', 'Reservado', 'clp'], ['day_consumption_clp', 'Consumo hoy', 'clp'],
+      ['month_consumption_clp', 'Consumo del mes', 'clp'], ['daily_cap_clp', 'Tope diario', 'clp'], ['monthly_cap_clp', 'Tope mensual', 'clp'],
+      ['min_balance_clp', 'Saldo mínimo', 'clp'], ['providers', 'Medios de pago'],
     ],
   },
   {
     key: 'recargas',
     label: 'Recargas',
     columns: [
-      ['created_at', 'Fecha', 'date'], ['client_name', 'Cliente'], ['domain', 'Sitio'],
-      ['amount', 'Monto', 'money'], ['status', 'Estado'],
+      ['created_at', 'Creada', 'date'], ['site_name', 'Sitio'], ['provider', 'Proveedor', 'provider'], ['requested_amount', 'Monto pedido', 'amount'],
+      ['credit_expected_clp', 'Crédito esperado', 'clp'], ['payment_confirmed', 'Pago confirmado', 'bool'], ['confirmed_at', 'Confirmado el', 'date'],
+      ['balance_credited', 'Saldo acreditado', 'bool'], ['credited_at', 'Acreditado el', 'date'], ['provider_status', 'Estado del proveedor'],
+      ['note', 'Observación', 'note'],
     ],
   },
   {
     key: 'consumo',
     label: 'Consumo',
     columns: [
-      ['period', 'Período'], ['client_name', 'Cliente'], ['domain', 'Sitio'], ['conversations', 'Conversaciones', 'int'],
-      ['model_calls', 'Llamadas al modelo', 'int'], ['tokens', 'Tokens', 'int'], ['cost', 'Costo', 'money'], ['limit_status', 'Límite'],
+      ['site_name', 'Sitio'], ['kind', 'Tipo'], ['period', 'Período'], ['openai_cost_usd', 'Costo de OpenAI', 'usd'],
+      ['charged_clp', 'Monto descontado al cliente', 'clp'], ['wallet_billing', 'Billetera activa', 'bool'],
     ],
   },
 ];
@@ -90,7 +94,7 @@ export default function WarpIaPanel() {
         if (cancelled) return;
         if (res.status === 401 || res.status === 403) return setState({ status: 'denied', items: [], available: false });
         if (!res.ok || !json?.ok) return setState({ status: 'error', items: [], available: false });
-        setState({ status: 'ok', items: json.items || [], available: Boolean(json.available), fetchedAt: json.fetched_at });
+        setState({ status: 'ok', items: json.items || [], available: Boolean(json.available), meta: json.meta || {}, fetchedAt: json.fetched_at });
       } catch {
         if (!cancelled) setState({ status: 'error', items: [], available: false });
       }
@@ -105,7 +109,7 @@ export default function WarpIaPanel() {
         <div style={{ maxWidth: 1180, margin: '0 auto' }}>
           <h1 style={{ margin: '0 0 4px', fontSize: 26 }}>Warp IA</h1>
           <p style={{ margin: '0 0 20px', color: '#6B7280', fontSize: 14 }}>
-            Datos de operación leídos de Warp. Rifex no guarda saldos ni procesa cobros desde este panel.
+            Datos de facturación leídos de Warp DEV (solo lectura). Rifex no guarda saldos, no procesa cobros y no cambia la facturación desde este panel.
           </p>
           <nav aria-label="Vistas de Warp IA" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
             {VIEWS.map((v) => (
@@ -130,6 +134,17 @@ export default function WarpIaPanel() {
             {state.status === 'error' && <p>{NO_DISPONIBLE}: no se pudo consultar el panel.</p>}
             {state.status === 'ok' && !state.available && (
               <p data-testid="ia-no-disponible">{NO_DISPONIBLE}: Warp todavía no entrega estos datos.</p>
+            )}
+            {state.status === 'ok' && state.available && current.key === 'recargas' && (
+              <p style={{ margin: '0 0 12px', fontSize: 13 }}>
+                Pagos sin recarga asociada:{' '}
+                <strong>{typeof state.meta?.unmatched_payments === 'number' ? state.meta.unmatched_payments.toLocaleString('es-CL') : NO_DISPONIBLE}</strong>
+              </p>
+            )}
+            {state.status === 'ok' && state.available && current.key === 'consumo' && (
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#6B7280' }}>
+                El costo de OpenAI y el monto descontado al cliente se muestran por separado. Sin billetera activa, Warp solo observa el costo y el descuento queda «No disponible».
+              </p>
             )}
             {state.status === 'ok' && state.available && state.items.length === 0 && <p style={muted}>Warp no informa registros.</p>}
             {state.status === 'ok' && state.available && state.items.length > 0 && (
